@@ -3,10 +3,9 @@
 use App\Http\Controllers\Admin\Auth\LoginController;
 use Illuminate\Support\Facades\Route;
 
-        Route::get('/user/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::namespace('User\Auth')->middleware('guest')->name('user.')->group(function () {
     Route::controller('LoginController')->group(function () {
-     //   Route::get('/login', 'showLoginForm')->name('login');
+        Route::get('/login', 'showLoginForm')->name('login');
         Route::post('/login', 'login');
         Route::get('logout', 'logout')->middleware('auth')->withoutMiddleware('guest')->name('logout');
     });
