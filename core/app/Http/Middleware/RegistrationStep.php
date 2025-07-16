@@ -15,7 +15,7 @@ class RegistrationStep
      * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
      */
     public function handle(Request $request, Closure $next)
-    {        dd('test');
+    {
         $user = auth()->user();
         if (!$user->profile_complete) {
             if ($request->is('api/*')) {

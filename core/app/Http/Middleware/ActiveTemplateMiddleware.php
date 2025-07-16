@@ -28,6 +28,6 @@ class ActiveTemplateMiddleware {
         });
 
         View::addNamespace('Template',resource_path('views/templates/'.activeTemplateName()));
-       return $next($request);
+        return $next($request);
     }
 }
