@@ -1,6 +1,10 @@
 <!doctype html>
 <html lang="en" itemscope itemtype="http://schema.org/WebPage">
 
+@php
+    $v = appVersion();
+@endphp
+
 <head>
     <!-- Required meta tags -->
     <meta charset="utf-8">
@@ -16,8 +20,8 @@
     <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/flaticon.css') }}">
 
     <!-- Custom Link -->
-    <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/main.css') }}">
-    <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/custom.css') }}">
+    <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/main.css?v=' . $v) }}">
+    <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/custom.css?v=' . $v) }}">
     <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/color.php?color=' . gs('base_color')) }}">
     @stack('style-lib')
 
@@ -33,7 +37,7 @@
 
     <script src="{{ asset('assets/global/js/jquery-3.7.1.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/bootstrap.bundle.min.js') }}"></script>
-    <script src="{{ asset($activeTemplateTrue . 'js/main.js') }}"></script>
+    <script src="{{ asset($activeTemplateTrue . 'js/main.js?v=' . $v) }}"></script>
 
     @stack('script-lib')
 

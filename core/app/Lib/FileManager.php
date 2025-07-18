@@ -131,7 +131,7 @@ class FileManager
         //resize the
 	    if ($this->size) {
 	        $size = explode('x', strtolower($this->size));
-	        $image->resize($size[0], $size[1]);
+	     //   $image->resize($size[0], $size[1]);
 	    }
         //save the image
 	    $image->save($this->path . '/' . $this->filename);

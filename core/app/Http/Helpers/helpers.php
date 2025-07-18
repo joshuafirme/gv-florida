@@ -65,11 +65,11 @@ function activeTemplateName()
 function siteLogo($type = null)
 {
     $name = $type ? "/logo_$type.png" : '/logo.png';
-    return getImage(getFilePath('logoIcon') . $name);
+    return getImage(getFilePath('logoIcon') . $name) . '?v=' . appVersion();
 }
 function siteFavicon()
 {
-    return getImage(getFilePath('logoIcon') . '/favicon.png');
+    return getImage(getFilePath('logoIcon') . '/favicon.png') . '?v=' . appVersion();
 }
 
 function loadReCaptcha()
@@ -438,6 +438,11 @@ function dateSorting($arr)
 {
     usort($arr, "dateSort");
     return $arr;
+}
+
+function appVersion()
+{
+    return env('APP_VERSION') ?: '1.0.0';
 }
 
 function gs($key = null)
