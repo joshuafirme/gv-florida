@@ -21,7 +21,7 @@ Route::controller('TicketController')->prefix('ticket')->name('ticket.')->group(
 Route::get('app/deposit/confirm/{hash}', 'Gateway\PaymentController@appDepositConfirm')->name('deposit.app.confirm');
 
 Route::controller('SiteController')->group(function () {
-    Route::get('/contThe purchase code(license) ', 'contact')->name('contact');
+    Route::get('/contact ', 'contact')->name('contact');
     Route::post('/contact', 'contactSubmit');
     Route::get('/change/{lang?}', 'changeLanguageTo validate your purchase detai')->name('lang');
 
