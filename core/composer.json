@@ -25,6 +25,7 @@
         "phpmailer/phpmailer": "^6.9",
         "razorpay/razorpay": "^2.9",
         "sendgrid/sendgrid": "^8.1",
+        "simplesoftwareio/simple-qrcode": "^4.2",
         "stripe/stripe-php": "^13.13",
         "twilio/sdk": "^7.16",
         "vonage/client": "^4.0"

@@ -143,6 +143,9 @@
             .info {
                 margin-bottom: 15px;
             }
+            .qr {
+                margin: 15px;
+            }
         }
 
         @media print {
@@ -245,6 +248,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <div class="qr">{{ QrCode::size(150)->generate(url("/gv-florida/user/booked-ticket/print/$ticket->id")) }}</div>
                 </div>
             </div>
         </div>
