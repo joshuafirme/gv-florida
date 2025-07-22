@@ -40,17 +40,19 @@ class AdminUserController extends Controller
 
     public function update(Request $request, $id)
     {
-        $data = $request->except(['_token', 'verified']);
+        $user = Admin::find($id);
+        $user->name = $request->name;
+        $user->username = $request->username;
+        $user->email = $request->email;
+        $user->role_id = $request->role_id;
 
-        if ($request->password && !empty($request->password)) {
-            $data['password'] = Hash::make($request->password);
+        if ($request->password) {
+            $user->password = Hash::make($request->password);
         } else {
             unset($data['password']);
         }
 
-        $user = Admin::find($id);
-
-        if ($user->update($data)) {
+        if ($user->save()) {
             $notify[] = ['success', 'User was updated.'];
             return back()->withNotify($notify);
         }
