@@ -36,7 +36,12 @@
                             <div class="sidebar-submenu {{ menuActive(@$data->menu_active, 2) }} ">
                                 <ul>
                                     @foreach ($data->submenu as $menu)
-                                        @if (in_array($menu->route_name, $permissions))
+                                        @php
+                                            $_menu_active = is_array($menu->menu_active)
+                                                ? $menu->menu_active[0]
+                                                : $menu->menu_active;
+                                        @endphp
+                                        @if (in_array($_menu_active, $permissions))
                                             @php
                                                 $submenuParams = null;
                                                 if (@$menu->params) {
@@ -49,7 +54,7 @@
                                                 <a href="{{ route(@$menu->route_name, $submenuParams) }}"
                                                     class="nav-link">
                                                     <i class="menu-icon las la-dot-circle"></i>
-                                                    <span class="menu-title">{{ __($menu->title) }}</span>
+                                                    <span class="menu-title">{{ $menu->title }} </span>
                                                     @php $counter = @$menu->counter; @endphp
                                                     @if (@$$counter)
                                                         <span
