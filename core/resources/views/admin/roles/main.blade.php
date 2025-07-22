@@ -215,7 +215,7 @@
                     for (let el of parent_checkboxes) {
                         let parent_module = $(`input[id="chkbx-all-${el}"]`);
                         console.log(parent_module.val())
-                        if (parent_module && !parent_module.val().includes('*')) {
+                        if (parent_module && permissions.includes(parent_module.val().replace('.*', ''))) {
                             parent_module.prop('checked', true);
                         }
                         $(`input[class="parent-identy-${el}"]`).each(function() {
