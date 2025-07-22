@@ -36,7 +36,7 @@
                             <div class="sidebar-submenu {{ menuActive(@$data->menu_active, 2) }} ">
                                 <ul>
                                     @foreach ($data->submenu as $menu)
-                                        @if (in_array($menu->menu_active, $permissions))
+                                        @if (in_array($menu->route_name, $permissions))
                                             @php
                                                 $submenuParams = null;
                                                 if (@$menu->params) {

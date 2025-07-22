@@ -29,7 +29,12 @@ Route::
 
 Route::middleware('admin')->group(function () {
     Route::controller('AdminController')->group(function () {
-        Route::get('dashboard', 'dashboard')->name('dashboard');
+        Route::get('unauthorize', function () {
+            $pageTitle = "Unauthorize";
+            return view('admin.auth.unauthorize', compact('pageTitle'));
+        })->name('unauthorize');
+
+        Route::get('dashboard', 'dashboard')->name('dashboard')->middleware(['role:admin.dashboard']);
         Route::get('payment-chart', 'paymentReport')->name('payment.chart');
         Route::get('profile', 'profile')->name('profile');
         Route::post('profile', 'profileUpdate')->name('profile.update');

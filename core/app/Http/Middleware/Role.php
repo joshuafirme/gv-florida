@@ -15,11 +15,8 @@ class Role
      */
     public function handle(Request $request, Closure $next, string $role): Response
     {
-    if (!$request->auth('admin')->user()->isPermitted($role)) {
-            if ($this->isView($role)) {
-                return redirect("/unauthorize?page=$role");
-            }
-            return redirect()->back()->with("danger", "You are not authorize to do <b>" . $role . "</b> function.");
+        if (!$request->user('admin')->isPermitted($role)) {
+                return redirect("/admin/unauthorize?page=$role");
         }
 
         return $next($request);
