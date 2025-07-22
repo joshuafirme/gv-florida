@@ -61,6 +61,7 @@ class AppServiceProvider extends ServiceProvider
                 'pendingDepositsCount'    => Deposit::pending()->count(),
                 'PendingVehicleTicket' => BookedTicket::where('status',  2)->count(),
                 'updateAvailable'    => version_compare(gs('available_version'),systemDetails()['version'],'>') ? 'v'.gs('available_version') : false,
+                'permissions' => json_decode(auth('admin')->user()->permissions->permissions)
             ]);
         });
 

@@ -18,7 +18,10 @@ class User extends Authenticatable
      * @var array
      */
     protected $hidden = [
-        'password', 'remember_token', 'ver_code', 'balance'
+        'password',
+        'remember_token',
+        'ver_code',
+        'balance'
     ];
 
     /**
@@ -55,14 +58,14 @@ class User extends Authenticatable
     public function fullname(): Attribute
     {
         return new Attribute(
-            get: fn () => $this->firstname . ' ' . $this->lastname,
+            get: fn() => $this->firstname . ' ' . $this->lastname,
         );
     }
 
     public function mobileNumber(): Attribute
     {
         return new Attribute(
-            get: fn () => $this->dial_code . $this->mobile,
+            get: fn() => $this->dial_code . $this->mobile,
         );
     }
 
@@ -100,5 +103,41 @@ class User extends Authenticatable
     public function deviceTokens()
     {
         return $this->hasMany(DeviceToken::class);
+    }
+
+    public function permissions()
+    {
+        return $this->hasOne(UserRole::class, 'id', 'role_id');
+    }
+
+    public function isPermitted($page = null)
+    {
+        $is_permitted = false;
+
+        if (!$page) {
+            $page = request()->module;
+        }
+
+        if (auth()->check()) {
+
+            $permissions = UserRole::permissions();
+
+            if (in_array($page, $permissions)) {
+                $is_permitted = true;
+            }
+        }
+
+        $current_path = request()->path();
+
+        $accessible_paths = [];
+
+        foreach ($accessible_paths as $path) {
+            if (str_contains($current_path, $path)) {
+                $is_permitted = true;
+                break;
+            }
+        }
+
+        return $is_permitted;
     }
 }
