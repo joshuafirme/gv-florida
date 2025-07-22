@@ -204,6 +204,8 @@
                     let permissions = data.permissions ? JSON.parse(data.permissions) : [];
 
                     console.log(permissions)
+                    
+                    $('*[id^="chkbx-"]').prop('checked', false);
                     for (let i = 0; i < permissions.length; i++) {
                         $(`input[id='chkbx-${permissions[i]}']`).prop('checked', true);
                     }
