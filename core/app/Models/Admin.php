@@ -28,6 +28,7 @@ class Admin extends Authenticatable
         return $this->hasOne(UserRole::class, 'id', 'role_id');
     }
 
+
     public function isPermitted($page = null)
     {
         $is_permitted = false;
@@ -36,10 +37,9 @@ class Admin extends Authenticatable
             $page = request()->module;
         }
 
-        if (auth()->check()) {
+        if (request()->user('admin')) {
 
-            $permissions = UserRole::permissions();
-
+            $permissions = UserRole::permissions('admin');
             if (in_array($page, $permissions)) {
                 $is_permitted = true;
             }

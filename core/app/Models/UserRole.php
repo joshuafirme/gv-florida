@@ -18,8 +18,8 @@ class UserRole extends Model
     ];
 
     
-    public static function permissions() {
-        $role_id = isset(Auth::user()->role_id) ? Auth::user()->role_id : '';
+    public static function permissions($guard) {
+        $role_id = isset(auth($guard)->user()->role_id) ? auth($guard)->user()->role_id : '';
         $permissions = self::where('id', $role_id)->value('permissions');
         return $permissions ? json_decode($permissions) : [];
     } 

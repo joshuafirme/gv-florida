@@ -110,34 +110,4 @@ class User extends Authenticatable
         return $this->hasOne(UserRole::class, 'id', 'role_id');
     }
 
-    public function isPermitted($page = null)
-    {
-        $is_permitted = false;
-
-        if (!$page) {
-            $page = request()->module;
-        }
-
-        if (auth()->check()) {
-
-            $permissions = UserRole::permissions();
-
-            if (in_array($page, $permissions)) {
-                $is_permitted = true;
-            }
-        }
-
-        $current_path = request()->path();
-
-        $accessible_paths = [];
-
-        foreach ($accessible_paths as $path) {
-            if (str_contains($current_path, $path)) {
-                $is_permitted = true;
-                break;
-            }
-        }
-
-        return $is_permitted;
-    }
 }
