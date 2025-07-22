@@ -34,6 +34,7 @@ class RoleController extends Controller
 
     public function update(Request $request, $id)
     {
+        $data = $request->except(['_token']);
         $data['permissions'] = json_encode($request->permissions);
         UserRole::where('id', $id)->update($data);
         $notify[] = ['success', 'Role was updated.'];
