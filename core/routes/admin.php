@@ -3,28 +3,29 @@
 use Illuminate\Support\Facades\Route;
 
 
-Route::namespace('Auth')->group(function () {
-    Route::middleware('admin.guest')->group(function () {
-        Route::controller('LoginController')->group(function () {
-            Route::get('/', 'showLoginForm')->name('login');
-            Route::post('/', 'login')->name('login');
-            Route::get('logout', 'logout')->middleware('admin')->withoutMiddleware('admin.guest')->name('logout');
-        });
+Route::
+        namespace('Auth')->group(function () {
+            Route::middleware('admin.guest')->group(function () {
+                Route::controller('LoginController')->group(function () {
+                    Route::get('/', 'showLoginForm')->name('login');
+                    Route::post('/', 'login')->name('login');
+                    Route::get('logout', 'logout')->middleware('admin')->withoutMiddleware('admin.guest')->name('logout');
+                });
 
-        // Admin Password Reset
-        Route::controller('ForgotPasswordController')->prefix('password')->name('password.')->group(function () {
-            Route::get('reset', 'showLinkRequestForm')->name('reset');
-            Route::post('reset', 'sendResetCodeEmail');
-            Route::get('code-verify', 'codeVerify')->name('code.verify');
-            Route::post('verify-code', 'verifyCode')->name('verify.code');
-        });
+                // Admin Password Reset
+                Route::controller('ForgotPasswordController')->prefix('password')->name('password.')->group(function () {
+                    Route::get('reset', 'showLinkRequestForm')->name('reset');
+                    Route::post('reset', 'sendResetCodeEmail');
+                    Route::get('code-verify', 'codeVerify')->name('code.verify');
+                    Route::post('verify-code', 'verifyCode')->name('verify.code');
+                });
 
-        Route::controller('ResetPasswordController')->group(function () {
-            Route::get('password/reset/{token}', 'showResetForm')->name('password.reset.form');
-            Route::post('password/reset/change', 'reset')->name('password.change');
+                Route::controller('ResetPasswordController')->group(function () {
+                    Route::get('password/reset/{token}', 'showResetForm')->name('password.reset.form');
+                    Route::post('password/reset/change', 'reset')->name('password.change');
+                });
+            });
         });
-    });
-});
 
 Route::middleware('admin')->group(function () {
     Route::controller('AdminController')->group(function () {
@@ -49,13 +50,25 @@ Route::middleware('admin')->group(function () {
         Route::get('download-attachments/{file_hash}', 'downloadAttachment')->name('download.attachment');
     });
 
-    //manage counter
+    Route::controller('AdminUserController')->prefix('admin')->group(function () {
+        Route::get('users', 'index')->name('users');
+        Route::post('users', 'store')->name('users.store');
+        Route::post('users/{id}', 'update')->name('users.update');
+        Route::post('users/remove/{id}', 'remove')->name('users.remove');
+    });
+
+    Route::controller('RoleController')->group(function () {
+        Route::get('roles', 'index')->name('roles');
+        Route::post('roles', 'store')->name('roles.store');
+        Route::post('roles/{id}', 'update')->name('roles.update');
+        Route::post('roles/remove/{id}', 'remove')->name('roles.remove');
+    });
+
     Route::controller('CounterController')->name('counter.')->prefix('counter')->group(function () {
         Route::get('', 'counters')->name('index');
         Route::post('/{id?}', 'counterStore')->name('store');
         Route::post('status/{id}', 'status')->name('status');
     });
-
 
     Route::controller('ManageFleetController')->name('fleet.')->prefix('fleet')->group(function () {
 
@@ -79,7 +92,7 @@ Route::middleware('admin')->group(function () {
     });
 
     Route::controller('ManageTripController')->prefix('manage')->name('trip.')->group(function () {
-        Route::prefix('trip')->group(function(){
+        Route::prefix('trip')->group(function () {
             Route::get('/', 'trips')->name('list');
             Route::post('/store/{id?}', 'tripStore')->name('store');
             Route::post('status/{id}', 'tripStatus')->name('status');
@@ -100,12 +113,12 @@ Route::middleware('admin')->group(function () {
             Route::post('status/{id}', 'scheduleStatus')->name('status');
         });
 
-        Route::prefix('assigned-vehicle')->name('vehicle.assign.')->group(function(){
+        Route::prefix('assigned-vehicle')->name('vehicle.assign.')->group(function () {
             Route::get('/', 'assignedVehicleLists')->name('index');
             Route::post('store/{id?}', 'assignVehicle')->name('store');
             Route::post('status/{id}', 'assignedVehicleStatus')->name('status');
 
-       });
+        });
     });
 
 
@@ -125,7 +138,7 @@ Route::middleware('admin')->group(function () {
         Route::get('route-data', 'getRouteData')->name('get_route_data');
     });
 
-    Route::controller('VehicleTicketController')->prefix('tickets')->name('vehicle.ticket.')->group(function(){
+    Route::controller('VehicleTicketController')->prefix('tickets')->name('vehicle.ticket.')->group(function () {
         Route::get('booked', 'booked')->name('booked');
         Route::get('pending', 'pending')->name('pending');
         Route::get('rejected', 'rejected')->name('rejected');

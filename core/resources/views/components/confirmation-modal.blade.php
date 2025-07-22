@@ -22,17 +22,21 @@
 </div>
 
 @push('script')
+    <script>
+        (function($) {
+            "use strict";
+            $(document).on('click', '.confirmationBtn', function() {
+                var modal = $('#confirmationModal');
+                let data = $(this).data();
+                modal.find('.question').text(`${data.question}`);
+                modal.find('form').attr('action', `${data.action}`);
 
-<script>
-    (function ($) {
-        "use strict";
-        $(document).on('click','.confirmationBtn', function () {
-            var modal   = $('#confirmationModal');
-            let data    = $(this).data();
-            modal.find('.question').text(`${data.question}`);
-            modal.find('form').attr('action', `${data.action}`);
-            modal.modal('show');
-        });
-    })(jQuery);
-</script>
+                // if (data && data.method == 'delete' || data.method == 'destroy') {
+                //     modal.find('form').attr('action', data.action.replace('/admin/admin/', '/admin/'));
+                //     modal.find('form').attr('method', `DELETE`);
+                // }
+                modal.modal('show');
+            });
+        })(jQuery);
+    </script>
 @endpush

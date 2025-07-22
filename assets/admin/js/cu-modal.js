@@ -64,7 +64,10 @@ $(document).on("click", ".cuModalBtn", function () {
             }
 
             if (fieldName != "_token" && resource[fieldName]) {
-
+                
+                if (element.name == 'permissions[]') {
+                    return
+                }
                 if (element.tagName == "TEXTAREA") {
                     if ($(element).hasClass("nicEdit")) {
                         $(".nicEdit-main").html(resource[fieldName]);

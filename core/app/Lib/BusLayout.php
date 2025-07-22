@@ -32,8 +32,8 @@ class BusLayout
         ';
         if ($deckNumber == 0){
             $html .= '
-                <span class="lower">Door</span>
                 <span class="driver"><img src="'.getImage('assets/templates/basic/images/icon/wheel.svg').'" alt="icon"></span>
+                <span class="lower">Door</span>
             ';
         }else{
             $html .= '<span class="driver">Deck :  '.($deckNumber+1) .'</span>';

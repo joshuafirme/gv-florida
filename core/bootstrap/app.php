@@ -66,6 +66,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             'admin' => RedirectIfNotAdmin::class,
             'admin.guest' => RedirectIfAdmin::class,
+            'role' => \App\Http\Middleware\Role::class,
 
             'check.status' => CheckStatus::class,
             'demo' => Demo::class,

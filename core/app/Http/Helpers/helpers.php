@@ -31,7 +31,8 @@ function slug($string)
 
 function verificationCode($length)
 {
-    if ($length == 0) return 0;
+    if ($length == 0)
+        return 0;
     $min = pow(10, $length - 1);
     $max = (int) ($min - 1) . '9';
     return random_int($min, $max);
@@ -52,7 +53,8 @@ function getNumber($length = 8)
 function activeTemplate($asset = false)
 {
     $template = session('template') ?? gs('active_template');
-    if ($asset) return 'assets/templates/' . $template . '/';
+    if ($asset)
+        return 'assets/templates/' . $template . '/';
     return 'templates.' . $template . '.';
 }
 
@@ -244,6 +246,23 @@ function notify($user, $templateName, $shortCodes = null, $sendVia = null, $crea
 }
 
 
+function decodeSlug($str, $delimiter = '_', $uppercase = false)
+{
+    if (!$str) {
+        return;
+    }
+    $expd_str = explode($delimiter, $str);
+    $output = '';
+    foreach ($expd_str as $key => $v) {
+        $v = $key == 0 ? ucfirst($v) : $v;
+        $output .= $v . ' ';
+    }
+
+    $output = $uppercase ? strtoupper($output) : $output;
+
+    return $output;
+}
+
 
 function getPaginate($paginate = null)
 {
@@ -261,19 +280,25 @@ function paginateLinks($data)
 
 function menuActive($routeName, $type = null, $param = null)
 {
-    if ($type == 3) $class = 'side-menu--open';
-    elseif ($type == 2) $class = 'sidebar-submenu__open';
-    else $class = 'active';
+    if ($type == 3)
+        $class = 'side-menu--open';
+    elseif ($type == 2)
+        $class = 'sidebar-submenu__open';
+    else
+        $class = 'active';
 
     if (is_array($routeName)) {
         foreach ($routeName as $key => $value) {
-            if (request()->routeIs($value)) return $class;
+            if (request()->routeIs($value))
+                return $class;
         }
     } elseif (request()->routeIs($routeName)) {
         if ($param) {
             $routeParam = array_values(@request()->route()->parameters ?? []);
-            if (strtolower(@$routeParam[0]) == strtolower($param)) return $class;
-            else return;
+            if (strtolower(@$routeParam[0]) == strtolower($param))
+                return $class;
+            else
+                return;
         }
         return $class;
     }
@@ -452,7 +477,8 @@ function gs($key = null)
         $general = GeneralSetting::first();
         Cache::put('GeneralSetting', $general);
     }
-    if ($key) return @$general->$key;
+    if ($key)
+        return @$general->$key;
     return $general;
 }
 function isImage($string)
@@ -479,7 +505,7 @@ function isHtml($string)
 function convertToReadableSize($size)
 {
     preg_match('/^(\d+)([KMG])$/', $size, $matches);
-    $size = (int)$matches[1];
+    $size = (int) $matches[1];
     $unit = $matches[2];
 
     if ($unit == 'G') {

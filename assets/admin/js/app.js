@@ -128,7 +128,7 @@ Array.from(document.querySelectorAll('table')).forEach(table => {
     let columArray = Array.from(row.querySelectorAll('td'));
     if (columArray.length <= 1) return;
     columArray.forEach((colum, i) => {
-      colum.setAttribute('data-label', heading[i].innerText)
+    //  colum.setAttribute('data-label', heading[i].innerText)
     });
   });
 });

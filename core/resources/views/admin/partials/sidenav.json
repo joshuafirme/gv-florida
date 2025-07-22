@@ -408,7 +408,7 @@
             "Counter",
             "Manage counter"
         ],
-        "header":"Transport Manager",
+        "header": "Transport Manager",
         "title": "Counter",
         "icon": "las la-warehouse",
         "route_name": "admin.counter.index",
@@ -486,7 +486,11 @@
                 ],
                 "title": "Ticket Price",
                 "route_name": "admin.trip.ticket.price.index",
-                "menu_active": ["admin.trip.ticket.price.index", "admin.trip.ticket.price.create", "admin.trip.ticket.price.edit"]
+                "menu_active": [
+                    "admin.trip.ticket.price.index",
+                    "admin.trip.ticket.price.create",
+                    "admin.trip.ticket.price.edit"
+                ]
             },
             {
                 "keyword": [
@@ -508,6 +512,19 @@
             }
         ]
     },
+    "administration": {
+        "title": "Users",
+        "icon": "las la-user-tie",
+        "header": "Administration",
+        "menu_active": "admin.users",
+        "route_name": "admin.users"
+    },
+    "roles": {
+        "title": "Roles",
+        "icon": "las la-pager",
+        "menu_active": "admin.roles",
+        "route_name": "admin.roles"
+    },
     "system_setting": {
         "keyword": [
             "System Setting",
@@ -517,7 +534,7 @@
             "Configuration management",
             "System setup"
         ],
-        "header":"Settings",
+        "header": "Settings",
         "title": "System Setting",
         "icon": "las la-life-ring",
         "route_name": "admin.setting.system",
@@ -553,7 +570,7 @@
         ]
     },
     "extra": {
-        "header":"Extra",
+        "header": "Extra",
         "title": "Extra",
         "icon": "la la-server",
         "menu_active": "admin.system*",
