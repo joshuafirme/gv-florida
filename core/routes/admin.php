@@ -34,13 +34,12 @@ Route::middleware('admin')->group(function () {
             return view('admin.auth.unauthorize', compact('pageTitle'));
         })->name('unauthorize');
 
-        Route::get('dashboard', 'dashboard')->name('dashboard')->middleware(['role:admin.dashboard']);
+        Route::get('dashboard', 'dashboard')->name('dashboard');
         Route::get('payment-chart', 'paymentReport')->name('payment.chart');
         Route::get('profile', 'profile')->name('profile');
         Route::post('profile', 'profileUpdate')->name('profile.update');
         Route::get('password', 'password')->name('password');
         Route::post('password', 'passwordUpdate')->name('password.update');
-
         //Notification
         Route::get('notifications', 'notifications')->name('notifications');
         Route::get('notification/read/{id}', 'notificationRead')->name('notification.read');
