@@ -103,6 +103,13 @@ class FrontendController extends Controller
                 $validationRule['image_input'] = ['nullable', 'image', new FileTypeValidate(['jpeg', 'jpg', 'png'])];
                 continue;
             }
+            
+            if ($key == 'gallery') {
+                $validationRule['description'] = ['nullable'];
+                $validationRule['title'] = ['nullable'];
+                continue;
+            }
+
             $validationRule[$inputField] = ['required'];
             if ($inputField == 'slug') {
                 $validationRule[$inputField] = [Rule::unique('frontends')->where(function ($query) use ($request) {

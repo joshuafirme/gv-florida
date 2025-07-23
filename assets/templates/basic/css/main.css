@@ -4762,7 +4762,7 @@ i {
     width: 50px;
     height: 40px;
     position: absolute;
-    right: 20px;
+    left: 20px;
     top: 20px;
     color: #777;
     font-weight: 600;
@@ -6208,4 +6208,42 @@ label.required:after {
 
 .pagination .page-item.disabled .page-link:hover {
     background: #fff !important;
+}
+
+.image-info {
+    padding: 20px;
+}
+
+.gallery-item {
+    overflow: hidden;
+    position: relative;
+    border-radius: 10px;
+}
+
+.gallery-item img {
+    transition: transform 0.3s ease;
+    width: 100%;
+    height: 300px;
+    object-fit: cover;
+    cursor: pointer;
+}
+
+.gallery-item:hover img {
+    transform: scale(1.1);
+}
+
+.gallery-item .caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    padding: 10px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.gallery-item:hover .caption {
+    opacity: 1;
 }
