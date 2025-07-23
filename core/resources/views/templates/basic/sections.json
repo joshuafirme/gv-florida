@@ -92,6 +92,25 @@
             "modal": true
         }
     },
+    "gallery": {
+        "builder": true,
+        "no_selection": false,
+        "name": "Gallery",
+        "content": {
+            "sub_heading": "text"
+        },
+        "element": {
+            "images": {
+                "image": {
+                    "image": "file",
+                    "size": "1024x768"
+                }
+            },
+            "title": "text",
+            "description": "textarea",
+            "modal": true
+        }
+    },
     "blog": {
         "builder": true,
         "name": "Blog Section",
@@ -189,9 +208,9 @@
             "signup_heading": "text",
             "signin_heading": "text",
             "user_data_heading": "text",
-            "verify_email_heading":"text",
-            "verify_phone_heading":"text",
-            "reset_password_heading":"text"
+            "verify_email_heading": "text",
+            "verify_phone_heading": "text",
+            "reset_password_heading": "text"
         }
     }
 }

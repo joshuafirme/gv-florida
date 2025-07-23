@@ -8303,3 +8303,7 @@ label.required:after {
 .dropdown-menu__body::-webkit-scrollbar-thumb {
   background-color: rgb(7 18 81 / 40%);
 }
+
+.img-gallery img {
+  width: 200px !important;
+}
