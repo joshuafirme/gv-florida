@@ -26,7 +26,7 @@ function systemDetails()
 
 function generateTicketQR($id, $size = 150)
 {
-    return QrCode::size($size)->generate(url("/gv-florida/user/booked-ticket/print/$id"));
+    return QrCode::size($size)->generate(url("/user/booked-ticket/print/$id"));
 }
 
 function slug($string)
