@@ -248,7 +248,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="qr">{{ QrCode::size(150)->generate(url("/gv-florida/user/booked-ticket/print/$ticket->id")) }}</div>
+                    <div class="qr">{{ generateTicketQR($ticket->id) }}</div>
                 </div>
             </div>
         </div>

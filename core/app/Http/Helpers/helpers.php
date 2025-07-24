@@ -24,6 +24,11 @@ function systemDetails()
     return $system;
 }
 
+function generateTicketQR($id, $size = 150)
+{
+    return QrCode::size($size)->generate(url("/gv-florida/user/booked-ticket/print/$id"));
+}
+
 function slug($string)
 {
     return Str::slug($string);
