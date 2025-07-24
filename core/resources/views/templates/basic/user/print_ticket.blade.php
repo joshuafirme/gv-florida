@@ -248,7 +248,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="qr">{{ generateTicketQR($ticket->id) }}</div>
+                    <div class="qr">{{ generateTicketQR($ticket->pnr_number) }}</div>
                 </div>
             </div>
         </div>

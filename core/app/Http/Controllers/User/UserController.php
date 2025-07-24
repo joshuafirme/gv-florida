@@ -25,8 +25,8 @@ class UserController extends Controller
         $widget['pending'] = BookedTicket::pending()->where('user_id', auth()->user()->id)->count();
         $widget['rejected'] = BookedTicket::rejected()->where('user_id', auth()->user()->id)->count();
         $bookedTickets = BookedTicket::with(['trip.fleetType', 'trip.startFrom', 'trip.endTo', 'trip.schedule', 'pickup', 'drop'])
-                        ->where('user_id', auth()->user()->id)->orderBy('id', 'desc')
-                        ->paginate(getPaginate());
+            ->where('user_id', auth()->user()->id)->orderBy('id', 'desc')
+            ->paginate(getPaginate());
         return view('Template::user.dashboard', compact('pageTitle', 'bookedTickets', 'widget'));
     }
 
@@ -104,10 +104,10 @@ class UserController extends Controller
             return to_route('user.home');
         }
 
-        $pageTitle  = 'User Data';
-        $info       = json_decode(json_encode(getIpInfo()), true);
+        $pageTitle = 'User Data';
+        $info = json_decode(json_encode(getIpInfo()), true);
         $mobileCode = @implode(',', $info['code']);
-        $countries  = json_decode(file_get_contents(resource_path('views/partials/country.json')));
+        $countries = json_decode(file_get_contents(resource_path('views/partials/country.json')));
 
         return view('Template::user.user_data', compact('pageTitle', 'user', 'countries', 'mobileCode'));
     }
@@ -121,17 +121,17 @@ class UserController extends Controller
             return to_route('user.home');
         }
 
-        $countryData  = (array)json_decode(file_get_contents(resource_path('views/partials/country.json')));
+        $countryData = (array) json_decode(file_get_contents(resource_path('views/partials/country.json')));
         $countryCodes = implode(',', array_keys($countryData));
-        $mobileCodes  = implode(',', array_column($countryData, 'dial_code'));
-        $countries    = implode(',', array_column($countryData, 'country'));
+        $mobileCodes = implode(',', array_column($countryData, 'dial_code'));
+        $countries = implode(',', array_column($countryData, 'country'));
 
         $request->validate([
             'country_code' => 'required|in:' . $countryCodes,
-            'country'      => 'required|in:' . $countries,
-            'mobile_code'  => 'required|in:' . $mobileCodes,
-            'username'     => 'required|unique:users|min:6',
-            'mobile'       => ['required', 'regex:/^([0-9]*)$/', Rule::unique('users')->where('dial_code', $request->mobile_code)],
+            'country' => 'required|in:' . $countries,
+            'mobile_code' => 'required|in:' . $mobileCodes,
+            'username' => 'required|unique:users|min:6',
+            'mobile' => ['required', 'regex:/^([0-9]*)$/', Rule::unique('users')->where('dial_code', $request->mobile_code)],
         ]);
 
 
@@ -142,8 +142,8 @@ class UserController extends Controller
         }
 
         $user->country_code = $request->country_code;
-        $user->mobile       = $request->mobile;
-        $user->username     = $request->username;
+        $user->mobile = $request->mobile;
+        $user->username = $request->username;
 
 
         $user->address = $request->address;
@@ -177,10 +177,10 @@ class UserController extends Controller
             return ['success' => true, 'message' => 'Already exists'];
         }
 
-        $deviceToken          = new DeviceToken();
+        $deviceToken = new DeviceToken();
         $deviceToken->user_id = auth()->user()->id;
-        $deviceToken->token   = $request->token;
-        $deviceToken->is_app  = Status::NO;
+        $deviceToken->token = $request->token;
+        $deviceToken->is_app = Status::NO;
         $deviceToken->save();
 
         return ['success' => true, 'message' => 'Token saved successfully'];
@@ -202,16 +202,27 @@ class UserController extends Controller
         return readfile($filePath);
     }
 
-    public function ticketHistory(){
+    public function ticketHistory(Request $request)
+    {
         $pageTitle = 'Booking History';
         $emptyMessage = 'No booked ticket found';
-        $bookedTickets = BookedTicket::with(['trip.fleetType','trip.startFrom', 'trip.endTo', 'trip.schedule' ,'pickup', 'drop'])->where('user_id', auth()->user()->id)->orderBy('id', 'desc')->paginate(getPaginate());
-        return view('Template::user.booking_history', compact('pageTitle', 'emptyMessage','bookedTickets'));
+
+        $query = BookedTicket::with(['trip.fleetType', 'trip.startFrom', 'trip.endTo', 'trip.schedule', 'pickup', 'drop'])
+            ->where('user_id', auth()->user()->id)
+            ->orderBy('id', 'desc');
+
+        if ($request->search) {
+            $query->where('pnr_number', $request->search);
+        }
+        $bookedTickets = $query->paginate(getPaginate());
+
+        return view('Template::user.booking_history', compact('pageTitle', 'emptyMessage', 'bookedTickets'));
     }
 
-    public function printTicket($id){
+    public function printTicket($id)
+    {
         $pageTitle = "Ticket Print";
-        $ticket = BookedTicket::with(['trip.fleetType','trip.startFrom', 'trip.endTo', 'trip.schedule', 'trip.assignedVehicle.vehicle' ,'pickup', 'drop', 'user'])->where('user_id', auth()->user()->id)->findOrFail($id);
+        $ticket = BookedTicket::with(['trip.fleetType', 'trip.startFrom', 'trip.endTo', 'trip.schedule', 'trip.assignedVehicle.vehicle', 'pickup', 'drop', 'user'])->where('user_id', auth()->user()->id)->findOrFail($id);
         return view('Template::user.print_ticket', compact('ticket', 'pageTitle'));
     }
 }

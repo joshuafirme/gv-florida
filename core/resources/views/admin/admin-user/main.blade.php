@@ -111,7 +111,7 @@
 @endpush
 
 @push('script-lib')
-    <script src="{{ asset('assets/admin/js/cu-modal.js?v=' . env('APP_VERSION')) }}"></script>
+    <script src="{{ asset('assets/admin/js/cu-modal.js?v=' . buildVer()) }}"></script>
 @endpush
 
 @push('script')

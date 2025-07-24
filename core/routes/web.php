@@ -39,6 +39,7 @@ Route::controller('SiteController')->group(function () {
     Route::get('/tickets', 'ticket')->name('ticket');
     Route::get('/ticket/{id}/{slug}', 'showSeat')->name('ticket.seats');
     Route::get('/ticket/get-price', 'getTicketPrice')->name('ticket.get-price');
+    Route::get('/ticket/validate', 'getTicketPrice')->name('ticket.get-price');
     Route::post('/ticket/book/{id}', 'bookTicket')->name('ticket.book');
     Route::get('ticket/search', 'ticketSearch')->name('search');
     Route::get('/{slug}', 'pages')->name('pages');

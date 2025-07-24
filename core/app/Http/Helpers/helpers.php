@@ -18,15 +18,24 @@ use Laramin\Utility\VugiChugi;
 
 function systemDetails()
 {
-    $system['name'] = 'viserbus';
+    $system['name'] = 'GV Florida';
     $system['version'] = '2.0';
     $system['build_version'] = '5.0.9';
     return $system;
 }
 
-function generateTicketQR($id, $size = 150)
+function buildVer()
 {
-    return QrCode::size($size)->generate(url("/user/booked-ticket/print/$id"));
+    return systemDetails()['build_version'];
+}
+
+function generateTicketQR($pnr_number, $size = 150)
+{
+    if (auth('admin')->user()) {
+        return QrCode::size($size)->generate(route('admin.vehicle.ticket.search', ['scope' => 'list', 'search' => $pnr_number]));
+
+    }
+    return QrCode::size($size)->generate(route('user.ticket.history', ['search' => $pnr_number]));
 }
 
 function slug($string)
@@ -472,7 +481,7 @@ function dateSorting($arr)
 
 function appVersion()
 {
-    return env('APP_VERSION') ?: '1.0.0';
+    return buildVer() ?: '1.0.0';
 }
 
 function gs($key = null)
