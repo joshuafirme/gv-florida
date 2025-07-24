@@ -31,11 +31,7 @@ function buildVer()
 
 function generateTicketQR($pnr_number, $size = 150)
 {
-    if (auth('admin')->user()) {
-        return QrCode::size($size)->generate(route('admin.vehicle.ticket.search', ['scope' => 'list', 'search' => $pnr_number]));
-
-    }
-    return QrCode::size($size)->generate(route('user.ticket.history', ['search' => $pnr_number]));
+    return QrCode::size($size)->generate(route('admin.vehicle.ticket.search', ['scope' => 'list', 'search' => $pnr_number]));
 }
 
 function slug($string)
