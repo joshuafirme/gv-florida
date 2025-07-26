@@ -10,7 +10,6 @@
                             <thead>
                                 <tr>
                                     <th>@lang('User')</th>
-                                    <th>QR</th>
                                     <th>@lang('PNR Number')</th>
                                     <th>@lang('Journey Date')</th>
                                     <th>@lang('Trip')</th>
@@ -29,9 +28,6 @@
                                             <br>
                                             <span class="small"> <a href="{{ route('admin.users.detail', $item->user_id) }}"><span>@</span>{{ __(@$item->user->username) }}</a> </span>
 
-                                        </td>
-                                        <td>
-                                            {{ generateTicketQR($item->id, 100) }}
                                         </td>
                                         <td data-label="@lang('PNR Number')">
                                             <span class="text-muted">{{ __($item->pnr_number) }}</span>

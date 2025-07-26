@@ -70,6 +70,7 @@ Route::middleware('admin')->group(function () {
 
     Route::controller('CounterController')->name('counter.')->prefix('counter')->group(function () {
         Route::get('', 'counters')->name('index');
+        Route::get('schedule-board/{id}', 'scheduleBoard')->name('scheduleBoard');
         Route::post('/{id?}', 'counterStore')->name('store');
         Route::post('status/{id}', 'status')->name('status');
     });

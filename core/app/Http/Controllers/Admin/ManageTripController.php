@@ -62,7 +62,7 @@ class ManageTripController extends Controller
         $route->name = $request->name;
         $route->start_from = $request->start_from;
         $route->end_to = $request->end_to;
-        $route->stoppages  = array_unique($stoppages);
+        $route->stoppages = array_unique($stoppages);
         $route->distance = $request->distance;
         $route->time = $request->time;
         $route->save();
@@ -127,7 +127,7 @@ class ManageTripController extends Controller
         $route->name = $request->name;
         $route->start_from = $request->start_from;
         $route->end_to = $request->end_to;
-        $route->stoppages  = array_unique($stoppages);
+        $route->stoppages = array_unique($stoppages);
         $route->distance = $request->distance;
         $route->time = $request->time;
         $route->save();
@@ -151,8 +151,8 @@ class ManageTripController extends Controller
     public function scheduleStore(Request $request, $id = 0)
     {
         $request->validate([
-            'start_from'   => 'required',
-            'end_at'       => 'required',
+            'start_from' => 'required',
+            'end_at' => 'required',
         ]);
 
         $check = Schedule::where('start_from', Carbon::parse($request->start_from)->format('H:i:s'))->where('end_at', Carbon::parse($request->end_at)->format('H:i:s'))->first();
@@ -198,13 +198,13 @@ class ManageTripController extends Controller
     public function tripStore(Request $request, $id = 0)
     {
         $request->validate([
-            'title'             => 'required',
-            'fleet_type_id'     => 'required|integer|gt:0',
-            'vehicle_route_id'  => 'required|integer|gt:0',
-            'schedule_id'       => 'required|integer|gt:0',
-            'start_from'        => 'required|integer|gt:0',
-            'end_to'            => 'required|integer|gt:0',
-            'day_off'           => 'nullable|array|min:1'
+            'title' => 'required',
+            'fleet_type_id' => 'required|integer|gt:0',
+            'vehicle_route_id' => 'required|integer|gt:0',
+            'schedule_id' => 'required|integer|gt:0',
+            'start_from' => 'required|integer|gt:0',
+            'end_to' => 'required|integer|gt:0',
+            'day_off' => 'nullable|array|min:1'
         ]);
 
         if ($id) {
@@ -215,13 +215,14 @@ class ManageTripController extends Controller
             $message = 'Trip created successfully';
         }
 
-        $trip->title            = $request->title;
-        $trip->fleet_type_id    = $request->fleet_type_id;
+        $trip->title = $request->title;
+        $trip->fleet_type_id = $request->fleet_type_id;
         $trip->vehicle_route_id = $request->vehicle_route_id;
-        $trip->schedule_id      = $request->schedule_id;
-        $trip->start_from       = $request->start_from;
-        $trip->end_to           = $request->end_to;
-        $trip->day_off          = $request->day_off ?? [];
+        $trip->schedule_id = $request->schedule_id;
+        $trip->start_from = $request->start_from;
+        $trip->end_to = $request->end_to;
+        $trip->day_off = $request->day_off ?? [];
+        $trip->trip_status = $request->trip_status;
         $trip->save();
 
         $notify[] = ['success', $message];
@@ -245,7 +246,7 @@ class ManageTripController extends Controller
     public function assignVehicle(Request $request, $id = 0)
     {
         $request->validate([
-            'trip_id'      => 'required|integer|gt:0',
+            'trip_id' => 'required|integer|gt:0',
             'vehicle_id' => 'required|integer|gt:0'
         ]);
 
@@ -260,7 +261,7 @@ class ManageTripController extends Controller
         $trip = Trip::where('id', $request->trip_id)->with('schedule')->firstOrFail();
 
         $start_time = Carbon::parse($trip->schedule->start_from)->format('H:i:s');
-        $end_time   = Carbon::parse($trip->schedule->end_at)->format('H:i:s');
+        $end_time = Carbon::parse($trip->schedule->end_at)->format('H:i:s');
 
         //Check if the vehicle assigned to another vehicle on this time
         $vehicle_check = AssignedVehicle::where(function ($q) use ($start_time, $end_time, $request) {

@@ -1,6 +1,5 @@
 @extends('admin.layouts.app')
 @section('panel')
-
     <div class="row">
         <div class="col-md-12">
             <div class="card">
@@ -29,8 +28,13 @@
                                         </td>
                                         <td>
                                             <div class="button--group">
+
+                                                <a target="_blank" href="{{ route('admin.counter.scheduleBoard', $item->id) }}" class="btn btn-sm btn-outline--primary">
+                                                    <i class="la la-tv"></i>@lang('Schedule Board')
+                                                </a>
                                                 <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn"
-                                                    data-resource="{{ $item }}" data-modal_title="@lang('Edit Counter')">
+                                                    data-resource="{{ $item }}"
+                                                    data-modal_title="@lang('Edit Counter')">
                                                     <i class="la la-pencil"></i>@lang('Edit')
                                                 </button>
 

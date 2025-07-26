@@ -40,4 +40,9 @@ class Status{
     const BOOKED_APPROVED = 1;
     const BOOKED_PENDING = 2;
 
+    const TRIP_ON_TIME = 'on_time';
+    const TRIP_BOARDING = 'boarding';
+    const TRIP_DELAYED = 'delayed';
+    const TRIP_CANCELLED = 'cancelled';
+
 }

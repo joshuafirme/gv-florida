@@ -2,7 +2,7 @@
 <html lang="en" itemscope itemtype="http://schema.org/WebPage">
 
 @php
-    $v = appVersion();
+    $v = buildVer();
 @endphp
 
 <head>
