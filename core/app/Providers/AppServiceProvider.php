@@ -69,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with([
                 'adminNotifications' => AdminNotification::where('is_read', Status::NO)->with('user')->orderBy('id', 'desc')->take(10)->get(),
                 'adminNotificationCount' => AdminNotification::where('is_read', Status::NO)->count(),
+                'permissions' => json_decode(auth('admin')->user()->permissions->permissions)
             ]);
         });
 

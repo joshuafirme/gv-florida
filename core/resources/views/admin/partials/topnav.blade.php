@@ -80,11 +80,13 @@
                     </div>
                 </div>
             </li>
-            <li>
+            @if (in_array('admin.setting.system', $permissions))
+                <li>
                 <button type="button" class="primary--layer" data-bs-toggle="tooltip" data-bs-placement="bottom" title="@lang('System Setting')">
                     <a href="{{ route('admin.setting.system') }}"><i class="las la-wrench"></i></a>
                 </button>
             </li>
+            @endif
             <li class="dropdown d-flex profile-dropdown">
                 <button type="button" data-bs-toggle="dropdown" data-display="static" aria-haspopup="true"
                     aria-expanded="false">
