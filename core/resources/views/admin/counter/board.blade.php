@@ -19,6 +19,19 @@
             background: #f7f8fa;
         }
 
+        .clock-widget {
+            display: flex;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: #333;
+            gap: 0.5rem;
+        }
+          .clock-icon {
+      font-size: 1.8rem;
+      color: #0d6efd;
+    }
+
         .board-card {
             border: 0;
             box-shadow: 0 4px 20px rgba(0, 0, 0, .06);
@@ -59,6 +72,10 @@
     <nav class="navbar navbar-light bg-white border-bottom sticky-top">
         <div class="container">
             <img width="80px" src="{{ siteLogo('dark') }}" alt="image">
+
+            <div class="clock-widget justify-content-center">
+                <span id="clock">--:-- --</span>
+            </div>
             <span class="navbar-brand fw-semibold"> Bus Schedule
                 Board</span>
         </div>
@@ -81,7 +98,7 @@
                                     <tr>
                                         <th scope="col">Trip</th>
                                         <th scope="col">Bus type</th>
-                                        <th scope="col">Destination</th>
+                                        <th scope="col">Route</th>
                                         <th scope="col" class="text-center">Available seats</th>
                                         <th scope="col">Departure time</th>
                                         <th scope="col">Status</th>
@@ -238,6 +255,20 @@
             });
             return formattedTime;
         }
+
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+
+            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds} ${ampm}`;
+        }
+
+        updateClock();
+        setInterval(updateClock, 1000);
     </script>
 </body>
 
