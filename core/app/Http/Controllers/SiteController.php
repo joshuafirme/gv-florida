@@ -184,7 +184,7 @@ class SiteController extends Controller
         }
 
         $trips_query = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->where('status', Status::ENABLE);
- 
+
         if ($request->kiosk_id) {
             $trips_query->whereIn('id', $tripIds);
         }
@@ -386,7 +386,8 @@ class SiteController extends Controller
             return redirect()->back()->withNotify($notify);
         }
 
-           if ($request->kiosk_id) {
+        $tripIds = [];
+        if ($request->kiosk_id) {
             $ksk_trips = Kiosk::where('id', $request->kiosk_id)->with([
                 'counter' => function ($q) {
                     $q->with([
@@ -407,7 +408,7 @@ class SiteController extends Controller
         }
 
         $trips_query = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->active();
- 
+
         if ($request->kiosk_id) {
             $trips_query->whereIn('id', $tripIds);
         }
