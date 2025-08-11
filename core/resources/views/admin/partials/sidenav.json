@@ -414,6 +414,16 @@
         "route_name": "admin.counter.index",
         "menu_active": "admin.counter.index"
     },
+        "kiosk": {
+        "keyword": [
+            "Kiosk",
+            "Manage kiosk"
+        ],
+        "title": "Kiosk",
+        "icon": "las la-store",
+        "route_name": "admin.kiosk.index",
+        "menu_active": "admin.kiosk.index"
+    },
     "manage_fleet": {
         "title": "Manage Fleet",
         "icon": "las la-bus",

@@ -76,6 +76,13 @@ Route::middleware('admin')->group(function () {
         Route::post('status/{id}', 'status')->name('status');
     });
 
+    Route::controller('KioskController')->name('kiosk.')->prefix('kiosk')->group(function () {
+        Route::get('', 'kiosks')->name('index');
+        Route::post('/{id?}', 'kioskStore')->name('store');
+        Route::get('/open/{id}', 'openKiosk')->name('open');
+        Route::post('status/{id}', 'status')->name('status');
+    });
+
     Route::controller('ManageFleetController')->name('fleet.')->prefix('fleet')->group(function () {
 
         Route::prefix('layouts')->name('layouts.')->group(function () {

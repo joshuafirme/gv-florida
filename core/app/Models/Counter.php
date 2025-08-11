@@ -15,6 +15,11 @@ class Counter extends Model
     public function scopeRouteStoppages($query, $array)
     {
         return $query->whereIn('id', $array)
-        ->orderByRaw("field(id,".implode(',',$array).")")->get();
+            ->orderByRaw("field(id," . implode(',', $array) . ")")->get();
+    }
+
+    public function trips()
+    {
+        return $this->hasMany(Trip::class, 'start_from');
     }
 }

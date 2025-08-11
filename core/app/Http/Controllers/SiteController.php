@@ -7,6 +7,7 @@ use App\Lib\BusLayout;
 use App\Models\AdminNotification;
 use App\Models\FleetType;
 use App\Models\Frontend;
+use App\Models\Kiosk;
 use App\Models\Schedule;
 use App\Models\Trip;
 use App\Models\TicketPrice;
@@ -114,7 +115,8 @@ class SiteController extends Controller
     public function changeLanguage($lang = null)
     {
         $language = Language::where('code', $lang)->first();
-        if (!$language) $lang = 'en';
+        if (!$language)
+            $lang = 'en';
         session()->put('lang', $lang);
         return back();
     }
@@ -153,13 +155,41 @@ class SiteController extends Controller
         return view('Template::cookie', compact('pageTitle', 'cookie'));
     }
 
-    public function ticket()
+    public function ticket(Request $request)
     {
         $pageTitle = 'Book Ticket';
         $emptyMessage = 'There is no trip available';
         $fleetType = FleetType::active()->get();
 
-        $trips = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->where('status', Status::ENABLE)->paginate(getPaginate(10));
+        $tripIds = [];
+
+        if ($request->kiosk_id) {
+            $ksk_trips = Kiosk::where('id', $request->kiosk_id)->with([
+                'counter' => function ($q) {
+                    $q->with([
+                        'trips' => function ($q) {
+                            $q->select('id', 'start_from');
+                        },
+                    ]);
+                },
+            ])->get();
+
+            foreach ($ksk_trips as $kiosk) {
+                if (isset($kiosk['counter']['trips'])) {
+                    foreach ($kiosk['counter']['trips'] as $trip) {
+                        $tripIds[] = $trip['id'];
+                    }
+                }
+            }
+        }
+
+        $trips_query = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->where('status', Status::ENABLE);
+ 
+        if ($request->kiosk_id) {
+            $trips_query->whereIn('id', $tripIds);
+        }
+
+        $trips = $trips_query->paginate(getPaginate(10));
 
         if (auth()->user()) {
             $layout = 'layouts.master';
@@ -169,14 +199,17 @@ class SiteController extends Controller
 
         $schedules = Schedule::all();
         $routes = VehicleRoute::active()->get();
-        return view('Template::ticket', compact('pageTitle', 'fleetType', 'trips', 'routes', 'schedules', 'emptyMessage', 'layout'));
+
+        $view = $request->kiosk_id ? 'kiosk_booking' : 'ticket';
+
+        return view("Template::$view", compact('pageTitle', 'fleetType', 'trips', 'routes', 'schedules', 'emptyMessage', 'layout'));
     }
 
     public function showSeat($id)
     {
         $trip = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo', 'assignedVehicle.vehicle', 'bookedTickets'])->where('status', Status::ENABLE)->where('id', $id)->firstOrFail();
         $pageTitle = $trip->title;
-        $route     = $trip->route;
+        $route = $trip->route;
         $stoppageArr = $trip->route->stoppages;
         $stoppages = Counter::routeStoppages($stoppageArr);
         $busLayout = new BusLayout($trip);
@@ -190,14 +223,14 @@ class SiteController extends Controller
 
     public function getTicketPrice(Request $request)
     {
-        $ticketPrice       = TicketPrice::where('vehicle_route_id', $request->vehicle_route_id)->where('fleet_type_id', $request->fleet_type_id)->with('route')->first();
-        $route              = $ticketPrice->route;
-        $stoppages          = $ticketPrice->route->stoppages;
-        $trip               = Trip::find($request->trip_id);
-        $sourcePos         = array_search($request->source_id, $stoppages);
-        $destinationPos    = array_search($request->destination_id, $stoppages);
+        $ticketPrice = TicketPrice::where('vehicle_route_id', $request->vehicle_route_id)->where('fleet_type_id', $request->fleet_type_id)->with('route')->first();
+        $route = $ticketPrice->route;
+        $stoppages = $ticketPrice->route->stoppages;
+        $trip = Trip::find($request->trip_id);
+        $sourcePos = array_search($request->source_id, $stoppages);
+        $destinationPos = array_search($request->destination_id, $stoppages);
 
-        $bookedTicket  = BookedTicket::where('trip_id', $request->trip_id)->where('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])->get()->toArray();
+        $bookedTicket = BookedTicket::where('trip_id', $request->trip_id)->where('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])->get()->toArray();
 
         $startPoint = array_search($trip->start_from, array_values($trip->route->stoppages));
         $endPoint = array_search($trip->end_to, array_values($trip->route->stoppages));
@@ -219,7 +252,7 @@ class SiteController extends Controller
             ];
             return response()->json($data);
         }
-        $sdArray  = [$request->source_id, $request->destination_id];
+        $sdArray = [$request->source_id, $request->destination_id];
         $getPrice = $ticketPrice->prices()->where('source_destination', json_encode($sdArray))->orWhere('source_destination', json_encode(array_reverse($sdArray)))->first();
 
         if ($getPrice) {
@@ -229,25 +262,25 @@ class SiteController extends Controller
                 'error' => 'Admin may not set prices for this route. So, you can\'t buy ticket for this trip.'
             ];
         }
-        $data['bookedSeats']        = $bookedTicket;
-        $data['reqSource']         = $request->source_id;
-        $data['reqDestination']    = $request->destination_id;
-        $data['reverse']            = $reverse;
-        $data['stoppages']          = $stoppages;
-        $data['price']              = $price;
+        $data['bookedSeats'] = $bookedTicket;
+        $data['reqSource'] = $request->source_id;
+        $data['reqDestination'] = $request->destination_id;
+        $data['reverse'] = $reverse;
+        $data['stoppages'] = $stoppages;
+        $data['price'] = $price;
         return response()->json($data);
     }
 
     public function bookTicket(Request $request, $id)
     {
         $request->validate([
-            "pickup_point"   => "required|integer|gt:0",
-            "dropping_point"  => "required|integer|gt:0",
+            "pickup_point" => "required|integer|gt:0",
+            "dropping_point" => "required|integer|gt:0",
             "date_of_journey" => "required|date",
-            "seats"           => "required|string",
-            "gender"          => "required|integer"
+            "seats" => "required|string",
+            "gender" => "required|integer"
         ], [
-            "seats.required"  => "Please Select at Least One Seat"
+            "seats.required" => "Please Select at Least One Seat"
         ]);
 
         if (!auth()->user()) {
@@ -255,19 +288,19 @@ class SiteController extends Controller
             return redirect()->route('user.login')->withNotify($notify);
         }
 
-        $date_of_journey  = Carbon::parse($request->date_of_journey);
-        $today            = Carbon::today()->format('Y-m-d');
+        $date_of_journey = Carbon::parse($request->date_of_journey);
+        $today = Carbon::today()->format('Y-m-d');
         if ($date_of_journey->format('Y-m-d') < $today) {
             $notify[] = ['error', 'Date of journey cant\'t be less than today'];
             return redirect()->back()->withNotify($notify);
         }
 
-        $dayOff =  $date_of_journey->format('w');
-        $trip   = Trip::findOrFail($id);
-        $route              = $trip->route;
-        $stoppages          = $trip->route->stoppages;
-        $source_pos         = array_search($request->pickup_point, $stoppages);
-        $destination_pos    = array_search($request->dropping_point, $stoppages);
+        $dayOff = $date_of_journey->format('w');
+        $trip = Trip::findOrFail($id);
+        $route = $trip->route;
+        $stoppages = $trip->route->stoppages;
+        $source_pos = array_search($request->pickup_point, $stoppages);
+        $destination_pos = array_search($request->dropping_point, $stoppages);
 
         if (!empty($trip->day_off)) {
             if (in_array($dayOff, $trip->day_off)) {
@@ -276,7 +309,7 @@ class SiteController extends Controller
             }
         }
 
-        $booked_ticket  = BookedTicket::where('trip_id', $id)
+        $booked_ticket = BookedTicket::where('trip_id', $id)
             ->where('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
             ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
             ->where('pickup_point', $request->pickup_point)
@@ -310,9 +343,9 @@ class SiteController extends Controller
 
         $route = $trip->route;
         $ticketPrice = TicketPrice::where('fleet_type_id', $trip->fleetType->id)->where('vehicle_route_id', $route->id)->first();
-        $sdArray     = [$request->pickup_point, $request->dropping_point];
+        $sdArray = [$request->pickup_point, $request->dropping_point];
 
-        $getPrice    = $ticketPrice->prices()
+        $getPrice = $ticketPrice->prices()
             ->where('source_destination', json_encode($sdArray))
             ->orWhere('source_destination', json_encode(array_reverse($sdArray)))
             ->first();
@@ -353,7 +386,33 @@ class SiteController extends Controller
             return redirect()->back()->withNotify($notify);
         }
 
-        $trips = Trip::active();
+           if ($request->kiosk_id) {
+            $ksk_trips = Kiosk::where('id', $request->kiosk_id)->with([
+                'counter' => function ($q) {
+                    $q->with([
+                        'trips' => function ($q) {
+                            $q->select('id', 'start_from');
+                        },
+                    ]);
+                },
+            ])->get();
+
+            foreach ($ksk_trips as $kiosk) {
+                if (isset($kiosk['counter']['trips'])) {
+                    foreach ($kiosk['counter']['trips'] as $trip) {
+                        $tripIds[] = $trip['id'];
+                    }
+                }
+            }
+        }
+
+        $trips_query = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->active();
+ 
+        if ($request->kiosk_id) {
+            $trips_query->whereIn('id', $tripIds);
+        }
+
+        $trips = $trips_query;
 
         if ($request->pickup && $request->destination) {
             Session::flash('pickup', $request->pickup);
@@ -435,7 +494,8 @@ class SiteController extends Controller
         } else {
             $layout = 'layouts.frontend';
         }
-        return view('Template::ticket', compact('pageTitle', 'fleetType', 'trips', 'routes', 'schedules', 'emptyMessage', 'layout'));
+        $view = $request->kiosk_id ? 'kiosk_booking' : 'ticket';
+        return view("Template::$view", compact('pageTitle', 'fleetType', 'trips', 'routes', 'schedules', 'emptyMessage', 'layout'));
     }
 
     public function placeholderImage($size = null)
@@ -452,15 +512,15 @@ class SiteController extends Controller
             $fontSize = 30;
         }
 
-        $image     = imagecreatetruecolor($imgWidth, $imgHeight);
+        $image = imagecreatetruecolor($imgWidth, $imgHeight);
         $colorFill = imagecolorallocate($image, 100, 100, 100);
-        $bgFill    = imagecolorallocate($image, 255, 255, 255);
+        $bgFill = imagecolorallocate($image, 255, 255, 255);
         imagefill($image, 0, 0, $bgFill);
         $textBox = imagettfbbox($fontSize, 0, $fontFile, $text);
-        $textWidth  = abs($textBox[4] - $textBox[0]);
+        $textWidth = abs($textBox[4] - $textBox[0]);
         $textHeight = abs($textBox[5] - $textBox[1]);
-        $textX      = ($imgWidth - $textWidth) / 2;
-        $textY      = ($imgHeight + $textHeight) / 2;
+        $textX = ($imgWidth - $textWidth) / 2;
+        $textY = ($imgHeight + $textHeight) / 2;
         header('Content-Type: image/jpeg');
         imagettftext($image, $fontSize, 0, $textX, $textY, $colorFill, $fontFile, $text);
         imagejpeg($image);

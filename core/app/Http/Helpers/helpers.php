@@ -34,6 +34,13 @@ function generateTicketQR($pnr_number, $size = 150)
     return QrCode::size($size)->generate(route('admin.vehicle.ticket.search', ['scope' => 'list', 'search' => $pnr_number]));
 }
 
+function generateUID(int $number, string $locationCode, string $prefix = 'KSK', $zero_padding = 3): string
+{
+    $locationCode = strtoupper($locationCode);
+    $numberPadded = str_pad($number, $zero_padding, '0', STR_PAD_LEFT);
+    return "$prefix-{$locationCode}-{$numberPadded}";
+}
+
 function slug($string)
 {
     return Str::slug($string);

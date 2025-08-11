@@ -8,47 +8,48 @@
                         <table class="table table--light style--two">
                             <thead>
                                 <tr>
+                                    <th>@lang('UID')</th>
                                     <th>@lang('Name')</th>
-                                    <th>@lang('Mobile Number')</th>
-                                    <th>@lang('City')</th>
-                                    <th>@lang('Location')</th>
+                                    <th>@lang('Counter')</th>
                                     <th>@lang('Status')</th>
                                     <th>@lang('Action')</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse($counters as $item)
+                                @forelse($kiosks as $item)
                                     <tr>
+                                        <td>{{ __($item->uid) }}</td>
                                         <td>{{ __($item->name) }}</td>
-                                        <td>{{ __($item->mobile) }}</td>
-                                        <td>{{ __($item->city) }}</td>
-                                        <td>{{ __($item->location) ?? '--' }}</td>
+                                        <td>{{ __($item->counter->name) }}</td>
                                         <td>
                                             @php echo $item->statusBadge; @endphp
                                         </td>
                                         <td>
                                             <div class="button--group">
-                                                <a target="_blank" href="{{ route('admin.counter.scheduleBoard', $item->id) }}" class="btn btn-sm btn-outline--primary">
-                                                    <i class="la la-tv"></i>@lang('Schedule Board')
+
+                                                <a target="_blank" href="{{ route('ticket', ['kiosk_id' => $item->id]) }}"
+                                                    class="btn btn-sm btn-outline--primary">
+                                                    <i class="la la-ticket"></i>@lang('Open Kiosk')
                                                 </a>
+
                                                 <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn"
                                                     data-resource="{{ $item }}"
-                                                    data-modal_title="@lang('Edit Counter')">
+                                                    data-modal_title="@lang('Edit')">
                                                     <i class="la la-pencil"></i>@lang('Edit')
                                                 </button>
 
                                                 @if (!$item->status)
                                                     <button type="button"
                                                         class="btn btn-sm btn-outline--success confirmationBtn"
-                                                        data-action="{{ route('admin.counter.status', $item->id) }}"
-                                                        data-question="@lang('Are you sure to enable this counter?')">
+                                                        data-action="{{ route('admin.kiosk.status', $item->id) }}"
+                                                        data-question="@lang('Are you sure to enable this kiosk?')">
                                                         <i class="la la-eye"></i>@lang('Enable')
                                                     </button>
                                                 @else
                                                     <button type="button"
                                                         class="btn btn-sm btn-outline--danger  confirmationBtn"
-                                                        data-action="{{ route('admin.counter.status', $item->id) }}"
-                                                        data-question="@lang('Are you sure to disable this counter?')">
+                                                        data-action="{{ route('admin.kiosk.status', $item->id) }}"
+                                                        data-question="@lang('Are you sure to disable this kiosk?')">
                                                         <i class="la la-eye-slash"></i>@lang('Disable')
                                                     </button>
                                                 @endif
@@ -65,9 +66,9 @@
                     </div>
                 </div>
 
-                @if ($counters->hasPages())
+                @if ($kiosks->hasPages())
                     <div class="card-footer py-4">
-                        {{ paginateLinks($counters) }}
+                        {{ paginateLinks($kiosks) }}
                     </div>
                 @endif
             </div>
@@ -85,24 +86,27 @@
                         <i class="las la-times"></i>
                     </button>
                 </div>
-                <form action="{{ route('admin.counter.store') }}" method="POST">
+                <form action="{{ route('admin.kiosk.store') }}" method="POST">
                     @csrf
                     <div class="modal-body">
+                        <div class="form-group">
+                            <label> @lang('UID')</label>
+                            <input type="text" class="form-control" name="uid" required>
+                        </div>
                         <div class="form-group">
                             <label> @lang('Name')</label>
                             <input type="text" class="form-control" name="name" required>
                         </div>
+
                         <div class="form-group">
-                            <label> @lang('City')</label>
-                            <input type="text" class="form-control" name="city" required>
-                        </div>
-                        <div class="form-group">
-                            <label> @lang('Location')</label>
-                            <textarea name="location" class="form-control"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label> @lang('Mobile')</label>
-                            <input type="text" class="form-control" name="mobile" required>
+                            <label> @lang('Counter')</label>
+                            <select name="counter_id" class="select2" required>
+                                <option value="">@lang('Select an option')</option>
+                                @foreach ($counters as $item)
+                                    <option value="{{ $item->id }}" data-name="{{ $item->name }}">
+                                        {{ __($item->name) }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -115,8 +119,8 @@
 @endsection
 
 @push('breadcrumb-plugins')
-    <x-search-form placeholder="Search by name..." />
-    <button type="button" class="btn btn-sm btn-outline--primary h-45 cuModalBtn" data-modal_title="@lang('Add New Counter')">
+    <x-search-form placeholder="Search..." />
+    <button type="button" class="btn btn-sm btn-outline--primary h-45 cuModalBtn" data-modal_title="@lang('Add New kiosk')">
         <i class="las la-plus"></i> @lang('Add New')
     </button>
 @endpush
