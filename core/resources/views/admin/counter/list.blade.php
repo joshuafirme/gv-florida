@@ -8,6 +8,7 @@
                         <table class="table table--light style--two">
                             <thead>
                                 <tr>
+                                    <th>@lang('ID')</th>
                                     <th>@lang('Name')</th>
                                     <th>@lang('Mobile Number')</th>
                                     <th>@lang('City')</th>
@@ -19,6 +20,7 @@
                             <tbody>
                                 @forelse($counters as $item)
                                     <tr>
+                                        <td>{{ __($item->id) }}</td>
                                         <td>{{ __($item->name) }}</td>
                                         <td>{{ __($item->mobile) }}</td>
                                         <td>{{ __($item->city) }}</td>
