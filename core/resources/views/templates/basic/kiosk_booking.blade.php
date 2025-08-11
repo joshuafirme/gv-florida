@@ -14,6 +14,7 @@
             <span class="navbar-brand fw-semibold"> Self Booking Kiosk</span>
         </div>
     </nav>
+
     <div>
         <div class="container">
             <div class="bus-search-header">
@@ -28,7 +29,8 @@
                                 <option value="">@lang('Pickup Point')</option>
                                 @foreach ($counters as $counter)
                                     <option value="{{ $counter->id }}" @if (request()->pickup == $counter->id) selected @endif>
-                                        {{ __($counter->name) }}</option>
+                                        {{ __($counter->name) }}
+                                    </option>
                                 @endforeach
                             </select>
                         </div>
@@ -40,7 +42,8 @@
                                 <option value="">@lang('Dropping Point')</option>
                                 @foreach ($counters as $counter)
                                     <option value="{{ $counter->id }}" @if (request()->destination == $counter->id) selected @endif>
-                                        {{ __($counter->name) }}</option>
+                                        {{ __($counter->name) }}
+                                    </option>
                                 @endforeach
                             </select>
                         </div>
@@ -61,7 +64,6 @@
             </div>
         </div>
     </div>
-    <!-- Ticket Search Starts -->
 
     <!-- Ticket Section Starts Here -->
     <section class="ticket-section padding-bottom section-bg">
@@ -77,6 +79,7 @@
                                 <h4 class="title mb-0">@lang('Filter')</h4>
                                 <button type="reset" class="reset-button h-auto">@lang('Reset All')</button>
                             </div>
+
                             @if ($fleetType)
                                 <div class="filter-item">
                                     <h5 class="title">@lang('Vehicle Type')</h5>
@@ -86,12 +89,13 @@
                                                 <input name="fleetType[]" class="search" value="{{ $fleet->id }}"
                                                     id="{{ $fleet->name }}" type="checkbox"
                                                     @if (request()->fleetType) @foreach (request()->fleetType as $item)
-                                    @if ($item == $fleet->id)
-                                    checked @endif
+                                                            @if ($item == $fleet->id) checked @endif
                                                     @endforeach
-                                        @endif >
-                                        <label for="{{ $fleet->name }}"><span><i
-                                                    class="las la-bus"></i>{{ __($fleet->name) }}</span></label>
+                                        @endif
+                                        >
+                                        <label for="{{ $fleet->name }}">
+                                            <span><i class="las la-bus"></i>{{ __($fleet->name) }}</span>
+                                        </label>
                                         </li>
                             @endforeach
                             </ul>
@@ -107,11 +111,13 @@
                                             <input name="routes[]" class="search" value="{{ $route->id }}"
                                                 id="route.{{ $route->id }}" type="checkbox"
                                                 @if (request()->routes) @foreach (request()->routes as $item)
-                                                @if ($item == $route->id) checked @endif
+                                                            @if ($item == $route->id) checked @endif
                                                 @endforeach
-                                    @endif >
-                                    <label for="route.{{ $route->id }}"><span><span><i
-                                                    class="las la-road"></i>{{ __($route->name) }} </span></label>
+                                    @endif
+                                    >
+                                    <label for="route.{{ $route->id }}">
+                                        <span><i class="las la-road"></i>{{ __($route->name) }}</span>
+                                    </label>
                                     </li>
                         @endforeach
                         </ul>
@@ -127,13 +133,15 @@
                                     <input name="schedules[]" class="search" value="{{ $schedule->id }}"
                                         id="schedule.{{ $schedule->id }}" type="checkbox"
                                         @if (request()->schedules) @foreach (request()->schedules as $item)
-                                    @if ($item == $schedule->id)
-                                    checked @endif
+                                                            @if ($item == $schedule->id) checked @endif
                                         @endforeach
-                            @endif>
-                            <label for="schedule.{{ $schedule->id }}"><span><span><i class="las la-clock"></i>
-                                        {{ showDateTime($schedule->start_from, 'h:i a') . ' - ' . showDateTime($schedule->end_at, 'h:i a') }}
-                                    </span></label>
+                            @endif
+                            >
+                            <label for="schedule.{{ $schedule->id }}">
+                                <span><i class="las la-clock"></i>
+                                    {{ showDateTime($schedule->start_from, 'h:i a') . ' - ' . showDateTime($schedule->end_at, 'h:i a') }}
+                                </span>
+                            </label>
                             </li>
                 @endforeach
                 </ul>
@@ -149,12 +157,10 @@
                     @php
                         $start = Carbon\Carbon::parse($trip->schedule->start_from);
                         $end = Carbon\Carbon::parse($trip->schedule->end_at);
-
                         if ($end->lt($start)) {
                             $end->addDay();
                         }
                         $diff = $start->diff($end);
-
                         $ticket = App\Models\TicketPrice::where('fleet_type_id', $trip->fleetType->id)
                             ->where('vehicle_route_id', $trip->route->id)
                             ->first();
@@ -172,57 +178,63 @@
                                     <p class="time">{{ showDateTime($trip->schedule->start_from, 'h:i A') }}</p>
                                     <p class="place">{{ __($trip->startFrom->name) }}</p>
                                 </div>
-                                <div class=" bus-time">
+                                <div class="bus-time">
                                     <i class="las la-arrow-right"></i>
                                     <p>{{ $diff->format('%H:%I min') }}</p>
                                 </div>
-                                <div class=" bus-time">
+                                <div class="bus-time">
                                     <p class="time">{{ showDateTime($trip->schedule->end_at, 'h:i A') }}</p>
                                     <p class="place">{{ __($trip->endTo->name) }}</p>
                                 </div>
                             </div>
                             <div class="ticket-item-inner book-ticket">
                                 <p class="rent mb-0">
-                                    {{ __(gs('cur_sym')) }}{{ showAmount($ticket->price, currencyFormat: false) }}</p>
+                                    {{ __(gs('cur_sym')) }}{{ showAmount($ticket->price, currencyFormat: false) }}
+                                </p>
                                 @if ($trip->day_off)
                                     <div class="seats-left mt-2 mb-3 fs--14px">
-                                        @lang('Off Days'): <div class="d-inline-flex flex-wrap" style="gap:5px">
+                                        @lang('Off Days'):
+                                        <div class="d-inline-flex flex-wrap" style="gap:5px">
                                             @foreach ($trip->day_off as $item)
                                                 <span class="badge badge--primary">{{ __(showDayOff($item)) }}</span>
                                             @endforeach
                                         </div>
-                                    @else
-                                        @lang('Every day available')
+                                    </div>
+                                @else
+                                    @lang('Every day available')
                                 @endif
+                                <a class="btn btn--base"
+                                    href="{{ route('ticket.seats', [$trip->id, slug($trip->title)]) }}">
+                                    @lang('Select Seat')
+                                </a>
                             </div>
-                            <a class="btn btn--base"
-                                href="{{ route('ticket.seats', [$trip->id, slug($trip->title)]) }}">@lang('Select Seat')</a>
-                        </div>
-                        @if ($trip->fleetType->facilities)
-                            <div class="ticket-item-footer">
-                                <div class="d-flex content-justify-center">
-                                    <span>
-                                        <strong>@lang('Facilities - ')</strong>
-                                        @foreach ($trip->fleetType->facilities as $item)
-                                            <span class="facilities">{{ __($item) }}</span>
-                                        @endforeach
-                                    </span>
+
+                            @if ($trip->fleetType->facilities)
+                                <div class="ticket-item-footer">
+                                    <div class="d-flex content-justify-center">
+                                        <span>
+                                            <strong>@lang('Facilities - ')</strong>
+                                            @foreach ($trip->fleetType->facilities as $item)
+                                                <span class="facilities">{{ __($item) }}</span>
+                                            @endforeach
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                        @endif
+                            @endif
+                        </div>
+                    @endif
+                @empty
+                    <div class="ticket-item">
+                        <h5>{{ __($emptyMessage) }}</h5>
+                    </div>
+                @endforelse
+
+                @if ($trips->hasPages())
+                    <div class="custom-pagination">
+                        {{ paginateLinks($trips) }}
+                    </div>
+                @endif
             </div>
-            @endif
-        @empty
-            <div class="ticket-item">
-                <h5>{{ __($emptyMessage) }}</h5>
-            </div>
-            @endforelse
-            @if ($trips->hasPages())
-                <div class="custom-pagination">
-                    {{ paginateLinks($trips) }}
-                </div>
-            @endif
-        </div>
         </div>
         </div>
         </div>
@@ -249,17 +261,17 @@
             });
 
             $('.select2').select2();
-            const datePicker = $('.date-range').daterangepicker({
+
+            $('.date-range').daterangepicker({
                 autoUpdateInput: true,
                 singleDatePicker: true,
                 minDate: new Date()
-            })
-
+            });
 
             $('.reset-button').on('click', function() {
-                $('.search').attr('checked', false);
+                $('.search').prop('checked', false);
                 $('#filterForm').submit();
-            })
-        })(jQuery)
+            });
+        })(jQuery);
     </script>
 @endpush

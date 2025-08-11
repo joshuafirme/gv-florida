@@ -20,7 +20,7 @@
                                     <tr>
                                         <td>{{ __($item->uid) }}</td>
                                         <td>{{ __($item->name) }}</td>
-                                        <td>{{ __($item->counter->name) }}</td>
+                                        <td>{{ __($item->counter ? $item->counter->name : '') }}</td>
                                         <td>
                                             @php echo $item->statusBadge; @endphp
                                         </td>

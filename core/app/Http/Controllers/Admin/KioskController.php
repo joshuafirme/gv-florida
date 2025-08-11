@@ -23,7 +23,6 @@ class KioskController extends Controller
 
         $request->validate([
             'uid' => 'required|unique:kiosks,uid,' . $id,
-            'name' => 'required|unique:kiosks,name,' . $id,
         ]);
 
         if ($id) {
