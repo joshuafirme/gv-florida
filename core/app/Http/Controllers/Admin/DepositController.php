@@ -64,9 +64,9 @@ class DepositController extends Controller
     protected function depositData($scope = null, $summary = false, $userId = null)
     {
         if ($scope) {
-            $deposits = Deposit::$scope()->with(['user', 'gateway']);
+            $deposits = Deposit::$scope()->with(['user', 'gateway', 'bookedTicket']);
         } else {
-            $deposits = Deposit::with(['user', 'gateway']);
+            $deposits = Deposit::with(['user', 'gateway', 'bookedTicket']);
         }
 
         if ($userId) {

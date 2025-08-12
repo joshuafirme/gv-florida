@@ -222,7 +222,20 @@ class UserController extends Controller
     public function printTicket($id)
     {
         $pageTitle = "Ticket Print";
-        $ticket = BookedTicket::with(['trip.fleetType', 'trip.startFrom', 'trip.endTo', 'trip.schedule', 'trip.assignedVehicle.vehicle', 'pickup', 'drop', 'user'])->where('user_id', auth()->user()->id)->findOrFail($id);
+        $ticket = BookedTicket::with([
+            'trip.fleetType',
+            'trip.startFrom',
+            'trip.endTo',
+            'trip.schedule',
+            'trip.assignedVehicle.vehicle',
+            'pickup',
+            'drop',
+            'user',
+            'deposit'
+        ]);
+
+        $ticket = $ticket->findOrFail($id);
+
         return view('Template::user.print_ticket', compact('ticket', 'pageTitle'));
     }
 }

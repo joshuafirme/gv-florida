@@ -166,6 +166,17 @@ function showAmount($amount, $decimal = 2, $separate = true, $exceptZeros = fals
     return $printAmount;
 }
 
+function paymentStatus($status)
+{
+    if ($status == 1)
+        echo '<span class="badge badge--success">Success</span>';
+    elseif ($status == 2)
+        echo '<span class="badge badge--warning">Pending</span>';
+    elseif ($status == 3)
+        echo '<span class="badge badge--danger">Rejected</span>';
+    else
+        echo '<span class="badge badge--warning">Pending</span>';
+}
 
 function removeElement($array, $value)
 {

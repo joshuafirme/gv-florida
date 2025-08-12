@@ -48,12 +48,17 @@
                                             {{ showDateTime($deposit->created_at) }}<br>{{ diffForHumans($deposit->created_at) }}
                                         </td>
                                         <td>
-                                            <span class="fw-bold">{{ $deposit->user->fullname }}</span>
-                                            <br>
-                                            <span class="small">
-                                                <a
-                                                    href="{{ appendQuery('search', @$deposit->user->username) }}"><span>@</span>{{ $deposit->user->username }}</a>
-                                            </span>
+                                            @if ($deposit->user)
+                                                <span class="fw-bold">{{ $deposit->user->fullname }}</span>
+                                                <br>
+                                                <span class="small">
+                                                    <a
+                                                        href="{{ appendQuery('search', @$deposit->user->username) }}"><span>@</span>{{ $deposit->user->username }}</a>
+                                                </span>
+                                            @else
+                                                {{ $deposit->bookedTicket->kiosk->name }}
+                                                <div>{{ $deposit->bookedTicket->kiosk->uid }}</div>
+                                            @endif
                                         </td>
                                         <td>
                                             {{ showAmount($deposit->amount) }} + <span class="text--danger"

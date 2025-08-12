@@ -29,7 +29,14 @@ class PaymentController extends Controller
             $gate->where('status', Status::ENABLE);
         })->with('method')->orderby('name')->get();
 
-        $bookedTicket = BookedTicket::where('user_id', auth()->user()->id)->orderBy('id', 'desc')->first();
+        $booked_ticket_id = session()->get('booked_ticket_id');
+        $bookedTicket = BookedTicket::orderBy('id', 'desc');
+        if ($booked_ticket_id) {
+            $bookedTicket->find($booked_ticket_id);
+        } else {
+            $bookedTicket->where('user_id', auth()->user()->id);
+        }
+        $bookedTicket = $bookedTicket->first();
 
         $pageTitle = 'Payment Methods';
         return view('Template::user.payment.deposit', compact('gatewayCurrency', 'pageTitle', 'bookedTicket'));
@@ -65,7 +72,7 @@ class PaymentController extends Controller
         $finalAmount = $payable * $gate->rate;
 
         $deposit = new Deposit();
-        $deposit->user_id = $user->id;
+        $deposit->user_id = $user ? $user->id : null;
         $deposit->booked_ticket_id = $bookedTicket->id;
         $deposit->method_code = $gate->method_code;
         $deposit->method_currency = strtoupper($gate->currency);
@@ -82,6 +89,7 @@ class PaymentController extends Controller
         $deposit->save();
 
         session()->put('Track', $deposit->trx);
+
         return to_route('user.deposit.confirm');
     }
 
@@ -216,8 +224,8 @@ class PaymentController extends Controller
         $bookedTicket->save();
 
         $adminNotification = new AdminNotification();
-        $adminNotification->user_id = $data->user->id;
-        $adminNotification->title = 'Payment request from ' . $data->user->username;
+        $adminNotification->user_id = $data->user ? $data->user->id : 0;
+        $adminNotification->title = 'Payment request from ';
         $adminNotification->click_url = urlPath('admin.deposit.details', $data->id);
         $adminNotification->save();
 
@@ -238,6 +246,11 @@ class PaymentController extends Controller
 
 
         $notify[] = ['success', 'You have deposit request has been taken'];
+
+        if ($bookedTicket->kiosk_id) {
+            return to_route('user.ticket.print', $bookedTicket->id)->withNotify($notify);
+        }
+
         return to_route('user.ticket.history')->withNotify($notify);
     }
 }

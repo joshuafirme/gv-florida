@@ -15,6 +15,16 @@ class BookedTicket extends Model
 
     protected $appends = ['photo'];
 
+    public function deposit()
+    {
+        return $this->hasOne(Deposit::class);
+    }
+
+    public function kiosk()
+    {
+        return $this->hasOne(Kiosk::class, 'id', 'kiosk_id');
+    }
+
     public function getPhotoAttribute()
     {
         return $this->where('status', Status::DISABLE);

@@ -24,6 +24,11 @@ class Deposit extends Model
         return $this->belongsTo(Gateway::class, 'method_code', 'code');
     }
 
+     public function bookedTicket()
+    {
+        return $this->hasOne(BookedTicket::class, 'id', 'booked_ticket_id');
+    }
+
     public function methodName(){
         if ($this->method_code < 5000) {
             $methodName = @$this->gatewayCurrency()->name;

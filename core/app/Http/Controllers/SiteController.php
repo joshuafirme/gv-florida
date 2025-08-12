@@ -205,7 +205,7 @@ class SiteController extends Controller
         return view("Template::$view", compact('pageTitle', 'fleetType', 'trips', 'routes', 'schedules', 'emptyMessage', 'layout'));
     }
 
-    public function showSeat($id)
+    public function showSeat(Request $request, $id)
     {
         $trip = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo', 'assignedVehicle.vehicle', 'bookedTickets'])->where('status', Status::ENABLE)->where('id', $id)->firstOrFail();
         $pageTitle = $trip->title;
@@ -218,7 +218,10 @@ class SiteController extends Controller
         } else {
             $layout = 'layouts.frontend';
         }
-        return view('Template::book_ticket', compact('pageTitle', 'trip', 'stoppages', 'busLayout', 'layout'));
+
+        $view = $request->kiosk_id ? 'kiosk_book_ticket' : 'book_ticket';
+
+        return view("Template::$view", compact('pageTitle', 'trip', 'stoppages', 'busLayout', 'layout'));
     }
 
     public function getTicketPrice(Request $request)
@@ -283,7 +286,11 @@ class SiteController extends Controller
             "seats.required" => "Please Select at Least One Seat"
         ]);
 
-        if (!auth()->user()) {
+        $kiosk = null;
+
+        $kiosk = $request->kiosk_id ? Kiosk::find($request->kiosk_id) : null;
+
+        if (!auth()->user() && !$kiosk) {
             $notify[] = ['error', 'Without login you can\'t book any tickets'];
             return redirect()->route('user.login')->withNotify($notify);
         }
@@ -357,7 +364,7 @@ class SiteController extends Controller
         $unitPrice = getAmount($getPrice->price);
         $pnr_number = getTrx(10);
         $bookedTicket = new BookedTicket();
-        $bookedTicket->user_id = auth()->user()->id;
+        $bookedTicket->user_id = $request->user() ? $request->user()->id : null;
         $bookedTicket->gender = $request->gender;
         $bookedTicket->trip_id = $trip->id;
         $bookedTicket->source_destination = [$request->pickup_point, $request->dropping_point];
@@ -370,8 +377,10 @@ class SiteController extends Controller
         $bookedTicket->date_of_journey = Carbon::parse($request->date_of_journey)->format('Y-m-d');
         $bookedTicket->pnr_number = $pnr_number;
         $bookedTicket->status = Status::BOOKED_REJECTED;
+        $bookedTicket->kiosk_id = $request->kiosk_id;
         $bookedTicket->save();
         session()->put('pnr_number', $pnr_number);
+        session()->put('booked_ticket_id', $bookedTicket->id);
         return redirect()->route('user.deposit.index');
     }
 

@@ -1,21 +1,22 @@
 @extends('admin.layouts.app')
 
 @section('panel')
-@push('topBar')
-@include('admin.gateways.top_bar')
-@endpush
+    @push('topBar')
+        @include('admin.gateways.top_bar')
+    @endpush
     <div class="row">
         <div class="col-lg-12">
             <div class="card mb-4">
                 <form action="{{ route('admin.gateway.manual.update', $method->code) }}" method="POST"
-                      enctype="multipart/form-data">
+                    enctype="multipart/form-data">
                     @csrf
                     <div class="card-body">
                         <div class="payment-method-item">
                             <div class="gateway-body">
                                 <div class="gateway-thumb">
                                     <div class="thumb">
-                                        <x-image-uploader image="{{ $method->image }}" class="w-100" type="gateway" :required=false />
+                                        <x-image-uploader image="{{ $method->image }}" class="w-100" type="gateway"
+                                            :required=false />
                                     </div>
                                 </div>
                                 <div class="gateway-content">
@@ -23,13 +24,15 @@
                                         <div class="col-sm-12 col-md-6 col-lg-6 col-xl-4">
                                             <div class="form-group">
                                                 <label>@lang('Gateway Name')</label>
-                                                <input type="text" class="form-control" name="name" value="{{ $method->name }}" required/>
+                                                <input type="text" class="form-control" name="name"
+                                                    value="{{ $method->name }}" required />
                                             </div>
                                         </div>
                                         <div class="col-xl-3 col-md-6">
                                             <div class="form-group">
                                                 <label>@lang('Currency')</label>
-                                                <input type="text" name="currency" class="form-control border-radius-5" value="{{ @$method->singleCurrency->currency }}" required/>
+                                                <input type="text" name="currency" class="form-control border-radius-5"
+                                                    value="{{ @$method->singleCurrency->currency }}" required />
                                             </div>
                                         </div>
                                         <div class="col-xl-5 col-md-12">
@@ -37,7 +40,8 @@
                                                 <label>@lang('Rate')</label>
                                                 <div class="input-group">
                                                     <div class="input-group-text">1 {{ __(gs('cur_text')) }}=</div>
-                                                    <input type="number" step="any" class="form-control" name="rate" value="{{ getAmount(@$method->singleCurrency->rate) }}" required/>
+                                                    <input type="number" step="any" class="form-control" name="rate"
+                                                        value="{{ getAmount(@$method->singleCurrency->rate) }}" required />
                                                     <span class="currency_symbol input-group-text"></span>
                                                 </div>
                                             </div>
@@ -54,7 +58,10 @@
                                                 <div class="form-group">
                                                     <label>@lang('Minimum Amount')</label>
                                                     <div class="input-group">
-                                                        <input type="number" step="any" class="form-control" name="min_limit" value="{{ getAmount(@$method->singleCurrency->min_amount) }}" required>
+                                                        <input type="number" step="any" class="form-control"
+                                                            name="min_limit"
+                                                            value="{{ getAmount(@$method->singleCurrency->min_amount) }}"
+                                                            required>
                                                         <div class="input-group-text">{{ __(gs('cur_text')) }}</div>
                                                     </div>
                                                     <span class="min-limit-error-message text--danger"></span>
@@ -62,7 +69,10 @@
                                                 <div class="form-group">
                                                     <label>@lang('Maximum Amount')</label>
                                                     <div class="input-group">
-                                                        <input type="number" step="any" class="form-control" name="max_limit" value="{{ getAmount(@$method->singleCurrency->max_amount) }}" required>
+                                                        <input type="number" step="any" class="form-control"
+                                                            name="max_limit"
+                                                            value="{{ getAmount(@$method->singleCurrency->max_amount) }}"
+                                                            required>
                                                         <div class="input-group-text">{{ __(gs('cur_text')) }}</div>
                                                     </div>
                                                     <span class="max-limit-error-message text--danger"></span>
@@ -77,14 +87,20 @@
                                                 <div class="form-group">
                                                     <label>@lang('Fixed Charge')</label>
                                                     <div class="input-group">
-                                                        <input type="number" step="any" class="form-control" name="fixed_charge" value="{{ getAmount(@$method->singleCurrency->fixed_charge) }}" required/>
+                                                        <input type="number" step="any" class="form-control"
+                                                            name="fixed_charge"
+                                                            value="{{ getAmount(@$method->singleCurrency->fixed_charge) }}"
+                                                            required />
                                                         <div class="input-group-text">{{ __(gs('cur_text')) }}</div>
                                                     </div>
                                                 </div>
                                                 <div class="form-group">
                                                     <label>@lang('Percent Charge')</label>
                                                     <div class="input-group">
-                                                        <input type="number" step="any" class="form-control" name="percent_charge" value="{{ getAmount(@$method->singleCurrency->percent_charge) }}" required>
+                                                        <input type="number" step="any" class="form-control"
+                                                            name="percent_charge"
+                                                            value="{{ getAmount(@$method->singleCurrency->percent_charge) }}"
+                                                            required>
                                                         <div class="input-group-text">%</div>
                                                     </div>
                                                 </div>
@@ -98,18 +114,21 @@
                                             <h5 class="card-header bg--primary">@lang('Deposit Instruction')</h5>
                                             <div class="card-body">
                                                 <div class="form-group">
-                                                    <textarea rows="8" class="form-control border-radius-5 nicEdit" name="instruction">{{ __(@$method->description)  }}</textarea>
+                                                    <textarea rows="8" class="form-control border-radius-5 editor" name="instruction">{{ __(@$method->description) }}</textarea>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
 
                                     <div class="col-lg-12">
-                                        <div class="submitRequired bg--warning form-change-alert d-none mt-3"><i class="fas fa-exclamation-triangle"></i> @lang('You\'ve to click on the submit button to apply the changes')</div>
+                                        <div class="submitRequired bg--warning form-change-alert d-none mt-3"><i
+                                                class="fas fa-exclamation-triangle"></i> @lang('You\'ve to click on the submit button to apply the changes')</div>
                                         <div class="card border--primary mt-3">
                                             <div class="card-header bg--primary d-flex justify-content-between">
                                                 <h5 class="text-white">@lang('User Data')</h5>
-                                                <button type="button" class="btn btn-sm btn-outline-light float-end form-generate-btn"> <i class="la la-fw la-plus"></i>@lang('Add New')</button>
+                                                <button type="button"
+                                                    class="btn btn-sm btn-outline-light float-end form-generate-btn"> <i
+                                                        class="la la-fw la-plus"></i>@lang('Add New')</button>
                                             </div>
                                             <div class="card-body">
                                                 <x-generated-form :form=$form />
@@ -138,10 +157,26 @@
 @endpush
 
 @push('script')
+    <script src="https://cdn.ckeditor.com/ckeditor5/35.2.0/classic/ckeditor.js"></script>
     <script>
-
-    (function($) {
+        (function($) {
             "use strict";
+
+            if ($('.editor').length > 0) {
+                ClassicEditor
+                    .create(document.querySelector('.editor'), {
+                        ckfinder: {
+                            uploadUrl: '{{ env('APP_URL') }}vendor/ckfinder/core/connector/php/connector.php?command=QuickUpload&type=Files&responseType=json'
+                        }
+                    })
+                    .then(editor => {
+                        // Store the editor instance
+                        editorInstance = editor;
+                    })
+                    .catch(error => {
+                        console.error(error);
+                    });
+            }
 
             $('input[name=currency]').on('input', function() {
                 $('.currency_symbol').text($(this).val());
@@ -191,6 +226,5 @@
             });
 
         })(jQuery)
-
     </script>
 @endpush

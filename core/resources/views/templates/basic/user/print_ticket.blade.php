@@ -143,6 +143,7 @@
             .info {
                 margin-bottom: 15px;
             }
+
             .qr {
                 margin: 15px;
             }
@@ -184,17 +185,19 @@
                                         <h5 class="value">{{ __($ticket->pnr_number) }}</h5>
                                     </td>
                                 </tr>
-                                <tr>
-                                    <td class="text-right">
-                                        <p class="title">@lang('Name')</p>
-                                    </td>
-                                    <td>
-                                        <b>:</b>
-                                    </td>
-                                    <td class="text-left">
-                                        <h5 class="value">{{ __($ticket->user->fullname) }}</h5>
-                                    </td>
-                                </tr>
+                                @if ($ticket->user)
+                                    <tr>
+                                        <td class="text-right">
+                                            <p class="title">@lang('Name')</p>
+                                        </td>
+                                        <td>
+                                            <b>:</b>
+                                        </td>
+                                        <td class="text-left">
+                                            <h5 class="value">{{ __($ticket->user->fullname) }}</h5>
+                                        </td>
+                                    </tr>
+                                @endif
                                 <tr>
                                     <td class="text-right">
                                         <p class="title">@lang('Journey Date')</p>
@@ -245,6 +248,28 @@
                                         <h5 class="value">{{ __(implode(',', $ticket->seats)) }}</h5>
                                     </td>
                                 </tr>
+                                <tr>
+                                    <td class="text-right">
+                                        <p class="title">@lang('Total Amount')</p>
+                                    </td>
+                                    <td>
+                                        <b>:</b>
+                                    </td>
+                                    <td class="text-left">
+                                        <h5 class="value">{{ showAmount($ticket->deposit->amount) }}</h5>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-right">
+                                        <p class="title">@lang('Payment Status')</p>
+                                    </td>
+                                    <td>
+                                        <b>:</b>
+                                    </td>
+                                    <td class="text-left">
+                                        <h5 class="value">{!! paymentStatus($ticket->deposit->statusBadge) !!}</h5>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -255,11 +280,15 @@
     </div>
 
     <div class="print-btn">
-        <button type="button" class="cmn-btn btn-download">@lang('Download Ticket')</button>
+        @if ($ticket->kiosk_id)
+            <button onclick="window.print()" class="cmn-btn mt-3">Print Ticket</button>
+        @else
+            <button type="button" class="cmn-btn btn-download">@lang('Download Ticket')</button>
+        @endif
     </div>
 
     @php
-        $fileName = slug($ticket->user->username) . '_' . time();
+        $fileName = $ticket->user ? slug($ticket->user->username) : $ticket->pnr_number . '_' . time();
     @endphp
     <!-- jquery -->
     <script src="{{ asset($activeTemplateTrue . 'js/jquery-3.3.1.min.js') }}"></script>
