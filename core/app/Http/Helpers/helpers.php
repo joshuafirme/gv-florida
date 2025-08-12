@@ -169,7 +169,7 @@ function showAmount($amount, $decimal = 2, $separate = true, $exceptZeros = fals
 function paymentStatus($status)
 {
     if ($status == 1)
-        echo '<span class="badge badge--success">Success</span>';
+        echo '<span class="badge badge--success">Paid</span>';
     elseif ($status == 2)
         echo '<span class="badge badge--warning">Pending</span>';
     elseif ($status == 3)

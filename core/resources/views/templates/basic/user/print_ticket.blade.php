@@ -267,7 +267,7 @@
                                         <b>:</b>
                                     </td>
                                     <td class="text-left">
-                                        <h5 class="value">{!! paymentStatus($ticket->deposit->statusBadge) !!}</h5>
+                                        <h5 class="value">{!! paymentStatus($ticket->deposit->status) !!}</h5>
                                     </td>
                                 </tr>
                             </tbody>

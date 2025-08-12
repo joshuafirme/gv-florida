@@ -71,7 +71,10 @@ class PaymentController extends Controller
         $payable = $bookedTicket->sub_total + $charge;
         $finalAmount = $payable * $gate->rate;
 
-        $deposit = new Deposit();
+        $deposit = Deposit::where('booked_ticket_id', $bookedTicket->id)->first();
+        if (!$deposit) {
+            $deposit = new Deposit();
+        }
         $deposit->user_id = $user ? $user->id : null;
         $deposit->booked_ticket_id = $bookedTicket->id;
         $deposit->method_code = $gate->method_code;

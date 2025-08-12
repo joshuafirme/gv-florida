@@ -113,8 +113,13 @@ class DepositController extends Controller
 
     public function details($id)
     {
-        $deposit = Deposit::where('id', $id)->with(['user', 'gateway'])->firstOrFail();
-        $pageTitle = $deposit->user->username . ' requested ' . showAmount($deposit->amount);
+        $deposit = Deposit::where('id', $id)->with(['user', 'gateway', 'bookedTicket'])->firstOrFail();
+
+        if (!$deposit->user) {
+            $pageTitle = "Requested payment from {$deposit->bookedTicket->kiosk->name}";
+        } else {
+            $pageTitle = $deposit->user->username . ' requested ' . showAmount($deposit->amount);
+        }
         $details = ($deposit->detail != null) ? json_encode($deposit->detail) : null;
         return view('admin.deposit.detail', compact('pageTitle', 'deposit', 'details'));
     }
@@ -165,6 +170,6 @@ class DepositController extends Controller
         ]);
 
         $notify[] = ['success', 'Deposit request rejected successfully'];
-        return  to_route('admin.deposit.pending')->withNotify($notify);
+        return to_route('admin.deposit.pending')->withNotify($notify);
     }
 }
