@@ -209,12 +209,6 @@
                                         <h5 class="value">{{ showDateTime($ticket->date_of_journey, 'F d, Y') }}</h5>
                                     </td>
                                 </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="p-50 ticket-body-part">
-                        <table class="">
-                            <tbody>
                                 <tr>
                                     <td class="text-right">
                                         <p class="title">@lang('Journey Day')</p>
@@ -226,6 +220,12 @@
                                         <h5 class="value">{{ showDateTime($ticket->date_of_journey, 'l') }}</h5>
                                     </td>
                                 </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-50 ticket-body-part">
+                        <table class="">
+                            <tbody>
                                 <tr>
                                     <td class="text-right">
                                         <p class="title">@lang('Total Seats')</p>
@@ -270,6 +270,19 @@
                                         <h5 class="value">{!! paymentStatus($ticket->deposit->status) !!}</h5>
                                     </td>
                                 </tr>
+                                @if ($ticket->kiosk)
+                                    <tr>
+                                        <td class="text-right">
+                                            <p class="title">@lang('Kiosk')</p>
+                                        </td>
+                                        <td>
+                                            <b>:</b>
+                                        </td>
+                                        <td class="text-left">
+                                            <h5 class="value">{{ $ticket->kiosk->name }} - {{ $ticket->kiosk->uid }}</h5>
+                                        </td>
+                                    </tr>
+                                @endif
                             </tbody>
                         </table>
                     </div>
