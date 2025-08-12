@@ -24,10 +24,16 @@
                                 @forelse($tickets as $item)
                                     <tr>
                                         <td data-label="@lang('User')">
-                                            <span class="font-weight-bold">{{ __(@$item->user->fullname) }}</span>
-                                            <br>
-                                            <span class="small"> <a href="{{ route('admin.users.detail', $item->user_id) }}"><span>@</span>{{ __(@$item->user->username) }}</a> </span>
-
+                                            @if ($item->kiosk)
+                                                {{ $item->kiosk->name }}
+                                                <div>{{ $item->kiosk->uid }}</div>
+                                            @elseif($item->user_id)
+                                                <span class="font-weight-bold">{{ __(@$item->user->fullname) }}</span>
+                                                <br>
+                                                <span class="small"> <a
+                                                        href="{{ route('admin.users.detail', $item->user_id) }}"><span>@</span>{{ __(@$item->user->username) }}</a>
+                                                </span>
+                                            @endif
                                         </td>
                                         <td data-label="@lang('PNR Number')">
                                             <span class="text-muted">{{ __($item->pnr_number) }}</span>
@@ -38,7 +44,8 @@
                                         <td data-label="@lang('Trip')">
                                             <span class="font-weight-bold">{{ __($item->trip->fleetType->name) }}</span>
                                             <br>
-                                            <span class="font-weight-bold"> {{ __($item->trip->startFrom->name) }} - {{ __($item->trip->endTo->name) }}</span>
+                                            <span class="font-weight-bold"> {{ __($item->trip->startFrom->name) }} -
+                                                {{ __($item->trip->endTo->name) }}</span>
                                         </td>
                                         <td data-label="@lang('Pickup Point')">
                                             {{ __($item->pickup->name) }}
@@ -48,11 +55,14 @@
                                         </td>
                                         <td data-label="@lang('Status')">
                                             @if ($item->status == 1)
-                                                <span class="badge badge--success font-weight-normal text--samll">@lang('Booked')</span>
+                                                <span
+                                                    class="badge badge--success font-weight-normal text--samll">@lang('Booked')</span>
                                             @elseif($item->status == 2)
-                                                <span class="badge badge--warning font-weight-normal text--samll">@lang('Pending')</span>
+                                                <span
+                                                    class="badge badge--warning font-weight-normal text--samll">@lang('Pending')</span>
                                             @else
-                                                <span class="badge badge--danger font-weight-normal text--samll">@lang('Rejected')</span>
+                                                <span
+                                                    class="badge badge--danger font-weight-normal text--samll">@lang('Rejected')</span>
                                             @endif
                                         </td>
                                         <td data-label="@lang('Ticket Count')">
@@ -81,9 +91,12 @@
     </div>
 @endsection
 @push('breadcrumb-plugins')
-    <form action="{{ route('admin.vehicle.ticket.search', $scope ?? str_replace('admin.vehicle.ticket.', '', request()->route()->getName())) }}" method="GET" class="form-inline float-sm-right bg--white">
+    <form
+        action="{{ route('admin.vehicle.ticket.search', $scope ?? str_replace('admin.vehicle.ticket.', '', request()->route()->getName())) }}"
+        method="GET" class="form-inline float-sm-right bg--white">
         <div class="input-group">
-            <input type="text" name="search" class="form-control" placeholder="@lang('Search PNR Number')" value="{{ $search ?? '' }}">
+            <input type="text" name="search" class="form-control" placeholder="@lang('Search PNR Number')"
+                value="{{ $search ?? '' }}">
             <button class="btn btn--primary" type="submit"><i class="fa fa-search"></i></button>
         </div>
     </form>
