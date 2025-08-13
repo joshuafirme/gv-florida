@@ -204,9 +204,7 @@
                                     @lang('Every day available')
                                 @endif
                                 <a class="btn btn--base"
-                                    href="{{ route('ticket.seats', [$trip->id, slug($trip->title), 'kiosk_id' => request()->kiosk_id]) }}">
-                                    @lang('Select Seat')
-                                </a>
+                                    href="{{ route('ticket.seats', [$trip->id, slug($trip->title), 'start_from' => $trip->start_from, 'end_to' => $trip->end_to, 'kiosk_id' => request()->kiosk_id]) }}">@lang('Select Seat')</a>
                             </div>
 
                             @if ($trip->fleetType->facilities)

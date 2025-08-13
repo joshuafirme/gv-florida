@@ -4,7 +4,8 @@
         $counters = App\Models\Counter::get();
     @endphp
 
-    <div class="ticket-search-bar bg_img padding-top" style="background: url({{ getImage('assets/templates/basic/images/search_bg.jpg') }}) left center;">
+    <div class="ticket-search-bar bg_img padding-top"
+        style="background: url({{ getImage('assets/templates/basic/images/search_bg.jpg') }}) left center;">
         <div class="container">
             <div class="bus-search-header">
                 <form action="{{ route('search') }}" class="ticket-form ticket-form-two row g-3 justify-content-center">
@@ -35,7 +36,8 @@
                     <div class="col-md-4 col-lg-3">
                         <div class="form--group">
                             <i class="las la-calendar-check"></i>
-                            <input type="text" name="date_of_journey" class="form--control date-range" placeholder="@lang('Date of Journey')" autocomplete="off" value="{{ request()->date_of_journey }}">
+                            <input type="text" name="date_of_journey" class="form--control date-range"
+                                placeholder="@lang('Date of Journey')" autocomplete="off" value="{{ request()->date_of_journey }}">
                         </div>
                     </div>
                     <div class="col-md-6 col-lg-3">
@@ -66,11 +68,15 @@
                                     <ul class="bus-type">
                                         @foreach ($fleetType as $fleet)
                                             <li class="custom--checkbox">
-                                                <input name="fleetType[]" class="search" value="{{ $fleet->id }}" id="{{ $fleet->name }}" type="checkbox" @if (request()->fleetType) @foreach (request()->fleetType as $item)
+                                                <input name="fleetType[]" class="search" value="{{ $fleet->id }}"
+                                                    id="{{ $fleet->name }}" type="checkbox"
+                                                    @if (request()->fleetType) @foreach (request()->fleetType as $item)
                                     @if ($item == $fleet->id)
-                                    checked @endif @endforeach
+                                    checked @endif
+                                                    @endforeach
                                         @endif >
-                                        <label for="{{ $fleet->name }}"><span><i class="las la-bus"></i>{{ __($fleet->name) }}</span></label>
+                                        <label for="{{ $fleet->name }}"><span><i
+                                                    class="las la-bus"></i>{{ __($fleet->name) }}</span></label>
                                         </li>
                             @endforeach
                             </ul>
@@ -83,10 +89,14 @@
                                 <ul class="bus-type">
                                     @foreach ($routes as $route)
                                         <li class="custom--checkbox">
-                                            <input name="routes[]" class="search" value="{{ $route->id }}" id="route.{{ $route->id }}" type="checkbox" @if (request()->routes) @foreach (request()->routes as $item)
-                                                @if ($item == $route->id) checked @endif @endforeach
+                                            <input name="routes[]" class="search" value="{{ $route->id }}"
+                                                id="route.{{ $route->id }}" type="checkbox"
+                                                @if (request()->routes) @foreach (request()->routes as $item)
+                                                @if ($item == $route->id) checked @endif
+                                                @endforeach
                                     @endif >
-                                    <label for="route.{{ $route->id }}"><span><span><i class="las la-road"></i>{{ __($route->name) }} </span></label>
+                                    <label for="route.{{ $route->id }}"><span><span><i
+                                                    class="las la-road"></i>{{ __($route->name) }} </span></label>
                                     </li>
                         @endforeach
                         </ul>
@@ -99,9 +109,12 @@
                         <ul class="bus-type">
                             @foreach ($schedules as $schedule)
                                 <li class="custom--checkbox">
-                                    <input name="schedules[]" class="search" value="{{ $schedule->id }}" id="schedule.{{ $schedule->id }}" type="checkbox" @if (request()->schedules) @foreach (request()->schedules as $item)
+                                    <input name="schedules[]" class="search" value="{{ $schedule->id }}"
+                                        id="schedule.{{ $schedule->id }}" type="checkbox"
+                                        @if (request()->schedules) @foreach (request()->schedules as $item)
                                     @if ($item == $schedule->id)
-                                    checked @endif @endforeach
+                                    checked @endif
+                                        @endforeach
                             @endif>
                             <label for="schedule.{{ $schedule->id }}"><span><span><i class="las la-clock"></i>
                                         {{ showDateTime($schedule->start_from, 'h:i a') . ' - ' . showDateTime($schedule->end_at, 'h:i a') }}
@@ -167,7 +180,8 @@
                                         @lang('Every day available')
                                 @endif
                             </div>
-                            <a class="btn btn--base" href="{{ route('ticket.seats', [$trip->id, slug($trip->title)]) }}">@lang('Select Seat')</a>
+                            <a class="btn btn--base"
+                                href="{{ route('ticket.seats', [$trip->id, slug($trip->title), 'start_from' => $trip->start_from, 'end_to' => $trip->end_to]) }}">@lang('Select Seat')</a>
                         </div>
                         @if ($trip->fleetType->facilities)
                             <div class="ticket-item-footer">

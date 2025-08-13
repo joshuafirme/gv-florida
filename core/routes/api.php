@@ -15,19 +15,20 @@ use Illuminate\Support\Facades\Route;
 use Coreproc\PaynamicsSdk\Requests\PaymentRequest;
 use Coreproc\PaynamicsSdk\Requests\ItemRequest;
 
-function get_client_ip() {
+function get_client_ip()
+{
     $ipaddress = '';
     if (isset($_SERVER['HTTP_CLIENT_IP']))
         $ipaddress = $_SERVER['HTTP_CLIENT_IP'];
-    else if(isset($_SERVER['HTTP_X_FORWARDED_FOR']))
+    else if (isset($_SERVER['HTTP_X_FORWARDED_FOR']))
         $ipaddress = $_SERVER['HTTP_X_FORWARDED_FOR'];
-    else if(isset($_SERVER['HTTP_X_FORWARDED']))
+    else if (isset($_SERVER['HTTP_X_FORWARDED']))
         $ipaddress = $_SERVER['HTTP_X_FORWARDED'];
-    else if(isset($_SERVER['HTTP_FORWARDED_FOR']))
+    else if (isset($_SERVER['HTTP_FORWARDED_FOR']))
         $ipaddress = $_SERVER['HTTP_FORWARDED_FOR'];
-    else if(isset($_SERVER['HTTP_FORWARDED']))
+    else if (isset($_SERVER['HTTP_FORWARDED']))
         $ipaddress = $_SERVER['HTTP_FORWARDED'];
-    else if(isset($_SERVER['REMOTE_ADDR']))
+    else if (isset($_SERVER['REMOTE_ADDR']))
         $ipaddress = $_SERVER['REMOTE_ADDR'];
     else
         $ipaddress = 'UNKNOWN';
@@ -38,68 +39,135 @@ Route::
         namespace('Api')->name('api.')->group(function () {
 
             Route::get('paynamics', function () {
-                // $merchant_id = "000000060825R2JDJ4XD";
-                // $request_id = uniqid("txn_");  // unique transaction ID
-                // $amount = "500.00";        // example amount
-                // $currency = "PHP";
-        
-                // $data = array(
-                //     "mid" => $merchant_id,
-                //     "request_id" => $request_id,
-                //     "amount" => $amount,
-                //     "currency" => $currency,
-                //     "response_url" => env('APP_URL') . "paynamics-response",
-                //     "cancel_url" => env('APP_URL') . "payment-cancel",
-                //     "notification_url" => env('APP_URL') . "paynamics-notify",
-                //     "payment_method" => "card",
-                //     "mtac_url" => "terms",
-                //     "description" => "Bus Ticket Booking"
-                // );
-        
-                // // Convert to JSON and encrypt/sign as required by Paynamics
-                // $json_data = json_encode($data);
-        
-                // // Usually, Paynamics requires you to sign the data with a secret key
-                // $signature = base64_encode(hash_hmac('sha256', $json_data, 'TM3RKZ8T7PUP6D5DFZCI1NR5ZCMZIE27', true));
-        
-                // // Send to Paynamics API (example)
-                // $ch = curl_init('https://payin.payserv.net/paygate/transactions/');
-                // curl_setopt($ch, CURLOPT_POST, true);
-                // curl_setopt($ch, CURLOPT_POSTFIELDS, array('data' => $json_data, 'signature' => $signature));
-                // curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                // $response = curl_exec($ch);
-                // dd($response);
-                // curl_close($ch);
-        
-                // return response()->json($response);
-                
-                $itemRequest = ItemRequest::make()
-                    ->setItemName('ticket')
-                    ->setAmount(300)
-                    ->setQuantity(1);
 
+                $_requestid = substr(uniqid(), 0, 13);
+                $merchantid = "000000060825R2JDJ4XD";
+                $mkey = "TM3RKZ8T7PUP6D5DFZCI1NR5ZCMZIE27";
+                $basicUser = "gv.florida.transport.inc";
+                $basicPass = "Y$|z,_?lP";
 
-                $paymentRequest = PaymentRequest::make()
-                    ->setIpAddress('82.180.152.171')
-                    ->setNotificationUrl(env('APP_URL') . "paynamics-notify")
-                    ->setResponseUrl(env('APP_URL') . "paynamics-response")
-                    ->setCancelUrl(env('APP_URL') . "payment-cancel")
-                    ->setFname('John')
-                    ->setLname('Doe')
-                    ->setAddress1('test address')
-                    ->setCity('Nasugbu')
-                    ->setState('Batangas')
-                    ->setEmail('artisan.dev1699@gmail.com')
-                    ->setMobile('09902920292')
-                    ->setClientIp(get_client_ip())
-                    ->setAmount(300)
-                    ->setCurrency('PHP')
-                    ->setTrxtype('sale')
-                    ->setPmethod('gcash')
-                    ->setCountry('PH')
-                    ->addItem($itemRequest);
-              //  dd($paymentRequest);
-                    return response()->json($paymentRequest);
+                // Request Data
+                $data = [
+                    "transaction" => [
+                        "request_id" => $_requestid,
+                        "notification_url" => "https://webhook.site/78a425db-2fb1-42e2-9ea5-e108c75dbfb6",
+                        "response_url" => "https://payin.payserv.net/paygate",
+                        "cancel_url" => "https://payin.payserv.net/datavault",
+                        "pmethod" => "creditcard",
+                        "pchannel" => "",
+                        "payment_action" => "url_link",
+                        "collection_method" => "single_pay",
+                        "payment_notification_status" => "1",
+                        "payment_notification_channel" => "1",
+                        "amount" => "1.00",
+                        "currency" => "PHP",
+                        "trx_type" => "sale",
+                    ],
+                    "billing_info" => [
+                        "billing_address1" => "Unit 1108 Cityland 10 Tower 2",
+                        "billing_address2" => "H.V. dela Costa Street 1227, Salcedo",
+                        "billing_city" => "Makati",
+                        "billing_state" => "Metro Manila",
+                        "billing_country" => "Philippines",
+                        "billing_zip" => "1209"
+                    ],
+                    "shipping_info" => [
+                        "shipping_address1" => "Unit 1108 Cityland 10 Tower 2",
+                        "shipping_address2" => "H.V. dela Costa Street 1227, Salcedo",
+                        "shipping_city" => "Makati",
+                        "shipping_state" => "Metro Manila",
+                        "shipping_country" => "Philippines",
+                        "shipping_zip" => "1209"
+                    ],
+                    "customer_info" => [
+                        "fname" => "Juan",
+                        "lname" => "Dela Cruz",
+                        "mname" => "Santos",
+                        "email" => "juan.delacruz@paynamics.net",
+                        "phone" => "09123456789",
+                        "mobile" => "",
+                        "dob" => ""
+                    ],
+                    "order_details" => [
+                        "orders" => [
+                            [
+                                "itemname" => "TEST 01",
+                                "quantity" => 1,
+                                "unitprice" => "1.00",
+                                "totalprice" => "1.00"
+                            ]
+                        ],
+                        "subtotalprice" => "1.00",
+                        "shippingprice" => "0.00",
+                        "discountamount" => "0.00",
+                        "totalorderamount" => "1.00"
+                    ]
+                ];
+
+                // Generate Transaction Signature
+                $rawTrx = $merchantid .
+                    ($data["transaction"]["request_id"] ?? '') .
+                    ($data["transaction"]["notification_url"] ?? '') .
+                    ($data["transaction"]["response_url"] ?? '') .
+                    ($data["transaction"]["cancel_url"] ?? '') .
+                    ($data["transaction"]["pmethod"] ?? '') .
+                    ($data["transaction"]["payment_action"] ?? '') .
+                    ($data["transaction"]["schedule"] ?? '') .
+                    ($data["transaction"]["collection_method"] ?? '') .
+                    ($data["transaction"]["deferred_period"] ?? '') .
+                    ($data["transaction"]["deferred_time"] ?? '') .
+                    ($data["transaction"]["dp_balance_info"] ?? '') .
+                    ($data["transaction"]["amount"] ?? '') .
+                    ($data["transaction"]["currency"] ?? '') .
+                    ($data["transaction"]["descriptor_note"] ?? '') .
+                    ($data["transaction"]["payment_notification_status"] ?? '') .
+                    ($data["transaction"]["payment_notification_channel"] ?? '') .
+                    $mkey;
+
+                $signatureTrx = hash('sha512', $rawTrx);
+                $data["transaction"]["signature"] = $signatureTrx;
+
+                // Generate Customer Signature
+                $rawCustomer = ($data["customer_info"]["fname"] ?? '') .
+                    ($data["customer_info"]["lname"] ?? '') .
+                    ($data["customer_info"]["mname"] ?? '') .
+                    ($data["customer_info"]["email"] ?? '') .
+                    ($data["customer_info"]["phone"] ?? '') .
+                    ($data["customer_info"]["mobile"] ?? '') .
+                    ($data["customer_info"]["dob"] ?? '') .
+                    $mkey;
+
+                $signatureCustomer = hash('sha512', $rawCustomer);
+                $data["customer_info"]["signature"] = $signatureCustomer;
+
+                // Convert to JSON
+                $jsonPayload = json_encode($data);
+
+                // cURL Request to Paynamics
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, "https://payin.payserv.net/paygate/transactions/");
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    "Content-Type: application/json",
+                    "Authorization: Basic " . base64_encode("$basicUser:$basicPass")
+                ]);
+
+                $response = curl_exec($ch);
+                echo $signatureTrx;
+                echo "<br>";
+                echo $signatureCustomer;
+                if (curl_errno($ch)) {
+                    echo "cURL Error: " . curl_error($ch);
+                } else {
+                    echo "API Response:\n";
+                    print_r(json_decode($response, true));
+                }
+
+                curl_close($ch);
             });
 
 

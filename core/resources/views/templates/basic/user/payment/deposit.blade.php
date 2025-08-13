@@ -1,9 +1,5 @@
-@extends($activeTemplate . 'layouts.kiosk')
-@section('content')
-    @php
-        $counters = App\Models\Counter::get();
-    @endphp
-
+@if (request()->kiosk_id)
+    @extends($activeTemplate . 'layouts.kiosk')
     <nav class="navbar navbar-light bg-white border-bottom sticky-top">
         <div class="container">
             <img width="80px" src="{{ siteLogo('dark') }}" alt="image">
@@ -14,7 +10,13 @@
             <span class="navbar-brand fw-semibold"> Self Booking Kiosk</span>
         </div>
     </nav>
+@else
+    @extends($activeTemplate . 'layouts.master')
+@endif
 @section('content')
+    @php
+        $counters = App\Models\Counter::get();
+    @endphp
     <div class="container padding-top padding-bottom">
         <div class="row justify-content-center">
             <div class="col-lg-9">
@@ -68,7 +70,8 @@
                                                 <span class="deposit-info__input-group-text">{{ gs('cur_sym') }}</span>
                                                 <input type="text" class="form-control form--control amount"
                                                     name="amount" placeholder="@lang('00.00')"
-                                                    value="{{ getAmount($bookedTicket->sub_total) }}" readonly autocomplete="off">
+                                                    value="{{ getAmount($bookedTicket->sub_total) }}" readonly
+                                                    autocomplete="off">
                                             </div>
                                         </div>
                                     </div>

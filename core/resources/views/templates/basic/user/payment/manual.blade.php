@@ -1,9 +1,5 @@
-@extends($activeTemplate . 'layouts.kiosk')
-@section('content')
-    @php
-        $counters = App\Models\Counter::get();
-    @endphp
-
+@if (request()->kiosk_id)
+    @extends($activeTemplate . 'layouts.kiosk')
     <nav class="navbar navbar-light bg-white border-bottom sticky-top">
         <div class="container">
             <img width="80px" src="{{ siteLogo('dark') }}" alt="image">
@@ -14,6 +10,9 @@
             <span class="navbar-brand fw-semibold"> Self Booking Kiosk</span>
         </div>
     </nav>
+@else
+    @extends($activeTemplate . 'layouts.master')
+@endif
 @section('content')
     <div class="container padding-top padding-bottom">
         <div class="row justify-content-center">
