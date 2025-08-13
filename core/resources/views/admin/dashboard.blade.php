@@ -3,46 +3,63 @@
 @section('panel')
     <div class="row gy-4">
         <div class="col-xxl-3 col-sm-6">
-            <x-widget style="6" link="{{ route('admin.users.all') }}" icon="las la-users" title="Total Users" value="{{ $widget['total_users'] }}" bg="primary" />
+            <x-widget style="6" link="{{ route('admin.users.all') }}" icon="las la-users" title="Total Users"
+                value="{{ $widget['total_users'] }}" bg="primary" />
         </div>
         <div class="col-xxl-3 col-sm-6">
-            <x-widget style="6" link="{{ route('admin.users.active') }}" icon="las la-user-check" title="Active Users" value="{{ $widget['verified_users'] }}" bg="success" />
+            <x-widget style="6" link="{{ route('admin.users.active') }}" icon="las la-user-check" title="Active Users"
+                value="{{ $widget['verified_users'] }}" bg="success" />
         </div>
         <div class="col-xxl-3 col-sm-6">
-            <x-widget style="6" link="{{ route('admin.users.email.unverified') }}" icon="lar la-envelope" title="Email Unverified Users" value="{{ $widget['email_unverified_users'] }}" bg="danger" />
+            <x-widget style="6" link="{{ route('admin.users.email.unverified') }}" icon="lar la-envelope"
+                title="Email Unverified Users" value="{{ $widget['email_unverified_users'] }}" bg="danger" />
         </div>
         <div class="col-xxl-3 col-sm-6">
-            <x-widget style="6" link="{{ route('admin.users.mobile.unverified') }}" icon="las la-comment-slash" title="Mobile Unverified Users" value="{{ $widget['mobile_unverified_users'] }}" bg="warning" />
-        </div>
-    </div>
-
-    <div class="row gy-4 mt-1">
-        <div class="col-xxl-3 col-sm-6">
-            <x-widget style="6" link="{{ route('admin.deposit.successful') }}" title="Successful Payment" icon="fas fa-wallet" value="{{ showAmount($deposit['total_deposit_amount']) }}" bg="success" outline="true" />
-        </div>
-        <div class="col-xxl-3 col-sm-6">
-            <x-widget style="6" link="{{ route('admin.deposit.pending') }}" title="Pending Payment" icon="fas fa-spinner" value="{{ showAmount($deposit['total_deposit_pending']) }}" bg="warning" outline="true" />
-        </div>
-        <div class="col-xxl-3 col-sm-6">
-            <x-widget style="6" link="{{ route('admin.deposit.rejected') }}" title="Rejected Payment" icon="fas fa-exclamation-triangle" value="{{ showAmount($deposit['total_deposit_rejected']) }}" bg="danger" outline="true" />
-        </div>
-        <div class="col-xxl-3 col-sm-6">
-            <x-widget style="6" link="{{ route('admin.deposit.list') }}" title="Total Charge" icon="fa fa-dollar-sign" value="{{ showAmount($deposit['total_deposit_charge']) }}" bg="primary" outline="true" />
+            <x-widget style="6" link="{{ route('admin.users.mobile.unverified') }}" icon="las la-comment-slash"
+                title="Mobile Unverified Users" value="{{ $widget['mobile_unverified_users'] }}" bg="warning" />
         </div>
     </div>
 
     <div class="row gy-4 mt-1">
         <div class="col-xxl-3 col-sm-6">
-            <x-widget style="2" overlay_icon="0" cover_cursor="1" link="{{ route('admin.counter.index') }}" title="Total Counter" icon="fas fa-map-marker-alt" value="{{ $widget['total_counter'] }}" color="success" />
+            <x-widget style="6" link="{{ route('admin.deposit.successful') }}" title="Successful Payment"
+                icon="fas fa-wallet" value="{{ showAmount($deposit['total_deposit_amount']) }}" bg="success"
+                outline="true" />
         </div>
         <div class="col-xxl-3 col-sm-6">
-            <x-widget style="2" overlay_icon="0" cover_cursor="1" link="{{ route('admin.fleet.vehicles.index') }}" title="Total AC Vehicles" icon="fas fa-wind" value="{{ $widget['vehicle_with_ac'] }}" color="info" />
+            <x-widget style="6" link="{{ route('admin.deposit.pending') }}" title="Pending Payment"
+                icon="fas fa-spinner" value="{{ showAmount($deposit['total_deposit_pending']) }}" bg="warning"
+                outline="true" />
         </div>
         <div class="col-xxl-3 col-sm-6">
-            <x-widget style="2" overlay_icon="0" cover_cursor="1" link="{{ route('admin.fleet.vehicles.index') }}" title="Total Non AC Vehicles" icon="fas fa-times-circle" value="{{ $widget['vehicle_without_ac'] }}" color="warning" />
+            <x-widget style="6" link="{{ route('admin.deposit.rejected') }}" title="Rejected Payment"
+                icon="fas fa-exclamation-triangle" value="{{ showAmount($deposit['total_deposit_rejected']) }}"
+                bg="danger" outline="true" />
         </div>
         <div class="col-xxl-3 col-sm-6">
-            <x-widget style="2" overlay_icon="0" cover_cursor="1" link="{{ route('admin.fleet.vehicles.index') }}" title="Total Vehicles" icon="fas fa-bus" value="{{ $widget['total_vehicle'] }}" color="primary" />
+            <x-widget style="6" link="{{ route('admin.deposit.list') }}" title="Total Charge" icon="fa fa-dollar-sign"
+                value="{{ showAmount($deposit['total_deposit_charge']) }}" bg="primary" outline="true" />
+        </div>
+    </div>
+
+    <div class="row gy-4 mt-1">
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget style="2" overlay_icon="0" cover_cursor="1" link="{{ route('admin.counter.index') }}"
+                title="Total Counter" icon="fas fa-map-marker-alt" value="{{ $widget['total_counter'] }}"
+                color="success" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget style="2" overlay_icon="0" cover_cursor="1" link="{{ route('admin.fleet.vehicles.index') }}"
+                title="Total AC Vehicles" icon="fas fa-wind" value="{{ $widget['vehicle_with_ac'] }}" color="info" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget style="2" overlay_icon="0" cover_cursor="1" link="{{ route('admin.fleet.vehicles.index') }}"
+                title="Total Non AC Vehicles" icon="fas fa-times-circle" value="{{ $widget['vehicle_without_ac'] }}"
+                color="warning" />
+        </div>
+        <div class="col-xxl-3 col-sm-6">
+            <x-widget style="2" overlay_icon="0" cover_cursor="1" link="{{ route('admin.fleet.vehicles.index') }}"
+                title="Total Vehicles" icon="fas fa-bus" value="{{ $widget['total_vehicle'] }}" color="primary" />
         </div>
     </div>
 
@@ -68,11 +85,17 @@
                                     @foreach ($soldTickets as $item)
                                         <tr>
                                             <td data-label="@lang('User')">
-                                                <span class="font-weight-bold">{{ __($item->user->fullname) }}</span>
-                                                <br>
-                                                <span class="small">
-                                                    <a href="{{ route('admin.users.detail', $item->user_id) }}"><span>@</span>{{ $item->user->username }}</a>
-                                                </span>
+                                                @if ($item->user)
+                                                    <span class="font-weight-bold">{{ __($item->user->fullname) }}</span>
+                                                    <br>
+                                                    <span class="small">
+                                                        <a
+                                                            href="{{ route('admin.users.detail', $item->user_id) }}"><span>@</span>{{ $item->user->username }}</a>
+                                                    </span>
+                                                @else
+                                                    {{ $item->kiosk->name }}
+                                                    <div>{{ $item->kiosk->uid }}</div>
+                                                @endif
                                             </td>
                                             <td data-label="@lang('PNR Number')">
                                                 <strong>{{ __($item->pnr_number) }}</strong>
@@ -84,7 +107,9 @@
                                                 {{ showAmount($item->sub_total) }}
                                             </td>
                                             <td data-label="@lang('Action')">
-                                                <a href="{{ route('admin.vehicle.ticket.booked') }}" class="icon-btn ml-1 " data-toggle="tooltip" title="" data-original-title="@lang('Detail')">
+                                                <a href="{{ route('admin.vehicle.ticket.booked') }}"
+                                                    class="icon-btn ml-1 " data-toggle="tooltip" title=""
+                                                    data-original-title="@lang('Detail')">
                                                     <i class="la la-desktop"></i>
                                                 </a>
                                             </td>
@@ -176,7 +201,8 @@
                 'Last 15 Days': [moment().subtract(14, 'days'), moment()],
                 'Last 30 Days': [moment().subtract(30, 'days'), moment()],
                 'This Month': [moment().startOf('month'), moment().endOf('month')],
-                'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf(
+                    'month')],
                 'Last 6 Months': [moment().subtract(6, 'months').startOf('month'), moment().endOf('month')],
                 'This Year': [moment().startOf('year'), moment().endOf('year')],
             },
@@ -217,11 +243,13 @@
             );
         }
 
-        $('#paymentDatePicker').daterangepicker(dateRangeOptions, (start, end) => changeDatePickerText('#paymentDatePicker span', start, end));
+        $('#paymentDatePicker').daterangepicker(dateRangeOptions, (start, end) => changeDatePickerText(
+            '#paymentDatePicker span', start, end));
         changeDatePickerText('#paymentDatePicker span', start, end);
         paymentChart(start, end);
 
-        $('#paymentDatePicker').on('apply.daterangepicker', (event, picker) => paymentChart(picker.startDate, picker.endDate));
+        $('#paymentDatePicker').on('apply.daterangepicker', (event, picker) => paymentChart(picker.startDate, picker
+            .endDate));
 
         piChart(
             document.getElementById('userBrowserChart'),
