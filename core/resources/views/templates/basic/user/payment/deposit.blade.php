@@ -1,19 +1,14 @@
-@if (request()->kiosk_id || session('kiosk_id'))
-    @extends($activeTemplate . 'layouts.kiosk')
-    <nav class="navbar navbar-light bg-white border-bottom sticky-top">
-        <div class="container">
-            <img width="80px" src="{{ siteLogo('dark') }}" alt="image">
-
-            <div class="clock-widget justify-content-center">
-                <span id="clock">--:-- --</span>
-            </div>
-            <span class="navbar-brand fw-semibold"> Self Booking Kiosk</span>
-        </div>
-    </nav>
-@else
-    @extends($activeTemplate . 'layouts.master')
-@endif
 @section('content')
+    @php
+        $kiosk_id = request()->kiosk_id;
+    @endphp
+    @if ($kiosk_id)
+        @php
+            $layout = 'layouts.kiosk';
+        @endphp
+        @include('templates.basic.partials.kiosk_nav')
+    @endif
+    @extends($activeTemplate . $layout)
     @php
         $counters = App\Models\Counter::get();
     @endphp

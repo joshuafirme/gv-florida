@@ -27,7 +27,13 @@ class PaymentController extends Controller
 
         $gatewayCurrency = GatewayCurrency::whereHas('method', function ($gate) {
             $gate->where('status', Status::ENABLE);
-        })->with('method')->orderby('name')->get();
+        })->with('method');
+
+        if (request('kiosk_id')) {
+            $gatewayCurrency->where('method_code', '>=', 1000);
+        }
+
+        $gatewayCurrency = $gatewayCurrency->orderby('name')->get();
 
         $booked_ticket_id = session()->get('booked_ticket_id');
         $bookedTicket = BookedTicket::orderBy('id', 'desc');
@@ -37,9 +43,13 @@ class PaymentController extends Controller
             $bookedTicket->where('user_id', auth()->user()->id);
         }
         $bookedTicket = $bookedTicket->first();
-
+        if (auth()->user()) {
+            $layout = 'layouts.master';
+        } else {
+            $layout = 'layouts.frontend';
+        }
         $pageTitle = 'Payment Methods';
-        return view('Template::user.payment.deposit', compact('gatewayCurrency', 'pageTitle', 'bookedTicket'));
+        return view('Template::user.payment.deposit', compact('gatewayCurrency', 'pageTitle', 'bookedTicket', 'layout'));
     }
 
     public function depositInsert(Request $request)
@@ -146,7 +156,7 @@ class PaymentController extends Controller
             $deposit->save();
         }
 
-        
+
         $pnr = session()->get('pnr_number');
         $ticket = BookedTicket::where('pnr_number', $pnr)->first();
 
@@ -205,7 +215,15 @@ class PaymentController extends Controller
             $pageTitle = 'Confirm Payment';
             $method = $data->gatewayCurrency();
             $gateway = $method->method;
-            return view('Template::user.payment.manual', compact('data', 'pageTitle', 'method', 'gateway'));
+            if (auth()->user()) {
+                $layout = 'layouts.master';
+            } else {
+                $layout = 'layouts.frontend';
+            }
+            if (session('kiosk_id')) {
+                $layout = 'layouts.kiosk';
+            }
+            return view('Template::user.payment.manual', compact('data', 'pageTitle', 'method', 'gateway', 'layout'));
         }
         abort(404);
     }

@@ -27,10 +27,11 @@
             color: #333;
             gap: 0.5rem;
         }
-          .clock-icon {
-      font-size: 1.8rem;
-      color: #0d6efd;
-    }
+
+        .clock-icon {
+            font-size: 1.8rem;
+            color: #0d6efd;
+        }
 
         .board-card {
             border: 0;

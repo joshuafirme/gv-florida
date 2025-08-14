@@ -200,9 +200,7 @@ class SiteController extends Controller
         $schedules = Schedule::all();
         $routes = VehicleRoute::active()->get();
 
-        $view = $request->kiosk_id ? 'kiosk_booking' : 'ticket';
-
-        return view("Template::$view", compact('pageTitle', 'fleetType', 'trips', 'routes', 'schedules', 'emptyMessage', 'layout'));
+        return view("Template::ticket", compact('pageTitle', 'fleetType', 'trips', 'routes', 'schedules', 'emptyMessage', 'layout'));
     }
 
     public function showSeat(Request $request, $id)
@@ -219,9 +217,7 @@ class SiteController extends Controller
             $layout = 'layouts.frontend';
         }
 
-        $view = $request->kiosk_id ? 'kiosk_book_ticket' : 'book_ticket';
-
-        return view("Template::$view", compact('pageTitle', 'trip', 'stoppages', 'busLayout', 'layout'));
+        return view("Template::book_ticket", compact('pageTitle', 'trip', 'stoppages', 'busLayout', 'layout'));
     }
 
     public function getTicketPrice(Request $request)
@@ -285,6 +281,8 @@ class SiteController extends Controller
         ], [
             "seats.required" => "Please Select at Least One Seat"
         ]);
+
+        session()->put('kiosk_id', request('kiosk_id'));
 
         $kiosk = null;
 
@@ -381,7 +379,7 @@ class SiteController extends Controller
         $bookedTicket->save();
         session()->put('pnr_number', $pnr_number);
         session()->put('booked_ticket_id', $bookedTicket->id);
-        return redirect()->route('user.deposit.index');
+        return redirect()->route('user.deposit.index', ['kiosk_id' => $kiosk]);
     }
 
     public function ticketSearch(Request $request)
@@ -504,8 +502,7 @@ class SiteController extends Controller
         } else {
             $layout = 'layouts.frontend';
         }
-        $view = $request->kiosk_id ? 'kiosk_booking' : 'ticket';
-        return view("Template::$view", compact('pageTitle', 'fleetType', 'trips', 'routes', 'schedules', 'emptyMessage', 'layout'));
+        return view("Template::ticket", compact('pageTitle', 'fleetType', 'trips', 'routes', 'schedules', 'emptyMessage', 'layout'));
     }
 
     public function placeholderImage($size = null)

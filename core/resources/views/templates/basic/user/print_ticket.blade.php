@@ -6,6 +6,8 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/x-icon" href="{{ getImage('assets/images/logoIcon/favicon.png') }}">
+    <link rel="stylesheet" href="{{ asset('assets/global/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/templates/basic/css/main.css') }}">
     <title>{{ gs()->sitename($pageTitle) }}</title>
     <style>
         @media screen,
@@ -28,8 +30,6 @@
 
             p {
                 color: #678;
-                margin-top: 10px;
-                margin-bottom: 10px;
             }
 
             ul {
@@ -294,7 +294,8 @@
 
     <div class="print-btn">
         @if ($ticket->kiosk_id)
-            <button onclick="window.print()" class="cmn-btn mt-3">Print Ticket</button>
+            <button onclick="window.print()" class="btn btn-warning mt-3">Print Ticket</button>
+            <a href="{{ url("/tickets?kiosk_id=$ticket->kiosk_id") }}" class="btn btn-success mt-3">Finish Transaction</a>
         @else
             <button type="button" class="cmn-btn btn-download">@lang('Download Ticket')</button>
         @endif

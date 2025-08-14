@@ -1,5 +1,15 @@
-@extends($activeTemplate . $layout)
 @section('content')
+    @php
+        $kiosk_id = request()->kiosk_id;
+    @endphp
+    @if ($kiosk_id)
+        @php
+            $layout = 'layouts.kiosk';
+        @endphp
+        @include('templates.basic.partials.kiosk_nav')
+    @endif
+    @extends($activeTemplate . $layout)
+
     @php
         $counters = App\Models\Counter::get();
     @endphp
@@ -9,6 +19,9 @@
         <div class="container">
             <div class="bus-search-header">
                 <form action="{{ route('search') }}" class="ticket-form ticket-form-two row g-3 justify-content-center">
+                    @if (request()->kiosk_id)
+                        <input type="hidden" name="kiosk_id" value="{{ request()->kiosk_id }}">
+                    @endif
                     <div class="col-md-4 col-lg-3">
                         <div class="form--group">
                             <i class="las la-location-arrow"></i>
@@ -57,6 +70,9 @@
             <div class="row gy-5">
                 <div class="col-lg-3">
                     <form action="{{ route('search') }}" id="filterForm">
+                        @if (request()->kiosk_id)
+                            <input type="hidden" name="kiosk_id" value="{{ request()->kiosk_id }}">
+                        @endif
                         <div class="ticket-filter">
                             <div class="filter-header filter-item">
                                 <h4 class="title mb-0">@lang('Filter')</h4>
@@ -181,7 +197,14 @@
                                 @endif
                             </div>
                             <a class="btn btn--base"
-                                href="{{ route('ticket.seats', [$trip->id, slug($trip->title), 'start_from' => $trip->start_from, 'end_to' => $trip->end_to]) }}">@lang('Select Seat')</a>
+                                href="{{ route('ticket.seats', [
+                                    $trip->id,
+                                    slug($trip->title),
+                                    'start_from' => $trip->start_from,
+                                    'end_to' => $trip->end_to,
+                                    'kiosk_id' => $kiosk_id,
+                                    'date_of_journey' => request('date_of_journey')
+                                ]) }}">@lang('Select Seat')</a>
                         </div>
                         @if ($trip->fleetType->facilities)
                             <div class="ticket-item-footer">

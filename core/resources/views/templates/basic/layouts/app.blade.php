@@ -82,6 +82,22 @@
             });
 
             $("#confirmationModal").find('.btn--primary').removeClass('btn--primary').addClass('btn--base');
+
+            @if (request('kiosk_id') || session('kiosk_id'))
+                function updateClock() {
+                    const now = new Date();
+                    let hours = now.getHours();
+                    const minutes = now.getMinutes().toString().padStart(2, '0');
+                    const seconds = now.getSeconds().toString().padStart(2, '0');
+                    const ampm = hours >= 12 ? 'PM' : 'AM';
+                    hours = hours % 12 || 12;
+
+                    document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds} ${ampm}`;
+                }
+
+                updateClock();
+                setInterval(updateClock, 1000);
+            @endif
         })(jQuery);
     </script>
 </body>

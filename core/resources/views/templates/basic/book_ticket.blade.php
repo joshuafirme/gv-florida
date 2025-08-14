@@ -1,5 +1,14 @@
-@extends($activeTemplate . $layout)
 @section('content')
+    @php
+        $kiosk_id = request()->kiosk_id;
+    @endphp
+    @if ($kiosk_id)
+        @php
+            $layout = 'layouts.kiosk';
+        @endphp
+        @include('templates.basic.partials.kiosk_nav')
+    @endif
+    @extends($activeTemplate . $layout)
 
     <div class="padding-top padding-bottom">
         <div class="container">
@@ -8,20 +17,23 @@
                     <div class="seat-overview-wrapper">
                         <form action="{{ route('ticket.book', $trip->id) }}" method="POST" id="bookingForm" class="row gy-2">
                             @csrf
+                            <input type="hidden" name="kiosk_id" value="{{ request('kiosk_id') }}" hidden>
                             <input type="text" name="price" hidden>
                             <div class="col-12">
                                 <div class="form-group">
                                     <label for="date_of_journey" class="form-label">@lang('Journey Date')</label>
-                                    <input type="text" id="date_of_journey" class="form--control date-range" value="{{ Session::get('date_of_journey') ? Session::get('date_of_journey') : date('m/d/Y') }}" name="date_of_journey">
+                                    <input type="text" id="date_of_journey" class="form--control date-range"
+                                        value="{{ request('date_of_journey') ? request('date_of_journey') : date('m/d/Y') }}"
+                                        name="date_of_journey">
                                 </div>
                             </div>
-                            <div class="col-12">
+                           <div class="col-12">
                                 <div class="form-group">
                                     <label for="pickup_point" class="form-label">@lang('Pickup Point')</label>
                                     <select name="pickup_point" id="pickup_point" class="form--control select2">
                                         <option value="">@lang('Select One')</option>
                                         @foreach ($stoppages as $item)
-                                            <option value="{{ $item->id }}" @if (Session::get('pickup') == $item->id) selected @endif>
+                                            <option value="{{ $item->id }}" @if (request('start_from') == $item->id) selected @endif>
                                                 {{ __($item->name) }}
                                             </option>
                                         @endforeach
@@ -34,7 +46,7 @@
                                     <select name="dropping_point" id="dropping_point" class="form--control select2">
                                         <option value="">@lang('Select One')</option>
                                         @foreach ($stoppages as $item)
-                                            <option value="{{ $item->id }}" @if (Session::get('destination') == $item->id) selected @endif>
+                                            <option value="{{ $item->id }}" @if (request('end_to') == $item->id) selected @endif>
                                                 {{ __($item->name) }}
                                             </option>
                                         @endforeach
@@ -43,7 +55,7 @@
                             </div>
                             <div class="col-12">
                                 <label class="form-label">@lang('Select Gender')</label>
-                                <div class="d-flex flex-wrap justify-content-between">
+                                <div class="d-flex flex-wrap gap-3">
                                     <div class="form-group custom--radio">
                                         <input id="male" type="radio" name="gender" value="1">
                                         <label class="form-label" for="male">@lang('Male')</label>
@@ -52,17 +64,14 @@
                                         <input id="female" type="radio" name="gender" value="2">
                                         <label class="form-label" for="female">@lang('Female')</label>
                                     </div>
-                                    <div class="form-group custom--radio">
-                                        <input id="other" type="radio" name="gender" value="3">
-                                        <label class="form-label" for="other">@lang('Other')</label>
-                                    </div>
                                 </div>
                             </div>
 
                             <div class="booked-seat-details my-3 d-none">
                                 <label>@lang('Selected Seats')</label>
                                 <div class="list-group seat-details-animate">
-                                    <span class="list-group-item d-flex bg--base text-white justify-content-between">@lang('Seat Details')<span>@lang('Price')</span></span>
+                                    <span
+                                        class="list-group-item d-flex bg--base text-white justify-content-between">@lang('Seat Details')<span>@lang('Price')</span></span>
                                     <div class="selected-seat-details">
                                     </div>
                                 </div>
@@ -155,11 +164,7 @@
                         <div class="seat-condition selected-by-ladies">
                             <div class="seat"><span></span></div>
                             <p>@lang('Booked by Ladies')</p>
-                        </div>
-                        <div class="seat-condition selected-by-others">
-                            <div class="seat"><span></span></div>
-                            <p>@lang('Booked by Others')</p>
-                        </div>
+                        </div
                     </div>
                 </div>
             </div>
@@ -167,12 +172,14 @@
     </div>
 
     {{-- confirmation modal --}}
-    <div class="modal fade" id="bookConfirm" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal fade" id="bookConfirm" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"> @lang('Confirm Booking')</h5>
-                    <button type="button" class="w-auto btn--close" data-bs-dismiss="modal"><i class="las la-times"></i></button>
+                    <button type="button" class="w-auto btn--close" data-bs-dismiss="modal"><i
+                            class="las la-times"></i></button>
                 </div>
                 <div class="modal-body">
                     <strong class="text-dark">@lang('Are you sure to book these seats?')</strong>
@@ -188,12 +195,14 @@
         </div>
     </div>
 
-    <div class="modal fade" id="alertModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal fade" id="alertModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"> @lang('Alert Message')</h5>
-                    <button type="button" class="w-auto btn--close" data-bs-dismiss="modal"><i class="las la-times"></i></button>
+                    <button type="button" class="w-auto btn--close" data-bs-dismiss="modal"><i
+                            class="las la-times"></i></button>
                 </div>
                 <div class="modal-body">
                     <strong>
@@ -248,7 +257,8 @@
             //reset all seats
             function reset() {
                 $('.seat-wrapper .seat').removeClass('selected');
-                $('.seat-wrapper .seat').parent().removeClass('seat-condition selected-by-ladies selected-by-gents selected-by-others disabled');
+                $('.seat-wrapper .seat').parent().removeClass(
+                    'seat-condition selected-by-ladies selected-by-gents selected-by-others disabled');
                 $('.selected-seat-details').html('');
             }
 
@@ -277,13 +287,16 @@
                     $('.booked-seat-details').removeClass('d-none');
                     $.each(selectedSeats, function(i, value) {
                         seats += $(value).data('seat') + ',';
-                        seatDetails += `<span class="list-group-item d-flex justify-content-between">${$(value).data('seat')} <span>${price} ${currency}</span></span>`;
+                        seatDetails +=
+                            `<span class="list-group-item d-flex justify-content-between">${$(value).data('seat')} <span>${price} ${currency}</span></span>`;
                         subtotal = subtotal + parseFloat(price);
                     });
 
                     $('input[name=seats]').val(seats);
                     $('.selected-seat-details').html(seatDetails);
-                    $('.selected-seat-details').append(`<span class="list-group-item d-flex justify-content-between">@lang('Sub total')<span>${subtotal} ${currency}</span></span>`);
+                    $('.selected-seat-details').append(
+                        `<span class="list-group-item d-flex justify-content-between">@lang('Sub total')<span>${subtotal} ${currency}</span></span>`
+                        );
                 } else {
                     $('.selected-seat-details').html('');
                     $('.booked-seat-details').addClass('d-none');
@@ -291,9 +304,11 @@
             }
 
             //on change date, pickup point and destination point show available seats
-            $(document).on('change', 'select[name="pickup_point"], select[name="dropping_point"], input[name="date_of_journey"]', function(e) {
-                showBookedSeat();
-            });
+            $(document).on('change',
+                'select[name="pickup_point"], select[name="dropping_point"], input[name="date_of_journey"]',
+                function(e) {
+                    showBookedSeat();
+                });
 
             //booked seat
             function showBookedSeat() {
@@ -354,30 +369,50 @@
                                     var bookedDestination = v.dropping_point; //Booked
 
                                     bookedSource = stoppages.indexOf(bookedSource.toString());
-                                    bookedDestination = stoppages.indexOf(bookedDestination.toString());
+                                    bookedDestination = stoppages.indexOf(bookedDestination
+                                        .toString());
 
-                                    if (reqDestination >= bookedSource || reqSource <= bookedDestination) {
+                                    if (reqDestination >= bookedSource || reqSource <=
+                                        bookedDestination) {
                                         $.each(v.seats, function(index, val) {
                                             if (v.gender == 1) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`).parent().removeClass('seat-condition selected-by-gents disabled');
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().removeClass(
+                                                        'seat-condition selected-by-gents disabled'
+                                                        );
                                             }
                                             if (v.gender == 2) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`).parent().removeClass('seat-condition selected-by-ladies disabled');
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().removeClass(
+                                                        'seat-condition selected-by-ladies disabled'
+                                                        );
                                             }
                                             if (v.gender == 3) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`).parent().removeClass('seat-condition selected-by-others disabled');
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().removeClass(
+                                                        'seat-condition selected-by-others disabled'
+                                                        );
                                             }
                                         });
                                     } else {
                                         $.each(v.seats, function(index, val) {
                                             if (v.gender == 1) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`).parent().addClass('seat-condition selected-by-gents disabled');
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().addClass(
+                                                        'seat-condition selected-by-gents disabled'
+                                                        );
                                             }
                                             if (v.gender == 2) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`).parent().addClass('seat-condition selected-by-ladies disabled');
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().addClass(
+                                                        'seat-condition selected-by-ladies disabled'
+                                                        );
                                             }
                                             if (v.gender == 3) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`).parent().addClass('seat-condition selected-by-others disabled');
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().addClass(
+                                                        'seat-condition selected-by-others disabled'
+                                                        );
                                             }
                                         });
                                     }
@@ -389,31 +424,51 @@
                                     var bookedDestination = v.dropping_point; //Booked
 
                                     bookedSource = stoppages.indexOf(bookedSource.toString());
-                                    bookedDestination = stoppages.indexOf(bookedDestination.toString());
+                                    bookedDestination = stoppages.indexOf(bookedDestination
+                                        .toString());
 
 
-                                    if (reqDestination <= bookedSource || reqSource >= bookedDestination) {
+                                    if (reqDestination <= bookedSource || reqSource >=
+                                        bookedDestination) {
                                         $.each(v.seats, function(index, val) {
                                             if (v.gender == 1) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`).parent().removeClass('seat-condition selected-by-gents disabled');
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().removeClass(
+                                                        'seat-condition selected-by-gents disabled'
+                                                        );
                                             }
                                             if (v.gender == 2) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`).parent().removeClass('seat-condition selected-by-ladies disabled');
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().removeClass(
+                                                        'seat-condition selected-by-ladies disabled'
+                                                        );
                                             }
                                             if (v.gender == 3) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`).parent().removeClass('seat-condition selected-by-others disabled');
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().removeClass(
+                                                        'seat-condition selected-by-others disabled'
+                                                        );
                                             }
                                         });
                                     } else {
                                         $.each(v.seats, function(index, val) {
                                             if (v.gender == 1) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`).parent().addClass('seat-condition selected-by-gents disabled');
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().addClass(
+                                                        'seat-condition selected-by-gents disabled'
+                                                        );
                                             }
                                             if (v.gender == 2) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`).parent().addClass('seat-condition selected-by-ladies disabled');
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().addClass(
+                                                        'seat-condition selected-by-ladies disabled'
+                                                        );
                                             }
                                             if (v.gender == 3) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`).parent().addClass('seat-condition selected-by-others disabled');
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().addClass(
+                                                        'seat-condition selected-by-others disabled'
+                                                        );
                                             }
                                         });
                                     }
