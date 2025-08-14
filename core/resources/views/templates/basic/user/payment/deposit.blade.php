@@ -1,4 +1,4 @@
-@if (request()->kiosk_id)
+@if (request()->kiosk_id || session('kiosk_id'))
     @extends($activeTemplate . 'layouts.kiosk')
     <nav class="navbar navbar-light bg-white border-bottom sticky-top">
         <div class="container">
@@ -54,7 +54,8 @@
                                     @if ($gatewayCurrency->count() > 4)
                                         <button type="button" class="payment-item__btn more-gateway-option">
                                             <p class="payment-item__btn-text">@lang('Show All Payment Options')</p>
-                                            <span class="payment-item__btn__icon"><i class="fas fa-chevron-down"></i></span>
+                                            <span class="payment-item__btn__icon"><i
+                                                    class="fas fa-chevron-down"></i></span>
                                         </button>
                                     @endif
                                 </div>
@@ -91,7 +92,8 @@
                                         <div class="deposit-info__title">
                                             <p class="text has-icon">@lang('Processing Charge')
                                                 <span data-bs-toggle="tooltip" title="@lang('Processing charge for payment gateways')"
-                                                    class="proccessing-fee-info"><i class="las la-info-circle"></i> </span>
+                                                    class="proccessing-fee-info"><i class="las la-info-circle"></i>
+                                                </span>
                                             </p>
                                         </div>
                                         <div class="deposit-info__input">

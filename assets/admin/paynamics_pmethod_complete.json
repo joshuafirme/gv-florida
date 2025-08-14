@@ -1,0 +1,74 @@
+{
+    "pmethod": [
+        {
+            "name": "wallet",
+            "types": [
+                { "name": "gc", "value": "GCash" },
+                { "name": "grabpay_ph", "value": "GrabPay" },
+                { "name": "paymaya_ph", "value": "PayMaya" },
+                { "name": "coins_ph", "value": "Coins.ph" },
+                { "name": "homecredit_ph", "value": "Home Credit" },
+                { "name": "pp", "value": "PayPal" },
+                { "name": "pwn", "value": "Payoneer" },
+                { "name": "wechat", "value": "WeChat Pay" },
+                { "name": "alipay", "value": "Alipay" },
+                { "name": "atome_ph", "value": "Atome" },
+                { "name": "shopeepay_ph", "value": "ShopeePay" },
+                { "name": "paybiz_ph", "value": "PayBiz" }
+            ]
+        },
+        {
+            "name": "nonbank_otc",
+            "types": [
+                { "name": "ecpay_ph", "value": "ECPay" },
+                { "name": "da5_ph", "value": "DA5" },
+                { "name": "expresspay_ph", "value": "ExpressPay" },
+                { "name": "dp_ph", "value": "DragonPay" },
+                { "name": "711_ph", "value": "7-Eleven" },
+                { "name": "cliqq_ph", "value": "CliQQ" },
+                { "name": "mlhuillier_ph", "value": "MLhuillier" },
+                { "name": "cebuana_ph", "value": "Cebuana Lhuillier" },
+                { "name": "smbills_ph", "value": "SM Bills" },
+                { "name": "bayadcenter_ph", "value": "Bayad Center" },
+                { "name": "truemoney_ph", "value": "TrueMoney" },
+                { "name": "posible_ph", "value": "Posible" },
+                { "name": "etap_ph", "value": "eTap" },
+                { "name": "palawan_express_ph", "value": "Palawan Express" }
+            ]
+        },
+        {
+            "name": "creditcard",
+            "types": [
+                { "name": "bdo_cc_ph", "value": "BDO Credit Card" },
+                { "name": "gpap_cc_ph", "value": "GPAP Credit Card" },
+                { "name": "metrobank_cc_ph", "value": "Metrobank Credit Card" },
+                { "name": "maybank_cc_ph", "value": "Maybank Credit Card" },
+                { "name": "paymaya_cc_ph", "value": "PayMaya Credit Card" },
+                { "name": "paytabs_cc_ph", "value": "PayTabs Credit Card" },
+                { "name": "wdbank_de", "value": "WDBank Germany" },
+                { "name": "emp_bg", "value": "EMP Bulgaria" },
+                { "name": "pc21_cy", "value": "PC21 Cyprus" },
+                { "name": "sberbank_ru", "value": "Sberbank Russia" },
+                { "name": "integra_au", "value": "Integra Australia" },
+                { "name": "icard_bg", "value": "iCard Bulgaria" },
+                { "name": "ubp_ph", "value": "UnionBank" },
+                { "name": "rob_ph", "value": "Robinsons Bank" }
+            ]
+        },
+        {
+            "name": "onlinebanktransfer",
+            "types": [
+                { "name": "bn", "value": "BPI BanKo" },
+                { "name": "bpi_online", "value": "BPI Online" },
+                { "name": "ubp_online", "value": "UnionBank Online" },
+                { "name": "pnb_online", "value": "PNB Online" },
+                { "name": "br_bdo_ph", "value": "BDO Branch" },
+                { "name": "br_pnb_ph", "value": "PNB Branch" },
+                { "name": "br_rcbc_ph", "value": "RCBC Branch" },
+                { "name": "br_landbank_ph", "value": "Landbank Branch" },
+                { "name": "br_metrobank_ph", "value": "Metrobank Branch" },
+                { "name": "ubp_qr_ph", "value": "UnionBank QR" }
+            ]
+        }
+    ]
+}

@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\Route;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
-use Coreproc\PaynamicsSdk\Requests\PaymentRequest;
-use Coreproc\PaynamicsSdk\Requests\ItemRequest;
 
 function get_client_ip()
 {
@@ -40,21 +38,23 @@ Route::
 
             Route::get('paynamics', function () {
 
-                $_requestid = substr(uniqid(), 0, 13);
-                $merchantid = "000000060825R2JDJ4XD";
-                $mkey = "TM3RKZ8T7PUP6D5DFZCI1NR5ZCMZIE27";
-                $basicUser = "gv.florida.transport.inc";
-                $basicPass = "Y$|z,_?lP";
+                $date = date('Ymd');
 
-                // Request Data
+                $merchantid = config('paynamics.merchant_id');
+                $mkey = config('paynamics.merchant_key');
+                $basicUser = config('paynamics.basic_auth_user');
+                $basicPass = config('paynamics.basic_auth_pw');
+
+                $req_id = "GVF-$date-" . substr(uniqid(), 0, 7);
+
                 $data = [
                     "transaction" => [
-                        "request_id" => $_requestid,
+                        "request_id" => $req_id,
                         "notification_url" => "https://webhook.site/78a425db-2fb1-42e2-9ea5-e108c75dbfb6",
                         "response_url" => "https://payin.payserv.net/paygate",
                         "cancel_url" => "https://payin.payserv.net/datavault",
-                        "pmethod" => "creditcard",
-                        "pchannel" => "",
+                        "pmethod" => "onlinebanktransfer",
+                        "pchannel" => "bpi_online",
                         "payment_action" => "url_link",
                         "collection_method" => "single_pay",
                         "payment_notification_status" => "1",
@@ -91,7 +91,7 @@ Route::
                     "order_details" => [
                         "orders" => [
                             [
-                                "itemname" => "TEST 01",
+                                "itemname" => "WEB TEST 01",
                                 "quantity" => 1,
                                 "unitprice" => "1.00",
                                 "totalprice" => "1.00"
@@ -157,17 +157,17 @@ Route::
                 ]);
 
                 $response = curl_exec($ch);
-                echo $signatureTrx;
-                echo "<br>";
-                echo $signatureCustomer;
+
                 if (curl_errno($ch)) {
                     echo "cURL Error: " . curl_error($ch);
                 } else {
-                    echo "API Response:\n";
-                    print_r(json_decode($response, true));
+                    curl_close($ch);
+                    $json_res = json_decode($response);
+                    if (isset($json_res->payment_action_info)) {
+                        return redirect()->to($json_res->payment_action_info);
+                    }
+                    return $json_res;
                 }
-
-                curl_close($ch);
             });
 
 

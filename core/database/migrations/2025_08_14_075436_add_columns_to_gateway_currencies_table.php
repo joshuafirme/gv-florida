@@ -11,17 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('deposits', function (Blueprint $table) {
-            $table->integer('user_id')->nullable()->change();
+        Schema::table('gateway_currencies', function (Blueprint $table) {
+            $table->json('icons')->nullable()->after('name');
+            $table->string('description')->nullable()->after('name');
         });
     }
 
-    /**p
+    /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::table('deposits', function (Blueprint $table) {
+        Schema::table('gateway_currencies', function (Blueprint $table) {
             //
         });
     }

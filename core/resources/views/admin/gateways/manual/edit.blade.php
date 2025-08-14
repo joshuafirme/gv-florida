@@ -28,6 +28,12 @@
                                                     value="{{ $method->name }}" required />
                                             </div>
                                         </div>
+                                        {{-- <div class="col-sm-12 col-md-6 col-lg-6 col-xl-4">
+                                            <div class="form-group">
+                                                <label>@lang('Description')</label>
+                                                <textarea name="description" class="form-control">{{ $method->description }}</textarea>
+                                            </div>
+                                        </div> --}}
                                         <div class="col-xl-3 col-md-6">
                                             <div class="form-group">
                                                 <label>@lang('Currency')</label>

@@ -75,6 +75,8 @@ class PaymentController extends Controller
         if (!$deposit) {
             $deposit = new Deposit();
         }
+        $date = date('Ymd');
+        $req_id = "GVF-$date-" . substr(uniqid(), 0, 7);
         $deposit->user_id = $user ? $user->id : null;
         $deposit->booked_ticket_id = $bookedTicket->id;
         $deposit->method_code = $gate->method_code;
@@ -85,7 +87,8 @@ class PaymentController extends Controller
         $deposit->final_amount = $finalAmount;
         $deposit->btc_amount = 0;
         $deposit->btc_wallet = "";
-        $deposit->trx = getTrx();
+        // $deposit->trx = getTrx();
+        $deposit->trx = $req_id;
         $deposit->status = Status::PAYMENT_INITIATE;
         $deposit->success_url = urlPath('user.ticket.history');
         $deposit->failed_url = urlPath('ticket');
@@ -143,8 +146,12 @@ class PaymentController extends Controller
             $deposit->save();
         }
 
+        
+        $pnr = session()->get('pnr_number');
+        $ticket = BookedTicket::where('pnr_number', $pnr)->first();
+
         $pageTitle = 'Confirm Payment';
-        return view("Template::$data->view", compact('data', 'pageTitle', 'deposit'));
+        return view("Template::$data->view", compact('data', 'pageTitle', 'deposit', 'ticket'));
     }
 
 
@@ -255,5 +262,142 @@ class PaymentController extends Controller
         }
 
         return to_route('user.ticket.history')->withNotify($notify);
+    }
+
+
+    public function paynamicsRedirect(Request $request)
+    {
+        $pmethods = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'))->pmethod;
+        $pmethod = '';
+        foreach ($pmethods as $item) {
+            foreach ($item->types as $type) {
+                if ($request->pchannel == $type->value) {
+                    $pmethod = $item->value;
+                    break;
+                }
+            }
+        }
+
+        $user = $request->user();
+        $date = date('Ymd');
+        $booked_ticket_id = session()->get('booked_ticket_id');
+
+        $ticket = BookedTicket::find($booked_ticket_id);
+
+        $orders = [];
+        $orders[] = [
+            "itemname" => "PNR: $ticket->pnr_number Seats: " . implode(', ', $ticket->seats),
+            "quantity" => 1,
+            "unitprice" => $ticket->deposit->final_amount,
+            "totalprice" => $ticket->deposit->final_amount
+        ];
+
+        $base_url = config('app.url');
+        $merchantid = config('paynamics.merchant_id');
+        $mkey = config('paynamics.merchant_key');
+        $basicUser = config('paynamics.basic_auth_user');
+        $basicPass = config('paynamics.basic_auth_pw');
+
+        $req_id = "GVF-$date-" . substr(uniqid(), 0, 7);
+
+        $data = [
+            "transaction" => [
+                "request_id" => $req_id,
+                "notification_url" => "$base_url/ipn/paynamics",
+                "response_url" => "$base_url/paynamics/response",
+                "cancel_url" => "$base_url/paynamics/cancel",
+                "pmethod" => $pmethod,
+                "pchannel" => $request->pchannel,
+                "payment_action" => "url_link",
+                "collection_method" => "single_pay",
+                "payment_notification_status" => "1",
+                "payment_notification_channel" => "1",
+                "amount" => $ticket->deposit->final_amount,
+                "currency" => "PHP",
+                "trx_type" => "sale",
+                // "mtac_url" => ""
+            ],
+            "customer_info" => [
+                "fname" => $user->firstname,
+                "lname" => $user->lastname,
+                "mname" => "",
+                "email" => $user->email,
+                "phone" => $user->mobile,
+                "mobile" => $user->mobile,
+                "dob" => ""
+            ],
+            "order_details" => [
+                "orders" => $orders,
+                "subtotalprice" => $ticket->deposit->final_amount,
+                "shippingprice" => "0.00",
+                "discountamount" => "0.00",
+                "totalorderamount" => $ticket->deposit->final_amount
+            ]
+        ];
+
+        // Generate Transaction Signature
+        $rawTrx = $merchantid .
+            ($data["transaction"]["request_id"] ?? '') .
+            ($data["transaction"]["notification_url"] ?? '') .
+            ($data["transaction"]["response_url"] ?? '') .
+            ($data["transaction"]["cancel_url"] ?? '') .
+            ($data["transaction"]["pmethod"] ?? '') .
+            ($data["transaction"]["payment_action"] ?? '') .
+            ($data["transaction"]["schedule"] ?? '') .
+            ($data["transaction"]["collection_method"] ?? '') .
+            ($data["transaction"]["deferred_period"] ?? '') .
+            ($data["transaction"]["deferred_time"] ?? '') .
+            ($data["transaction"]["dp_balance_info"] ?? '') .
+            ($data["transaction"]["amount"] ?? '') .
+            ($data["transaction"]["currency"] ?? '') .
+            ($data["transaction"]["descriptor_note"] ?? '') .
+            ($data["transaction"]["payment_notification_status"] ?? '') .
+            ($data["transaction"]["payment_notification_channel"] ?? '') .
+            $mkey;
+
+        $signatureTrx = hash('sha512', $rawTrx);
+        $data["transaction"]["signature"] = $signatureTrx;
+
+        // Generate Customer Signature
+        $rawCustomer = ($data["customer_info"]["fname"] ?? '') .
+            ($data["customer_info"]["lname"] ?? '') .
+            ($data["customer_info"]["mname"] ?? '') .
+            ($data["customer_info"]["email"] ?? '') .
+            ($data["customer_info"]["phone"] ?? '') .
+            ($data["customer_info"]["mobile"] ?? '') .
+            ($data["customer_info"]["dob"] ?? '') .
+            $mkey;
+
+        $signatureCustomer = hash('sha512', $rawCustomer);
+        $data["customer_info"]["signature"] = $signatureCustomer;
+
+        // Convert to JSON
+        $jsonPayload = json_encode($data);
+
+        // cURL Request to Paynamics
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, "https://payin.payserv.net/paygate/transactions/");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "Content-Type: application/json",
+            "Authorization: Basic " . base64_encode("$basicUser:$basicPass")
+        ]);
+
+        $response = curl_exec($ch);
+
+        if (curl_errno($ch)) {
+            echo "cURL Error: " . curl_error($ch);
+        } else {
+            curl_close($ch);
+            $json_res = json_decode($response);
+            if (isset($json_res->payment_action_info)) {
+                return redirect()->to($json_res->payment_action_info);
+            }
+            return $json_res;
+        }
     }
 }

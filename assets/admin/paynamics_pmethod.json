@@ -1,0 +1,44 @@
+{
+    "pmethod": [
+        {
+            "name": "E-Wallet",
+            "value": "wallet",
+            "types": [
+                { "name": "GCash", "value": "gc" },
+                { "name": "GrabPay", "value": "grabpay_ph" },
+                { "name": "PayMaya", "value": "paymaya_ph" },
+                { "name": "Coins.ph", "value": "coins_ph" },
+                { "name": "Home Credit", "value": "homecredit_ph" }
+            ]
+        },
+        {
+            "name": "Online Bank Transfer",
+            "value": "onlinebanktransfer",
+            "types": [
+                { "name": "BPI BanKo", "value": "bn" },
+                { "name": "BPI Online", "value": "bpi_online" },
+                { "name": "UnionBank Online", "value": "ubp_online" },
+                { "name": "Landbank Branch", "value": "br_landbank_ph" },
+                { "name": "Metrobank Branch", "value": "br_metrobank_ph" }
+            ]
+        },
+        {
+            "name": "Over The Counter (Non-Bank)",
+            "value": "nonbank_otc",
+            "types": [
+                { "name": "7-Eleven", "value": "711_ph" },
+                { "name": "CliQQ", "value": "cliqq_ph" },
+                { "name": "ECPay", "value": "ecpay_ph" },
+                { "name": "MLhuillier", "value": "mlhuillier_ph" },
+                { "name": "Cebuana Lhuillier", "value": "cebuana_ph" },
+                { "name": "Posible", "value": "posible_ph" },
+                { "name": "SM Bills", "value": "smbills_ph" },
+                { "name": "DragonPay", "value": "dp_ph" },
+                { "name": "ExpressPay", "value": "expresspay_ph" },
+                { "name": "Bayad Center", "value": "bayadcenter_ph" },
+                { "name": "TrueMoney", "value": "truemoney_ph" },
+                { "name": "Palawan Express", "value": "palawan_express_ph" }
+            ]
+        }
+    ]
+}

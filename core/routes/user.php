@@ -82,12 +82,13 @@ Route::middleware('auth')->name('user.')->group(function () {
         });
 
         // Payment
-        Route::prefix('payment')->name('deposit.')->controller('Gateway\PaymentController')->group(function () {
+        Route::prefix('payment')->controller('Gateway\PaymentController')->group(function () {
             // Route::any('/', 'deposit')->name('index');
             // Route::post('insert', 'depositInsert')->name('insert');
             // Route::get('confirm', 'depositConfirm')->name('confirm');
             // Route::get('manual', 'manualDepositConfirm')->name('manual.confirm');
             // Route::post('manual', 'manualDepositUpdate')->name('manual.update');
+            Route::post('paynamics', 'paynamicsRedirect')->name('paynamics.redirect');
         });
     });
 });
