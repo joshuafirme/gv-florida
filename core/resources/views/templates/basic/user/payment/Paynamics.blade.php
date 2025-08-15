@@ -32,8 +32,9 @@
                                         <div class="accordion-body">
                                             @foreach ($item->types as $type)
                                                 <div class="payment-option">
-                                                    <input type="radio" name="pchannel" data-pmethod="{{ $item->value }}" value="{{ $type->value }}" required
-                                                        name="{{ $type->value }}" id="{{ $type->value }}">
+                                                    <input type="radio" name="pchannel" data-pmethod="{{ $item->value }}"
+                                                        value="{{ $type->value }}" required name="{{ $type->value }}"
+                                                        id="{{ $type->value }}">
                                                     {{-- <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/GCash_Logo.svg"
                                                                 alt="GCash"> --}}
                                                     <label for="{{ $type->value }}"
@@ -49,55 +50,56 @@
                         </div>
 
                         <div class="form-check mt-3">
-                            <input class="form-check-input" type="checkbox" id="terms">
+                            <input class="form-check-input" type="checkbox" id="terms" required>
                             <label class="form-check-label" for="terms">
-                                I agree to the <a href="#">Terms and Conditions</a>.
+                                I agree to the <a target="_blank" href="#">Terms and Conditions</a>.
                             </label>
                         </div>
 
-                        <button class="btn btn-pay mt-3">PAY {{ showAmount($deposit->final_amount) }}</button>
+                        <button class="btn btn--base mt-3 w-100">PAY {{ showAmount($deposit->final_amount) }}</button>
                     </div>
                 </div>
 
                 <!-- Order Summary -->
                 <div class="col-lg-5">
-                    <a href="#" class="cancel-link">CANCEL ORDER</a>
-                    <div class="order-box">
-                        <h6 class="mb-3">You are about to pay</h6>
-                        <h3 class="text-primary">{{ showAmount($deposit->final_amount) }}</h3>
-                        <hr>
-                        <div>
-                            <div class="title">REQUEST ID</div>
-                            <div class="text-muted" style="font-size: 0.85rem;">{{ $deposit->trx }}</div>
-                        </div>
-                        <ul class="nav nav-tabs mt-3" id="myTab" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="order-tab" data-bs-toggle="tab" data-bs-target="#order"
-                                    type="button">ORDER INFO</button>
-                            </li>
-                            {{-- <li class="nav-item" role="presentation">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="mb-3">You are about to pay</h6>
+                            <h3 class="text-primary">{{ showAmount($deposit->final_amount) }}</h3>
+                            <hr>
+                            <div>
+                                <div class="title">REQUEST ID</div>
+                                <div class="text-muted" style="font-size: 0.85rem;">{{ $deposit->trx }}</div>
+                            </div>
+                            <ul class="nav nav-tabs mt-3" id="myTab" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="order-tab" data-bs-toggle="tab"
+                                        data-bs-target="#order" type="button">ORDER INFO</button>
+                                </li>
+                                {{-- <li class="nav-item" role="presentation">
                             <button class="nav-link" id="other-tab" data-bs-toggle="tab" data-bs-target="#other"
                                 type="button">OTHER INFO</button>
                         </li> --}}
-                        </ul>
-                        <div class="tab-content mt-3">
-                            <div class="tab-pane fade show active" id="order" role="tabpanel">
-                                <div class="d-flex justify-content-between">
-                                    <span>{{ "PNR: $ticket->pnr_number Seats: " . implode(', ', $ticket->seats) }}</span>
-                                    <span>{{ showAmount($deposit->amount) }}</span>
+                            </ul>
+                            <div class="tab-content mt-3">
+                                <div class="tab-pane fade show active" id="order" role="tabpanel">
+                                    <div class="d-flex justify-content-between">
+                                        <span>{{ "PNR: $ticket->pnr_number Seats: " . implode(', ', $ticket->seats) }}</span>
+                                        <span>{{ showAmount($deposit->amount) }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span></span>
+                                        <span>Charge {{ showAmount($deposit->charge) }}</span>
+                                    </div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between total">
+                                        <span>Total</span>
+                                        <span>{{ showAmount($deposit->final_amount) }}</span>
+                                    </div>
                                 </div>
-                                <div class="d-flex justify-content-between">
-                                    <span></span>
-                                    <span>Charge {{ showAmount($deposit->charge) }}</span>
+                                <div class="tab-pane fade" id="other" role="tabpanel">
+                                    <p class="text-muted">Other payment-related information here.</p>
                                 </div>
-                                <hr>
-                                <div class="d-flex justify-content-between total">
-                                    <span>Total</span>
-                                    <span>{{ showAmount($deposit->final_amount) }}</span>
-                                </div>
-                            </div>
-                            <div class="tab-pane fade" id="other" role="tabpanel">
-                                <p class="text-muted">Other payment-related information here.</p>
                             </div>
                         </div>
                     </div>

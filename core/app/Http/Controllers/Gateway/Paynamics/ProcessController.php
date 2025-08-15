@@ -6,9 +6,11 @@ use App\Constants\Status;
 use App\Models\BookedTicket;
 use App\Models\Deposit;
 use App\Http\Controllers\Gateway\PaymentController;
+use App\Services\Paynamics;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Session;
+use Storage;
 
 
 class ProcessController extends Controller
@@ -30,71 +32,40 @@ class ProcessController extends Controller
         return json_encode($send);
     }
 
-
-    public function ipn(Request $request)
+    public function redirect(Request $request)
     {
-        $track = Session::get('Track');
-        $deposit = Deposit::where('trx', $track)->orderBy('id', 'DESC')->first();
-        if ($deposit->status == Status::PAYMENT_SUCCESS) {
-            $notify[] = ['error', 'Invalid request.'];
-            return redirect($deposit->failed_url)->withNotify($notify);
-        }
-        $request->validate([
-            'cardNumber' => 'required',
-            'cardExpiry' => 'required',
-            'cardCVC' => 'required',
-        ]);
-
-        $cc = $request->cardNumber;
-        $exp = $request->cardExpiry;
-        $cvc = $request->cardCVC;
-
-        $exp = explode("/", $_POST['cardExpiry']);
-        if (!@$exp[1]) {
-            $notify[] = ['error', 'Invalid expiry date provided'];
-            return back()->withNotify($notify);
-        }
-        $emo = trim($exp[0]);
-        $eyr = trim($exp[1]);
-        $cents = round($deposit->final_amount, 2) * 100;
-
-        $stripeAcc = json_decode($deposit->gatewayCurrency()->gateway_parameter);
-
-
-        Stripe::setApiKey($stripeAcc->secret_key);
-
-        Stripe::setApiVersion("2020-03-02");
-
         try {
-            $token = Token::create(array(
-                "card" => array(
-                    "number" => "$cc",
-                    "exp_month" => $emo,
-                    "exp_year" => $eyr,
-                    "cvc" => "$cvc"
-                )
-            ));
-            try {
-                $charge = Charge::create(array(
-                    'card' => $token['id'],
-                    'currency' => $deposit->method_currency,
-                    'amount' => $cents,
-                    'description' => 'item',
-                ));
+            $booked_ticket_id = session()->get('booked_ticket_id');
 
-                if ($charge['status'] == 'succeeded') {
-                    PaymentController::userDataUpdate($deposit);
-                    $notify[] = ['success', 'Payment captured successfully'];
-                    return redirect($deposit->success_url)->withNotify($notify);
-                }
-            } catch (\Exception $e) {
-                $notify[] = ['error', $e->getMessage()];
+            $ticket = BookedTicket::find($booked_ticket_id);
+
+            $paynamics = new Paynamics($request->user());
+            $paynamics->pchannel = $request->pchannel;
+            $paynamics->data = $ticket;
+            $paynamics_res = $paynamics->createTransaction();
+
+            if (isset($paynamics_res->payment_action_info)) {
+                session()->put('paynamics_request_id', $paynamics_res->request_id);
+                session()->put('paynamics_response_id', $paynamics_res->response_id);
+                return redirect()->to($paynamics_res->payment_action_info);
             }
-        } catch (\Exception $e) {
-
-            $notify[] = ['error', $e->getMessage()];
+            abort(500);
+        } catch (\Throwable $th) {
+            throw $th;
         }
+    }
 
-        return back()->withNotify($notify);
+    public function response(Request $request)
+    {
+        $paynamics = new Paynamics($request->user());
+        return $paynamics->queryTransaction();
+    }
+
+    public function notification(Request $request)
+    {
+        $jsonData = json_encode($request, JSON_PRETTY_PRINT);
+
+        // Save to storage/app/data.json
+        Storage::disk('public')->put('paynamics.json', $jsonData);
     }
 }

@@ -26,11 +26,22 @@
                             <div class="col-lg-6">
                                 <div class="payment-system-list is-scrollable gateway-option-list">
                                     @foreach ($gatewayCurrency as $data)
+                                        @php
+                                            $description = '';
+                                            if ($data->gateway_parameter) {
+                                                $params = json_decode($data->gateway_parameter);
+                                                $description = $params->description;
+                                            }
+                                        @endphp
                                         <label for="{{ titleToKey($data->name) }}"
                                             class="payment-item @if ($loop->index > 4) d-none @endif gateway-option">
                                             <div class="payment-item__info">
                                                 <span class="payment-item__check"></span>
-                                                <span class="payment-item__name">{{ __($data->name) }}</span>
+                                                <div class="payment-item__name">
+                                                    <b>{{ __($data->name) }}</b>
+                                                    <div class="small">
+                                                        {{ $description }}</div>
+                                                </div>
                                             </div>
                                             <div class="payment-item__thumb">
                                                 <img class="payment-item__thumb-img"
@@ -49,8 +60,7 @@
                                     @if ($gatewayCurrency->count() > 4)
                                         <button type="button" class="payment-item__btn more-gateway-option">
                                             <p class="payment-item__btn-text">@lang('Show All Payment Options')</p>
-                                            <span class="payment-item__btn__icon"><i
-                                                    class="fas fa-chevron-down"></i></span>
+                                            <span class="payment-item__btn__icon"><i class="fas fa-chevron-down"></i></span>
                                         </button>
                                     @endif
                                 </div>

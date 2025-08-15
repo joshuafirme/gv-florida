@@ -39,6 +39,9 @@ Route::middleware('auth')->name('user.')->group(function () {
 
     Route::get('user-data', 'User\UserController@userData')->name('data');
     Route::post('user-data-submit', 'User\UserController@userDataSubmit')->name('data.submit');
+    Route::post('paynamics/redirect', 'Gateway\Paynamics\ProcessController@redirect')->name('paynamics.redirect');
+    Route::get('paynamics/response', 'Gateway\Paynamics\ProcessController@response')->name('paynamics.response');
+    Route::post('paynamics/notification', 'Gateway\Paynamics\ProcessController@notification')->name('paynamics.notification');
 
     //authorization
     Route::middleware('registration.complete')->namespace('User')->controller('AuthorizationController')->group(function () {
@@ -88,7 +91,6 @@ Route::middleware('auth')->name('user.')->group(function () {
             // Route::get('confirm', 'depositConfirm')->name('confirm');
             // Route::get('manual', 'manualDepositConfirm')->name('manual.confirm');
             // Route::post('manual', 'manualDepositUpdate')->name('manual.update');
-            Route::post('paynamics', 'paynamicsRedirect')->name('paynamics.redirect');
         });
     });
 });
