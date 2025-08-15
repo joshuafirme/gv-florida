@@ -22,7 +22,7 @@ class ProcessController extends Controller
     public static function process($deposit)
     {
 
-        $alias = $deposit->gateway->alias;
+        $alias = ucfirst($deposit->gateway->alias);
 
         $send['track'] = $deposit->trx;
         $send['view'] = 'user.payment.' . $alias;
