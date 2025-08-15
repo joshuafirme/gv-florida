@@ -115,9 +115,11 @@ class Paynamics
         // Convert to JSON
         $jsonPayload = json_encode($data);
 
+        $api_base = config('paynamics.endpoint');
+
         // cURL Request to Paynamics
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, config('paynamics.endpoint'));
+        curl_setopt($ch, CURLOPT_URL, "{$api_base}transactions");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
@@ -148,7 +150,7 @@ class Paynamics
 
         $org_trxid2 = session('paynamics_request_id') ? session('paynamics_request_id') : '';
         $date = date('Ymd');
-        $req_id = "GVF-$date-" . substr(uniqid(), 0, 7);
+        $req_id = session()->get('Track');
         $rawTrx = $merchantid . $req_id . $org_trxid2 . $mkey;
 
         $signatureTrx = hash('sha512', $rawTrx);
@@ -160,8 +162,10 @@ class Paynamics
 
         $jsonPayload = json_encode($data);
 
+        $api_base = config('paynamics.endpoint');
+
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, "https://payin.payserv.net/paygate/transactions/query");
+        curl_setopt($ch, CURLOPT_URL, "{$api_base}transactions/query");
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);

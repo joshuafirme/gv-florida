@@ -81,12 +81,14 @@ class PaymentController extends Controller
         $payable = $bookedTicket->sub_total + $charge;
         $finalAmount = $payable * $gate->rate;
 
+        $date = date('Ymd');
+
         $deposit = Deposit::where('booked_ticket_id', $bookedTicket->id)->first();
         if (!$deposit) {
             $deposit = new Deposit();
+            $req_id = "GVF-$date-" . substr(uniqid(), 0, 7);
+            $deposit->trx = $req_id;
         }
-        $date = date('Ymd');
-        $req_id = "GVF-$date-" . substr(uniqid(), 0, 7);
         $deposit->user_id = $user ? $user->id : null;
         $deposit->booked_ticket_id = $bookedTicket->id;
         $deposit->method_code = $gate->method_code;
@@ -97,8 +99,6 @@ class PaymentController extends Controller
         $deposit->final_amount = $finalAmount;
         $deposit->btc_amount = 0;
         $deposit->btc_wallet = "";
-        // $deposit->trx = getTrx();
-        $deposit->trx = $req_id;
         $deposit->status = Status::PAYMENT_INITIATE;
         $deposit->success_url = urlPath('user.ticket.history');
         $deposit->failed_url = urlPath('ticket');
@@ -120,7 +120,6 @@ class PaymentController extends Controller
         $data = Deposit::where('id', $id)->where('status', Status::PAYMENT_INITIATE)->orderBy('id', 'DESC')->firstOrFail();
         $user = User::findOrFail($data->user_id);
         auth()->login($user);
-        session()->put('Track', $data->trx);
         return to_route('user.deposit.confirm');
     }
 
@@ -158,7 +157,7 @@ class PaymentController extends Controller
 
 
         $pnr = session()->get('pnr_number');
-        $ticket = BookedTicket::where('pnr_number', $pnr)->first();
+        $ticket = BookedTicket::where('pnr_number', $pnr)->with(['trip', 'pickup', 'drop'])->first();
 
         $pageTitle = 'Confirm Payment';
         return view("Template::$data->view", compact('data', 'pageTitle', 'deposit', 'ticket'));

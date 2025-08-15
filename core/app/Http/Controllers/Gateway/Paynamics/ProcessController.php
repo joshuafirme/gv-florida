@@ -15,7 +15,6 @@ use Storage;
 
 class ProcessController extends Controller
 {
-
     /*
      * Stripe Gateway
      */
@@ -42,12 +41,13 @@ class ProcessController extends Controller
             $paynamics = new Paynamics($request->user());
             $paynamics->pchannel = $request->pchannel;
             $paynamics->data = $ticket;
-            $paynamics_res = $paynamics->createTransaction();
+            $transaction = $paynamics->createTransaction();
 
-            if (isset($paynamics_res->payment_action_info)) {
-                session()->put('paynamics_request_id', $paynamics_res->request_id);
-                session()->put('paynamics_response_id', $paynamics_res->response_id);
-                return redirect()->to($paynamics_res->payment_action_info);
+            if ($transaction && $transaction->payment_action_info) {
+                session()->put('paynamics_request_id', $transaction->request_id);
+                session()->put('paynamics_response_id', $transaction->response_id);
+
+                return redirect()->to($transaction->payment_action_info);
             }
             abort(500);
         } catch (\Throwable $th) {
@@ -58,7 +58,26 @@ class ProcessController extends Controller
     public function response(Request $request)
     {
         $paynamics = new Paynamics($request->user());
-        return $paynamics->queryTransaction();
+
+        $request_id = session('paynamics_request_id');
+        $path = "paynamics/$request_id.json";
+
+        $pageTitle = "Transaction";
+        if (Storage::exists($path)) {
+            $transaction = json_decode(Storage::get($path));
+        } else {
+            $transaction = $paynamics->queryTransaction();
+            Storage::put($path, json_encode($transaction));
+        }
+        $trx = session()->get('Track');
+        $deposit = Deposit::where('trx', $trx)->orderBy('id', 'DESC')->first();
+        if ($deposit->status == Status::PAYMENT_INITIATE) {
+            PaymentController::userDataUpdate($deposit);
+        }
+
+        $pageTitle = $transaction->response_message;
+
+        return view('templates/basic/user/payment/response/paynamics', compact('transaction', 'pageTitle'));
     }
 
     public function notification(Request $request)

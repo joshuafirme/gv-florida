@@ -11,7 +11,7 @@
             @csrf
             <div class="payment-container row">
                 <!-- Payment Options -->
-                <div class="col-lg-7">
+                <div class="col-lg-6">
                     <div class="payment-box">
                         <h5 class="mb-3">How would you like to pay?</h5>
                         <p class="text-muted" style="font-size: 0.9rem;">Please select your preferred mode of
@@ -61,11 +61,11 @@
                 </div>
 
                 <!-- Order Summary -->
-                <div class="col-lg-5">
+                <div class="col-lg-6">
                     <div class="card">
                         <div class="card-body">
                             <h6 class="mb-3">You are about to pay</h6>
-                            <h3 class="text-primary">{{ showAmount($deposit->final_amount) }}</h3>
+                            <h3 class="text--base">{{ showAmount($deposit->final_amount) }}</h3>
                             <hr>
                             <div>
                                 <div class="title">REQUEST ID</div>
@@ -83,19 +83,31 @@
                             </ul>
                             <div class="tab-content mt-3">
                                 <div class="tab-pane fade show active" id="order" role="tabpanel">
-                                    <div class="d-flex justify-content-between">
-                                        <span>{{ "PNR: $ticket->pnr_number Seats: " . implode(', ', $ticket->seats) }}</span>
-                                        <span>{{ showAmount($deposit->amount) }}</span>
-                                    </div>
-                                    <div class="d-flex justify-content-between">
-                                        <span></span>
-                                        <span>Charge {{ showAmount($deposit->charge) }}</span>
-                                    </div>
-                                    <hr>
-                                    <div class="d-flex justify-content-between total">
-                                        <span>Total</span>
-                                        <span>{{ showAmount($deposit->final_amount) }}</span>
-                                    </div>
+                                    <table class="table">
+                                        <tr>
+                                            <td>
+                                                <span class="font-weight-bold"> {{ __($ticket->trip->startFrom->name) }} -
+                                                    {{ __($ticket->trip->endTo->name) }}</span>
+                                                <span
+                                                    class="badge bg-success">{{ __($ticket->trip->fleetType->name) }}</span>
+                                            </td>
+                                            <td>
+                                                <span>{{ 'Seats: ' . implode(', ', $ticket->seats) }}</span>
+                                                <span>{{ "PNR: $ticket->pnr_number " }}</span>
+                                            </td>
+                                            <td class="text-end">
+                                                <span>{{ showAmount($deposit->amount) }}</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2" class="text-end">Charge</td>
+                                            <td class="text-end">{{ showAmount($deposit->charge) }}</td>
+                                        </tr>
+                                        <tr class="fw-bolder">
+                                            <td colspan="2" class="text-end">Total</td>
+                                            <td>{{ showAmount($deposit->final_amount) }}</td>
+                                        </tr>
+                                    </table>
                                 </div>
                                 <div class="tab-pane fade" id="other" role="tabpanel">
                                     <p class="text-muted">Other payment-related information here.</p>
