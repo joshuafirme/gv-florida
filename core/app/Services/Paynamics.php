@@ -146,16 +146,15 @@ class Paynamics
         $basicUser = config('paynamics.basic_auth_user');
         $basicPass = config('paynamics.basic_auth_pw');
 
-        $request_id = session('paynamics_request_id') ? session('paynamics_request_id') : '';
-        $response_id = session('paynamics_response_id') ? session('paynamics_response_id') : '';
-
-        $rawTrx = $merchantid . $request_id . $response_id . $mkey;
+        $org_trxid2 = session('paynamics_request_id') ? session('paynamics_request_id') : '';
+        $date = date('Ymd');
+        $req_id = "GVF-$date-" . substr(uniqid(), 0, 7);
+        $rawTrx = $merchantid . $req_id . $org_trxid2 . $mkey;
 
         $signatureTrx = hash('sha512', $rawTrx);
-
         $data = [
-            "request_id" => $request_id,
-            "org_trxid2" => $response_id,
+            "request_id" => $req_id,
+            "org_trxid2" => $org_trxid2,
             "signature" => $signatureTrx
         ];
 
