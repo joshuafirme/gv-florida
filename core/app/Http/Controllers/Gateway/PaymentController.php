@@ -136,7 +136,7 @@ class PaymentController extends Controller
 
 
         $dirName = $deposit->gateway->alias;
-        $new = __NAMESPACE__ . '\\' . $dirName . '\\ProcessController';
+        $new = __NAMESPACE__ . '\\' . ucfirst($dirName) . '\\ProcessController';
 
         $data = $new::process($deposit);
         $data = json_decode($data);
