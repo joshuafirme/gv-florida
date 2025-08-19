@@ -168,7 +168,7 @@
                                                     }
                                                 @endphp
 
-                                                @if (($row == $trip->fleetType->cr_row || $row == $trip->fleetType->cr_row + 1) && $trip->fleetType->cr_position == 'Left')
+                                                @if (($row == $trip->fleetType->cr_row || $row == $trip->fleetType->cr_row + 1) && $trip->fleetType->cr_position == 'Right')
                                                     @php $seatCounter--; @endphp
                                                     <div>
                                                         <span class='seat'>
