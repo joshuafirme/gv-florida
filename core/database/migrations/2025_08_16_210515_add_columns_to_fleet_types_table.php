@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::table('fleet_types', function (Blueprint $table) {
             $table->string('disabled_seats')->nullable()->after('deck_seats');
             $table->string('prefixes')->nullable()->after('deck_seats');
-            $table->string('cr_position')->nullable()->after('deck_seats');
-            $table->integer('cr_row')->nullable()->after('deck_seats');
             $table->string('last_row')->nullable()->after('deck_seats');
+            $table->integer('cr_row')->nullable()->after('deck_seats');
+            $table->string('cr_position')->nullable()->after('deck_seats');
         });
     }
 
