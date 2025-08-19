@@ -1,7 +1,7 @@
 <?php
 namespace App\Lib;
 
-class BusLayout
+class BusLayoutOrig
 {
     protected $trip;
     public $fleet;
@@ -24,6 +24,7 @@ class BusLayout
         $layout['right'] = $seatLayout[1];
         return (object) $layout;
     }
+
 
     public function getDeckHeader($deckNumber)
     {
@@ -55,26 +56,38 @@ class BusLayout
 
     protected function leftSeats()
     {
-        // Not used anymore – numbering handled in Blade
-        return '';
+        $html = '<div class="left-side">';
+        $seatData = '';
+        for ($i = 1; $i <= $this->sitLayouts->left; $i++) {
+            $seatData .= $this->generateSeats($i);
+        }
+
+        $html .= $seatData;
+        $html .= '</div>';
+        return $html;
     }
 
     protected function rightSeats()
     {
-        // Not used anymore – numbering handled in Blade
-        return '';
+        $html = '<div class="right-side">';
+
+        $seatData = '';
+        for ($i = 1; $i <= $this->sitLayouts->right; $i++) {
+            $seatData .= $this->generateSeats($i + $this->sitLayouts->left);
+        }
+
+        $html .= $seatData;
+        $html .= '</div>';
+        return $html;
     }
 
-    public function generateSeats($loopIndex, $deckNumber = null, $seatNumber = null, $globalLabel = null)
+    public function generateSeats($loopIndex, $deckNumber = null, $seatNumber = null)
     {
         $deckNumber = $deckNumber ?? $this->deckNumber;
         $seatNumber = $seatNumber ?? $this->seatNumber;
-
-        $label = $globalLabel ?? ($this->seatNumber . $loopIndex);
-
         return "<div>
-                    <span class='seat' data-seat='" . ($deckNumber . '-' . $label) . "'>
-                        $label
+                    <span class='seat' data-seat='" . ($deckNumber . '-' . $seatNumber . '' . $loopIndex) . "'>
+                        $this->seatNumber$loopIndex
                         <span></span>
                     </span>
                 </div>";
@@ -94,5 +107,5 @@ class BusLayout
         $lastRowSeat = $seat - $this->getTotalRow($seat) * $rowItem;
         return $lastRowSeat;
     }
-}
 
+}

@@ -38,10 +38,23 @@ class ProcessController extends Controller
 
             $ticket = BookedTicket::find($booked_ticket_id);
 
-            $paynamics = new Paynamics($request->user());
-            $paynamics->pchannel = $request->pchannel;
+            $paynamics = new Paynamics(request()->user());
+            $paynamics->pchannel = request()->pchannel;
             $paynamics->data = $ticket;
             $transaction = $paynamics->createTransaction();
+
+            if ($transaction->response_code == "GR011") { // if req ID is already process or exist.
+                $ticket->deposit->trx = generateReqID();
+                session()->put('Track', $ticket->deposit->trx);
+                $ticket->deposit->save();
+
+                $paynamics = new Paynamics(request()->user());
+                $paynamics->pchannel = request()->pchannel;
+                $paynamics->data = $ticket;
+
+                $transaction = $paynamics->createTransaction();
+                return $transaction;
+            }
 
             if ($transaction && $transaction->payment_action_info) {
                 session()->put('paynamics_request_id', $transaction->request_id);
@@ -59,18 +72,17 @@ class ProcessController extends Controller
     {
         $paynamics = new Paynamics($request->user());
 
+        $booked_ticket_id = session()->get('booked_ticket_id');
         $request_id = session('paynamics_request_id');
-        $path = "paynamics/$request_id.json";
 
         $pageTitle = "Transaction";
-        if (Storage::exists($path)) {
-            $transaction = json_decode(Storage::get($path));
-        } else {
-            $transaction = $paynamics->queryTransaction();
-            Storage::put($path, json_encode($transaction));
-        }
-        $trx = session()->get('Track');
-        $deposit = Deposit::where('trx', $trx)->orderBy('id', 'DESC')->first();
+
+        $ticket = BookedTicket::find($booked_ticket_id);
+
+        $transaction = $this->getTransaction($request_id);
+
+        $deposit = Deposit::where('trx', $ticket->deposit->trx)->orderBy('id', 'DESC')->first();
+
         if ($deposit->status == Status::PAYMENT_INITIATE) {
             PaymentController::userDataUpdate($deposit);
         }
@@ -78,6 +90,20 @@ class ProcessController extends Controller
         $pageTitle = $transaction->response_message;
 
         return view('templates/basic/user/payment/response/paynamics', compact('transaction', 'pageTitle'));
+    }
+
+    public function getTransaction($request_id)
+    {
+        // $path = "paynamics/$request_id.json";
+        // if (Storage::exists($path)) {
+        //     $transaction = json_decode(Storage::get($path));
+        // } else {
+
+        // }
+        $paynamics = new Paynamics(request()->user());
+        $transaction = $paynamics->queryTransaction();
+        //Storage::put($path, json_encode($transaction));
+        return $transaction;
     }
 
     public function notification(Request $request)

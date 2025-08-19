@@ -81,13 +81,12 @@ class PaymentController extends Controller
         $payable = $bookedTicket->sub_total + $charge;
         $finalAmount = $payable * $gate->rate;
 
-        $date = date('Ymd');
 
         $deposit = Deposit::where('booked_ticket_id', $bookedTicket->id)->first();
         if (!$deposit) {
             $deposit = new Deposit();
-            $req_id = "GVF-$date-" . substr(uniqid(), 0, 7);
-            $deposit->trx = $req_id;
+            
+            $deposit->trx = generateReqID();
         }
         $deposit->user_id = $user ? $user->id : null;
         $deposit->booked_ticket_id = $bookedTicket->id;

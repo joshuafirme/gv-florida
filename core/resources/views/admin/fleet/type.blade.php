@@ -36,16 +36,28 @@
 
                                         <td>
                                             <div class="button--group">
-                                                <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn" data-resource="{{ $item }}" data-modal_title="@lang('Edit Type')">
+                                                <a class="btn btn-sm btn-outline--primary" target="_blank"
+                                                    href="{{ route('admin.fleet.type.seatLayoutDetails', $item->id) }}">
+                                                    <i class="la la-eye"></i>@lang('Layout Preview')
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn"
+                                                    data-resource="{{ $item }}"
+                                                    data-modal_title="@lang('Edit Type')">
                                                     <i class="la la-pencil"></i>@lang('Edit')
                                                 </button>
 
                                                 @if (!$item->status)
-                                                    <button type="button" class="btn btn-sm btn-outline--success confirmationBtn" data-action="{{ route('admin.fleet.type.status', $item->id) }}" data-question="@lang('Are you sure to enable this type?')">
+                                                    <button type="button"
+                                                        class="btn btn-sm btn-outline--success confirmationBtn"
+                                                        data-action="{{ route('admin.fleet.type.status', $item->id) }}"
+                                                        data-question="@lang('Are you sure to enable this type?')">
                                                         <i class="la la-eye"></i>@lang('Enable')
                                                     </button>
                                                 @else
-                                                    <button type="button" class="btn btn-sm btn-outline--danger  confirmationBtn" data-action="{{ route('admin.fleet.type.status', $item->id) }}" data-question="@lang('Are you sure to disable this type?')">
+                                                    <button type="button"
+                                                        class="btn btn-sm btn-outline--danger  confirmationBtn"
+                                                        data-action="{{ route('admin.fleet.type.status', $item->id) }}"
+                                                        data-question="@lang('Are you sure to disable this type?')">
                                                         <i class="la la-eye-slash"></i>@lang('Disable')
                                                     </button>
                                                 @endif
@@ -99,6 +111,18 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label> CR Postion</label>
+                            <select name="cr_position" class="form-control select2">
+                                <option value="Left">Left</option>
+                                <option value="Right">Right</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label> CR Row</label>
+                            <input type="number" class="form-control" placeholder="@lang('Enter Number of Row (Where to insert)')" name="cr_row"
+                                required>
+                        </div>
+                        <div class="form-group">
                             <label> @lang('No of Deck')</label>
                             <input type="number" min="0" class="form-control" name="deck" required>
                         </div>
@@ -116,7 +140,9 @@
 
                         <div class="form-group">
                             <label for="inputName">@lang('AC status')</label>
-                            <input type="checkbox" data-width="100%" data-height="40px" data-onstyle="-success" data-offstyle="-danger" data-bs-toggle="toggle" data-on="@lang('YES')" data-off="@lang('NO')" name="has_ac">
+                            <input type="checkbox" data-width="100%" data-height="40px" data-onstyle="-success"
+                                data-offstyle="-danger" data-bs-toggle="toggle" data-on="@lang('YES')"
+                                data-off="@lang('NO')" name="has_ac">
                         </div>
 
                     </div>
@@ -170,10 +196,20 @@
                 $('.showSeat').empty();
                 if (data.deck) {
                     for (var i = 1; i <= data.deck; i++) {
+                        let last_row = data.last_row ? data.last_row[i - 1] : 0;
+                        let prefix = data.prefixes ? data.prefixes[i - 1] : '';
                         $('.showSeat').append(`
                             <div class="form-group">
                                 <label> Seats of Deck - ${i} </label>
                                 <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Seat')" value="${data.deck_seats[i-1]}" name="deck_seats[]" required>
+                            </div>
+                            <div class="form-group">
+                                <label> Last Row of Deck - ${i} </label>
+                                <input type="number" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" value="${last_row}" name="last_row[]" required>
+                            </div>
+                            <div class="form-group">
+                                <label> Prefix of Deck - ${i} </label>
+                                <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" value="${prefix}" name="prefixes[]" required>
                             </div>
                         `);
                     }

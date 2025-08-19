@@ -31,25 +31,28 @@ class SocialLogin
 
     private function configuration()
     {
-        $provider      = $this->provider;
+        $provider = $this->provider;
         $configuration = gs('socialite_credentials')->$provider;
-        $provider    = $this->fromApi && $provider == 'linkedin' ? 'linkedin-openid' : $provider;
+        $provider = $this->fromApi && $provider == 'linkedin' ? 'linkedin-openid' : $provider;
 
         Config::set('services.' . $provider, [
-            'client_id'     => $configuration->client_id,
+            'client_id' => $configuration->client_id,
             'client_secret' => $configuration->client_secret,
-            'redirect'      => route('user.social.login.callback', $provider),
+            'redirect' => route('user.social.login.callback', $provider),
         ]);
     }
 
     public function login()
     {
-        $provider      = $this->provider;
-        $provider    = $this->fromApi && $provider == 'linkedin' ? 'linkedin-openid' : $provider;
-        $driver     = Socialite::driver($provider);
+        $provider = $this->provider;
+        $provider = $this->fromApi && $provider == 'linkedin' ? 'linkedin-openid' : $provider;
+        $driver = Socialite::driver($provider)->stateless()->setHttpClient(
+            new \GuzzleHttp\Client(['verify' => env('VERIFY_SSL')])
+        );
+        ;
         if ($this->fromApi) {
             try {
-                $user = (object)$driver->userFromToken(request()->token)->user;
+                $user = (object) $driver->userFromToken(request()->token)->user;
             } catch (\Throwable $th) {
                 throw new Exception('Something went wrong');
             }
@@ -79,9 +82,9 @@ class SocialLogin
             $tokenResult = $userData->createToken('auth_token')->plainTextToken;
             $this->loginLog($userData);
             return [
-                'user'         => $userData,
+                'user' => $userData,
                 'access_token' => $tokenResult,
-                'token_type'   => 'Bearer',
+                'token_type' => 'Bearer',
             ];
         }
 
@@ -93,7 +96,7 @@ class SocialLogin
 
     private function createUser($user, $provider)
     {
-        $general  = gs();
+        $general = gs();
         $password = getTrx(8);
 
         $firstName = null;
@@ -108,8 +111,8 @@ class SocialLogin
 
         if ((!$firstName || !$lastName) && @$user->name) {
             $firstName = preg_replace('/\W\w+\s*(\W*)$/', '$1', $user->name);
-            $pieces    = explode(' ', $user->name);
-            $lastName  = array_pop($pieces);
+            $pieces = explode(' ', $user->name);
+            $lastName = array_pop($pieces);
         }
 
         $referBy = session()->get('reference');
@@ -127,7 +130,7 @@ class SocialLogin
         $newUser->password = Hash::make($password);
         $newUser->firstname = $firstName;
         $newUser->lastname = $lastName;
-        $user->ref_by    = $referUser ? $referUser->id : 0;
+        $user->ref_by = $referUser ? $referUser->id : 0;
 
         $newUser->status = Status::VERIFIED;
         $newUser->ev = Status::VERIFIED;
@@ -155,23 +158,23 @@ class SocialLogin
 
         //Check exist or not
         if ($exist) {
-            $userLogin->longitude =  $exist->longitude;
-            $userLogin->latitude =  $exist->latitude;
-            $userLogin->city =  $exist->city;
+            $userLogin->longitude = $exist->longitude;
+            $userLogin->latitude = $exist->latitude;
+            $userLogin->city = $exist->city;
             $userLogin->country_code = $exist->country_code;
-            $userLogin->country =  $exist->country;
+            $userLogin->country = $exist->country;
         } else {
             $info = json_decode(json_encode(getIpInfo()), true);
-            $userLogin->longitude =  @implode(',', $info['long']);
-            $userLogin->latitude =  @implode(',', $info['lat']);
-            $userLogin->city =  @implode(',', $info['city']);
+            $userLogin->longitude = @implode(',', $info['long']);
+            $userLogin->latitude = @implode(',', $info['lat']);
+            $userLogin->city = @implode(',', $info['city']);
             $userLogin->country_code = @implode(',', $info['code']);
-            $userLogin->country =  @implode(',', $info['country']);
+            $userLogin->country = @implode(',', $info['country']);
         }
 
         $userAgent = osBrowser();
         $userLogin->user_id = $user->id;
-        $userLogin->user_ip =  $ip;
+        $userLogin->user_ip = $ip;
 
         $userLogin->browser = @$userAgent['browser'];
         $userLogin->os = @$userAgent['os_platform'];

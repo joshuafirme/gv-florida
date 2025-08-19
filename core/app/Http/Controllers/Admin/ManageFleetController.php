@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
+use App\Lib\BusLayout;
 use Illuminate\Http\Request;
 use App\Models\SeatLayout;
 use App\Models\FleetType;
@@ -16,6 +17,15 @@ class ManageFleetController extends Controller
         $pageTitle = 'Seat Layouts';
         $layouts = SeatLayout::orderBy('id', 'desc')->paginate(getPaginate());
         return view('admin.fleet.seat_layouts', compact('pageTitle', 'layouts'));
+    }
+
+    public function seatLayoutDetails($id)
+    {
+        $pageTitle = 'Seat Layout';
+        $fleetType = FleetType::find($id);
+        // return $fleetType;
+        $busLayout = new BusLayout(null, $fleetType);
+        return view('admin.fleet.seat_layout_details', compact('pageTitle', 'fleetType', 'busLayout'));
     }
 
     public function layoutStore(Request $request, $id = 0)
@@ -61,18 +71,29 @@ class ManageFleetController extends Controller
 
     public function typeStore(Request $request, $id = 0)
     {
-        $request->validate([
-            'name'        => 'required|unique:fleet_types,name,' . $id,
-            'seat_layout' => 'required',
-            'deck'        => 'required|numeric|gt:0',
-            'deck_seats'  => 'required|array|min:1',
-            'deck_seats.*' => 'required|numeric|gt:0',
-            'facilities.*' => 'string'
-        ], [
-            'deck_seats.*.required'  => 'Seat number for all deck is required',
-            'deck_seats.*.numeric'   => 'Seat number for all deck is must be a number',
-            'deck_seats.*.gt:0'      => 'Seat number for all deck is must be greater than 0',
-        ]);
+        $request->validate(
+            [
+                'name' => 'required|unique:fleet_types,name,' . $id,
+                'seat_layout' => 'required',
+                'deck' => 'required|numeric|gt:0',
+                'deck_seats' => 'required|array|min:1',
+                'deck_seats.*' => 'required|numeric|gt:0',
+                'last_row' => 'required|array|min:1',
+                'last_row.*' => 'required|numeric|gt:0',
+                'prefixes' => 'required|array',
+                'facilities.*' => 'string'
+            ],
+            [
+                'deck_seats.*.required' => 'Seat number for all deck is required',
+                'deck_seats.*.numeric' => 'Seat number for all deck is must be a number',
+                'deck_seats.*.gt:0' => 'Seat number for all deck is must be greater than 0',
+            ],
+            [
+                'last_row.*.required' => 'Last Row number for all deck is required',
+                'last_row.*.numeric' => 'Last Row number for all deck is must be a number',
+                'last_row.*.gt:0' => 'Last Row number for all deck is must be greater than 0',
+            ],
+        );
 
         if ($id) {
             $fleetType = FleetType::findOrFail($id);
@@ -86,6 +107,10 @@ class ManageFleetController extends Controller
         $fleetType->seat_layout = $request->seat_layout;
         $fleetType->deck = $request->deck;
         $fleetType->deck_seats = $request->deck_seats;
+        $fleetType->last_row = $request->last_row;
+        $fleetType->cr_row = $request->cr_row;
+        $fleetType->cr_position = $request->cr_position;
+        $fleetType->prefixes = $request->prefixes;
         $fleetType->has_ac = $request->has_ac ? Status::ENABLE : Status::DISABLE;
         $fleetType->facilities = $request->facilities ?? null;
         $fleetType->status = Status::ENABLE;
@@ -113,12 +138,12 @@ class ManageFleetController extends Controller
     {
 
         $request->validate([
-            'nick_name'         => 'required|string',
-            'fleet_type_id'        => 'required|numeric',
-            'register_no'       => 'required|string|unique:vehicles,register_no,' . $id,
-            'engine_no'         => 'required|string|unique:vehicles,engine_no,' . $id,
-            'model_no'          => 'required|string',
-            'chasis_no'         => 'required|string|unique:vehicles,chasis_no,' . $id,
+            'nick_name' => 'required|string',
+            'fleet_type_id' => 'required|numeric',
+            'register_no' => 'required|string|unique:vehicles,register_no,' . $id,
+            'engine_no' => 'required|string|unique:vehicles,engine_no,' . $id,
+            'model_no' => 'required|string',
+            'chasis_no' => 'required|string|unique:vehicles,chasis_no,' . $id,
         ]);
 
         if ($id) {

@@ -14,7 +14,11 @@ class FleetType extends Model
 
     protected $casts = [
         'deck_seats' => 'object',
-        'facilities' => 'array'
+        'facilities' => 'array',
+        'prefixes' => 'object',
+        'disabled_seats' => 'object',
+        'cr_seat_range' => 'object',
+        'last_row' => 'object'
     ];
 
     public function vehicles(){

@@ -139,6 +139,13 @@ function getAmount($amount, $length = 2)
     return $amount + 0;
 }
 
+function generateReqID($prefix = 'GVF')
+{
+    $date = date('Ymd');
+    $req_id = "$prefix-$date-" . substr(uniqid(), 0, 7);
+    return $req_id;
+}
+
 function showAmount($amount, $decimal = 2, $separate = true, $exceptZeros = false, $currencyFormat = true)
 {
     $separator = '';
