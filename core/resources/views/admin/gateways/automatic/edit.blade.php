@@ -13,8 +13,8 @@
                     <input type="hidden" name="description" value="{{ $gateway->description }}">
 
                     @php
-                        $param->title = isset($param->title) ? $param->title : '';
-                        $param->value = isset($param->value) ? $param->value : '';
+                        $title = isset($param->title) ? $param->title : '';
+                        $value = isset($param->value) ? $param->value : '';
                         
                     @endphp
 
@@ -54,9 +54,9 @@
                                             <div class="row">
                                                 @foreach ($gateway->extra as $key => $param)
                                                     <div class="form-group col-lg-6">
-                                                        <label>{{ __(@$param->title) }}</label>
+                                                        <label>{{ __(@$title) }}</label>
                                                         <div class="input-group">
-                                                            <input type="text" class="form-control" value="{{ route($param->value) }}" readonly>
+                                                            <input type="text" class="form-control" value="{{ route($value) }}" readonly>
                                                             <button type="button" class="copyInput input-group-text" title="@lang('Copy')"><i class="fas fa-copy"></i></button>
                                                         </div>
                                                         @if ($key == 'cron')
@@ -73,8 +73,8 @@
                                         <div class="row">
                                             @foreach ($parameters->where('global', true) as $key => $param)
                                                 <div class="form-group col-xl-6 col-lg-12 col-md-6">
-                                                    <label>{{ __(@$param->title) }}</label>
-                                                    <input type="text" class="form-control" name="global[{{ $key }}]" value="{{ @$param->value }}" required>
+                                                    <label>{{ __(@$title) }}</label>
+                                                    <input type="text" class="form-control" name="global[{{ $key }}]" value="{{ @$value }}" required>
                                                 </div>
                                             @endforeach
                                         </div>
@@ -198,7 +198,7 @@
                                                                 @foreach ($parameters->where('global', false) as $key => $param)
                                                                     <div class="col-md-6">
                                                                         <div class="form-group">
-                                                                            <label>{{ __($param->title) }}</label>
+                                                                            <label>{{ __($title) }}</label>
                                                                             <input type="text" class="form-control" name="currency[{{ $currencyIndex }}][param][{{ $key }}]" value="{{ $globalParameters->$key }}" required>
                                                                         </div>
                                                                     </div>
@@ -330,7 +330,7 @@
                                                         @foreach ($parameters->where('global', false) as $key => $param)
                                                             <div class="col-md-6">
                                                                 <div class="form-group">
-                                                                    <label>{{ __($param->title) }}</label>
+                                                                    <label>{{ __($title) }}</label>
                                                                     <input disabled type="text" class="form-control" name="currency[{{ $currencyIndex }}][param][{{ $key }}]" required>
                                                                 </div>
                                                             </div>
