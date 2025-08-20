@@ -72,10 +72,10 @@ class PaymentController extends Controller
             return back()->withNotify($notify);
         }
 
-        if ($gate->min_amount > $bookedTicket->sub_total || $gate->max_amount < $bookedTicket->sub_total) {
-            $notify[] = ['error', 'Please follow payment limit'];
-            return back()->withNotify($notify);
-        }
+        // if ($gate->min_amount > $bookedTicket->sub_total || $gate->max_amount < $bookedTicket->sub_total) {
+        //     $notify[] = ['error', 'Please follow payment limit'];
+        //     return back()->withNotify($notify);
+        // }
 
         $charge = $gate->fixed_charge + ($bookedTicket->sub_total * $gate->percent_charge / 100);
         $payable = $bookedTicket->sub_total + $charge;

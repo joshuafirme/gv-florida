@@ -53,16 +53,15 @@ class ProcessController extends Controller
                 $paynamics->data = $ticket;
 
                 $transaction = $paynamics->createTransaction();
-                return $transaction;
             }
 
-            if ($transaction && $transaction->payment_action_info) {
+            if ($transaction && isset($transaction->payment_action_info)) {
                 session()->put('paynamics_request_id', $transaction->request_id);
                 session()->put('paynamics_response_id', $transaction->response_id);
 
                 return redirect()->to($transaction->payment_action_info);
             }
-            abort(500);
+            return $transaction;
         } catch (\Throwable $th) {
             throw $th;
         }

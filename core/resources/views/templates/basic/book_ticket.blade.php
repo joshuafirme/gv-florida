@@ -140,7 +140,9 @@
                                                         }
                                                     }
                                                 @endphp
-                                                @if (($row == $trip->fleetType->cr_row || $row == $trip->fleetType->cr_row + 1) && $trip->fleetType->cr_position == 'Left')
+                                                @if (
+                                                    ($row == $trip->fleetType->cr_row || $row == $trip->fleetType->cr_row + 1) &&
+                                                        $trip->fleetType->cr_position == 'Left')
                                                     @php $seatCounter--; @endphp
                                                     <div>
                                                         <span class='seat'>
@@ -168,7 +170,9 @@
                                                     }
                                                 @endphp
 
-                                                @if (($row == $trip->fleetType->cr_row || $row == $trip->fleetType->cr_row + 1) && $trip->fleetType->cr_position == 'Right')
+                                                @if (
+                                                    ($row == $trip->fleetType->cr_row || $row == $trip->fleetType->cr_row + 1) &&
+                                                        $trip->fleetType->cr_position == 'Right')
                                                     @php $seatCounter--; @endphp
                                                     <div>
                                                         <span class='seat'>
@@ -342,20 +346,16 @@
                 $('.seat-wrapper .seat').on('click', function() {
                     var pickupPoint = $('select[name="pickup_point"]').val();
                     var droppingPoint = $('select[name="dropping_point"]').val();
-                    const params = new URLSearchParams(window.location.href);
+                    var seat = $(this).attr('data-seat')
+                    if (seat) {
+                        const params = new URLSearchParams(window.location.href);
 
-                    // if (!pickupPoint) {
-                    //     pickupPoint = params.searchParams.get("start_from");
-                    // }
-                    // if (!droppingPoint) {
-                    //     droppingPoint = params.searchParams.get("end_to");
-                    // }
-
-                    if (pickupPoint && droppingPoint) {
-                        selectSeat();
-                    } else {
-                        $(this).removeClass('selected');
-                        notify('error', "@lang('Please select pickup point and dropping point before select any seat')")
+                        if (pickupPoint && droppingPoint) {
+                            selectSeat();
+                        } else {
+                            $(this).removeClass('selected');
+                            notify('error', "@lang('Please select pickup point and dropping point before select any seat')")
+                        }
                     }
                 });
 

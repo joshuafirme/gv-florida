@@ -82,7 +82,7 @@
                                         </div>
                                     </div>
                                     <hr>
-                                    <div class="deposit-info">
+                                    {{-- <div class="deposit-info">
                                         <div class="deposit-info__title">
                                             <p class="text has-icon"> @lang('Limit')
                                                 <span></span>
@@ -92,7 +92,7 @@
                                             <p class="text"><span class="gateway-limit">@lang('0.00')</span>
                                             </p>
                                         </div>
-                                    </div>
+                                    </div> --}}
                                     <div class="deposit-info">
                                         <div class="deposit-info__title">
                                             <p class="text has-icon">@lang('Processing Charge')
@@ -143,7 +143,7 @@
                                     <div class="d-none crypto-message mb-3">
                                         @lang('Conversion with') <span class="gateway-currency"></span> @lang('and final value will Show on next step')
                                     </div>
-                                    <button type="submit" class="btn btn--base w-100" disabled>
+                                    <button type="submit" class="btn btn--base w-100">
                                         @lang('Confirm Payment')
                                     </button>
                                     <div class="info-text pt-3">
@@ -261,7 +261,7 @@
 
             function calculation() {
                 if (!gateway) return;
-                $(".gateway-limit").text(minAmount + " - " + maxAmount);
+                //$(".gateway-limit").text(minAmount + " - " + maxAmount);
 
                 let percentCharge = 0;
                 let fixedCharge = 0;
@@ -281,11 +281,11 @@
                 $("input[name=currency]").val(gateway.currency);
                 $(".gateway-currency").text(gateway.currency);
 
-                if (amount < Number(gateway.min_amount) || amount > Number(gateway.max_amount)) {
-                    $(".deposit-form button[type=submit]").attr('disabled', true);
-                } else {
-                    $(".deposit-form button[type=submit]").removeAttr('disabled');
-                }
+                // if (amount < Number(gateway.min_amount) || amount > Number(gateway.max_amount)) {
+                //     $(".deposit-form button[type=submit]").attr('disabled', true);
+                // } else {
+                //     $(".deposit-form button[type=submit]").removeAttr('disabled');
+                // }
 
                 if (gateway.currency != "{{ gs('cur_text') }}" && gateway.method.crypto != 1) {
                     $('.deposit-form').addClass('adjust-height')
