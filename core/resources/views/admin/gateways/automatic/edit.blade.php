@@ -12,6 +12,11 @@
                     <input type="hidden" name="alias" value="{{ $gateway->alias }}">
                     <input type="hidden" name="description" value="{{ $gateway->description }}">
 
+                    @php
+                        $param->title = isset($param->title) ? $param->title : '';
+                        $param->value = isset($param->value) ? $param->value : '';
+                        
+                    @endphp
 
                     <div class="card-body">
                         <div class="payment-method-item block-item">
