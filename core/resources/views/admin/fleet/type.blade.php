@@ -113,6 +113,7 @@
                         <div class="form-group">
                             <label> CR Postion</label>
                             <select name="cr_position" class="form-control select2">
+                                <option value="">Select an option</option>
                                 <option value="Left">Left</option>
                                 <option value="Right">Right</option>
                             </select>
