@@ -7,6 +7,9 @@
                 <div class="card-body p-0">
                     <div class="row">
                         <div class="col-md-4">
+                            @php
+                                $disabled_seats = $fleetType->disabled_seats ? $fleetType->disabled_seats : [];
+                            @endphp
                             @foreach ($fleetType->deck_seats as $key => $seat)
                                 <div class="seat-plan-inner m-4 p-3">
                                     <div class="single">
@@ -21,10 +24,10 @@
                                             $deckIndex = $loop->index + 1;
                                             $seatlayout = $busLayout->sitLayouts();
                                             $colItem = $seatlayout->left + $seatlayout->right;
-                                            $seatCounter = 1; // 🔹 continuous counter
-                                            $mainSeatCounter = 1;
+                                            $seatCounter = 1;
                                             $total_seats = $totalRow * $colItem;
                                             $prefix = $fleetType->prefixes ? $fleetType->prefixes[$key] : '';
+                                            $has_cr = false;
                                         @endphp
 
                                         {{-- Main Rows --}}
@@ -48,19 +51,34 @@
                                                             }
                                                         @endphp
                                                         @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + 1) && $fleetType->cr_position == 'Left')
-                                                            @php $seatCounter--; @endphp
-                                                            <div>
-                                                                <span class='seat'>
-                                                                    CR
-                                                                    <span></span>
-                                                                </span>
-                                                            </div>
+                                                            @if (!$has_cr)
+                                                                <div>
+                                                                    <span class='seat comfort-room cr-left'>
+                                                                        CR
+                                                                        <span></span>
+                                                                    </span>
+                                                                </div>
+                                                            @endif
+                                                            @php
+                                                                $seatCounter--;
+                                                                $has_cr = true;
+                                                            @endphp
                                                         @else
-                                                            @php echo $busLayout->generateSeats($ls, $deckIndex, $seatNumber, $prefix.$seatCounter); @endphp
+                                                            @php
+                                                                $label = $prefix . $seatCounter;
+                                                                if (in_array($label, $disabled_seats)) {
+                                                                    $label = "<del>$label</del>";
+                                                                }
+                                                                echo $busLayout->generateSeats(
+                                                                    $ls,
+                                                                    $deckIndex,
+                                                                    $seatNumber,
+                                                                    $label,
+                                                                );
+                                                            @endphp
                                                         @endif
                                                         @php
                                                             $seatCounter++;
-                                                            $mainSeatCounter++;
                                                         @endphp
                                                     @endfor
                                                 </div>
@@ -76,20 +94,35 @@
                                                         @endphp
 
                                                         @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + 1) && $fleetType->cr_position == 'Right')
-                                                            @php $seatCounter--; @endphp
-                                                            <div>
-                                                                <span class='seat'>
-                                                                    CR
-                                                                    <span></span>
-                                                                </span>
-                                                            </div>
+                                                            @if (!$has_cr)
+                                                                <div>
+                                                                    <span class='seat comfort-room cr-right'>
+                                                                        CR
+                                                                        <span></span>
+                                                                    </span>
+                                                                </div>
+                                                            @endif
+                                                            @php
+                                                                $seatCounter--;
+                                                                $has_cr = true;
+                                                            @endphp
                                                         @else
-                                                            @php echo $busLayout->generateSeats($ls, $deckIndex, $seatNumber, $prefix.$seatCounter); @endphp
+                                                            @php
+                                                                $label = $prefix . $seatCounter;
+                                                                if (in_array($label, $disabled_seats)) {
+                                                                    $label = "<del>$label</del>";
+                                                                }
+                                                                echo $busLayout->generateSeats(
+                                                                    $ls,
+                                                                    $deckIndex,
+                                                                    $seatNumber,
+                                                                    $label,
+                                                                );
+                                                            @endphp
                                                         @endif
 
                                                         @php
                                                             $seatCounter++;
-                                                            $mainSeatCounter++;
                                                         @endphp
                                                     @endfor
                                                 </div>
@@ -102,7 +135,6 @@
                                                     @php echo $busLayout->generateSeats($lsr, $deckIndex, $seatNumber, $prefix.$seatCounter); @endphp
                                                     @php
                                                         $seatCounter++;
-                                                        $mainSeatCounter++;
                                                     @endphp
                                                 @endfor
                                             </div>

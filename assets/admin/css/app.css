@@ -8451,6 +8451,21 @@ label.required:after {
   font-size: 14px;
 }
 
+.comfort-room {
+  width: 70px !important;
+  height: 95px !important;
+  line-height: 70px;
+  position: absolute !important;
+}
+
+.cr-right {
+  right: 25px !important;
+}
+
+.cr-left {
+  left: 25px;
+}
+
 @media (max-width: 575px) {
   .seat-wrapper .seat {
     height: 45px;

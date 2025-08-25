@@ -4792,6 +4792,21 @@ i {
     color: #777 !important;
 }
 
+.comfort-room {
+  width: 70px !important;
+  height: 95px !important;
+  line-height: 70px;
+  position: absolute !important;
+}
+
+.cr-right {
+  right: 25px !important;
+}
+
+.cr-left {
+  left: 25px;
+}
+
 .seat-wrapper .left-side,
 .seat-wrapper .right-side {
     display: -webkit-box;

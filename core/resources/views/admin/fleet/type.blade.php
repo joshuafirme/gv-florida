@@ -127,6 +127,7 @@
                             <input type="number" min="0" class="form-control" name="deck" required>
                         </div>
                         <div class="showSeat"></div>
+
                         <div class="form-group">
                             <label for="facilities">@lang('Facilities')</label>
                             <select class="select2-auto-tokenize" name="facilities[]" id="facilities" multiple="multiple">
@@ -179,6 +180,15 @@
                             <label> Seats of Deck - ${deck} </label>
                             <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Seat')" name="deck_seats[]" required>
                         </div>
+                            <div class="form-group">
+                                <label> Last Row of Deck - ${deck} </label>
+                                <input type="number" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" name="last_row[]" required>
+                            </div>
+                            <div class="form-group">
+                                <label> Prefix of Deck - ${deck} </label>
+                                <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" name="prefixes[]" required>
+                            </div>
+                            <hr>
                     `);
                 }
             })
@@ -198,10 +208,17 @@
                     for (var i = 1; i <= data.deck; i++) {
                         let last_row = data.last_row ? data.last_row[i - 1] : 0;
                         let prefix = data.prefixes ? data.prefixes[i - 1] : '';
+                        let total_seats = data.deck_seats[i - 1];
+                        let opts = '';
+                        for (let index = 1; index <= total_seats; index++) {
+                            let seat = `${[prefix]}${index}`;
+                            opts += `<option value="${seat}">${seat}</option>`;
+                        }
+                        console.log('opts', opts)
                         $('.showSeat').append(`
                             <div class="form-group">
                                 <label> Seats of Deck - ${i} </label>
-                                <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Seat')" value="${data.deck_seats[i-1]}" name="deck_seats[]" required>
+                                <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Seat')" value="${total_seats}" name="deck_seats[]" required>
                             </div>
                             <div class="form-group">
                                 <label> Last Row of Deck - ${i} </label>
@@ -211,6 +228,14 @@
                                 <label> Prefix of Deck - ${i} </label>
                                 <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" value="${prefix}" name="prefixes[]" required>
                             </div>
+                            <div class="form-group">
+                                <label for="disabled_seats">@lang('Disabled seats')</label>
+                                <select class="select2-auto-tokenize" name="disabled_seats[]" id="disabled_seats"
+                                    multiple="multiple">
+                                    ${opts}
+                                </select>
+                            </div>
+                            <hr>
                         `);
                     }
                 }
@@ -220,6 +245,23 @@
                 } else {
                     $('#facilities').val('').trigger("change");
                 }
+
+                 if (data.disabled_seats) {
+                    $('#disabled_seats').val(data.disabled_seats).trigger("change");
+                } else {
+                    $('#disabled_seats').val('').trigger("change");
+                }
+
+
+                $.each($('.select2-auto-tokenize'), function() {
+                    $(this)
+                        .wrap(`<div class="position-relative"></div>`)
+                        .select2({
+                            tags: true,
+                            tokenSeparators: [','],
+                            dropdownParent: $(this).parent()
+                        });
+                });
             });
         })(jQuery);
     </script>

@@ -113,6 +113,7 @@ class ManageFleetController extends Controller
         $fleetType->prefixes = $request->prefixes;
         $fleetType->has_ac = $request->has_ac ? Status::ENABLE : Status::DISABLE;
         $fleetType->facilities = $request->facilities ?? null;
+        $fleetType->disabled_seats = $request->disabled_seats ?? null;
         $fleetType->status = Status::ENABLE;
         $fleetType->save();
 
