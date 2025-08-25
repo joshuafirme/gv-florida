@@ -71,9 +71,10 @@ class BusLayout
         $seatNumber = $seatNumber ?? $this->seatNumber;
 
         $label = $globalLabel ?? ($this->seatNumber . $loopIndex);
-
+        $disabled = str_contains($label, '<del>') ? 'disabled-seat' : '';
+        
         return "<div>
-                    <span class='seat' data-seat='" . ($deckNumber . '-' . $label) . "'>
+                    <span class='seat ".$disabled."' data-seat='" . ($deckNumber . '-' . $label) . "'>
                         $label
                         <span></span>
                     </span>

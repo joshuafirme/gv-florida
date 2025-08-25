@@ -4793,18 +4793,26 @@ i {
 }
 
 .comfort-room {
-  width: 70px !important;
-  height: 95px !important;
-  line-height: 70px;
-  position: absolute !important;
+    width: 70px !important;
+    height: 95px !important;
+    line-height: 70px;
+    position: absolute !important;
+    cursor: auto !important;
 }
 
 .cr-right {
-  right: 25px !important;
+    right: 25px !important;
 }
 
 .cr-left {
-  left: 25px;
+    left: 25px;
+}
+
+.disabled-seat {
+    cursor: auto !important;
+    background: #777777 !important;
+    color: #fff !important;
+
 }
 
 .seat-wrapper .left-side,
@@ -4917,6 +4925,16 @@ i {
     display: inline-block;
     font-size: 14px;
     line-height: 1.25;
+}
+
+.seat-for-reserved .non-operational-seats .seat {
+    border-color: #777777;
+    background: #777777;
+}
+
+.seat-for-reserved .non-operational-seats .seat span {
+    background: #fff;
+    border-color: #fff;
 }
 
 .seat-for-reserved .selected-by-you .seat {

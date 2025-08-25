@@ -363,7 +363,7 @@ class SiteController extends Controller
         $pnr_number = getTrx(10);
         $bookedTicket = new BookedTicket();
         $bookedTicket->user_id = $request->user() ? $request->user()->id : null;
-        $bookedTicket->gender = $request->gender;
+        $bookedTicket->gender = 1;
         $bookedTicket->trip_id = $trip->id;
         $bookedTicket->source_destination = [$request->pickup_point, $request->dropping_point];
         $bookedTicket->pickup_point = $request->pickup_point;

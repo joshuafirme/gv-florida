@@ -13,7 +13,7 @@
     <div class="padding-top padding-bottom">
         <div class="container">
             <div class="row gx-xl-5 gy-4 gy-sm-5 justify-content-center">
-                <div class="col-lg-4 col-md-6">
+                <div class="col-md-6">
                     <div class="seat-overview-wrapper">
                         <form action="{{ route('ticket.book', $trip->id) }}" method="POST" id="bookingForm" class="row gy-2">
                             @csrf
@@ -55,7 +55,7 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-12">
+                            {{-- <div class="col-12">
                                 <label class="form-label">@lang('Select Gender')</label>
                                 <div class="d-flex flex-wrap gap-3">
                                     <div class="form-group custom--radio">
@@ -67,7 +67,7 @@
                                         <label class="form-label" for="female">@lang('Female')</label>
                                     </div>
                                 </div>
-                            </div>
+                            </div> --}}
 
                             <div class="booked-seat-details my-3 d-none">
                                 <label>@lang('Selected Seats')</label>
@@ -79,13 +79,13 @@
                                 </div>
                             </div>
                             <input type="text" name="seats" hidden>
-                            <div class="col-12">
+                            <div class="col-12 mt-3">
                                 <button type="submit" class="book-bus-btn">@lang('Continue')</button>
                             </div>
                         </form>
                     </div>
                 </div>
-                <div class="col-lg-4 col-md-6">
+                <div class="col-md-6">
                     <h6 class="title">@lang('Click on Seat to select or deselect')</h6>
                     @if ($trip->day_off)
                         <span class="fs--14px">
@@ -101,162 +101,7 @@
                         </span>
                     @endif
 
-                    @php
-                        $disabled_seats = $trip->fleetType->disabled_seats ? $trip->fleetType->disabled_seats : [];
-                    @endphp
-                    @foreach ($trip->fleetType->deck_seats as $key => $seat)
-                        <div class="seat-plan-inner m-4 p-3">
-                            <div class="single">
 
-                                @php
-                                    echo $busLayout->getDeckHeader($loop->index);
-                                @endphp
-
-                                @php
-                                    $totalRow = $busLayout->getTotalRow($seat) + 1;
-                                    $lastRowSeat = $busLayout->getLastRowSit($seat);
-                                    $deckIndex = $loop->index + 1;
-                                    $seatlayout = $busLayout->sitLayouts();
-                                    $colItem = $seatlayout->left + $seatlayout->right;
-                                    $seatCounter = 1;
-                                    $total_seats = $totalRow * $colItem;
-                                    $prefix = $trip->fleetType->prefixes ? $trip->fleetType->prefixes[$key] : '';
-                                    $has_cr = false;
-                                @endphp
-
-                                {{-- Main Rows --}}
-                                @for ($row = 1; $row <= $totalRow; $row++)
-                                    @php
-                                        if ($lastRowSeat == 1 && $row == $totalRow) {
-                                            break;
-                                        }
-
-                                        $seatNumber = '';
-                                    @endphp
-                                    <div class="seat-wrapper">
-                                        <div class="left-side">
-                                            @for ($ls = 1; $ls <= $seatlayout->left; $ls++)
-                                                @php
-                                                    if ($trip->fleetType->last_row) {
-                                                        $offset = $seat - $trip->fleetType->last_row[$key];
-                                                        if ($seatCounter > $offset) {
-                                                            continue;
-                                                        }
-                                                    }
-                                                @endphp
-                                                @if (($row == $trip->fleetType->cr_row || $row == $trip->fleetType->cr_row + 1) && $trip->fleetType->cr_position == 'Left')
-                                                    @if (!$has_cr)
-                                                        <div>
-                                                            <span class='seat comfort-room cr-left'>
-                                                                CR
-                                                                <span></span>
-                                                            </span>
-                                                        </div>
-                                                    @endif
-                                                    @php
-                                                        $seatCounter--;
-                                                        $has_cr = true;
-                                                    @endphp
-                                                @else
-                                                    @php
-                                                        $label = $prefix . $seatCounter;
-                                                        if (in_array($label, $disabled_seats)) {
-                                                            $label = "<del>$label</del>";
-                                                        }
-                                                        echo $busLayout->generateSeats(
-                                                            $ls,
-                                                            $deckIndex,
-                                                            $seatNumber,
-                                                            $label,
-                                                        );
-                                                    @endphp
-                                                @endif
-                                                @php
-                                                    $seatCounter++;
-                                                @endphp
-                                            @endfor
-                                        </div>
-                                        <div class="right-side">
-                                            @for ($rs = 1; $rs <= $seatlayout->right; $rs++)
-                                                @php
-                                                    if ($trip->fleetType->last_row) {
-                                                        $offset = $seat - $trip->fleetType->last_row[$key];
-                                                        if ($seatCounter > $offset) {
-                                                            continue;
-                                                        }
-                                                    }
-                                                @endphp
-
-                                                @if (($row == $trip->fleetType->cr_row || $row == $trip->fleetType->cr_row + 1) && $trip->fleetType->cr_position == 'Right')
-                                                    @if (!$has_cr)
-                                                        <div>
-                                                            <span class='seat comfort-room cr-right'>
-                                                                CR
-                                                                <span></span>
-                                                            </span>
-                                                        </div>
-                                                    @endif
-                                                    @php
-                                                        $seatCounter--;
-                                                        $has_cr = true;
-                                                    @endphp
-                                                @else
-                                                    @php
-                                                        $label = $prefix . $seatCounter;
-                                                        if (in_array($label, $disabled_seats)) {
-                                                            $label = "<del>$label</del>";
-                                                        }
-                                                        echo $busLayout->generateSeats(
-                                                            $ls,
-                                                            $deckIndex,
-                                                            $seatNumber,
-                                                            $label,
-                                                        );
-                                                    @endphp
-                                                @endif
-
-                                                @php
-                                                    $seatCounter++;
-                                                @endphp
-                                            @endfor
-                                        </div>
-                                    </div>
-                                @endfor
-                                @if ($trip->fleetType->last_row)
-                                    @php $seatNumber++ @endphp
-                                    <div class="seat-wrapper justify-content-center">
-                                        @for ($lsr = 1; $lsr <= $trip->fleetType->last_row[$key]; $lsr++)
-                                            @php echo $busLayout->generateSeats($lsr, $deckIndex, $seatNumber, $prefix.$seatCounter); @endphp
-                                            @php
-                                                $seatCounter++;
-                                            @endphp
-                                        @endfor
-                                    </div>
-                                @else
-                                    @if ($lastRowSeat == 1)
-                                        @php $seatNumber++ @endphp
-                                        <div class="seat-wrapper justify-content-center">
-                                            @for ($lsr = 1; $lsr <= $colItem + 1; $lsr++)
-                                                @php echo $busLayout->generateSeats($lsr, $deckIndex, $seatNumber, $prefix.$seatCounter); @endphp
-                                                @php $seatCounter++; @endphp
-                                            @endfor
-                                        </div>
-                                    @endif
-                                    @if ($lastRowSeat > 1)
-                                        @php $seatNumber++ @endphp
-                                        <div class="seat-wrapper justify-content-center">
-                                            @for ($l = 1; $l <= $lastRowSeat; $l++)
-                                                @php echo $busLayout->generateSeats($l, $deckIndex, $seatNumber, $prefix.$seatCounter); @endphp
-                                                @php $seatCounter++; @endphp
-                                            @endfor
-                                        </div>
-                                    @endif
-                                @endif
-
-
-                            </div>
-                        </div>
-                    @endforeach
                     <div class="seat-for-reserved">
                         <div class="seat-condition available-seat">
                             <span class="seat"><span></span></span>
@@ -268,13 +113,16 @@
                         </div>
                         <div class="seat-condition selected-by-gents">
                             <div class="seat"><span></span></div>
-                            <p>@lang('Booked by Gents')</p>
+                            <p>@lang('Already Booked')</p>
                         </div>
-                        <div class="seat-condition selected-by-ladies">
+
+                        <div class="seat-condition non-operational-seats">
                             <div class="seat"><span></span></div>
-                            <p>@lang('Booked by Ladies')</p>
-                        </div </div>
+                            <p>@lang('Non-Operational Seats')</p>
+                        </div>
                     </div>
+                    @include('templates.basic.partials.seat_layout', ['fleetType' => $trip->fleetType])
+
                 </div>
             </div>
         </div>
@@ -296,8 +144,7 @@
                         <button type="button" class="btn btn--danger w-auto btn--sm px-3" data-bs-dismiss="modal">
                             @lang('Close')
                         </button>
-                        <button type="submit" class="btn btn--base btn--sm w-auto"
-                            id="btnBookConfirm">@lang('Confirm')
+                        <button type="submit" class="btn btn--base btn--sm w-auto" id="btnBookConfirm">@lang('Confirm')
                         </button>
                     </div>
                 </div>
@@ -375,6 +222,10 @@
 
                 //click on seat
                 $('.seat-wrapper .seat').on('click', function() {
+                    if ($(this).hasClass('disabled-seat') || $(this).hasClass('comfort-room')) {
+                        $(this).removeClass('selected')
+                    }
+
                     var pickupPoint = $('select[name="pickup_point"]').val();
                     var droppingPoint = $('select[name="dropping_point"]').val();
                     var seat = $(this).attr('data-seat')

@@ -204,12 +204,12 @@
                 }
 
                 $('.showSeat').empty();
+                let opts = '';
                 if (data.deck) {
                     for (var i = 1; i <= data.deck; i++) {
                         let last_row = data.last_row ? data.last_row[i - 1] : 0;
                         let prefix = data.prefixes ? data.prefixes[i - 1] : '';
                         let total_seats = data.deck_seats[i - 1];
-                        let opts = '';
                         for (let index = 1; index <= total_seats; index++) {
                             let seat = `${[prefix]}${index}`;
                             opts += `<option value="${seat}">${seat}</option>`;
@@ -228,28 +228,32 @@
                                 <label> Prefix of Deck - ${i} </label>
                                 <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" value="${prefix}" name="prefixes[]" required>
                             </div>
-                            <div class="form-group">
-                                <label for="disabled_seats">@lang('Disabled seats')</label>
-                                <select class="select2-auto-tokenize" name="disabled_seats[]" id="disabled_seats"
-                                    multiple="multiple">
-                                    ${opts}
-                                </select>
-                            </div>
                             <hr>
                         `);
+
                     }
+                }
+                $('.showSeat').append(`
+                    <div class="form-group">
+                        <label for="disabled_seats">@lang('Non-Operational Seats')</label>
+                        <select class="select2-auto-tokenize disabled_seats" name="disabled_seats[]"
+                            multiple="multiple">
+                            ${opts}
+                        </select>
+                    </div>
+                `);
+
+
+                if (data.disabled_seats) {
+                    $('.disabled_seats').val(data.disabled_seats).trigger("change");
+                } else {
+                    $('.disabled_seats').val('').trigger("change");
                 }
 
                 if (data.facilities) {
                     $('#facilities').val(data.facilities).trigger("change");
                 } else {
                     $('#facilities').val('').trigger("change");
-                }
-
-                 if (data.disabled_seats) {
-                    $('#disabled_seats').val(data.disabled_seats).trigger("change");
-                } else {
-                    $('#disabled_seats').val('').trigger("change");
                 }
 
 
