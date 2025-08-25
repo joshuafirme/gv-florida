@@ -78,8 +78,7 @@ class ManageFleetController extends Controller
                 'deck' => 'required|numeric|gt:0',
                 'deck_seats' => 'required|array|min:1',
                 'deck_seats.*' => 'required|numeric|gt:0',
-                'last_row' => 'required|array|min:1',
-                'last_row.*' => 'required|numeric|gt:0',
+                'last_row.*' => 'numeric|gt:0',
                 'prefixes' => 'required|array',
                 'facilities.*' => 'string'
             ],
@@ -89,9 +88,7 @@ class ManageFleetController extends Controller
                 'deck_seats.*.gt:0' => 'Seat number for all deck is must be greater than 0',
             ],
             [
-                'last_row.*.required' => 'Last Row number for all deck is required',
                 'last_row.*.numeric' => 'Last Row number for all deck is must be a number',
-                'last_row.*.gt:0' => 'Last Row number for all deck is must be greater than 0',
             ],
         );
 

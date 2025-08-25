@@ -119,8 +119,7 @@
                         </div>
                         <div class="form-group">
                             <label> CR Row</label>
-                            <input type="number" class="form-control" placeholder="@lang('Enter Number of Row (Where to insert)')" name="cr_row"
-                                required>
+                            <input type="number" class="form-control" placeholder="@lang('Enter Number of Row (Where to insert)')" name="cr_row">
                         </div>
                         <div class="form-group">
                             <label> @lang('No of Deck')</label>
