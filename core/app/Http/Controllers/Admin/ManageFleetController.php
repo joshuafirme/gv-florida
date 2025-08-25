@@ -78,8 +78,8 @@ class ManageFleetController extends Controller
                 'deck' => 'required|numeric|gt:0',
                 'deck_seats' => 'required|array|min:1',
                 'deck_seats.*' => 'required|numeric|gt:0',
-                'last_row.*' => 'numeric|gt:0',
-                'prefixes' => 'required|array',
+                'last_row.*' => 'numeric',
+                'prefixes' => 'array',
                 'facilities.*' => 'string'
             ],
             [
