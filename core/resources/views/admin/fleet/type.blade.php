@@ -185,7 +185,7 @@
                             </div>
                             <div class="form-group">
                                 <label> Prefix of Deck - ${deck} </label>
-                                <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" name="prefixes[]" required>
+                                <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" name="prefixes[]">
                             </div>
                             <hr>
                     `);
@@ -225,7 +225,7 @@
                             </div>
                             <div class="form-group">
                                 <label> Prefix of Deck - ${i} </label>
-                                <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" value="${prefix}" name="prefixes[]" required>
+                                <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" value="${prefix}" name="prefixes[]">
                             </div>
                             <hr>
                         `);
