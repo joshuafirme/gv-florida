@@ -62,9 +62,6 @@
             </div>
         </div>
     </div>
-    <!-- Ticket Search Starts -->
-
-    <!-- Ticket Section Starts Here -->
     <section class="ticket-section padding-bottom section-bg">
         <div class="container">
             <div class="row gy-5">
@@ -87,8 +84,8 @@
                                                 <input name="fleetType[]" class="search" value="{{ $fleet->id }}"
                                                     id="{{ $fleet->name }}" type="checkbox"
                                                     @if (request()->fleetType) @foreach (request()->fleetType as $item)
-                                    @if ($item == $fleet->id)
-                                    checked @endif
+                                                @if ($item == $fleet->id)
+                                                checked @endif
                                                     @endforeach
                                         @endif >
                                         <label for="{{ $fleet->name }}"><span><i
@@ -162,7 +159,7 @@
                     @endphp
 
                     @if ($ticket)
-                        <div class="ticket-item">
+                        <div class="ticket-item mb-2">
                             <div class="ticket-item-inner">
                                 <h5 class="bus-name">{{ __($trip->title) }}</h5>
                                 <span class="bus-info">@lang('Seat Layout - ') {{ __($trip->fleetType->seat_layout) }}</span>
@@ -192,8 +189,9 @@
                                                 <span class="badge badge--primary">{{ __(showDayOff($item)) }}</span>
                                             @endforeach
                                         </div>
-                                    @else
-                                        @lang('Every day available')
+                                    </div>
+                                @else
+                                    @lang('Every day available')
                                 @endif
                             </div>
                             <a class="btn btn--base"
@@ -203,34 +201,35 @@
                                     'start_from' => $trip->start_from,
                                     'end_to' => $trip->end_to,
                                     'kiosk_id' => $kiosk_id,
-                                    'date_of_journey' => request('date_of_journey')
+                                    'date_of_journey' => request('date_of_journey'),
                                 ]) }}">@lang('Select Seat')</a>
-                        </div>
-                        @if ($trip->fleetType->facilities)
-                            <div class="ticket-item-footer">
-                                <div class="d-flex content-justify-center">
-                                    <span>
-                                        <strong>@lang('Facilities - ')</strong>
-                                        @foreach ($trip->fleetType->facilities as $item)
-                                            <span class="facilities">{{ __($item) }}</span>
-                                        @endforeach
-                                    </span>
+
+
+                            @if ($trip->fleetType->facilities)
+                                <div class="ticket-item-footer">
+                                    <div class="d-flex content-justify-center">
+                                        <span>
+                                            <strong>@lang('Amenities - ')</strong>
+                                            @foreach ($trip->fleetType->facilities as $item)
+                                                <span class="facilities">{{ __($item) }}</span>
+                                            @endforeach
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                        @endif
+                            @endif
+                        </div>
+                    @endif
+                @empty
+                    <div class="ticket-item">
+                        <h5>{{ __($emptyMessage) }}</h5>
+                    </div>
+                @endforelse
+                @if ($trips->hasPages())
+                    <div class="custom-pagination">
+                        {{ paginateLinks($trips) }}
+                    </div>
+                @endif
             </div>
-            @endif
-        @empty
-            <div class="ticket-item">
-                <h5>{{ __($emptyMessage) }}</h5>
-            </div>
-            @endforelse
-            @if ($trips->hasPages())
-                <div class="custom-pagination">
-                    {{ paginateLinks($trips) }}
-                </div>
-            @endif
-        </div>
         </div>
         </div>
         </div>
