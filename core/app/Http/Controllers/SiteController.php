@@ -277,7 +277,6 @@ class SiteController extends Controller
             "dropping_point" => "required|integer|gt:0",
             "date_of_journey" => "required|date",
             "seats" => "required|string",
-            "gender" => "required|integer"
         ], [
             "seats.required" => "Please Select at Least One Seat"
         ]);
