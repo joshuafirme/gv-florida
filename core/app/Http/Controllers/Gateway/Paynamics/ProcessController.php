@@ -166,7 +166,7 @@ class ProcessController extends Controller
 
         $fileName = 'paynamics/webhooks/' . $uid . '.json';
 
-        Storage::put($fileName, json_encode($payload));
+        Storage::put($fileName, json_encode($payload, JSON_PRETTY_PRINT));
 
         return response()->json([
             'status' => 'success',
