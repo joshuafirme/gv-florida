@@ -320,8 +320,9 @@ a {
     display: inline-block;
     -webkit-transition: all ease 0.3s;
     transition: all ease 0.3s;
-    text-decoration: none;
     color: #777;
+    text-decoration: none;
+    color: var(--main-color);
 }
 
 a:hover {
@@ -6365,4 +6366,26 @@ label.required:after {
 .clock-icon {
     font-size: 1.8rem;
     color: #0d6efd;
+}
+
+.transaction-details {
+    overflow-wrap: break-word;
+    text-align: left;
+    margin-top: 20px;
+}
+
+
+.success-card {
+    max-width: 600px;
+    margin: 60px auto;
+    padding: 30px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    text-align: center;
+}
+
+.success-icon {
+    font-size: 4rem;
+    color: #28a745;
 }

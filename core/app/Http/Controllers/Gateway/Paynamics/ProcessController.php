@@ -134,9 +134,6 @@ class ProcessController extends Controller
 
     public function notification(Request $request)
     {
-        $jsonData = json_encode($request, JSON_PRETTY_PRINT);
-
-        // Save to storage/app/data.json
-        Storage::disk('public')->put('paynamics.json', $jsonData);
+        Storage::put('paynamics.json', $request);
     }
 }

@@ -34,7 +34,7 @@ function generateTicketQR($pnr_number, $size = 150)
     return QrCode::size($size)->generate(route('admin.vehicle.ticket.search', ['scope' => 'list', 'search' => $pnr_number]));
 }
 
-function getPaynamicsPMethod($pchannel, $getname = false) : string
+function getPaynamicsPMethod($pchannel, $getname = false): string
 {
     $pmethods = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'))->pmethod;
     $pmethod = '';
@@ -49,7 +49,7 @@ function getPaynamicsPMethod($pchannel, $getname = false) : string
     return $pmethod;
 }
 
-function getPaynamicsPChannel($pchannel, $getname = false) : string
+function getPaynamicsPChannel($pchannel, $getname = false): string
 {
     $pmethods = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'))->pmethod;
     $pmethod = '';
@@ -206,6 +206,18 @@ function showAmount($amount, $decimal = 2, $separate = true, $exceptZeros = fals
 function isExpired($date)
 {
     return strtotime($date) < strtotime(date('Y-m-d H:i')) ? true : false;
+}
+
+function autoLink($text, $target = '_blank')
+{
+    // Regular expression to detect URLs starting with http or https
+    $pattern = '/(https?:\/\/[^\s]+)/i';
+
+    // Replace URLs with clickable links
+    return preg_replace_callback($pattern, function ($matches) use ($target) {
+        $url = $matches[0];
+        return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" target="' . $target . '" rel="noopener noreferrer">' . $url . '</a>';
+    }, $text);
 }
 
 function paymentStatus($status)

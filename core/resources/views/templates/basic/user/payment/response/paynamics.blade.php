@@ -3,33 +3,6 @@
 @else
     @extends($activeTemplate . 'layouts.master')
 @endif
-
-<style>
-    .success-card {
-        max-width: 600px;
-        margin: 60px auto;
-        padding: 30px;
-        border-radius: 12px;
-        background: #fff;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        text-align: center;
-    }
-
-    .success-icon {
-        font-size: 4rem;
-        color: #28a745;
-    }
-
-    .transaction-details {
-        text-align: left;
-        margin-top: 20px;
-    }
-
-    .transaction-details dt {
-        font-weight: 600;
-    }
-</style>
-
 @section('content')
     <div class="container padding-bottom">
         <div class="success-card">
