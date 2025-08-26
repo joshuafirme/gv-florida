@@ -65,8 +65,10 @@
                                     data-bs-toggle="modal" data-bs-target="#infoModal"><i
                                         class="las la-info-circle"></i></a>
                             @endif --}}
-                            <a href="{{ route('user.ticket.print', $item->id) }}" target="_blank" class="print"><i
-                                    class="las la-print"></i></a>
+                            @if (@$item->status == App\Constants\Status::BOOKED_APPROVED || !isExpired(@$item->deposit->expiry_limit))
+                                <a href="{{ route('user.ticket.print', $item->id) }}" target="_blank" class="print"><i
+                                        class="las la-print"></i></a>
+                            @endif
                             <a href="javascript::void(0)" class="checkinfo" data-info="{{ $item }}"
                                 data-bs-toggle="modal" data-bs-target="#infoModal"><i
                                     class="las la-info-circle"></i></a>

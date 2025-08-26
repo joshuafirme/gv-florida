@@ -57,10 +57,20 @@
                             </tr>`;
                 }
 
+                let payment_status = paymentStatus(info.deposit.status);
+                if (info.deposit.expiry_limit) {
+                    const expiry = new Date(info.deposit.expiry_limit).getTime();
+                    const today = Date.now();
+                    if (expiry < today) {
+                        console.log(expiry)
+                        payment_status = paymentStatus(0, 'Expired');
+                    }
+                }
+
                 html += `
                             <tr>
                                 <th>Status</th>
-                                <td>${paymentStatus(info.deposit.status)}</td>
+                                <td>${payment_status}</td>
                             </tr>
                         </table>
                     </div>
@@ -70,7 +80,10 @@
         });
     })
 
-    function paymentStatus(status) {
+    function paymentStatus(status, custom) {
+        if (custom) {
+            return '<span class="badge badge--danger">' + custom + '</span>';
+        } else
         if (status == 1)
             return '<span class="badge badge--success">Paid</span>';
         else if (status == 2)

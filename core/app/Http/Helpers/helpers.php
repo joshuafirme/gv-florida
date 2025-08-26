@@ -203,6 +203,11 @@ function showAmount($amount, $decimal = 2, $separate = true, $exceptZeros = fals
     return $printAmount;
 }
 
+function isExpired($date)
+{
+    return strtotime($date) < strtotime(date('Y-m-d H:i')) ? true : false;
+}
+
 function paymentStatus($status)
 {
     if ($status == 1)

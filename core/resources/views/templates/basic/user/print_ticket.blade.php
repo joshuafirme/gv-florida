@@ -261,6 +261,22 @@
                                 </tr>
                                 <tr>
                                     <td class="text-right">
+                                        <p class="title">@lang('Payment Method')</p>
+                                    </td>
+                                    <td>
+                                        <b>:</b>
+                                    </td>
+                                    <td class="text-left">
+                                        <h5 class="value">
+                                            @if ($ticket->deposit->gateway->name == 'Paynamics')
+                                                {{ getPaynamicsPChannel($ticket->deposit->pchannel, true) }}
+                                            @else
+                                                {{ $ticket->deposit->gateway->name }}
+                                            @endif</h5>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-right">
                                         <p class="title">@lang('Payment Status')</p>
                                     </td>
                                     <td>
@@ -279,7 +295,8 @@
                                             <b>:</b>
                                         </td>
                                         <td class="text-left">
-                                            <h5 class="value">{{ $ticket->kiosk->name }} - {{ $ticket->kiosk->uid }}</h5>
+                                            <h5 class="value">{{ $ticket->kiosk->name }} - {{ $ticket->kiosk->uid }}
+                                            </h5>
                                         </td>
                                     </tr>
                                 @endif
@@ -295,7 +312,8 @@
     <div class="print-btn">
         @if ($ticket->kiosk_id)
             <button onclick="window.print()" class="btn btn-warning mt-3">Print Ticket</button>
-            <a href="{{ url("/tickets?kiosk_id=$ticket->kiosk_id") }}" class="btn btn-success mt-3">Finish Transaction</a>
+            <a href="{{ url("/tickets?kiosk_id=$ticket->kiosk_id") }}" class="btn btn-success mt-3">Finish
+                Transaction</a>
         @else
             <button type="button" class="cmn-btn btn-download">@lang('Download Ticket')</button>
         @endif
