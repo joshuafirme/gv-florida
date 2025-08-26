@@ -123,8 +123,7 @@ class ProcessController extends Controller
             $data = json_decode(Storage::get($path));
             if (isset($data->pchannel)) {
                 $data->pchannel_name = getPaynamicsPChannel($data->pchannel, true);
-            }
-            else if (isset($data->direct_otc_info)){
+            } else if (isset($data->direct_otc_info)) {
                 $data->pchannel_name = getPaynamicsPChannel($data->direct_otc_info[0]->pay_channel, true);
             }
             return $data;
@@ -134,6 +133,23 @@ class ProcessController extends Controller
 
     public function notification(Request $request)
     {
-        Storage::put('paynamics.json', $request);
+        $payload = $request->all();
+        $file_name = now()->format('Y-m-d_H-i-s');
+        
+        if (isset($payload['request_id'])) {
+            $file_name = $payload['request_id'];
+        }
+        else if (isset($payload['pay_reference'])) {
+            $file_name = $payload['pay_reference'];
+        }
+
+        $fileName = 'paynamics/webhooks/' . $file_name . '.json';
+
+        Storage::put($fileName, json_encode($payload));
+
+        return response()->json([
+            'status' => 'success',
+            'payload' => $payload
+        ]);
     }
 }
