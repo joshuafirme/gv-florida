@@ -32,7 +32,7 @@ class Paynamics
             $data = [
                 "transaction" => [
                     "request_id" => $this->data->deposit->trx,
-                    "notification_url" => "{$base_url}user/paynamics/notification",
+                    "notification_url" => "{$base_url}api/paynamics/notification",
                     "response_url" => "{$base_url}user/paynamics/response",
                     "cancel_url" => "{$base_url}user/paynamics/cancel",
                     "pmethod" => $pmethod,

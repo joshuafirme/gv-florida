@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Gateway\Paynamics\ProcessController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -35,6 +36,9 @@ function get_client_ip()
 
 Route::
         namespace('Api')->name('api.')->group(function () {
+
+            
+            Route::post('paynamics/notification', [ProcessController::class, 'notification'])->name('paynamics.notification');
 
             Route::get('paynamics', function () {
 
