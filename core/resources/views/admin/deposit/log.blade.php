@@ -34,7 +34,11 @@
                                                 <a
                                                     href="{{ appendQuery('method', $deposit->method_code < 5000 ? @$deposit->gateway->alias : $deposit->method_code) }}">
                                                     @if ($deposit->method_code < 5000)
-                                                        {{ __(@$deposit->gateway->name) }}
+                                                        @if (@$deposit->gateway->name == 'Paynamics')
+                                                            {{ getPaynamicsPChannel($deposit->pchannel, true) }}
+                                                        @else
+                                                            {{ __(@$deposit->gateway->name) }}
+                                                        @endif
                                                     @else
                                                         @lang('Google Pay')
                                                     @endif

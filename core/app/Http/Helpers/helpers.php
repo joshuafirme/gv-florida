@@ -34,6 +34,36 @@ function generateTicketQR($pnr_number, $size = 150)
     return QrCode::size($size)->generate(route('admin.vehicle.ticket.search', ['scope' => 'list', 'search' => $pnr_number]));
 }
 
+function getPaynamicsPMethod($pchannel, $getname = false) : string
+{
+    $pmethods = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'))->pmethod;
+    $pmethod = '';
+    foreach ($pmethods as $item) {
+        foreach ($item->types as $type) {
+            if ($pchannel == $type->value) {
+                $pmethod = $getname ? $item->name : $item->value;
+                break;
+            }
+        }
+    }
+    return $pmethod;
+}
+
+function getPaynamicsPChannel($pchannel, $getname = false) : string
+{
+    $pmethods = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'))->pmethod;
+    $pmethod = '';
+    foreach ($pmethods as $item) {
+        foreach ($item->types as $type) {
+            if ($pchannel == $type->value) {
+                $pmethod = $getname ? $type->name : $type->value;
+                break;
+            }
+        }
+    }
+    return $pmethod;
+}
+
 function generateUID(int $number, string $locationCode, string $prefix = 'KSK', $zero_padding = 3): string
 {
     $locationCode = strtoupper($locationCode);

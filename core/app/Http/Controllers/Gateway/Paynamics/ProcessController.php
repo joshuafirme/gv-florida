@@ -42,6 +42,9 @@ class ProcessController extends Controller
             $paynamics->pchannel = request()->pchannel;
             $paynamics->data = $ticket;
             $transaction = $paynamics->createTransaction();
+            $ticket->deposit->pchannel = $paynamics->pchannel;
+            $ticket->deposit->pmethod = getPaynamicsPMethod($paynamics->pchannel);
+            $ticket->deposit->save();
 
             if ($transaction->response_code == "GR011") { // if req ID is already process or exist.
                 $ticket->deposit->trx = generateReqID();
@@ -55,11 +58,13 @@ class ProcessController extends Controller
                 $transaction = $paynamics->createTransaction();
             }
 
-            if ($transaction && isset($transaction->payment_action_info)) {
-                session()->put('paynamics_request_id', $transaction->request_id);
-                session()->put('paynamics_response_id', $transaction->response_id);
+            session()->put('paynamics_request_id', $transaction->request_id);
+            session()->put('paynamics_response_id', $transaction->response_id);
 
+            if ($transaction && isset($transaction->payment_action_info)) {
                 return redirect()->to($transaction->payment_action_info);
+            } else if ($transaction && isset($transaction->direct_otc_info)) {
+                return redirect()->to('/user/paynamics/response');
             }
             return $transaction;
         } catch (\Throwable $th) {
@@ -74,7 +79,7 @@ class ProcessController extends Controller
         $booked_ticket_id = session()->get('booked_ticket_id');
         $request_id = session('paynamics_request_id');
 
-        $pageTitle = "Transaction";
+        $pageTitle = "Payment Details";
 
         $ticket = BookedTicket::find($booked_ticket_id);
 
@@ -82,27 +87,49 @@ class ProcessController extends Controller
 
         $deposit = Deposit::where('trx', $ticket->deposit->trx)->orderBy('id', 'DESC')->first();
 
-        if ($deposit->status == Status::PAYMENT_INITIATE) {
+        if ($deposit->status == Status::PAYMENT_INITIATE && !isset($transaction->direct_otc_info)) {
             PaymentController::userDataUpdate($deposit);
-        }
+        } else if (isset($transaction->direct_otc_info) && $transaction->pay_reference != $deposit->pay_reference) {
+            $deposit->status = Status::PAYMENT_PENDING;
+            $deposit->expiry_limit = $transaction->expiry_limit;
+            $deposit->pay_reference = $transaction->pay_reference;
+            $deposit->save();
 
-        $pageTitle = $transaction->response_message;
+            $bookedTicket = BookedTicket::find($deposit->booked_ticket_id);
+            $bookedTicket->status = Status::BOOKED_PENDING;
+            $bookedTicket->save();
+        }
 
         return view('templates/basic/user/payment/response/paynamics', compact('transaction', 'pageTitle'));
     }
 
     public function getTransaction($request_id)
     {
-        // $path = "paynamics/$request_id.json";
-        // if (Storage::exists($path)) {
-        //     $transaction = json_decode(Storage::get($path));
-        // } else {
-
-        // }
-        $paynamics = new Paynamics(request()->user());
-        $transaction = $paynamics->queryTransaction();
-        //Storage::put($path, json_encode($transaction));
+        $path = "paynamics/$request_id.json";
+        if (Storage::exists($path)) {
+            $transaction = json_decode(Storage::get($path));
+        } else {
+            $paynamics = new Paynamics(request()->user());
+            $transaction = $paynamics->queryTransaction();
+            Storage::put($path, json_encode($transaction));
+        }
         return $transaction;
+    }
+
+    public function getPaymentDetails($request_id)
+    {
+        $path = "paynamics/{$request_id}.json";
+        if (Storage::exists($path)) {
+            $data = json_decode(Storage::get($path));
+            if (isset($data->pchannel)) {
+                $data->pchannel_name = getPaynamicsPChannel($data->pchannel, true);
+            }
+            else if (isset($data->direct_otc_info)){
+                $data->pchannel_name = getPaynamicsPChannel($data->direct_otc_info[0]->pay_channel, true);
+            }
+            return $data;
+        }
+        return abort(404, "File not found");
     }
 
     public function notification(Request $request)

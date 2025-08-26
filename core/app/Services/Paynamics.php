@@ -13,18 +13,7 @@ class Paynamics
     public function createTransaction()
     {
         try {
-            $pmethods = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'))->pmethod;
-            $pmethod = '';
-            foreach ($pmethods as $item) {
-                foreach ($item->types as $type) {
-                    if ($this->pchannel == $type->value) {
-                        $pmethod = $item->value;
-                        break;
-                    }
-                }
-            }
-
-            $date = date('Ymd');
+            $pmethod = getPaynamicsPMethod($this->pchannel);
 
             $orders = [];
             $orders[] = [

@@ -39,9 +39,11 @@ Route::middleware('auth')->name('user.')->group(function () {
 
     Route::get('user-data', 'User\UserController@userData')->name('data');
     Route::post('user-data-submit', 'User\UserController@userDataSubmit')->name('data.submit');
+    Route::get('paynamics/details/{request_id}', 'Gateway\Paynamics\ProcessController@getPaymentDetails')->name('paynamics.getPaymentDetails');
     Route::post('paynamics/redirect', 'Gateway\Paynamics\ProcessController@redirect')->name('paynamics.redirect');
     Route::get('paynamics/response', 'Gateway\Paynamics\ProcessController@response')->name('paynamics.response');
     Route::post('paynamics/notification', 'Gateway\Paynamics\ProcessController@notification')->name('paynamics.notification');
+    
 
     //authorization
     Route::middleware('registration.complete')->namespace('User')->controller('AuthorizationController')->group(function () {
