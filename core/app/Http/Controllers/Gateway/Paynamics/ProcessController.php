@@ -134,16 +134,37 @@ class ProcessController extends Controller
     public function notification(Request $request)
     {
         $payload = $request->all();
-        $file_name = now()->format('Y-m-d_H-i-s');
-        
+        $uid = now()->format('Y-m-d_H-i-s');
+
+        $deposit = Deposit::orderBy('id', 'DESC');
         if (isset($payload['request_id'])) {
-            $file_name = $payload['request_id'];
-        }
-        else if (isset($payload['pay_reference'])) {
-            $file_name = $payload['pay_reference'];
+            $uid = $payload['request_id'];
+            $deposit->where('trx', $uid);
+        } else if (isset($payload['pay_reference'])) {
+            $uid = $payload['pay_reference'];
+            $deposit->where('pay_reference', $uid);
         }
 
-        $fileName = 'paynamics/webhooks/' . $file_name . '.json';
+        $deposit = $deposit->first();
+
+        if ($payload['response_code'] == 'GR001') {
+             PaymentController::userDataUpdate($deposit);
+        }
+
+        // if ($deposit->status == Status::PAYMENT_INITIATE && !isset($transaction->direct_otc_info)) {
+        //     PaymentController::userDataUpdate($deposit);
+        // } else if (isset($transaction->direct_otc_info) && $transaction->pay_reference != $deposit->pay_reference) {
+        //     $deposit->status = Status::PAYMENT_PENDING;
+        //     $deposit->expiry_limit = $transaction->expiry_limit;
+        //     $deposit->pay_reference = $transaction->pay_reference;
+        //     $deposit->save();
+
+        //     $bookedTicket = BookedTicket::find($deposit->booked_ticket_id);
+        //     $bookedTicket->status = Status::BOOKED_PENDING;
+        //     $bookedTicket->save();
+        // }
+
+        $fileName = 'paynamics/webhooks/' . $uid . '.json';
 
         Storage::put($fileName, json_encode($payload));
 
