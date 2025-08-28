@@ -17,12 +17,14 @@ class Paynamics
         try {
             $pmethod = getPaynamicsPMethod($this->pchannel);
 
+            $final_amount = number_format((float) $this->data->deposit->final_amount, 2, '.', '');
+
             $orders = [];
             $orders[] = [
                 "itemname" => "PNR: {$this->data->pnr_number} Seats: " . implode(', ', $this->data->seats),
                 "quantity" => 1,
-                "unitprice" => $this->data->deposit->final_amount,
-                "totalprice" => $this->data->deposit->final_amount
+                "unitprice" => $final_amount,
+                "totalprice" => $final_amount
             ];
 
             $base_url = config('app.url');
@@ -43,7 +45,7 @@ class Paynamics
                     "collection_method" => "single_pay",
                     "payment_notification_status" => "1",
                     "payment_notification_channel" => "1",
-                    "amount" => $this->data->deposit->final_amount,
+                    "amount" => $final_amount,
                     "currency" => "PHP",
                     "trx_type" => "sale",
                     // "mtac_url" => ""
@@ -59,10 +61,10 @@ class Paynamics
                 ],
                 "order_details" => [
                     "orders" => $orders,
-                    "subtotalprice" => $this->data->deposit->final_amount,
+                    "subtotalprice" => $final_amount,
                     "shippingprice" => "0.00",
                     "discountamount" => "0.00",
-                    "totalorderamount" => $this->data->deposit->final_amount
+                    "totalorderamount" => $final_amount
                 ]
             ];
 
@@ -123,7 +125,7 @@ class Paynamics
             ]);
 
             $response = curl_exec($ch);
-            
+
             if (curl_errno($ch)) {
                 echo "cURL Error: " . curl_error($ch);
             } else {
@@ -132,7 +134,7 @@ class Paynamics
 
                 return $json_res;
             }
-   } catch (\Exception $e) {
+        } catch (\Exception $e) {
             $response = "Message: " . $e->getMessage() . "<br>" .
                 "File: " . $e->getFile() . "<br>" .
                 "Line: " . $e->getLine() . "<br>";
