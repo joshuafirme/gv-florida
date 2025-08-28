@@ -151,19 +151,6 @@ class ProcessController extends Controller
              PaymentController::userDataUpdate($deposit);
         }
 
-        // if ($deposit->status == Status::PAYMENT_INITIATE && !isset($transaction->direct_otc_info)) {
-        //     PaymentController::userDataUpdate($deposit);
-        // } else if (isset($transaction->direct_otc_info) && $transaction->pay_reference != $deposit->pay_reference) {
-        //     $deposit->status = Status::PAYMENT_PENDING;
-        //     $deposit->expiry_limit = $transaction->expiry_limit;
-        //     $deposit->pay_reference = $transaction->pay_reference;
-        //     $deposit->save();
-
-        //     $bookedTicket = BookedTicket::find($deposit->booked_ticket_id);
-        //     $bookedTicket->status = Status::BOOKED_PENDING;
-        //     $bookedTicket->save();
-        // }
-
         $fileName = 'paynamics/webhooks/' . $uid . '.json';
 
         Storage::put($fileName, json_encode($payload, JSON_PRETTY_PRINT));

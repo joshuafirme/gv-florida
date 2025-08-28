@@ -1,6 +1,8 @@
 <?php
 namespace App\Services;
 
+use Storage;
+
 class Paynamics
 {
     public $user;
@@ -102,6 +104,8 @@ class Paynamics
 
             // Convert to JSON
             $jsonPayload = json_encode($data);
+            $path = "paynamics/payloads/{$this->data->deposit->trx}.json";
+            Storage::put($path, $jsonPayload);
 
             $api_base = config('paynamics.endpoint');
 
