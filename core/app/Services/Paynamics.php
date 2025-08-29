@@ -32,8 +32,8 @@ class Paynamics
             $mkey = config('paynamics.merchant_key');
             $basicUser = config('paynamics.basic_auth_user');
             $basicPass = config('paynamics.basic_auth_pw');
-            $verify_ssl = app()->isProduction() ? true : false;
-            $verify_host = app()->isProduction() ? 1 : 0;
+            // $verify_ssl = app()->isProduction() ? true : false;
+            // $verify_host = app()->isProduction() ? 1 : 0;
             $payment_action = "url_link";
 
             if ($pmethod == 'nonbank_otc') {
@@ -119,8 +119,8 @@ class Paynamics
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $verify_ssl);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $verify_host);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 "Content-Type: application/json",
                 "Authorization: Basic " . base64_encode("$basicUser:$basicPass")
