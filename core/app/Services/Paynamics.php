@@ -32,6 +32,13 @@ class Paynamics
             $mkey = config('paynamics.merchant_key');
             $basicUser = config('paynamics.basic_auth_user');
             $basicPass = config('paynamics.basic_auth_pw');
+            $verify_ssl = env('VERIFY_SSL', true);
+            $verify_host = env('VERIFY_HOST', 1);
+            $payment_action = "url_link";
+
+            if ($pmethod == 'nonbank_otc') {
+                $payment_action = "direct_otc";
+            }
 
             $data = [
                 "transaction" => [
@@ -41,14 +48,13 @@ class Paynamics
                     "cancel_url" => "{$base_url}user/paynamics/cancel",
                     "pmethod" => $pmethod,
                     "pchannel" => $this->pchannel,
-                    "payment_action" => "url_link",
+                    "payment_action" => $payment_action,
                     "collection_method" => "single_pay",
                     "payment_notification_status" => "1",
                     "payment_notification_channel" => "1",
                     "amount" => $final_amount,
                     "currency" => "PHP",
                     "trx_type" => "sale",
-                    // "mtac_url" => ""
                 ],
                 "customer_info" => [
                     "fname" => $this->user->firstname,
@@ -68,7 +74,6 @@ class Paynamics
                 ]
             ];
 
-            // Generate Transaction Signature
             $rawTrx = $merchantid .
                 ($data["transaction"]["request_id"] ?? '') .
                 ($data["transaction"]["notification_url"] ?? '') .
@@ -91,7 +96,6 @@ class Paynamics
             $signatureTrx = hash('sha512', $rawTrx);
             $data["transaction"]["signature"] = $signatureTrx;
 
-            // Generate Customer Signature
             $rawCustomer = ($data["customer_info"]["fname"] ?? '') .
                 ($data["customer_info"]["lname"] ?? '') .
                 ($data["customer_info"]["mname"] ?? '') .
@@ -104,21 +108,19 @@ class Paynamics
             $signatureCustomer = hash('sha512', $rawCustomer);
             $data["customer_info"]["signature"] = $signatureCustomer;
 
-            // Convert to JSON
             $jsonPayload = json_encode($data);
             $path = "paynamics/payloads/{$this->data->deposit->trx}.json";
             Storage::put($path, $jsonPayload);
 
             $api_base = config('paynamics.endpoint');
 
-            // cURL Request to Paynamics
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, "{$api_base}transactions");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $verify_ssl);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $verify_host);
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 "Content-Type: application/json",
                 "Authorization: Basic " . base64_encode("$basicUser:$basicPass")
