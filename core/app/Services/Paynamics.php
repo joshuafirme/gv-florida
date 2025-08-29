@@ -32,8 +32,8 @@ class Paynamics
             $mkey = config('paynamics.merchant_key');
             $basicUser = config('paynamics.basic_auth_user');
             $basicPass = config('paynamics.basic_auth_pw');
-            $verify_ssl = env('VERIFY_SSL', true);
-            $verify_host = (int) env('VERIFY_HOST', 1);
+            $verify_ssl = app()->isProduction() ? true : false;
+            $verify_host = app()->isProduction() ? 1 : 0;
             $payment_action = "url_link";
 
             if ($pmethod == 'nonbank_otc') {
