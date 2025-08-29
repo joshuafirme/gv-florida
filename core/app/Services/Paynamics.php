@@ -33,7 +33,7 @@ class Paynamics
             $basicUser = config('paynamics.basic_auth_user');
             $basicPass = config('paynamics.basic_auth_pw');
             $verify_ssl = env('VERIFY_SSL', true);
-            $verify_host = env('VERIFY_HOST', 1);
+            $verify_host = (int) env('VERIFY_HOST', 1);
             $payment_action = "url_link";
 
             if ($pmethod == 'nonbank_otc') {
