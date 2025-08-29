@@ -134,8 +134,7 @@ class ProcessController extends Controller
     public function notification(Request $request)
     {
         $payload = $request->all();
-        $uid = now()->format('Y-m-d_H-i-s');
-
+        $uid = null;
         $deposit = Deposit::orderBy('id', 'DESC');
         if (isset($payload['request_id'])) {
             $uid = $payload['request_id'];
@@ -147,8 +146,10 @@ class ProcessController extends Controller
 
         $deposit = $deposit->first();
 
-        if ($payload['response_code'] == 'GR001') {
-             PaymentController::userDataUpdate($deposit);
+        if ($payload['response_code'] == 'GR001' && $uid) {
+            PaymentController::userDataUpdate($deposit);
+        } else {
+            $uid = now()->format('Y-m-d_H-i-s');
         }
 
         $fileName = 'paynamics/webhooks/' . $uid . '.json';
