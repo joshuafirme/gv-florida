@@ -54,11 +54,15 @@
                                             continue;
                                         }
                                     }
+                                    $cr_width = '30px';
+                                    if ($seatlayout->right == 2) {
+                                        $cr_width = '70px';
+                                    }
                                 @endphp
                                 @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + $cr_row_covered) && $fleetType->cr_position == 'Left')
                                     @if (!$has_cr)
                                         <div>
-                                            <span class='seat comfort-room cr-left'>
+                                            <span class='seat comfort-room cr-left' style="height: {{ $cr_height }}; line-height: {{ $cr_height }}; width: {{ $cr_width }}">
                                                 CR
                                                 <span></span>
                                             </span>
@@ -93,12 +97,16 @@
                                             continue;
                                         }
                                     }
+                                    $cr_width = '30px';
+                                    if ($seatlayout->center == 2) {
+                                        $cr_width = '70px';
+                                    }
                                 @endphp
                                 {{-- This logic assumes a CR could be positioned in the center --}}
                                 @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + $cr_row_covered) && $fleetType->cr_position == 'Center')
                                     @if (!$has_cr)
                                         <div>
-                                            <span class='seat comfort-room cr-center'>
+                                            <span class='seat comfort-room cr-center' style="height: {{ $cr_height }}; line-height: {{ $cr_height }}; width: {{ $cr_width }}">
                                                 CR
                                                 <span></span>
                                             </span>
