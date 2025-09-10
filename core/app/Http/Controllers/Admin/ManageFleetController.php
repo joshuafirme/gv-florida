@@ -107,6 +107,8 @@ class ManageFleetController extends Controller
         $fleetType->last_row = $request->last_row;
         $fleetType->cr_row = $request->cr_row;
         $fleetType->cr_position = $request->cr_position;
+        $fleetType->cr_override_seat = $request->cr_override_seat ? 1 : 0;
+        $fleetType->cr_row_covered = $request->cr_row_covered;
         $fleetType->prefixes = $request->prefixes;
         $fleetType->has_ac = $request->has_ac ? Status::ENABLE : Status::DISABLE;
         $fleetType->facilities = $request->facilities ?? null;

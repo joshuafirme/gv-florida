@@ -110,24 +110,52 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label> CR Position</label>
-                            <select name="cr_position" class="form-control select2">
-                                <option value="">N/A</option>
-                                <option value="Left">Left</option>
-                                <option value="Left">Center</option>
-                                <option value="Right">Right</option>
-                            </select>
+                        <div class="container-floating-label mb-2 mt-3">
+                            <div class="border-container position-relative">
+                                <label class="floating-label">Comfort Room</label>
+                                <div class="content p-3">
+
+                                    <div class="form-group">
+                                        <label>Position</label>
+                                        <select name="cr_position" class="form-control select2">
+                                            <option value="">N/A</option>
+                                            <option value="Left">Left</option>
+                                            <option value="Center">Center</option>
+                                            <option value="Right">Right</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Row Insert</label>
+                                        <input type="number" class="form-control" placeholder="@lang('Enter Number of Row (Where to insert)')"
+                                            name="cr_row">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Row Covered</label>
+                                        <input type="number" class="form-control" min="1" max="2" name="cr_row_covered">
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="cr_override_seat">
+                                            <label class="form-check-label">
+                                                Override Seat
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label> CR Row</label>
-                            <input type="number" class="form-control" placeholder="@lang('Enter Number of Row (Where to insert)')" name="cr_row">
+                        <div class="container-floating-label mb-2 mt-3">
+                            <div class="border-container position-relative">
+                                <label class="floating-label">Deck</label>
+                                <div class="content p-3">
+                                    <div class="form-group">
+                                        <label> @lang('No of Deck')</label>
+                                        <input type="number" min="0" class="form-control" name="deck" required>
+                                    </div>
+                                    <div class="showSeat"></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label> @lang('No of Deck')</label>
-                            <input type="number" min="0" class="form-control" name="deck" required>
-                        </div>
-                        <div class="showSeat"></div>
 
                         <div class="form-group">
                             <label for="facilities">@lang('Facilities')</label>
@@ -174,7 +202,7 @@
             "use strict";
 
             $('input[name=deck]').on('input', function() {
-                $('.showSeat').empty();
+                //$('.showSeat').empty();
                 for (var deck = 1; deck <= $(this).val(); deck++) {
                     $('.showSeat').append(`
                         <div class="form-group">
@@ -234,15 +262,16 @@
 
                     }
                 }
-                $('.showSeat').append(`
-                    <div class="form-group">
+                $(`
+                    <div class="form-group mt-3">
                         <label for="disabled_seats">@lang('Non-Operational Seats')</label>
                         <select class="select2-auto-tokenize disabled_seats" name="disabled_seats[]"
                             multiple="multiple">
                             ${opts}
                         </select>
                     </div>
-                `);
+                `).insertAfter("#facilities");
+                
 
 
                 if (data.disabled_seats) {

@@ -64,10 +64,11 @@ $(document).on("click", ".cuModalBtn", function () {
             }
 
             if (fieldName != "_token" && resource[fieldName]) {
-                
+
                 if (element.name == 'permissions[]') {
                     return
                 }
+
                 if (element.tagName == "TEXTAREA") {
                     if ($(element).hasClass("nicEdit")) {
                         $(".nicEdit-main").html(resource[fieldName]);
@@ -85,12 +86,18 @@ $(document).on("click", ".cuModalBtn", function () {
 
                 } else if (element.type == 'select-one' || element.type == 'select-multiple') {
                     $(`[name='${element.name}']`).val(resource[fieldName]).trigger('change');
-                }
-                else {
+                } else if (element.type == "checkbox") {
+                    if ($(`[name='${element.name}']`).val()) {
+                        $(`[name='${element.name}']`).prop('checked', true);
+                    } else {
+
+                        $(`[name='${element.name}']`).prop('checked', false);
+                    }
+                } else {
                     $(`[name='${element.name}']`).val(
-                        $.isNumeric(resource[fieldName])
-                            ? resource[fieldName] * 1
-                            : resource[fieldName]
+                        $.isNumeric(resource[fieldName]) ?
+                        resource[fieldName] * 1 :
+                        resource[fieldName]
                     );
                 }
             }
