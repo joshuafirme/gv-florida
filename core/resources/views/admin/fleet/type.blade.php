@@ -111,10 +111,11 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label> CR Postion</label>
+                            <label> CR Position</label>
                             <select name="cr_position" class="form-control select2">
-                                <option value="">Select an option</option>
+                                <option value="">N/A</option>
                                 <option value="Left">Left</option>
+                                <option value="Left">Center</option>
                                 <option value="Right">Right</option>
                             </select>
                         </div>
@@ -186,7 +187,7 @@
                             </div>
                             <div class="form-group">
                                 <label> Prefix of Deck - ${deck} </label>
-                                <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" name="prefixes[]">
+                                <input type="text" class="form-control hasArray" name="prefixes[]">
                             </div>
                             <hr>
                     `);
@@ -226,7 +227,7 @@
                             </div>
                             <div class="form-group">
                                 <label> Prefix of Deck - ${i} </label>
-                                <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" value="${prefix}" name="prefixes[]">
+                                <input type="text" class="form-control hasArray" value="${prefix}" name="prefixes[]">
                             </div>
                             <hr>
                         `);

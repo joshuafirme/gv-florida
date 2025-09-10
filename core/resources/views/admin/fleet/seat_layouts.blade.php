@@ -90,25 +90,26 @@
         (function($) {
             "use strict";
 
-            $(document).on('keypress', 'input[name=layout]', function(e) {
-                var layout = $(this).val();
-                if (layout != '') {
-                    if (layout.length > 0 && layout.length <= 1)
-                        $(this).val(`${layout} x `);
+            // $(document).on('keypress', 'input[name=layout]', function(e) {
+            //     var layout = $(this).val();
+            //     if (layout != '') {
+            //         if (layout.length > 0 && layout.length <= 2)
+            //             $(this).val(`${layout} x `);
 
-                    if (layout.length > 4) {
-                        return false;
-                    }
-                }
-            });
+            //         // if (layout.length > 4) {
+            //         //     return false;
+            //         // }
+            //     }
+            // });
 
-            $(document).on('keyup', 'input[name=layout]', function(e) {
-                var key = event.keyCode || event.charCode;
-                if (key == 8 || key == 46) {
-                    $(this).val($(this).val().replace(' x ', ''));
-                }
+            // $(document).on('keyup', 'input[name=layout]', function(e) {
+            //     var key = event.keyCode || event.charCode;
+            //     console.log(key)
+            //     if (key == 8 || key == 46) {
+            //         $(this).val($(this).val().replace(' x ', ''));
+            //     }
 
-            });
+            // });
 
 
         })(jQuery);

@@ -21,7 +21,7 @@ class ManageFleetController extends Controller
 
     public function seatLayoutDetails($id)
     {
-        $pageTitle = 'Seat Layout';
+        $pageTitle = 'Seat Layout Preview';
         $fleetType = FleetType::find($id);
         // return $fleetType;
         $busLayout = new BusLayout(null, $fleetType);

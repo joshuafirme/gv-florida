@@ -8429,7 +8429,8 @@ label.required:after {
 }
 
 .seat-wrapper .left-side,
-.seat-wrapper .right-side {
+.seat-wrapper .right-side,
+.seat-wrapper .center-side  {
   display: -webkit-box;
   display: -ms-flexbox;
   display: flex;
