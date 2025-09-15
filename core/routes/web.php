@@ -43,6 +43,7 @@ Route::controller('SiteController')->group(function () {
     Route::post('/ticket/book/{id}', 'bookTicket')->name('ticket.book');
     Route::get('ticket/search', 'ticketSearch')->name('search');
     Route::get('ticket/kiosk', 'kioskBooking')->name('kioskBooking');
+    Route::get('trip/dropping-points/{counter_id}', 'getDroppingPoints')->name('getDroppingPoints');
     Route::get('/{slug}', 'pages')->name('pages');
     Route::get('/', 'index')->name('home');
 });

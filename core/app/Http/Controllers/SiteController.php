@@ -504,6 +504,26 @@ class SiteController extends Controller
         return view("Template::ticket", compact('pageTitle', 'fleetType', 'trips', 'routes', 'schedules', 'emptyMessage', 'layout'));
     }
 
+    public function getDroppingPoints($counter_id)
+    {
+        $routes = VehicleRoute::where('start_from', $counter_id)->get();
+        $dropping_points = [];
+        foreach ($routes as $route) {
+            foreach ($route->stoppages as $stoppage) {
+                if ($route->start_from == $stoppage) {
+                    continue;
+                }
+                if (!in_array($stoppage, $dropping_points)) {
+                    $dropping_points[] = $stoppage;
+                }
+            }
+        }
+
+        $dropping_counters = Counter::whereIn('id', $dropping_points)->get();
+
+        return $dropping_counters;
+    }
+
     public function placeholderImage($size = null)
     {
         $imgWidth = explode('x', $size)[0];

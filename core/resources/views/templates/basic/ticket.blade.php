@@ -39,10 +39,6 @@
                             <i class="las la-map-marker"></i>
                             <select name="destination" class="form--control select2">
                                 <option value="">@lang('Dropping Point')</option>
-                                @foreach ($counters as $counter)
-                                    <option value="{{ $counter->id }}" @if (request()->destination == $counter->id) selected @endif>
-                                        {{ __($counter->name) }}</option>
-                                @endforeach
                             </select>
                         </div>
                     </div>
@@ -245,6 +241,7 @@
     <script src="{{ asset('assets/global/js/select2.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/moment.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/daterangepicker.min.js') }}"></script>
+    <script src="{{ asset('assets/global/js/dropping-points.js') }}"></script>
 @endpush
 
 @push('script')
