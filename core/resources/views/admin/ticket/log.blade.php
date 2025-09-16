@@ -66,7 +66,7 @@
                                             @endif
                                         </td>
                                         <td data-label="@lang('Ticket Count')">
-                                            {{ __(sizeof($item->seats)) }}
+                                            {{ $item->seats ? __(sizeof($item->seats)) : '' }}
                                         </td>
                                         <td data-label="@lang('Fare')">
                                             {{ __(showAmount($item->sub_total)) }}
