@@ -15,10 +15,16 @@ use Illuminate\Http\Request;
 
 class PaymentController extends Controller
 {
-    public function deposit()
+    public function deposit(Request $request)
     {
         $pnr = session()->get('pnr_number');
-        $bookedTicket = BookedTicket::where('pnr_number', $pnr)->first();
+        $booked_ticket_id = session()->get('booked_ticket_id');
+
+        if ($request->booked_ticket_id) {
+            $booked_ticket_id = $request->booked_ticket_id;
+        }
+
+        $bookedTicket = BookedTicket::find($booked_ticket_id);
 
         if (!$bookedTicket) {
             $notify[] = 'Please Try again.';
@@ -35,11 +41,8 @@ class PaymentController extends Controller
 
         $gatewayCurrency = $gatewayCurrency->orderby('name')->get();
 
-        $booked_ticket_id = session()->get('booked_ticket_id');
-        $bookedTicket = BookedTicket::orderBy('id', 'desc');
-        if ($booked_ticket_id) {
-            $bookedTicket->find($booked_ticket_id);
-        } else {
+        $bookedTicket = $bookedTicket->orderBy('id', 'desc');
+        if (!$booked_ticket_id) {
             $bookedTicket->where('user_id', auth()->user()->id);
         }
         $bookedTicket = $bookedTicket->first();

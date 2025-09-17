@@ -95,15 +95,15 @@ class VehicleTicketController extends Controller
 
     public function getRouteData(Request $request)
     {
-        $route      = VehicleRoute::active()->where('id', $request->vehicle_route_id)->first();
-        $check      = TicketPrice::where('vehicle_route_id', $request->vehicle_route_id)->where('fleet_type_id', $request->fleet_type_id)->first();
+        $route = VehicleRoute::active()->where('id', $request->vehicle_route_id)->first();
+        $check = TicketPrice::where('vehicle_route_id', $request->vehicle_route_id)->where('fleet_type_id', $request->fleet_type_id)->first();
 
         if ($check) {
             return response()->json(['error' => trans('You have added prices for this fleet type on this route')]);
         }
 
-        $stoppages  = array_values($route->stoppages);
-        $stoppages  = stoppageCombination($stoppages, 2);
+        $stoppages = array_values($route->stoppages);
+        $stoppages = stoppageCombination($stoppages, 2);
         return view('admin.trip.ticket.route_data', compact('stoppages', 'route'));
     }
 
@@ -112,16 +112,16 @@ class VehicleTicketController extends Controller
     public function ticketPriceStore(Request $request)
     {
         $validation_rule = [
-            'fleet_type'    => 'required|integer|gt:0',
-            'route'         => 'required|integer|gt:0',
-            'main_price'    => 'required|numeric',
-            'price'         => 'sometimes|required|array|min:1',
-            'price.*'       => 'sometimes|required|numeric',
+            'fleet_type' => 'required|integer|gt:0',
+            'route' => 'required|integer|gt:0',
+            'main_price' => 'required|numeric',
+            'price' => 'sometimes|required|array|min:1',
+            'price.*' => 'sometimes|required|numeric',
         ];
         $messages = [
-            'main_price'            => 'Price for Source to Destination',
-            'price.*.required'      => 'All Price Fields are Required',
-            'price.*.numeric'       => 'All Price Fields Should Be a Number',
+            'main_price' => 'Price for Source to Destination',
+            'price.*.required' => 'All Price Fields are Required',
+            'price.*.numeric' => 'All Price Fields Should Be a Number',
         ];
 
         $validator = Validator::make($request->except('_token'), $validation_rule, $messages);
@@ -154,7 +154,7 @@ class VehicleTicketController extends Controller
     public function ticketPriceUpdate(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'price'   => 'required|numeric|gte:0',
+            'price' => 'required|numeric|gte:0',
         ]);
 
         if ($validator->fails()) {
@@ -182,6 +182,10 @@ class VehicleTicketController extends Controller
             $prices = TicketPriceByStoppage::findOrFail($id);
             $prices->price = $request->price;
             $prices->save();
+
+            $ticket_price = TicketPrice::find($prices->ticket_price_id);
+            $ticket_price->price = $request->price;
+            $ticket_price->save();
         }
 
         $notify = ['success' => true, 'message' => 'Price Updated Successfully'];

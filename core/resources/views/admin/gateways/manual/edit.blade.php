@@ -57,7 +57,7 @@
                             </div>
                             <div class="payment-method-body">
                                 <div class="row">
-                                    <div class="col-lg-6">
+                                    {{-- <div class="col-lg-6">
                                         <div class="card border--primary mt-3">
                                             <h5 class="card-header bg--primary">@lang('Range')</h5>
                                             <div class="card-body">
@@ -85,7 +85,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    </div> --}}
                                     <div class="col-lg-6">
                                         <div class="card border--primary mt-3">
                                             <h5 class="card-header bg--primary">@lang('Charge')</h5>

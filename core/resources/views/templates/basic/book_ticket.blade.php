@@ -46,12 +46,6 @@
                                     <label for="dropping_point" class="form-label">@lang('Dropping Point')</label>
                                     <select name="dropping_point" id="dropping_point" class="form--control select2">
                                         <option value="">@lang('Select One')</option>
-                                        @foreach ($stoppages as $item)
-                                            <option value="{{ $item->id }}"
-                                                @if (request('end_to') == $item->id) selected @endif>
-                                                {{ __($item->name) }}
-                                            </option>
-                                        @endforeach
                                     </select>
                                 </div>
                             </div>
@@ -210,7 +204,50 @@
                     minDate: new Date()
                 });
 
+                $('select[name="pickup_point"]').on('change', function() {
+                    var counter_id = $(this).val();
 
+                    getDroppingPoints(counter_id);
+                });
+
+                let pickup_point = $('select[name="pickup_point"]').val();
+
+                if (pickup_point) {
+                    getDroppingPoints(pickup_point);
+                }
+
+                function getDroppingPoints(counter_id) {
+                    let host = window.location.hostname;
+                    let url = '/trip/dropping-points/';
+
+                    if (host.includes('local')) {
+                        url = '/gv-florida/trip/dropping-points/';
+                    }
+
+                    fetch(url + counter_id)
+                        .then(response => response.json())
+                        .then(function(data) {
+                            console.log('data----', data)
+                            let dropping_point = $('select[name="dropping_point"]');
+                            dropping_point.empty()
+
+                            let options = '';
+                            data.forEach(v => {
+                                options += `<option value="${v.id}">${v.name}</option>`
+                            });
+                            dropping_point.append(options)
+                            setTimeout(() => {
+                                var url = new URL(window.location);
+                                var end_to = url.searchParams.get("end_to");
+                                console.log(end_to)
+                                if (end_to) {
+                                    dropping_point.val(end_to).change()
+                                    showBookedSeat();
+                                }
+                            }, 500);
+                        })
+                        .catch(error => console.error('Error:', error));
+                }
 
                 //reset all seats
                 function reset() {
@@ -225,13 +262,13 @@
                     if ($(this).hasClass('disabled-seat') || $(this).hasClass('comfort-room')) {
                         $(this).removeClass('selected')
                     }
-
-                    var pickupPoint = $('select[name="pickup_point"]').val();
-                    var droppingPoint = $('select[name="dropping_point"]').val();
+ 
+                    var pickupPoint = $('select[name="pickup_point"]').find("option:selected").val();
+                    var droppingPoint = $('select[name="dropping_point"]').find("option:selected").val();
                     var seat = $(this).attr('data-seat')
                     if (seat) {
-                        const params = new URLSearchParams(window.location.href);
-
+                        console.log('pickupPoint', pickupPoint)
+                        console.log('droppingPoint', droppingPoint)
                         if (pickupPoint && droppingPoint) {
                             selectSeat();
                         } else {
@@ -271,7 +308,7 @@
 
                 //on change date, pickup point and destination point show available seats
                 $(document).on('change',
-                    'select[name="pickup_point"], select[name="dropping_point"], input[name="date_of_journey"]',
+                    'select[name="dropping_point"], input[name="date_of_journey"]',
                     function(e) {
                         showBookedSeat();
                     });
@@ -282,7 +319,8 @@
                     var date = $('input[name="date_of_journey"]').val();
                     var sourceId = $('select[name="pickup_point"]').find("option:selected").val();
                     var destinationId = $('select[name="dropping_point"]').find("option:selected").val();
-
+                    console.log('sourceId',sourceId)
+                    console.log('destinationId',destinationId)
                     if (sourceId == destinationId && destinationId != '') {
                         notify('error', "@lang('Source Point and Destination Point Must Not Be Same')");
                         $('select[name="dropping_point"]').val('').select2();

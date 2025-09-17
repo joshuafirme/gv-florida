@@ -65,11 +65,14 @@
                                     data-bs-toggle="modal" data-bs-target="#infoModal"><i
                                         class="las la-info-circle"></i></a>
                             @endif --}}
-                            @if (@$item->status == App\Constants\Status::BOOKED_APPROVED || !isExpired(@$item->deposit->expiry_limit))
-                                <a href="{{ route('user.ticket.print', $item->id) }}" target="_blank" class="print"><i
+                            @if (@$item->status == Status::BOOKED_PENDING && (@$item->deposit->expiry_limit && !isExpired(@$item->deposit->expiry_limit)))
+                                <a href="{{ url("/user/payment/deposit?booked_ticket_id=$item->id") }}" class="btn btn--base small">Pay Now</a>
+                            @endif
+                            @if (@$item->status == Status::BOOKED_APPROVED || !isExpired(@$item->deposit->expiry_limit))
+                                <a href="{{ route('user.ticket.print', $item->id) }}" target="_blank" class="print btn-action"><i
                                         class="las la-print"></i></a>
                             @endif
-                            <a href="javascript::void(0)" class="checkinfo" data-info="{{ $item }}"
+                            <a href="javascript::void(0)" class="checkinfo btn-action" data-info="{{ $item }}"
                                 data-bs-toggle="modal" data-bs-target="#infoModal"><i
                                     class="las la-info-circle"></i></a>
                         </div>

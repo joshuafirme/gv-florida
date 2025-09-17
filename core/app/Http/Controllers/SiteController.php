@@ -233,26 +233,30 @@ class SiteController extends Controller
 
         $startPoint = array_search($trip->start_from, array_values($trip->route->stoppages));
         $endPoint = array_search($trip->end_to, array_values($trip->route->stoppages));
-        if ($startPoint < $endPoint) {
-            $reverse = false;
-        } else {
-            $reverse = true;
-        }
+        // if ($startPoint < $endPoint) {
+        //     $reverse = false;
+        // } else {
+        //     $reverse = true;
+        // }
 
-        if (!$reverse) {
-            $can_go = ($sourcePos < $destinationPos) ? true : false;
-        } else {
-            $can_go = ($sourcePos > $destinationPos) ? true : false;
-        }
+        // if (!$reverse) {
+        //     $can_go = ($sourcePos < $destinationPos) ? true : false;
+        // } else {
+        //     $can_go = ($sourcePos > $destinationPos) ? true : false;
+        // }
 
-        if (!$can_go) {
-            $data = [
-                'error' => 'Select Pickup Point & Dropping Point Properly'
-            ];
-            return response()->json($data);
-        }
+        // if (!$can_go) {
+        //     $data = [
+        //         'error' => 'Select Pickup Point & Dropping Point Properly'
+        //     ];
+        //     return response()->json($data);
+        // }
         $sdArray = [$request->source_id, $request->destination_id];
-        $getPrice = $ticketPrice->prices()->where('source_destination', json_encode($sdArray))->orWhere('source_destination', json_encode(array_reverse($sdArray)))->first();
+        $getPrice = $ticketPrice->prices()
+            ->where(function ($query) use ($sdArray) {
+                $query->where('source_destination', json_encode($sdArray))
+                    ->orWhere('source_destination', json_encode(array_reverse($sdArray)));
+            })->first();
 
         if ($getPrice) {
             $price = $getPrice->price;
@@ -264,7 +268,7 @@ class SiteController extends Controller
         $data['bookedSeats'] = $bookedTicket;
         $data['reqSource'] = $request->source_id;
         $data['reqDestination'] = $request->destination_id;
-        $data['reverse'] = $reverse;
+        //  $data['reverse'] = $reverse;
         $data['stoppages'] = $stoppages;
         $data['price'] = $price;
         return response()->json($data);
@@ -373,7 +377,7 @@ class SiteController extends Controller
         $bookedTicket->sub_total = sizeof($seats) * $unitPrice;
         $bookedTicket->date_of_journey = Carbon::parse($request->date_of_journey)->format('Y-m-d');
         $bookedTicket->pnr_number = $pnr_number;
-        $bookedTicket->status = Status::BOOKED_REJECTED;
+        $bookedTicket->status = Status::BOOKED_PENDING;
         $bookedTicket->kiosk_id = $request->kiosk_id;
         $bookedTicket->save();
         session()->put('pnr_number', $pnr_number);
@@ -506,12 +510,12 @@ class SiteController extends Controller
 
     public function getDroppingPoints($counter_id)
     {
-        $routes = VehicleRoute::where('start_from', $counter_id)->get();
+        $routes = VehicleRoute::whereJsonContains('stoppages', $counter_id)->get();
         $dropping_points = [];
         foreach ($routes as $route) {
             foreach ($route->stoppages as $stoppage) {
                 if ($route->start_from == $stoppage) {
-                    continue;
+                    //   continue;
                 }
                 if (!in_array($stoppage, $dropping_points)) {
                     $dropping_points[] = $stoppage;

@@ -28,9 +28,8 @@
                                     @foreach ($gatewayCurrency as $data)
                                         @php
                                             $description = '';
-                                            if ($data->gateway_parameter) {
-                                                $params = json_decode($data->gateway_parameter);
-                                                $description = $params->description;
+                                            if ($data->name == 'Paynamics') {
+                                                $description = $data->instruction;
                                             }
                                         @endphp
                                         <label for="{{ titleToKey($data->name) }}"
@@ -67,6 +66,20 @@
                             </div>
                             <div class="col-lg-6">
                                 <div class="payment-system-list p-3">
+                                    <div class="deposit-info">
+                                        <div class="deposit-info__title">
+                                            Description
+                                        </div>
+                                        <div class="deposit-info__input">
+                                            
+                                        <span class="font-weight-bold"> {{ __($bookedTicket->trip->startFrom->name) }} -
+                                            {{ __($bookedTicket->trip->endTo->name) }}</span>
+                                        <span class="badge bg-success">{{ __($bookedTicket->trip->fleetType->name) }}</span>
+                                        <span>{{ 'Seats: ' . implode(', ', $bookedTicket->seats) }}</span>
+                                        <span>{{ "PNR: $bookedTicket->pnr_number " }}</span>
+                                        </div>
+                                    </div>
+                                    <hr>
                                     <div class="deposit-info">
                                         <div class="deposit-info__title">
                                             <p class="text mb-0">@lang('Amount')</p>

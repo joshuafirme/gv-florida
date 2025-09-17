@@ -118,6 +118,7 @@ class ManualGatewayController extends Controller
         $singleCurrency = $method->singleCurrency;
         if ($singleCurrency) {
             $singleCurrency->name = $request->name;
+            $singleCurrency->description = $request->description;
             $singleCurrency->gateway_alias = strtolower(trim(str_replace(' ','_',$method->name)));
             $singleCurrency->currency = $request->currency;
             $singleCurrency->symbol = '';
@@ -138,14 +139,14 @@ class ManualGatewayController extends Controller
     {
         $validation = [
             'name'           => 'required',
-            'rate'           => 'required|numeric|gt:0',
+            //'rate'           => 'required|numeric|gt:0',
             'currency'       => 'required',
-            'min_limit'      => 'required|numeric|gt:0',
-            'max_limit'      => 'required|numeric|gt:min_limit',
+            // 'min_limit'      => 'required|numeric|gt:0',
+            // 'max_limit'      => 'required|numeric|gt:min_limit',
             'fixed_charge'   => 'required|numeric|gte:0',
             'percent_charge' => 'required|numeric|between:0,100',
             'image' => [$isUpdate ? 'nullable' : 'required', 'image', new FileTypeValidate(['jpg', 'jpeg', 'png'])],
-            'instruction'    => 'required'
+            //'instruction'    => 'required'
         ];
 
         $generatorValidation = $formProcessor->generatorValidation();

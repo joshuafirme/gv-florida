@@ -3357,12 +3357,20 @@ i {
     margin-left: auto;
 }
 
-.booking-table tbody tr .action-button-wrapper a {
+.booking-table tbody tr .action-button-wrapper .btn-action {
     width: 35px;
     height: 35px;
     text-align: center;
     line-height: 35px;
     border-radius: 3px;
+}
+
+.booking-table tbody tr .action-button-wrapper .btn--base {
+    font-size: 12px;
+}
+
+.booking-table tbody tr .action-button-wrapper .btn {
+    white-space: nowrap;
 }
 
 .booking-table tbody tr .action-button-wrapper .print {
