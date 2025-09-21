@@ -116,8 +116,7 @@ class ManageFleetController extends Controller
         $fleetType->status = Status::ENABLE;
         $fleetType->save();
 
-        $notify[] = ['success', $message];
-        return back()->withNotify($notify);
+        return $fleetType;
     }
 
     public function typeStatus($id)

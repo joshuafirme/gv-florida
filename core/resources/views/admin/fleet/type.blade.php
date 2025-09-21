@@ -36,13 +36,12 @@
 
                                         <td>
                                             <div class="button--group">
-                                                <a class="btn btn-sm btn-outline--primary" target="_blank"
+                                                {{-- <a class="btn btn-sm btn-outline--primary" target="_blank"
                                                     href="{{ route('admin.fleet.type.seatLayoutDetails', $item->id) }}">
                                                     <i class="la la-eye"></i>@lang('Layout Preview')
-                                                </a>
+                                                </a> --}}
                                                 <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn"
-                                                    data-resource="{{ $item }}"
-                                                    data-modal_title="@lang('Edit Type')">
+                                                    data-resource="{{ $item }}" data-modal_title="@lang('Edit Type')">
                                                     <i class="la la-pencil"></i>@lang('Edit')
                                                 </button>
 
@@ -86,7 +85,7 @@
     <x-confirmation-modal />
 
     <div id="cuModal" class="modal fade" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
+        <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"></h5>
@@ -94,85 +93,97 @@
                         <i class="las la-times"></i>
                     </button>
                 </div>
-                <form action="{{ route('admin.fleet.type.store') }}" method="POST">
+                <form id="postForm" action="{{ route('admin.fleet.type.store') }}" method="POST">
                     @csrf
                     <div class="modal-body">
-                        <div class="form-group">
-                            <label> @lang('Name')</label>
-                            <input type="text" class="form-control" name="name" required>
-                        </div>
-                        <div class="form-group">
-                            <label> @lang('Seat Layout')</label>
-                            <select name="seat_layout" class="form-control select2" data-minimum-results-for-search="-1">
-                                <option value="">@lang('Select an option')</option>
-                                @foreach ($seatLayouts as $item)
-                                    <option value="{{ $item->layout }}">{{ __($item->layout) }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="container-floating-label mb-2 mt-3">
-                            <div class="border-container position-relative">
-                                <label class="floating-label">Comfort Room</label>
-                                <div class="content p-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="hidden" id="fleet_id">
+                                <div class="form-group">
+                                    <label> @lang('Name')</label>
+                                    <input type="text" class="form-control" name="name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label> @lang('Seat Layout')</label>
+                                    <select name="seat_layout" class="form-control select2"
+                                        data-minimum-results-for-search="-1">
+                                        <option value="">@lang('Select an option')</option>
+                                        @foreach ($seatLayouts as $item)
+                                            <option value="{{ $item->layout }}">{{ __($item->layout) }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="container-floating-label mb-2 mt-3">
+                                    <div class="border-container position-relative">
+                                        <label class="floating-label">Comfort Room</label>
+                                        <div class="content p-3">
 
-                                    <div class="form-group">
-                                        <label>Position</label>
-                                        <select name="cr_position" class="form-control select2">
-                                            <option value="">N/A</option>
-                                            <option value="Left">Left</option>
-                                            <option value="Center">Center</option>
-                                            <option value="Right">Right</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Row Insert</label>
-                                        <input type="number" class="form-control" placeholder="@lang('Enter Number of Row (Where to insert)')"
-                                            name="cr_row">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Row Covered</label>
-                                        <input type="number" class="form-control" min="1" max="2" name="cr_row_covered">
-                                    </div>
-                                    <div class="form-group">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="cr_override_seat">
-                                            <label class="form-check-label">
-                                                Override Seat
-                                            </label>
+                                            <div class="form-group">
+                                                <label>Position</label>
+                                                <select name="cr_position" class="form-control select2">
+                                                    <option value="">N/A</option>
+                                                    <option value="Left">Left</option>
+                                                    <option value="Center">Center</option>
+                                                    <option value="Right">Right</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Row Insert</label>
+                                                <input type="number" class="form-control" placeholder="@lang('Enter Number of Row (Where to insert)')"
+                                                    name="cr_row">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Row Covered</label>
+                                                <input type="number" class="form-control" min="1" max="2"
+                                                    name="cr_row_covered">
+                                            </div>
+                                            <div class="form-group">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="cr_override_seat">
+                                                    <label class="form-check-label">
+                                                        Override Seat
+                                                    </label>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="container-floating-label mb-2 mt-3">
-                            <div class="border-container position-relative">
-                                <label class="floating-label">Deck</label>
-                                <div class="content p-3">
-                                    <div class="form-group">
-                                        <label> @lang('No of Deck')</label>
-                                        <input type="number" min="0" class="form-control" name="deck" required>
+                                <div class="container-floating-label mb-2 mt-3">
+                                    <div class="border-container position-relative">
+                                        <label class="floating-label">Deck</label>
+                                        <div class="content p-3">
+                                            <div class="form-group">
+                                                <label> @lang('No of Deck')</label>
+                                                <input type="number" min="0" class="form-control" name="deck"
+                                                    required>
+                                            </div>
+                                            <div class="showSeat"></div>
+                                        </div>
                                     </div>
-                                    <div class="showSeat"></div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="facilities">@lang('Facilities')</label>
+                                    <select class="select2-auto-tokenize" name="facilities[]" id="facilities"
+                                        multiple="multiple">
+                                        @foreach ($facilities as $item)
+                                            <option value="{{ $item->data_values->title }}">
+                                                {{ $item->data_values->title }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="inputName">@lang('AC status')</label>
+                                    <input type="checkbox" data-width="100%" data-height="40px" data-onstyle="-success"
+                                        data-offstyle="-danger" data-bs-toggle="toggle" data-on="@lang('YES')"
+                                        data-off="@lang('NO')" name="has_ac">
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="facilities">@lang('Facilities')</label>
-                            <select class="select2-auto-tokenize" name="facilities[]" id="facilities" multiple="multiple">
-                                @foreach ($facilities as $item)
-                                    <option value="{{ $item->data_values->title }}">
-                                        {{ $item->data_values->title }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="inputName">@lang('AC status')</label>
-                            <input type="checkbox" data-width="100%" data-height="40px" data-onstyle="-success"
-                                data-offstyle="-danger" data-bs-toggle="toggle" data-on="@lang('YES')"
-                                data-off="@lang('NO')" name="has_ac">
+                            <div class="col-md-6">
+                                <div id="seat-layout-container"></div>
+                            </div>
                         </div>
 
                     </div>
@@ -201,8 +212,280 @@
 
             "use strict";
 
+            class BusLayout {
+                constructor(fleet) {
+                    this.fleet = fleet;
+                    this.sitLayoutsData = this.sitLayouts();
+                    this.totalRow = 0;
+                }
+
+                /**
+                 * Parses seat layouts for both 2-column (e.g., "2x2")
+                 * and 3-column (e.g., "2x1x2") configurations.
+                 * @returns {object} An object with left, center, and right seat counts.
+                 */
+                sitLayouts() {
+                    const seatLayout = this.fleet.seat_layout.replace(/ /g, '').split('x').map(Number);
+                    const layout = {
+                        left: 0,
+                        center: 0,
+                        right: 0
+                    };
+
+                    layout.left = seatLayout[0] || 0;
+
+                    if (seatLayout.length === 2) {
+                        // Handles 2-column layout (e.g., "2x2")
+                        layout.right = seatLayout[1] || 0;
+                    } else if (seatLayout.length === 3) {
+                        // Handles 3-column layout (e.g., "2x1x2")
+                        layout.center = seatLayout[1] || 0;
+                        layout.right = seatLayout[2] || 0;
+                    }
+
+                    return layout;
+                }
+
+                /**
+                 * Generates the HTML for the header of a deck (Front, Rear, Driver, etc.).
+                 * @param {number} deckNumber - The index of the deck (0 for the first).
+                 * @returns {string} The HTML string for the deck header.
+                 */
+                getDeckHeader(deckNumber) {
+                    let html = `
+                    <span class="front">Front</span>
+                    <span class="rear">Rear</span>
+                `;
+                    if (deckNumber === 0) {
+                        html += `
+                        <span class="driver"><img src="https://www.svgrepo.com/show/522927/steering-wheel.svg" alt="wheel"></span>
+                        <span class="lower">Door</span>
+                    `;
+                    } else {
+                        html += `<span class="driver">Deck: ${deckNumber + 1}</span>`;
+                    }
+                    return html;
+                }
+
+                /**
+                 * Generates the HTML for a single seat.
+                 * @param {string} label - The label for the seat (e.g., "A1", "B12").
+                 * @param {number} deckIndex - The 1-based index of the deck.
+                 * @returns {string} The HTML string for a single seat.
+                 */
+                generateSeats(label, deckIndex) {
+                    const isDisabled = label.includes('<del>');
+                    const cleanLabel = label.replace(/<\/?del>/g, '');
+                    const disabledClass = isDisabled ? 'disabled-seat' : '';
+
+                    return `<div>
+                            <span class='seat ${disabledClass}' data-seat='${deckIndex}-${cleanLabel}'>
+                                ${label}
+                            </span>
+                        </div>`;
+                }
+
+                /**
+                 * Calculates the total number of full rows.
+                 * @param {number} seatCount - Total number of seats on the deck.
+                 * @returns {number} The total number of full rows.
+                 */
+                getTotalRow(seatCount) {
+                    const rowItem = this.sitLayoutsData.left + this.sitLayoutsData.center + this.sitLayoutsData
+                        .right;
+                    if (rowItem === 0) return 0; // Prevent division by zero
+                    this.totalRow = Math.floor(seatCount / rowItem);
+                    return this.totalRow;
+                }
+
+                /**
+                 * Calculates the number of seats in the last, possibly incomplete, row.
+                 * @param {number} seatCount - Total number of seats on the deck.
+                 * @returns {number} The number of seats in the last row.
+                 */
+                getLastRowSit(seatCount) {
+                    const rowItem = this.sitLayoutsData.left + this.sitLayoutsData.center + this.sitLayoutsData
+                        .right;
+                    if (rowItem === 0) return seatCount;
+                    return seatCount - this.getTotalRow(seatCount) * rowItem;
+                }
+            }
+
+
+            /**
+             * Main function to render the entire bus layout.
+             * This function takes a fleet configuration and renders it into a container.
+             * @param {object} fleetType - The configuration object for the bus fleet.
+             * @param {string} containerId - The ID of the HTML element to render the layout in.
+             */
+            function renderBusLayout(fleetType, containerId) {
+                const $container = $(`#${containerId}`);
+                $container.empty(); // Clear previous layout
+
+                const busLayout = new BusLayout(fleetType);
+                const disabled_seats = fleetType.disabled_seats || [];
+
+                fleetType.deck_seats.forEach((seatCount, key) => {
+                    const deckHtml = $('<div>', {
+                        class: 'seat-plan-inner'
+                    }).append(
+                        $('<h4>', {
+                            class: 'text-xl font-bold mb-4 text-gray-700',
+                            text: `${fleetType.name} - Deck ${key + 1}`
+                        }),
+                        $('<div>', {
+                            class: 'single'
+                        })
+                    );
+                    const $singleDeck = deckHtml.find('.single');
+
+                    // Add Deck Header
+                    $singleDeck.append(busLayout.getDeckHeader(key));
+
+                    const totalRow = busLayout.getTotalRow(seatCount);
+                    const lastRowSeat = busLayout.getLastRowSit(seatCount);
+                    const deckIndex = key + 1;
+                    const seatlayout = busLayout.sitLayoutsData;
+                    const colItem = seatlayout.left + seatlayout.center + seatlayout.right;
+                    let seatCounter = 1;
+                    const prefix = fleetType.prefixes ? fleetType.prefixes[key] : '';
+                    let has_cr = false;
+                    const cr_row_covered = (fleetType.cr_row_covered || 1) - 1;
+
+                    // Main Rows
+                    for (let row = 1; row <= totalRow; row++) {
+                        const $seatWrapper = $('<div>', {
+                            class: 'seat-wrapper'
+                        });
+
+                        // --- Left Side ---
+                        const $leftSide = $('<div>', {
+                            class: 'left-side'
+                        });
+                        for (let ls = 1; ls <= seatlayout.left; ls++) {
+                            let offset = seatCount - (fleetType.last_row ? fleetType.last_row[key] : 0);
+                            if (fleetType.last_row && seatCounter > offset) continue;
+
+                            if ((row === fleetType.cr_row || row === fleetType.cr_row + cr_row_covered) &&
+                                fleetType.cr_position === 'Left' && !has_cr) {
+                                $leftSide.append("<div><span class='seat comfort-room'>CR</span></div>");
+                                seatCounter--;
+                                has_cr = true;
+                            } else {
+                                let label = `${prefix}${seatCounter}`;
+                                if (disabled_seats.includes(label)) label = `<del>${label}</del>`;
+                                $leftSide.append(busLayout.generateSeats(label, deckIndex));
+                            }
+                            seatCounter++;
+                        }
+                        $seatWrapper.append($leftSide);
+
+                        // --- Center Side ---
+                        const $centerSide = $('<div>', {
+                            class: 'center-side'
+                        });
+                        for (let cs = 1; cs <= seatlayout.center; cs++) {
+                            let offset = seatCount - (fleetType.last_row ? fleetType.last_row[key] : 0);
+                            if (fleetType.last_row && seatCounter > offset) continue;
+
+                            if ((row === fleetType.cr_row || row === fleetType.cr_row + cr_row_covered) &&
+                                fleetType.cr_position === 'Center' && !has_cr) {
+                                $centerSide.append("<div><span class='seat comfort-room'>CR</span></div>");
+                                seatCounter--;
+                                has_cr = true;
+                            } else {
+                                let label = `${prefix}${seatCounter}`;
+                                if (disabled_seats.includes(label)) label = `<del>${label}</del>`;
+                                $centerSide.append(busLayout.generateSeats(label, deckIndex));
+                            }
+                            seatCounter++;
+                        }
+                        $seatWrapper.append($centerSide);
+
+                        // --- Right Side ---
+                        const $rightSide = $('<div>', {
+                            class: 'right-side'
+                        });
+                        for (let rs = 1; rs <= seatlayout.right; rs++) {
+                            let offset = seatCount - (fleetType.last_row ? fleetType.last_row[key] : 0);
+                            if (fleetType.last_row && seatCounter > offset) continue;
+
+                            if ((row === fleetType.cr_row || row === fleetType.cr_row + cr_row_covered) &&
+                                fleetType.cr_position === 'Right' && !has_cr) {
+                                $rightSide.append("<div><span class='seat comfort-room'>CR</span></div>");
+                                if (!fleetType.cr_override_seat) seatCounter--;
+                                has_cr = true;
+                            } else {
+                                let label = `${prefix}${seatCounter}`;
+                                if (disabled_seats.includes(label)) label = `<del>${label}</del>`;
+                                $rightSide.append(busLayout.generateSeats(label, deckIndex));
+                            }
+                            seatCounter++;
+                        }
+                        $seatWrapper.append($rightSide);
+                        $singleDeck.append($seatWrapper);
+                    }
+
+                    // Last Row Logic
+                    if (fleetType.last_row && fleetType.last_row[key] > 0) {
+                        const $lastRowWrapper = $('<div>', {
+                            class: 'seat-wrapper justify-content-center'
+                        });
+                        for (let lsr = 1; lsr <= fleetType.last_row[key]; lsr++) {
+                            let label = `${prefix}${seatCounter}`;
+                            $lastRowWrapper.append(busLayout.generateSeats(label, deckIndex));
+                            seatCounter++;
+                        }
+                        $singleDeck.append($lastRowWrapper);
+                    } else if (lastRowSeat > 0) {
+                        const $lastRowWrapper = $('<div>', {
+                            class: 'seat-wrapper justify-content-center'
+                        });
+                        for (let l = 1; l <= lastRowSeat; l++) {
+                            let label = `${prefix}${seatCounter}`;
+                            $lastRowWrapper.append(busLayout.generateSeats(label, deckIndex));
+                            seatCounter++;
+                        }
+                        $singleDeck.append($lastRowWrapper);
+                    }
+
+
+                    $container.append(deckHtml);
+                });
+
+            }
+
+            $('#postForm').on('submit', function(e) {
+                e.preventDefault();
+
+                let form = document.getElementById("postForm");
+                let url = "{{ url('/admin/fleet/type/store') }}";
+                let id = $('#fleet_id').val();
+
+                if (id) {
+                    url = "{{ url('/admin/fleet/type/store') }}/" + id;
+                }
+                let formData = new FormData(form);
+
+                $.ajax({
+                    url: url,
+                    type: 'POST', // ✅ should be POST
+                    data: formData,
+                    processData: false, // ✅ prevent jQuery from processing data
+                    contentType: false, // ✅ let browser set the content type
+                    success: function(data) {
+                        renderBusLayout(data, 'seat-layout-container');
+                    },
+                    error: function(err) {
+                        console.error(err);
+                    }
+                });
+
+                return false;
+            });
+
             $('input[name=deck]').on('input', function() {
-                //$('.showSeat').empty();
+                $('.showSeat').empty();
                 for (var deck = 1; deck <= $(this).val(); deck++) {
                     $('.showSeat').append(`
                         <div class="form-group">
@@ -225,6 +508,28 @@
             $('.cuModalBtn').on('click', function() {
                 let modal = $('#cuModal');
                 let data = $(this).data('resource');
+
+                if ($(this).attr('data-modal_title').includes('Add')) {
+                    $('#fleet_id').val('');
+                } else {
+                    $('#fleet_id').val(data.id);
+                }
+
+                console.log(data)
+                let fleetType = {
+                    name: data.name,
+                    seat_layout: data.seat_layout, // left-center-right
+                    deck_seats: data.deck_seats, // per deck seat count
+                    prefixes: data.prefixes,
+                    disabled_seats: data.disabled_seats,
+                    last_row: data.last_row,
+                    cr_row: data.cr_row,
+                    cr_position: data.cr_position,
+                    cr_override_seat: data.cr_override_seat
+                };
+
+
+                renderBusLayout(fleetType, 'seat-layout-container');
 
                 if (data.has_ac) {
                     modal.find('input[name=has_ac]').bootstrapToggle('on');
@@ -271,7 +576,7 @@
                         </select>
                     </div>
                 `).insertAfter("#facilities");
-                
+
 
 
                 if (data.disabled_seats) {

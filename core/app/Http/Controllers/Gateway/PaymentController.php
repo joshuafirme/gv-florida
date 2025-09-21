@@ -88,7 +88,7 @@ class PaymentController extends Controller
         $deposit = Deposit::where('booked_ticket_id', $bookedTicket->id)->first();
         if (!$deposit) {
             $deposit = new Deposit();
-            
+
             $deposit->trx = generateReqID();
         }
         $deposit->user_id = $user ? $user->id : null;
@@ -102,6 +102,7 @@ class PaymentController extends Controller
         $deposit->btc_amount = 0;
         $deposit->btc_wallet = "";
         $deposit->status = Status::PAYMENT_INITIATE;
+        $deposit->expiry_limit = date('Y-m-d H:i:s', strtotime(date('Y-m-d H:i:s') . ' + 1 hour'));
         $deposit->success_url = urlPath('user.ticket.history');
         $deposit->failed_url = urlPath('ticket');
         $deposit->save();
