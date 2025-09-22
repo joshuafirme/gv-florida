@@ -144,7 +144,7 @@ class ManageTripController extends Controller
     public function schedules()
     {
         $pageTitle = 'All Schedules';
-        $schedules = Schedule::orderBy('id', 'desc')->paginate(getPaginate());
+        $schedules = Schedule::orderBy('id', 'desc')->get();
         return view('admin.trip.schedule', compact('pageTitle', 'schedules'));
     }
 

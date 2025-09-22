@@ -24,16 +24,14 @@
 
     <link rel="stylesheet" href="{{ asset('assets/global/css/select2.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/admin/css/app.css?v=' . $v) }}">
-
+    <link href="https://cdn.datatables.net/v/bs5/dt-2.3.4/cc-1.1.0/r-3.0.6/datatables.min.css" rel="stylesheet"
+        integrity="sha384-J9sByJqc7aFtpa/p3+RvVXdwDcmYzOe4xoAvHPrnbK0IU/LEyeVf3FvlpuCKk0Xf" crossorigin="anonymous">
 
     @stack('style')
 </head>
 
 <body>
     @yield('content')
-
-
-
 
     <script src="{{ asset('assets/global/js/jquery-3.7.1.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/bootstrap.bundle.min.js') }}"></script>
@@ -47,6 +45,16 @@
 
     <script src="{{ asset('assets/global/js/select2.min.js') }}"></script>
     <script src="{{ asset('assets/admin/js/app.js') }}"></script>
+
+
+    <script src="https://cdn.datatables.net/v/bs5/dt-2.3.4/cc-1.1.0/r-3.0.6/datatables.min.js"
+        integrity="sha384-Q8EUWi3cPzrh/7cmW/l0GdIB2qJ25Wa0rLHPfuQpKZt88OBP2xV5f2ejnXdNyKLJ" crossorigin="anonymous">
+    </script>
+
+
+    <script>
+        let table = new DataTable('#datatable');
+    </script>
 
     {{-- LOAD NIC EDIT --}}
     <script>

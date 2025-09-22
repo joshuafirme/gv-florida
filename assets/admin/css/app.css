@@ -8514,3 +8514,7 @@ label.required:after {
 .container-floating-label .content {
   font-size: 16px;
 }
+
+.dt-column-title {
+  color: #fff !important;
+}

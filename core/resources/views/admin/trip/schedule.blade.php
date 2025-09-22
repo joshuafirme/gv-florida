@@ -6,7 +6,7 @@
             <div class="card">
                 <div class="card-body p-0">
                     <div class="table-responsive--sm table-responsive">
-                        <table class="table table--light style--two">
+                        <table class="table table--light style--two" id="datatable">
                             <thead>
                                 <tr>
                                     <th>@lang('Start From')</th>
@@ -60,7 +60,7 @@
                     </div>
                 </div>
 
-                @if ($schedules->hasPages())
+                @if (method_exists($schedules, 'hasPages') && $schedules->hasPages())
                     <div class="card-footer py-4">
                         {{ paginateLinks($schedules) }}
                     </div>
