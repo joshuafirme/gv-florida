@@ -8515,6 +8515,6 @@ label.required:after {
   font-size: 16px;
 }
 
-.dt-column-title {
+.dt-column-title, .dt-column-order {
   color: #fff !important;
 }
