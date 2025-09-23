@@ -137,18 +137,6 @@
     <script>
         let table = new DataTable('#scheduleTable');
 
-        $('#scheduleTable').DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: '{{ route('users.data') }}',
-            columns: [{
-                    data: 'id',
-                    name: 'id',
-                    width: '50px'
-                },
-            ]
-        });
-
         scheduleBoard()
 
         setInterval(() => {
