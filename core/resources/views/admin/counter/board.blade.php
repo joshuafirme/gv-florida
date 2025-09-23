@@ -13,6 +13,7 @@
 
     <!-- Bootstrap 5 -->
     <link href="{{ asset('assets/global/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/admin/css/vendor/datatables.min.2.3.4.css') }}" rel="stylesheet">
 
     <style>
         body {
@@ -131,8 +132,23 @@
     </main>
 
     <script src="{{ asset('assets/global/js/jquery-3.7.1.min.js') }}"></script>
+    <script src="{{ asset('assets/admin/js/vendor/datatables.min.2.3.4.js') }}"></script>
 
     <script>
+        let table = new DataTable('#scheduleTable');
+
+        $('#scheduleTable').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: '{{ route('users.data') }}',
+            columns: [{
+                    data: 'id',
+                    name: 'id',
+                    width: '50px'
+                },
+            ]
+        });
+
         scheduleBoard()
 
         setInterval(() => {

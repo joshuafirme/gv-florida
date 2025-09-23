@@ -41,7 +41,8 @@
                                                     <i class="la la-eye"></i>@lang('Layout Preview')
                                                 </a> --}}
                                                 <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn"
-                                                    data-resource="{{ $item }}" data-modal_title="@lang('Edit Type')">
+                                                    data-resource="{{ $item }}"
+                                                    data-modal_title="@lang('Edit Type')">
                                                     <i class="la la-pencil"></i>@lang('Edit')
                                                 </button>
 
@@ -134,7 +135,7 @@
                                             </div>
                                             <div class="form-group">
                                                 <label>Row Covered</label>
-                                                <input type="number" class="form-control" min="1" max="2"
+                                                <input type="number" class="form-control" min="1" max="3"
                                                     name="cr_row_covered">
                                             </div>
                                             <div class="form-group">
@@ -321,7 +322,7 @@
             function renderBusLayout(fleetType, containerId) {
                 const $container = $(`#${containerId}`);
                 $container.empty(); // Clear previous layout
-
+                console.log(fleetType)
                 const busLayout = new BusLayout(fleetType);
                 const disabled_seats = fleetType.disabled_seats || [];
 
@@ -346,11 +347,10 @@
                     const lastRowSeat = busLayout.getLastRowSit(seatCount);
                     const deckIndex = key + 1;
                     const seatlayout = busLayout.sitLayoutsData;
-                    const colItem = seatlayout.left + seatlayout.center + seatlayout.right;
                     let seatCounter = 1;
                     const prefix = fleetType.prefixes ? fleetType.prefixes[key] : '';
                     let has_cr = false;
-                    const cr_row_covered = (fleetType.cr_row_covered || 1) - 1;
+                    let cr_row_covered = fleetType.cr_row_covered ? fleetType.cr_row_covered - 1 : 0;
 
                     // Main Rows
                     for (let row = 1; row <= totalRow; row++) {
@@ -363,15 +363,27 @@
                             class: 'left-side'
                         });
                         for (let ls = 1; ls <= seatlayout.left; ls++) {
-                            let offset = seatCount - (fleetType.last_row ? fleetType.last_row[key] : 0);
-                            if (fleetType.last_row && seatCounter > offset) continue;
-
-                            if ((row === fleetType.cr_row || row === fleetType.cr_row + cr_row_covered) &&
-                                fleetType.cr_position === 'Left' && !has_cr) {
-                                $leftSide.append("<div><span class='seat comfort-room'>CR</span></div>");
-                                seatCounter--;
-                                has_cr = true;
+                            const isCrSpot = (row === fleetType.cr_row || row === fleetType.cr_row +
+                                cr_row_covered) && fleetType.cr_position === 'Left';
+                            if (isCrSpot) {
+                                if (!has_cr) {
+                                    let cr_height = getCRHeight(fleetType.cr_row_covered);
+                                    const cr_width = (seatlayout.left >= 2) ? '70px' : '30px';
+                                    const $crSpan = $('<span>', {
+                                        class: 'seat comfort-room cr-left',
+                                        text: 'CR'
+                                    }).css({
+                                        height: cr_height,
+                                        lineHeight: cr_height,
+                                        width: cr_width
+                                    });
+                                    $leftSide.append($('<div>').append($crSpan));
+                                    has_cr = true;
+                                }
+                                if (!fleetType.cr_override_seat) seatCounter--;
                             } else {
+                                let offset = seatCount - (fleetType.last_row ? fleetType.last_row[key] : 0);
+                                if (fleetType.last_row && seatCounter > offset) continue;
                                 let label = `${prefix}${seatCounter}`;
                                 if (disabled_seats.includes(label)) label = `<del>${label}</del>`;
                                 $leftSide.append(busLayout.generateSeats(label, deckIndex));
@@ -385,15 +397,27 @@
                             class: 'center-side'
                         });
                         for (let cs = 1; cs <= seatlayout.center; cs++) {
-                            let offset = seatCount - (fleetType.last_row ? fleetType.last_row[key] : 0);
-                            if (fleetType.last_row && seatCounter > offset) continue;
-
-                            if ((row === fleetType.cr_row || row === fleetType.cr_row + cr_row_covered) &&
-                                fleetType.cr_position === 'Center' && !has_cr) {
-                                $centerSide.append("<div><span class='seat comfort-room'>CR</span></div>");
-                                seatCounter--;
-                                has_cr = true;
+                            const isCrSpot = (row === fleetType.cr_row || row === fleetType.cr_row +
+                                cr_row_covered) && fleetType.cr_position === 'Center';
+                            if (isCrSpot) {
+                                if (!has_cr) {
+                                    let cr_height = getCRHeight(fleetType.cr_row_covered);
+                                    const cr_width = (seatlayout.center >= 2) ? '70px' : '30px';
+                                    const $crSpan = $('<span>', {
+                                        class: 'seat comfort-room cr-center',
+                                        text: 'CR'
+                                    }).css({
+                                        height: cr_height,
+                                        lineHeight: cr_height,
+                                        width: cr_width
+                                    });
+                                    $centerSide.append($('<div>').append($crSpan));
+                                    has_cr = true;
+                                }
+                                if (!fleetType.cr_override_seat) seatCounter--;
                             } else {
+                                let offset = seatCount - (fleetType.last_row ? fleetType.last_row[key] : 0);
+                                if (fleetType.last_row && seatCounter > offset) continue;
                                 let label = `${prefix}${seatCounter}`;
                                 if (disabled_seats.includes(label)) label = `<del>${label}</del>`;
                                 $centerSide.append(busLayout.generateSeats(label, deckIndex));
@@ -407,15 +431,27 @@
                             class: 'right-side'
                         });
                         for (let rs = 1; rs <= seatlayout.right; rs++) {
-                            let offset = seatCount - (fleetType.last_row ? fleetType.last_row[key] : 0);
-                            if (fleetType.last_row && seatCounter > offset) continue;
-
-                            if ((row === fleetType.cr_row || row === fleetType.cr_row + cr_row_covered) &&
-                                fleetType.cr_position === 'Right' && !has_cr) {
-                                $rightSide.append("<div><span class='seat comfort-room'>CR</span></div>");
-                                if (!fleetType.cr_override_seat) seatCounter--;
+                            const isCrSpot = (row === fleetType.cr_row || row === fleetType.cr_row +
+                                cr_row_covered) && fleetType.cr_position === 'Right' && key == 0;
+                            if (isCrSpot) {
+                                if (!has_cr) {
+                                    let cr_height = getCRHeight(fleetType.cr_row_covered);
+                                    const cr_width = (seatlayout.right >= 2) ? '70px' : '30px';
+                                    const $crSpan = $('<span>', {
+                                        class: 'seat comfort-room cr-right',
+                                        text: 'CR'
+                                    }).css({
+                                        height: cr_height,
+                                        lineHeight: cr_height,
+                                        width: cr_width
+                                    });
+                                    $rightSide.append($('<div>').append($crSpan));
+                                }
                                 has_cr = true;
+                                if (!fleetType.cr_override_seat) seatCounter--;
                             } else {
+                                let offset = seatCount - (fleetType.last_row ? fleetType.last_row[key] : 0);
+                                if (fleetType.last_row && seatCounter > offset) continue;
                                 let label = `${prefix}${seatCounter}`;
                                 if (disabled_seats.includes(label)) label = `<del>${label}</del>`;
                                 $rightSide.append(busLayout.generateSeats(label, deckIndex));
@@ -453,6 +489,19 @@
                     $container.append(deckHtml);
                 });
 
+                // Add click event listener to the seats
+                $container.on('click', '.seat:not(.disabled-seat, .comfort-room)', function() {
+                    $(this).toggleClass('selected');
+                    const seatId = $(this).data('seat');
+                    console.log(
+                        `Seat ${seatId} was ${$(this).hasClass('selected') ? 'selected' : 'deselected'}.`);
+                });
+            }
+
+            function getCRHeight(row_covered) {
+                let height = (row_covered == 2) ? '85px' : '40px';
+                height = (row_covered == 3) ? '130px' : height;
+                return height;
             }
 
             $('#postForm').on('submit', function(e) {
@@ -474,7 +523,19 @@
                     processData: false, // ✅ prevent jQuery from processing data
                     contentType: false, // ✅ let browser set the content type
                     success: function(data) {
-                        renderBusLayout(data, 'seat-layout-container');
+                        let fleetType = {
+                            name: data.name,
+                            seat_layout: data.seat_layout, // left-center-right
+                            deck_seats: data.deck_seats, // per deck seat count
+                            prefixes: data.prefixes,
+                            disabled_seats: data.disabled_seats,
+                            last_row: data.last_row,
+                            cr_row: parseInt(data.cr_row),
+                            cr_position: data.cr_position,
+                            cr_override_seat: data.cr_override_seat,
+                            cr_row_covered: parseInt(data.cr_row_covered)
+                        };
+                        renderBusLayout(fleetType, 'seat-layout-container');
                     },
                     error: function(err) {
                         console.error(err);
@@ -485,8 +546,8 @@
             });
 
             $('input[name=deck]').on('input', function() {
-                $('.showSeat').empty();
-                for (var deck = 1; deck <= $(this).val(); deck++) {
+                //$('.showSeat').empty();
+                for (var deck = 2; deck <= $(this).val(); deck++) {
                     $('.showSeat').append(`
                         <div class="form-group">
                             <label> Seats of Deck - ${deck} </label>
@@ -525,9 +586,9 @@
                     last_row: data.last_row,
                     cr_row: data.cr_row,
                     cr_position: data.cr_position,
-                    cr_override_seat: data.cr_override_seat
+                    cr_override_seat: data.cr_override_seat,
+                    cr_row_covered: parseInt(data.cr_row_covered)
                 };
-
 
                 renderBusLayout(fleetType, 'seat-layout-container');
 

@@ -8454,6 +8454,8 @@ label.required:after {
 
 .comfort-room {
   position: absolute !important;
+  background-color: #fff;
+  z-index: 999;
 }
 
 .cr-right {
