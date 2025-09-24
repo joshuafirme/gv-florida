@@ -109,7 +109,7 @@
             <div class="ticket-inner">
                 <div class="ticket-header">
                     <div class="ticket-logo">
-                        <img src="https://gvflorida-stg.makopa.tech/assets/images/logo_icon/logo.png" alt="Logo">
+                        <img src="{{env('APP_URL')}}assets/images/logo_icon/logo.png" alt="Logo">
                     </div>
                     <h4>{{ __(@$ticket->trip->assignedVehicle->vehicle->nick_name) }}</h4>
                     <p>@lang('E-Ticket / Reservation Voucher')</p>
