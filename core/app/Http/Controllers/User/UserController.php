@@ -243,7 +243,9 @@ class UserController extends Controller
 
         $ticket = $this->getTicketDetails($id);
 
-        $pdf = Pdf::loadView('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
+        $pdf = Pdf::setOptions([
+            'isRemoteEnabled' => true
+        ])->loadView('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
         $pdf->setPaper('A4', 'portrait');
 
         return $pdf->stream("$ticket->pnr_number.pdf");
@@ -255,7 +257,9 @@ class UserController extends Controller
 
         $ticket = $this->getTicketDetails($id);
 
-        $pdf = Pdf::loadView('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
+        $pdf = Pdf::setOptions([
+            'isRemoteEnabled' => true
+        ])->loadView('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
         $pdf->setPaper('A4', 'portrait');
 
         return $pdf->download("$ticket->pnr_number.pdf");
