@@ -11,6 +11,7 @@ use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class UserController extends Controller
 {
@@ -219,9 +220,8 @@ class UserController extends Controller
         return view('Template::user.booking_history', compact('pageTitle', 'emptyMessage', 'bookedTickets'));
     }
 
-    public function printTicket($id)
+    public function getTicketDetails($id)
     {
-        $pageTitle = "Ticket Print";
         $ticket = BookedTicket::with([
             'trip.fleetType',
             'trip.startFrom',
@@ -234,8 +234,31 @@ class UserController extends Controller
             'deposit'
         ]);
 
-        $ticket = $ticket->findOrFail($id);
-
-        return view('Template::user.print_ticket', compact('ticket', 'pageTitle'));
+        return $ticket->findOrFail($id);
     }
+
+    public function printTicket($id)
+    {
+        $pageTitle = "Ticket Print";
+
+        $ticket = $this->getTicketDetails($id);
+
+        $pdf = Pdf::loadView('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
+        $pdf->setPaper('A4', 'portrait');
+
+        return $pdf->stream("$ticket->pnr_number.pdf");
+    }
+
+    public function downloadTicket($id)
+    {
+        $pageTitle = "Ticket Print";
+
+        $ticket = $this->getTicketDetails($id);
+
+        $pdf = Pdf::loadView('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
+        $pdf->setPaper('A4', 'portrait');
+
+        return $pdf->download("$ticket->pnr_number.pdf");
+    }
+
 }

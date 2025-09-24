@@ -12,6 +12,7 @@ use App\Models\GatewayCurrency;
 use App\Models\GeneralSetting;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class PaymentController extends Controller
 {
@@ -203,7 +204,8 @@ class PaymentController extends Controller
                 'seats' => implode(',', $bookedTicket->seats),
                 'total_seats' => sizeof($bookedTicket->seats),
                 'source' => $bookedTicket->pickup->name,
-                'destination' => $bookedTicket->drop->name
+                'destination' => $bookedTicket->drop->name,
+                'has_file' => true
             ]);
         }
     }

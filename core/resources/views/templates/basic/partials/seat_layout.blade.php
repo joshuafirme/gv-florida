@@ -28,10 +28,7 @@
                         $cr_row_covered = $fleetType->cr_row_covered - 1;
                     }
 
-                    $cr_height = '40px';
-                    if ($fleetType->cr_row_covered == 2) {
-                        $cr_height = '95px';
-                    }
+                    $cr_height = getCRHeight($fleetType->cr_row_covered);
 
                 @endphp
 

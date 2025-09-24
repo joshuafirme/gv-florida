@@ -147,6 +147,8 @@ class NotifyProcess{
     */
     protected $sentFrom = null;
 
+    protected $hasFile = false;
+
     /**
     * Get the final message after replacing the short code.
     *
@@ -187,6 +189,9 @@ class NotifyProcess{
         //set subject to property
         $this->getSubject();
 
+        if (isset($this->shortCodes['has_file'])) {
+            $this->hasFile = true;
+        }
 
         $this->finalMessage = $message;
 

@@ -259,7 +259,7 @@
                 `;
                     if (deckNumber === 0) {
                         html += `
-                        <span class="driver"><img src="https://www.svgrepo.com/show/522927/steering-wheel.svg" alt="wheel"></span>
+                        <span class="driver"><img src="{{ url('assets/templates/basic/images/icon/wheel.svg') }}" alt="wheel"></span>
                         <span class="lower">Door</span>
                     `;
                     } else {

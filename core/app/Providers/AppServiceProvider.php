@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\App;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,6 +30,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (!file_exists(public_path())) {
+            App::usePublicPath(base_path('public'));
+        }
+
         if (!cache()->get('SystemInstalled')) {
             $envFilePath = base_path('.env');
             if (!file_exists($envFilePath)) {
@@ -54,13 +59,13 @@ class AppServiceProvider extends ServiceProvider
 
         view()->composer('admin.partials.sidenav', function ($view) {
             $view->with([
-                'bannedUsersCount'           => User::banned()->count(),
+                'bannedUsersCount' => User::banned()->count(),
                 'emailUnverifiedUsersCount' => User::emailUnverified()->count(),
-                'mobileUnverifiedUsersCount'   => User::mobileUnverified()->count(),
-                'pendingTicketCount'         => SupportTicket::whereIN('status', [Status::TICKET_OPEN, Status::TICKET_REPLY])->count(),
-                'pendingDepositsCount'    => Deposit::pending()->count(),
-                'PendingVehicleTicket' => BookedTicket::where('status',  2)->count(),
-                'updateAvailable'    => version_compare(gs('available_version'),systemDetails()['version'],'>') ? 'v'.gs('available_version') : false,
+                'mobileUnverifiedUsersCount' => User::mobileUnverified()->count(),
+                'pendingTicketCount' => SupportTicket::whereIN('status', [Status::TICKET_OPEN, Status::TICKET_REPLY])->count(),
+                'pendingDepositsCount' => Deposit::pending()->count(),
+                'PendingVehicleTicket' => BookedTicket::where('status', 2)->count(),
+                'updateAvailable' => version_compare(gs('available_version'), systemDetails()['version'], '>') ? 'v' . gs('available_version') : false,
                 'permissions' => json_decode(auth('admin')->user()->permissions->permissions)
             ]);
         });

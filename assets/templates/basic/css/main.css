@@ -4805,6 +4805,8 @@ i {
     line-height: 70px;
     position: absolute !important;
     cursor: auto !important;
+    background-color: #fff;
+    z-index: 999;
 }
 
 .cr-right {

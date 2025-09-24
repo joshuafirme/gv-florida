@@ -20,7 +20,7 @@ function systemDetails()
 {
     $system['name'] = 'GV Florida';
     $system['version'] = '2.0';
-    $system['build_version'] = '5.1.9';
+    $system['build_version'] = '5.2.1';
     return $system;
 }
 
@@ -718,4 +718,11 @@ function frontendImage($sectionName, $image, $size = null, $seo = false)
         return getImage('assets/images/frontend/' . $sectionName . '/seo/' . $image, $size);
     }
     return getImage('assets/images/frontend/' . $sectionName . '/' . $image, $size);
+}
+
+function getCRHeight($row_covered)
+{
+    $height = ($row_covered == 2) ? '85px' : '40px';
+    $height = ($row_covered == 3) ? '130px' : $height;
+    return $height;
 }
