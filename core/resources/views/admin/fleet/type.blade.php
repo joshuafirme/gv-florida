@@ -175,6 +175,9 @@
                                     </select>
                                 </div>
 
+                                <div class="form-group" id="non-operational-seats">
+                                </div>
+
                                 <div class="form-group">
                                     <label for="inputName">@lang('AC status')</label>
                                     <input type="checkbox" data-width="100%" data-height="40px" data-onstyle="-success"
@@ -628,7 +631,7 @@
 
                     }
                 }
-                $(`
+                $("#non-operational-seats").html(`
                     <div class="form-group mt-3">
                         <label for="disabled_seats">@lang('Non-Operational Seats')</label>
                         <select class="select2-auto-tokenize disabled_seats" name="disabled_seats[]"
@@ -636,7 +639,7 @@
                             ${opts}
                         </select>
                     </div>
-                `).insertAfter("#facilities");
+                `);
 
 
 
