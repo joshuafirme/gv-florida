@@ -156,7 +156,7 @@ class ProcessController extends Controller
 
             $bookedTicket = $deposit->bookedTicket;
 
-            notify($user, false ? 'PAYMENT_APPROVE' : 'PAYMENT_COMPLETE', [
+            notify($user, 'PAYMENT_APPROVE', [
                 'method_name' => $deposit->gatewayCurrency()->name,
                 'method_currency' => $deposit->method_currency,
                 'method_amount' => showAmount($deposit->final_amount, currencyFormat: false),
