@@ -233,6 +233,7 @@ Route::middleware('admin')->group(function () {
     Route::controller('ReportController')->prefix('report')->name('report.')->group(function () {
         Route::get('transaction/{user_id?}', 'transaction')->name('transaction');
         Route::get('login/history', 'loginHistory')->name('login.history');
+        Route::get('travel-manifest', 'travelManifest')->name('travelManifest');
         Route::get('login/ipHistory/{ip}', 'loginIpHistory')->name('login.ipHistory');
         Route::get('notification/history', 'notificationHistory')->name('notification.history');
         Route::get('email/detail/{id}', 'emailDetails')->name('email.details');

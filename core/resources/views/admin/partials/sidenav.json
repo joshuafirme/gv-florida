@@ -347,6 +347,19 @@
         "icon": "la la-list",
         "menu_active": "admin.report*",
         "submenu": [
+            
+            {
+                "keyword": [
+                    "travel manifest",
+                    "travel report"
+                ],
+                "title": "Travel Manifest",
+                "route_name": "admin.report.travelManifest",
+                "menu_active": [
+                    "admin.report.travelManifest",
+                    "admin.report.travelManifest.search"
+                ]
+            },
             {
                 "keyword": [
                     "Transaction Log",

@@ -28,6 +28,7 @@
                 $('select[name=destination]').empty();
                 
                 let options = '';
+                    options += `<option value="">--Dropping point--</option>`
                 data.forEach(v => {
                     options += `<option value="${v.id}">${v.name}</option>`
                 });
