@@ -149,29 +149,6 @@ class ProcessController extends Controller
         $deposit = $deposit->first();
 
         if ($payload['response_code'] == 'GR001' && $uid) {
-
-            $user = User::find($deposit->user_id);
-
-            $general = GeneralSetting::first();
-
-            $bookedTicket = $deposit->bookedTicket;
-
-            notify($user, 'PAYMENT_APPROVE', [
-                'method_name' => $deposit->gatewayCurrency()->name,
-                'method_currency' => $deposit->method_currency,
-                'method_amount' => showAmount($deposit->final_amount, currencyFormat: false),
-                'amount' => showAmount($deposit->amount, currencyFormat: false),
-                'charge' => showAmount($deposit->charge, currencyFormat: false),
-                'currency' => $general->cur_text,
-                'rate' => showAmount($deposit->rate, currencyFormat: false),
-                'trx' => $deposit->trx,
-                'journey_date' => showDateTime($bookedTicket->date_of_journey, 'd m, Y'),
-                'seats' => implode(',', $bookedTicket->seats),
-                'total_seats' => sizeof($bookedTicket->seats),
-                'source' => $bookedTicket->pickup->name,
-                'destination' => $bookedTicket->drop->name,
-                'has_file' => true
-            ]);
             PaymentController::userDataUpdate($deposit);
         } else {
             $uid = now()->format('Y-m-d_H-i-s');

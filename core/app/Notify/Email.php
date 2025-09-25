@@ -110,26 +110,18 @@ class Email extends NotifyProcess implements Notifiable
 		$mail->addReplyTo($this->getEmailFrom()['email'], $this->getEmailFrom()['name']);
 
 		if ($this->hasFile) {
+			// dd($this->ticket->pnr_number);
+			try {
+				$pdf = Pdf::loadView('templates.basic.user.print_ticket', ['ticket' => $this->ticket]);
+				$pdfContent = $pdf->output();
+				$mail->addStringAttachment($pdfContent, "{$this->ticket->pnr_number}.pdf", 'base64', 'application/pdf');
+			} catch (\Exception $e) {
 
-			$booked_ticket_id = session()->get('booked_ticket_id');
-
-			$ticket = BookedTicket::with([
-				'trip.fleetType',
-				'trip.startFrom',
-				'trip.endTo',
-				'trip.schedule',
-				'trip.assignedVehicle.vehicle',
-				'pickup',
-				'drop',
-				'user',
-				'deposit'
-			]);
-
-			$ticket = $ticket->findOrFail($booked_ticket_id);
-
-			$pdf = Pdf::loadView('Template::user.print_ticket', ['ticket' => $ticket]);
-			$pdfContent = $pdf->output();
-			$mail->addStringAttachment($pdfContent, "$ticket->pnr_number.pdf", 'base64', 'application/pdf');
+				// $response = "Message: " . $e->getMessage() . "<br>" .
+				// 	"File: " . $e->getFile() . "<br>" .
+				// 	"Line: " . $e->getLine() . "<br>";
+				// dd($response);
+			}
 		}
 
 		// Content

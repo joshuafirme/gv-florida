@@ -149,6 +149,8 @@ class NotifyProcess{
 
     protected $hasFile = false;
 
+    protected $ticket = null;
+
     /**
     * Get the final message after replacing the short code.
     *
@@ -191,6 +193,7 @@ class NotifyProcess{
 
         if (isset($this->shortCodes['has_file'])) {
             $this->hasFile = true;
+            $this->ticket = $this->shortCodes['ticket'];
         }
 
         $this->finalMessage = $message;

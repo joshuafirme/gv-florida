@@ -28,11 +28,6 @@ class PaymentController extends Controller
 
         $bookedTicket = BookedTicket::find($booked_ticket_id);
 
-        if ($bookedTicket) {
-            
-            session()->put('Track', $bookedTicket->deposit->trx);
-        }
-
         if (!$bookedTicket) {
             $notify[] = 'Please Try again.';
             return redirect()->route('ticket')->withNotify($notify);
@@ -211,6 +206,7 @@ class PaymentController extends Controller
                 'total_seats' => sizeof($bookedTicket->seats),
                 'source' => $bookedTicket->pickup->name,
                 'destination' => $bookedTicket->drop->name,
+                'ticket' => $bookedTicket,
                 'has_file' => true
             ]);
         }
