@@ -146,11 +146,13 @@ class ProcessController extends Controller
 
         $deposit = $deposit->first();
 
-        if ($payload['response_code'] == 'GR001' && $uid) {
-            PaymentController::userDataUpdate($deposit);
-        } else {
-            $uid = now()->format('Y-m-d_H-i-s');
-        }
+        PaymentController::userDataUpdate($deposit);
+        
+        // if ($payload['response_code'] == 'GR001' && $uid) {
+        //     PaymentController::userDataUpdate($deposit);
+        // } else {
+        //     $uid = now()->format('Y-m-d_H-i-s');
+        // }
 
         $fileName = 'paynamics/webhooks/' . $uid . '.json';
 
