@@ -23,9 +23,15 @@ class PaymentController extends Controller
 
         if ($request->booked_ticket_id) {
             $booked_ticket_id = $request->booked_ticket_id;
+            session()->put('booked_ticket_id', $booked_ticket_id);
         }
 
         $bookedTicket = BookedTicket::find($booked_ticket_id);
+
+        if ($bookedTicket) {
+            
+            session()->put('Track', $bookedTicket->deposit->trx);
+        }
 
         if (!$bookedTicket) {
             $notify[] = 'Please Try again.';
@@ -64,8 +70,8 @@ class PaymentController extends Controller
             'currency' => 'required',
         ]);
 
-        $pnr = session()->get('pnr_number');
-        $bookedTicket = BookedTicket::where('pnr_number', $pnr)->first();
+        $booked_ticket_id = session()->get('booked_ticket_id');
+        $bookedTicket = BookedTicket::find($booked_ticket_id);
 
         $user = auth()->user();
         $gate = GatewayCurrency::whereHas('method', function ($gate) {
@@ -131,6 +137,7 @@ class PaymentController extends Controller
     public function depositConfirm()
     {
         $track = session()->get('Track');
+
         $deposit = Deposit::where('trx', $track)->where('status', Status::PAYMENT_INITIATE)->orderBy('id', 'DESC')->with('gateway')->firstOrFail();
 
         if ($deposit->method_code >= 1000) {
@@ -160,8 +167,7 @@ class PaymentController extends Controller
         }
 
 
-        $pnr = session()->get('pnr_number');
-        $ticket = BookedTicket::where('pnr_number', $pnr)->with(['trip', 'pickup', 'drop'])->first();
+        $ticket = BookedTicket::where('id', $deposit->booked_ticket_id)->with(['trip', 'pickup', 'drop'])->first();
 
         $pageTitle = 'Confirm Payment';
         return view("Template::$data->view", compact('data', 'pageTitle', 'deposit', 'ticket'));
