@@ -20,7 +20,7 @@ function systemDetails()
 {
     $system['name'] = 'GV Florida';
     $system['version'] = '2.0';
-    $system['build_version'] = '5.2.1';
+    $system['build_version'] = '5.2.2';
     return $system;
 }
 
