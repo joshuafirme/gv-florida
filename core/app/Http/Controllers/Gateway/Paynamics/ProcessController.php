@@ -6,6 +6,8 @@ use App\Constants\Status;
 use App\Models\BookedTicket;
 use App\Models\Deposit;
 use App\Http\Controllers\Gateway\PaymentController;
+use App\Models\GeneralSetting;
+use App\Models\User;
 use App\Services\Paynamics;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -146,13 +148,34 @@ class ProcessController extends Controller
 
         $deposit = $deposit->first();
 
-        PaymentController::userDataUpdate($deposit);
-        
-        // if ($payload['response_code'] == 'GR001' && $uid) {
-        //     PaymentController::userDataUpdate($deposit);
-        // } else {
-        //     $uid = now()->format('Y-m-d_H-i-s');
-        // }
+        if ($payload['response_code'] == 'GR001' && $uid) {
+
+            $user = User::find($deposit->user_id);
+
+            $general = GeneralSetting::first();
+
+            $bookedTicket = $deposit->bookedTicket;
+
+            notify($user, false ? 'PAYMENT_APPROVE' : 'PAYMENT_COMPLETE', [
+                'method_name' => $deposit->gatewayCurrency()->name,
+                'method_currency' => $deposit->method_currency,
+                'method_amount' => showAmount($deposit->final_amount, currencyFormat: false),
+                'amount' => showAmount($deposit->amount, currencyFormat: false),
+                'charge' => showAmount($deposit->charge, currencyFormat: false),
+                'currency' => $general->cur_text,
+                'rate' => showAmount($deposit->rate, currencyFormat: false),
+                'trx' => $deposit->trx,
+                'journey_date' => showDateTime($bookedTicket->date_of_journey, 'd m, Y'),
+                'seats' => implode(',', $bookedTicket->seats),
+                'total_seats' => sizeof($bookedTicket->seats),
+                'source' => $bookedTicket->pickup->name,
+                'destination' => $bookedTicket->drop->name,
+                'has_file' => true
+            ]);
+            PaymentController::userDataUpdate($deposit);
+        } else {
+            $uid = now()->format('Y-m-d_H-i-s');
+        }
 
         $fileName = 'paynamics/webhooks/' . $uid . '.json';
 
