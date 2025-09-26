@@ -95,46 +95,50 @@
                         @if ($routes)
                             <div class="filter-item">
                                 <h5 class="title">@lang('Routes')</h5>
-                                <ul class="bus-type">
+                                <select class="form-control select2 search" name="routes[]" multiple="multiple">
                                     @foreach ($routes as $route)
-                                        <li class="custom--checkbox">
-                                            <input name="routes[]" class="search" value="{{ $route->id }}"
-                                                id="route.{{ $route->id }}" type="checkbox"
-                                                @if (request()->routes) @foreach (request()->routes as $item)
-                                                @if ($item == $route->id) checked @endif
-                                                @endforeach
-                                    @endif >
-                                    <label for="route.{{ $route->id }}"><span><span><i
-                                                    class="las la-road"></i>{{ __($route->name) }} </span></label>
-                                    </li>
-                        @endforeach
-                        </ul>
-                </div>
-                @endif
+                                        @php
+                                            $selected = '';
+                                            if (request()->routes) {
+                                                foreach (request()->routes as $item) {
+                                                    if ($item == $route->id) {
+                                                        $selected = 'selected';
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        <option value="{{ $route->id }}" id="route.{{ $route->id }}"
+                                            {{ $selected }}>{{ __($route->name) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
 
-                @if ($schedules)
-                    <div class="filter-item">
-                        <h5 class="title">@lang('Schedules')</h5>
-                        <ul class="bus-type">
-                            @foreach ($schedules as $schedule)
-                                <li class="custom--checkbox">
-                                    <input name="schedules[]" class="search" value="{{ $schedule->id }}"
-                                        id="schedule.{{ $schedule->id }}" type="checkbox"
-                                        @if (request()->schedules) @foreach (request()->schedules as $item)
-                                    @if ($item == $schedule->id)
-                                    checked @endif
-                                        @endforeach
-                            @endif>
-                            <label for="schedule.{{ $schedule->id }}"><span><span><i class="las la-clock"></i>
-                                        {{ showDateTime($schedule->start_from, 'h:i a') . ' - ' . showDateTime($schedule->end_at, 'h:i a') }}
-                                    </span></label>
-                            </li>
-                @endforeach
-                </ul>
+                        @if ($schedules)
+                            <div class="filter-item">
+                                <h5 class="title">@lang('Schedules')</h5>
+                                <select class="form-control select2 search" name="schedules[]" multiple="multiple">
+                                    @foreach ($schedules as $schedule)
+                                        @php
+                                            $selected = '';
+                                            if (request()->schedules) {
+                                                foreach (request()->schedules as $item) {
+                                                    if ($item == $schedule->id) {
+                                                        $selected = 'selected';
+                                                    }
+                                                }
+                                            }
+                                        @endphp
+                                        <option value="{{ $schedule->id }}" id="schedule.{{ $schedule->id }}"
+                                            {{ $selected }}>{{ showDateTime($schedule->start_from, 'h:i a') . ' - ' . showDateTime($schedule->end_at, 'h:i a') }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
             </div>
-            @endif
-        </div>
-        </form>
+            </form>
         </div>
 
         <div class="col-lg-9">
