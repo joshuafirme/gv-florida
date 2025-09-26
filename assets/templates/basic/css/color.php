@@ -91,3 +91,21 @@ background: -webkit-gradient(linear, left top, right top, from(<?php echo $color
 background: linear-gradient(to right, <?php echo $color; ?>50 0%, <?php echo $color; ?>64 100%);
 filter: progid: DXImageTransform.Microsoft.gradient( startColorstr='<?php echo $color; ?>c8', endColorstr='<?php echo $color; ?>d6', GradientType=1);
 }
+
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: <?php echo $color; ?> !important;
+    border: 1px solid <?php echo $color; ?> !important;
+}
+
+.select2-container--default .select2-selection--single, .select2-selection .select2-selection--multiple {
+    border-color: <?php echo $color; ?>40 !important;
+}
+
+.select2-selection--multiple {
+    border: 1px solid <?php echo $color; ?>40 !important;
+}
+
+.select2-container--focus .select2-selection, .select2-container--open .select2-selection {
+    border: 1px solid <?php echo $color; ?> !important;
+}

@@ -5873,6 +5873,25 @@ i {
     height: 35px;
 }
 
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    color: #fff !important;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    font-size: 15px !important;
+    border-right: none !important;
+    color: #fff !important;
+}
+
+.select2-container--default .select2-selection--multiple {
+    border-radius: 6px !important;
+}
+
+.filter-item .select2 {
+    font-size: 12px !important;
+}
+
 .select2-container {
     width: 100% !important;
 }
