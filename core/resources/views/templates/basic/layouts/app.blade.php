@@ -22,7 +22,8 @@
     <!-- Custom Link -->
     <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/main.css?v=' . $v) }}">
     <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/custom.css?v=' . $v) }}">
-    <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/color.php?color=' . gs('base_color')) }}">
+    <link rel="stylesheet"
+        href="{{ asset($activeTemplateTrue . 'css/color.php?color=' . gs('base_color')) . '&v=' . $v }}">
     @stack('style-lib')
 
     @stack('style')
