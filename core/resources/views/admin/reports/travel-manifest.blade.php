@@ -3,10 +3,10 @@
     <div class="row">
         <div class="col-12 mb-3">
             <div class="bus-search-header">
-                <form action="{{ route('admin.report.travelManifest') }}"
-                    class="ticket-form ticket-form-two row g-3 justify-content-center">
-                    <div class="col-md-4 col-lg-3">
-                        <div class="form--group">
+                <form action="{{ route('admin.report.travelManifest') }}">
+                    <div class="d-flex flex-wrap gap-4">
+                        <div class="flex-grow-1">
+
                             <label for="">Pickup Point</label>
                             <select name="pickup" class="form--control select2">
                                 <option value="">@lang('Pickup Point')</option>
@@ -16,26 +16,38 @@
                                 @endforeach
                             </select>
                         </div>
-                    </div>
-                    <div class="col-md-4 col-lg-3">
-                        <div class="form--group">
+                        <div class="flex-grow-1">
+
                             <label for="">Dropping Point</label>
                             <select name="destination" class="form--control select2">
                                 <option value="">@lang('Dropping Point')</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="col-md-4 col-lg-3">
-                        <div class="form--group">
+                        <div class="flex-grow-1">
                             <label for="">Date from</label>
                             <input name="date" type="search"
                                 class="datepicker-here form-control bg--white pe-2 date-range"
                                 placeholder="@lang('Start Date - End Date')" autocomplete="off" value="{{ request()->date }}">
                         </div>
-                    </div>
-                    <div class="col-md-4 col-lg-3">
-                        <div class="form--group">
-                            <button class="btn btn--primary input-group-text">Filter</button>
+                        <div class="flex-grow-1 align-self-end">
+                            <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> Filter</button>
+                        </div>
+                            @php
+                                $params = [
+                                    'pickup' => request('pickup'),
+                                    'destination' => request('destination'),
+                                    'date' => request('date'),
+                                ];
+                            @endphp
+                        <div class="flex-grow-1 align-self-end">
+                            <a class="btn btn--primary w-100 h-45"
+                                href="{{ route('admin.report.travelManifest', array_merge($params, ['print' => 1])) }}" target="_blank"><i
+                                    class="fa-solid fa-file"></i> Print</a>
+                        </div>
+                        <div class="flex-grow-1 align-self-end">
+                            <a class="btn btn--primary w-100 h-45"
+                                href="{{ route('admin.report.travelManifest', array_merge($params, ['download' => 1])) }}" target="_blank"><i
+                                    class="fa-solid fa-file-pdf"></i> Download</a>
                         </div>
                     </div>
                 </form>
@@ -55,6 +67,7 @@
                                     <th>@lang('Passenger')</th>
                                     <th>@lang('Seat No.')</th>
                                     <th>@lang('Booking date')</th>
+                                    <th>@lang('Departure')</th>
                                     <th>@lang('Payment channel')</th>
                                     <th>@lang('Status')</th>
                                 </tr>
@@ -68,8 +81,8 @@
                                         <td>{{ __($item->pickup->name) }} -> {{ __($item->drop->name) }}</td>
                                         <td>{{ __(@$item->user->firstname) }} {{ __(@$item->user->lastname) }}</td>
                                         <td>{{ __(implode(',', $item->seats)) }}</td>
-                                        <td>
-                                            {{ __(showDateTime($item->date_of_journey, 'd M, Y')) }}</td>
+                                        <td>{{ __(showDateTime($item->date_of_journey, 'd M, Y')) }}</td>
+                                        <td>{{ date('h:i A', strtotime($item->trip->schedule->start_from)) }}</td>
                                         <td>
                                             @if (@$item->deposit->gateway->name == 'Paynamics')
                                                 <div>{{ __(getPaynamicsPChannel(@$item->deposit->pchannel, true)) }}</div>

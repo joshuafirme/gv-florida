@@ -9,6 +9,7 @@ use App\Models\Counter;
 use App\Models\NotificationLog;
 use App\Models\Transaction;
 use App\Models\UserLogin;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
@@ -45,6 +46,19 @@ class ReportController extends Controller
             $date_from = date('Y-m-d', strtotime($dates[0]));
             $date_to = date('Y-m-d', strtotime($dates[1]));
             $data->whereBetween('date_of_journey', [$date_from, $date_to]);
+        }
+
+        if ($request->print || $request->download) {
+            $pdf = Pdf::setOptions([
+                'isRemoteEnabled' => true
+            ])->loadView('admin.pdf.travel-manifest', ['data' => $data->get()]);
+
+            $pdf->setPaper('A4', 'portrait');
+
+            if ($request->print) {
+                return $pdf->stream("$pageTitle.pdf");
+            }
+            return $pdf->download("$pageTitle.pdf");
         }
 
         $data = $data->paginate(getPaginate());
