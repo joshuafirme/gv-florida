@@ -71,26 +71,7 @@
                                 <h4 class="title mb-0">@lang('Filter')</h4>
                                 <button type="reset" class="reset-button h-auto">@lang('Reset All')</button>
                             </div>
-                            @if ($fleetType)
-                                <div class="filter-item">
-                                    <h5 class="title">@lang('Vehicle Type')</h5>
-                                    <ul class="bus-type">
-                                        @foreach ($fleetType as $fleet)
-                                            <li class="custom--checkbox">
-                                                <input name="fleetType[]" class="search" value="{{ $fleet->id }}"
-                                                    id="{{ $fleet->name }}" type="checkbox"
-                                                    @if (request()->fleetType) @foreach (request()->fleetType as $item)
-                                                @if ($item == $fleet->id)
-                                                checked @endif
-                                                    @endforeach
-                                        @endif >
-                                        <label for="{{ $fleet->name }}"><span><i
-                                                    class="las la-bus"></i>{{ __($fleet->name) }}</span></label>
-                                        </li>
-                            @endforeach
-                            </ul>
-                        </div>
-                        @endif
+                            
 
                         @if ($routes)
                             <div class="filter-item">
@@ -139,6 +120,26 @@
                                     @endforeach
                                 </select>
                             </div>
+                        @endif
+                            @if ($fleetType)
+                                <div class="filter-item">
+                                    <h5 class="title">@lang('Vehicle Type')</h5>
+                                    <ul class="bus-type">
+                                        @foreach ($fleetType as $fleet)
+                                            <li class="custom--checkbox">
+                                                <input name="fleetType[]" class="search" value="{{ $fleet->id }}"
+                                                    id="{{ $fleet->name }}" type="checkbox"
+                                                    @if (request()->fleetType) @foreach (request()->fleetType as $item)
+                                                @if ($item == $fleet->id)
+                                                checked @endif
+                                                    @endforeach
+                                        @endif >
+                                        <label for="{{ $fleet->name }}"><span><i
+                                                    class="las la-bus"></i>{{ __($fleet->name) }}</span></label>
+                                        </li>
+                            @endforeach
+                            </ul>
+                        </div>
                         @endif
                 </div>
                 </form>
