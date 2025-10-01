@@ -38,7 +38,7 @@ class PaymentController extends Controller
         })->with('method');
 
         if (request('kiosk_id')) {
-            $gatewayCurrency->where('method_code', '>=', 1000);
+        //    $gatewayCurrency->where('method_code', '>=', 1000);
         }
 
         $gatewayCurrency = $gatewayCurrency->orderby('name')->get();

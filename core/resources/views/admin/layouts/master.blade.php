@@ -46,6 +46,30 @@
     <script src="{{ asset('assets/admin/js/app.js') }}"></script>
     <script src="{{ asset('assets/admin/js/vendor/datatables.min.2.3.4.js') }}"></script>
 
+    <div class="modal fade" id="qrCodeScannerModal" tabindex="-1" role="dialog" aria-labelledby="bugModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@lang('E-Voucher QRCode Scanner')</h5>
+                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="las la-times"></i>
+                    </button>
+                </div>
+                <form method="post">
+                    @csrf
+                    <div class="modal-body">
+                        <div id="reader"></div>
+                        <div id="result"></div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ asset('assets/admin/js/vendor/html5-qrcode.min.js') }}" type="text/javascript"></script>
+    <script src="{{ asset('assets/admin/js/qrcode-scanner.js') }}"></script>
+
     <script>
         let table = new DataTable('#datatable');
     </script>
