@@ -32,8 +32,11 @@ class ReportController extends Controller
     public function travelManifest(Request $request)
     {
         $pageTitle = 'Travel Manifest';
-        $data = BookedTicket::orderBy('created_at', 'desc')
-            ->where('status', Status::BOOKED_APPROVED);
+        $data = BookedTicket::orderBy('created_at', 'desc');
+
+        if (request('status') != 'all') {
+            $data->where('status', request('status'));
+        }
 
         if ($request->pickup) {
             $data->where('pickup_point', $request->pickup);

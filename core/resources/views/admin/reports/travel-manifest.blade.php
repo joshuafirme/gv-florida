@@ -23,6 +23,24 @@
                                 <option value="">@lang('Dropping Point')</option>
                             </select>
                         </div>
+                        <div>
+                            <label for="">Status</label>
+                            <select name="status" class="select2" required>
+                                <option value="all">@lang('All status')</option>
+                                <option value="{{ App\Constants\Status::BOOKED_PENDING }}"
+                                    {{ request('status') == App\Constants\Status::BOOKED_PENDING ? 'selected' : '' }}>
+                                    @lang('Pending')
+                                </option>
+                                <option value="{{ App\Constants\Status::BOOKED_APPROVED }}"
+                                    {{ request('status') == App\Constants\Status::BOOKED_APPROVED ? 'selected' : '' }}>
+                                    @lang('Booked')
+                                </option>
+                                <option value="{{ App\Constants\Status::BOOKED_REJECTED }}"
+                                    {{ request('status') == App\Constants\Status::BOOKED_REJECTED ? 'selected' : '' }}>
+                                    @lang('Rejected')
+                                </option>
+                            </select>
+                        </div>
                         <div class="flex-grow-1">
                             <label for="">Date from</label>
                             <input name="date" type="search"
@@ -32,22 +50,22 @@
                         <div class="flex-grow-1 align-self-end">
                             <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> Filter</button>
                         </div>
-                            @php
-                                $params = [
-                                    'pickup' => request('pickup'),
-                                    'destination' => request('destination'),
-                                    'date' => request('date'),
-                                ];
-                            @endphp
+                        @php
+                            $params = [
+                                'pickup' => request('pickup'),
+                                'destination' => request('destination'),
+                                'date' => request('date'),
+                            ];
+                        @endphp
                         <div class="flex-grow-1 align-self-end">
                             <a class="btn btn--primary w-100 h-45"
-                                href="{{ route('admin.report.travelManifest', array_merge($params, ['print' => 1])) }}" target="_blank"><i
-                                    class="fa-solid fa-file"></i> Print</a>
+                                href="{{ route('admin.report.travelManifest', array_merge($params, ['print' => 1])) }}"
+                                target="_blank"><i class="fa-solid fa-file"></i> Print</a>
                         </div>
                         <div class="flex-grow-1 align-self-end">
                             <a class="btn btn--primary w-100 h-45"
-                                href="{{ route('admin.report.travelManifest', array_merge($params, ['download' => 1])) }}" target="_blank"><i
-                                    class="fa-solid fa-file-pdf"></i> Download</a>
+                                href="{{ route('admin.report.travelManifest', array_merge($params, ['download' => 1])) }}"
+                                target="_blank"><i class="fa-solid fa-file-pdf"></i> Download</a>
                         </div>
                     </div>
                 </form>

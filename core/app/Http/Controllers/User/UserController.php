@@ -246,7 +246,14 @@ class UserController extends Controller
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true
         ])->loadView('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
-        $pdf->setPaper('A4', 'portrait');
+
+
+
+        if ($ticket->kiosk_id) {
+            $pdf->setPaper([0, 0, 226.77, 1200], 'portrait');
+        } else {
+            $pdf->setPaper('A4', 'portrait');
+        }
 
         return $pdf->stream("$ticket->pnr_number.pdf");
     }

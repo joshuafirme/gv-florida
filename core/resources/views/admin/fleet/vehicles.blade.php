@@ -14,6 +14,7 @@
                                     <th>@lang('Engine No.')</th>
                                     <th>@lang('Chassis No.')</th>
                                     <th>@lang('Model No.')</th>
+                                    <th>@lang('Bus No.')</th>
                                     <th>@lang('Fleet Type')</th>
                                     <th>@lang('Status')</th>
                                     <th>@lang('Action')</th>
@@ -27,6 +28,7 @@
                                         <td>{{ __($item->engine_no) }}</td>
                                         <td>{{ __($item->chasis_no) }}</td>
                                         <td>{{ __($item->model_no) }}</td>
+                                        <td>{{ __($item->bus_no) }}</td>
                                         <td>{{ __($item->fleetType->name) }}</td>
                                         <td>
                                             @php echo $item->statusBadge; @endphp
@@ -115,6 +117,10 @@
                         <div class="form-group">
                             <label> @lang('Model No.')</label>
                             <input type="text" class="form-control" name="model_no" required>
+                        </div>
+                        <div class="form-group">
+                            <label> @lang('Bus No.')</label>
+                            <input type="text" class="form-control" name="bus_no">
                         </div>
                     </div>
                     <div class="modal-footer">

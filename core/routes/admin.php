@@ -110,6 +110,7 @@ Route::middleware('admin')->group(function () {
             Route::get('/', 'trips')->name('list');
             Route::post('/store/{id?}', 'tripStore')->name('store');
             Route::post('status/{id}', 'tripStatus')->name('status');
+            Route::get('reservation-slip/{id}', 'reservationSlip')->name('reservationSlip');
         });
 
         Route::prefix('route')->name('route.')->group(function () {

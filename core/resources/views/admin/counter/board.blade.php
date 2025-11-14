@@ -98,6 +98,7 @@
                             <table id="scheduleTable" class="table table-hover align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
+                                        <th scope="col">Bus number</th>
                                         <th scope="col">Trip</th>
                                         <th scope="col">Bus type</th>
                                         <th scope="col">Route</th>
@@ -183,8 +184,11 @@
                             item.trip_status = '{{ Status::TRIP_DELAYED }}';
                         }
 
+                        let bus_no = item.assigned_vehicle  && item.assigned_vehicle.vehicle ? item.assigned_vehicle.vehicle.bus_no : 'N/A';
+
                         html += `
                     <tr>
+                        <td>${bus_no}</td>
                         <td>${item.title}</td>
                         <td>${item.fleet_type.name}</td>
                         <td>${item.route.start_from.city} → ${item.route.end_to.city}

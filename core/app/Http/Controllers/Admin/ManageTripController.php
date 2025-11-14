@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AssignedVehicle;
+use App\Models\BookedTicket;
 use Illuminate\Http\Request;
 use App\Models\VehicleRoute;
 use App\Models\Counter;
@@ -11,13 +12,18 @@ use App\Models\FleetType;
 use App\Models\Schedule;
 use App\Models\Trip;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ManageTripController extends Controller
 {
     public function routeList()
     {
         $pageTitle = 'All Routes';
-        $routes = VehicleRoute::searchable(['name'])->with(['startFrom', 'endTo'])->orderBy('id', 'desc')->paginate(getPaginate());
+        $routes = VehicleRoute::searchable(['name'])->with(['startFrom', 'endTo']);
+        if (request('status') != 'all') {
+            $routes->where('status', request('status'));
+        }
+        $routes = $routes->orderBy('id', 'desc')->paginate(getPaginate());
         $stoppages = Counter::active()->get();
         return view('admin.trip.route.list', compact('pageTitle', 'routes', 'stoppages'));
     }
@@ -303,4 +309,21 @@ class ManageTripController extends Controller
     {
         return AssignedVehicle::changeStatus($id);
     }
+
+    public function reservationSlip($id = null)
+    {
+        $ticket = BookedTicket::find($id);
+
+        $pdf = Pdf::setOptions([
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'DejaVu Sans',
+            'isHtml5ParserEnabled' => true,
+            'isPhpEnabled' => true,
+        ])->loadView('admin.pdf.reservation-slip', ['ticket' => $ticket, 'pageTitle' => "Reservation Slip"]);
+
+        $pdf->setPaper([0, 0, 114, 600], 'portrait');
+
+        return $pdf->stream("Reservation Slip.pdf");
+    }
+
 }

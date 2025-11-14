@@ -1,7 +1,23 @@
 @extends('admin.layouts.app')
-
 @section('panel')
     <div class="row">
+        <div class="col-12 mb-2">
+            <form action="{{ url('/admin/manage/route') }}">
+                <div class="d-flex flex-wrap gap-4">
+                    <div style="width: 250px;">
+                        <label for="">Status</label>
+                        <select name="status" class="select2" required>
+                            <option value="all">@lang('All status')</option>
+                            <option value="1" {{ request('status') == 1 ? 'selected' : '' }}>@lang('Enabled')</option>
+                            <option value="0" {{ request('status') == 0 ? 'selected' : '' }}>@lang('Disabled')</option>
+                        </select>
+                    </div>
+                    <div class="align-self-end">
+                        <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> Filter</button>
+                    </div>
+                </div>
+            </form>
+        </div>
         <div class="col-md-12">
             <div class="card">
                 <div class="card-body p-0">
@@ -29,7 +45,8 @@
                                         <td>@php echo $item->statusBadge; @endphp</td>
                                         <td>
                                             <div class="button--group">
-                                                <a href="{{ route('admin.trip.route.edit',$item->id) }}" class="btn btn-sm btn-outline--primary">
+                                                <a href="{{ route('admin.trip.route.edit', $item->id) }}"
+                                                    class="btn btn-sm btn-outline--primary">
                                                     <i class="la la-pencil"></i>@lang('Edit')
                                                 </a>
 

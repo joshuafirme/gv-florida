@@ -14,6 +14,7 @@
                                 <tr>
                                     <th>@lang('Title')</th>
                                     <th>@lang('AC / Non-AC')</th>
+                                    <th>@lang('Fleet Type')</th>
                                     <th>@lang('Day Off')</th>
                                     <th>@lang('Trip Status')</th>
                                     <th>@lang('Status')</th>
@@ -27,6 +28,7 @@
 
                                         <td>{{ __($item->fleetType->has_ac == Status::ENABLE ? 'AC' : 'Non-Ac') }}</td>
 
+                                        <td>{{ __($item->fleetType->name) }}</td>
                                         <td>
                                             @if ($item->day_off)
                                                 @foreach ($item->day_off as $day)

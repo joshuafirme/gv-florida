@@ -18,6 +18,7 @@
                                     <th>@lang('Status')</th>
                                     <th>@lang('Ticket Count')</th>
                                     <th>@lang('Fare')</th>
+                                    <th>@lang('Action')</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -70,6 +71,14 @@
                                         </td>
                                         <td data-label="@lang('Fare')">
                                             {{ __(showAmount($item->sub_total)) }}
+                                        </td>
+                                        <td>
+                                            @if ($item->status == Status::BOOKED_APPROVED)
+                                                <a data-bs-toggle="tooltip" data-bs-placement="bottom" title="Reservation slip" target="_blank" href="{{ route('admin.trip.reservationSlip', $item->id) }}"
+                                                    class="btn btn-sm btn-outline--primary ms-1">
+                                                    <i class="fa-solid fa-receipt"></i>
+                                                </a>
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty

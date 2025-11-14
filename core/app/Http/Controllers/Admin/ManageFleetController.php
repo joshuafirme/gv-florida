@@ -143,6 +143,7 @@ class ManageFleetController extends Controller
             'engine_no' => 'required|string|unique:vehicles,engine_no,' . $id,
             'model_no' => 'required|string',
             'chasis_no' => 'required|string|unique:vehicles,chasis_no,' . $id,
+            'bus_no' => 'required|string|unique:vehicles,bus_no,' . $id,
         ]);
 
         if ($id) {
@@ -159,6 +160,7 @@ class ManageFleetController extends Controller
         $vehicle->engine_no = $request->engine_no;
         $vehicle->chasis_no = $request->chasis_no;
         $vehicle->model_no = $request->model_no;
+        $vehicle->bus_no = $request->bus_no;
         $vehicle->save();
 
         $notify[] = ['success', $message];

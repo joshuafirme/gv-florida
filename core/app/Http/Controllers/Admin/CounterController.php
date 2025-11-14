@@ -53,7 +53,7 @@ class CounterController extends Controller
 
             $data[] = $trip;
         }
-       // return $data;
+        // return $data;
         return view('admin.counter.board', compact('data'));
     }
 
@@ -64,6 +64,9 @@ class CounterController extends Controller
                 $query->with(['startFrom', 'endTo']);
             },
             'fleetType',
+            'assignedVehicle' => function ($query) {
+                $query->with(['vehicle']);
+            },
             'schedule'
         ])->where('start_from', $counter_id)->get();
 
