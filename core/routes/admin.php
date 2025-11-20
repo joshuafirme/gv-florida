@@ -83,6 +83,13 @@ Route::middleware('admin')->group(function () {
         Route::post('status/{id}', 'status')->name('status');
     });
 
+    Route::controller('DiscountController')->name('discount.')->prefix('discount')->group(function () {
+        Route::get('', 'discounts')->name('index');
+        Route::post('/{id?}', 'DiscountStore')->name('store');
+        Route::get('/open/{id}', 'openDiscount')->name('open');
+        Route::post('status/{id}', 'status')->name('status');
+    });
+
     Route::controller('ManageFleetController')->name('fleet.')->prefix('fleet')->group(function () {
 
         Route::prefix('layouts')->name('layouts.')->group(function () {

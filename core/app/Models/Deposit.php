@@ -24,15 +24,21 @@ class Deposit extends Model
         return $this->belongsTo(Gateway::class, 'method_code', 'code');
     }
 
-     public function bookedTicket()
+    public function bookedTicket()
     {
         return $this->hasOne(BookedTicket::class, 'id', 'booked_ticket_id');
     }
 
-    public function methodName(){
+    public function userDiscount()
+    {
+        return $this->hasOne(UserDiscount::class, 'deposit_id');
+    }
+
+    public function methodName()
+    {
         if ($this->method_code < 5000) {
             $methodName = @$this->gatewayCurrency()->name;
-        }else{
+        } else {
             $methodName = 'Google Pay';
         }
         return $methodName;
@@ -40,21 +46,18 @@ class Deposit extends Model
 
     public function statusBadge(): Attribute
     {
-        return new Attribute(function(){
+        return new Attribute(function () {
             $html = '';
-            if($this->status == Status::PAYMENT_PENDING){
-                $html = '<span class="badge badge--warning">'.trans('Pending').'</span>';
-            }
-            elseif($this->status == Status::PAYMENT_SUCCESS && $this->method_code >= 1000 && $this->method_code <= 5000){
-                $html = '<span><span class="badge badge--success">'.trans('Approved').'</span><br>'.diffForHumans($this->updated_at).'</span>';
-            }
-            elseif($this->status == Status::PAYMENT_SUCCESS && ($this->method_code < 1000 || $this->method_code >= 5000)){
-                $html = '<span class="badge badge--success">'.trans('Succeed').'</span>';
-            }
-            elseif($this->status == Status::PAYMENT_REJECT){
-                $html = '<span><span class="badge badge--danger">'.trans('Rejected').'</span><br>'.diffForHumans($this->updated_at).'</span>';
-            }else{
-                $html = '<span class="badge badge--dark">'.trans('Initiated').'</span>';
+            if ($this->status == Status::PAYMENT_PENDING) {
+                $html = '<span class="badge badge--warning">' . trans('Pending') . '</span>';
+            } elseif ($this->status == Status::PAYMENT_SUCCESS && $this->method_code >= 1000 && $this->method_code <= 5000) {
+                $html = '<span><span class="badge badge--success">' . trans('Approved') . '</span><br>' . diffForHumans($this->updated_at) . '</span>';
+            } elseif ($this->status == Status::PAYMENT_SUCCESS && ($this->method_code < 1000 || $this->method_code >= 5000)) {
+                $html = '<span class="badge badge--success">' . trans('Succeed') . '</span>';
+            } elseif ($this->status == Status::PAYMENT_REJECT) {
+                $html = '<span><span class="badge badge--danger">' . trans('Rejected') . '</span><br>' . diffForHumans($this->updated_at) . '</span>';
+            } else {
+                $html = '<span class="badge badge--dark">' . trans('Initiated') . '</span>';
             }
             return $html;
         });
@@ -73,17 +76,17 @@ class Deposit extends Model
 
     public function scopePending($query)
     {
-        return $query->where('method_code','>=',1000)->where('status', Status::PAYMENT_PENDING);
+        return $query->where('method_code', '>=', 1000)->where('status', Status::PAYMENT_PENDING);
     }
 
     public function scopeRejected($query)
     {
-        return $query->where('method_code','>=',1000)->where('status', Status::PAYMENT_REJECT);
+        return $query->where('method_code', '>=', 1000)->where('status', Status::PAYMENT_REJECT);
     }
 
     public function scopeApproved($query)
     {
-        return $query->where('method_code','>=',1000)->where('method_code','<',5000)->where('status', Status::PAYMENT_SUCCESS);
+        return $query->where('method_code', '>=', 1000)->where('method_code', '<', 5000)->where('status', Status::PAYMENT_SUCCESS);
     }
 
     public function scopeSuccessful($query)

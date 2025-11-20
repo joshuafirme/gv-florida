@@ -44,5 +44,6 @@ class Status{
     const TRIP_BOARDING = 'boarding';
     const TRIP_DELAYED = 'delayed';
     const TRIP_CANCELLED = 'cancelled';
+    const TRIP_DEPARTED = 'departed';
 
 }

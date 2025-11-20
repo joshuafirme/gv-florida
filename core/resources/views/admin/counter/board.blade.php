@@ -56,6 +56,11 @@
             background: #28a745;
         }
 
+        .status-departed {
+            background: #0dcaf0;
+        }
+
+
         .status-delayed {
             background: #ffc107;
         }
@@ -121,6 +126,8 @@
                         <span class="small"><span
                                 class="status-dot status-{{ Status::TRIP_BOARDING }}"></span>{{ decodeSlug(Status::TRIP_BOARDING) }}</span>
                         <span class="small"><span
+                                class="status-dot status-{{ Status::TRIP_DEPARTED }}"></span>{{ decodeSlug(Status::TRIP_DEPARTED) }}</span>
+                        <span class="small"><span
                                 class="status-dot status-{{ Status::TRIP_DELAYED }}"></span>{{ decodeSlug(Status::TRIP_DELAYED) }}</span>
                         <span class="small"><span
                                 class="status-dot status-{{ Status::TRIP_CANCELLED }}"></span>{{ decodeSlug(Status::TRIP_CANCELLED) }}</span>
@@ -184,7 +191,8 @@
                             item.trip_status = '{{ Status::TRIP_DELAYED }}';
                         }
 
-                        let bus_no = item.assigned_vehicle  && item.assigned_vehicle.vehicle ? item.assigned_vehicle.vehicle.bus_no : 'N/A';
+                        let bus_no = item.assigned_vehicle && item.assigned_vehicle.vehicle ? item
+                            .assigned_vehicle.vehicle.bus_no : 'N/A';
 
                         html += `
                     <tr>
@@ -239,6 +247,7 @@
             _class = status == '{{ Status::TRIP_BOARDING }}' ? 'primary' : _class;
             _class = status == '{{ Status::TRIP_DELAYED }}' ? 'warning' : _class;
             _class = status == '{{ Status::TRIP_CANCELLED }}' ? 'danger' : _class;
+            _class = status == '{{ Status::TRIP_DEPARTED }}' ? 'info' : _class;
 
             return `<span _class="status-dot status-${status}"></span>
             <span class="badge bg-${_class}-subtle text-${_class}">${reverseSlug(status)}</span>`;

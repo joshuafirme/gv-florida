@@ -63,6 +63,24 @@
                                         </button>
                                     @endif
                                 </div>
+                                <div>
+                                    <h4 class="mb-3">Discount</h4>
+                                    <div class="d-flex gap-3">
+                                        @php
+                                            $discounts = App\Models\Discount::where('status', 1)->get();
+                                        @endphp
+                                        @foreach ($discounts as $discount)
+                                            <div class="form-check">
+                                                <input name="discount_id" class="form-check-input chk-discount" type="radio"
+                                                    data-percentage="{{ $discount->percentage }}"
+                                                    value="{{ $discount->id }}">
+                                                <label class="form-check-label" for="flexCheckDefault">
+                                                    {{ $discount->name }} ({{ number_format($discount->percentage, 0) }}%)
+                                                </label>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
                             </div>
                             <div class="col-lg-6">
                                 <div class="payment-system-list p-3">
@@ -71,12 +89,14 @@
                                             Description
                                         </div>
                                         <div class="deposit-info__input">
-                                            
-                                        <span class="font-weight-bold"> {{ __($bookedTicket->trip->startFrom->name) }} -
-                                            {{ __($bookedTicket->trip->endTo->name) }}</span>
-                                        <span class="badge bg-success">{{ __($bookedTicket->trip->fleetType->name) }}</span>
-                                        <span>{{ 'Seats: ' . implode(', ', $bookedTicket->seats) }}</span>
-                                        <span>{{ "PNR: $bookedTicket->pnr_number " }}</span>
+
+                                            <span class="font-weight-bold"> {{ __($bookedTicket->trip->startFrom->name) }}
+                                                -
+                                                {{ __($bookedTicket->trip->endTo->name) }}</span>
+                                            <span
+                                                class="badge bg-success">{{ __($bookedTicket->trip->fleetType->name) }}</span>
+                                            <span>{{ 'Seats: ' . implode(', ', $bookedTicket->seats) }}</span>
+                                            <span>{{ "PNR: $bookedTicket->pnr_number " }}</span>
                                         </div>
                                     </div>
                                     <hr>
@@ -120,7 +140,17 @@
                                             </p>
                                         </div>
                                     </div>
-
+                                    <div class="deposit-info">
+                                        <div class="deposit-info__title">
+                                            <p class="text has-icon">@lang('Discount')
+                                            </p>
+                                        </div>
+                                        <div class="deposit-info__input">
+                                            <p class="text"><span class="discount-fee">@lang('0.00')</span>
+                                                {{ __(gs('cur_text')) }}
+                                            </p>
+                                        </div>
+                                    </div>
                                     <div class="deposit-info total-amount pt-3">
                                         <div class="deposit-info__title">
                                             <p class="text">@lang('Total')</p>
@@ -259,6 +289,7 @@
                     `${parseFloat(gateway.percent_charge).toFixed(2)}% with ${parseFloat(gateway.fixed_charge).toFixed(2)} {{ __(gs('cur_text')) }} charge for payment gateway processing fees`
                 $(".proccessing-fee-info").attr("data-bs-original-title", processingFeeInfo);
                 calculation();
+                calculateWithDiscount()
             }
 
             gatewayChange();
@@ -271,6 +302,24 @@
                     scrollTop: (paymentList.height() - 60)
                 }, 'slow');
             });
+
+            $(".chk-discount").on("click", function(e) {
+                calculation()
+                calculateWithDiscount()
+            });
+
+            function calculateWithDiscount() {
+                if ($('input[name="discount_id"]:checked').length > 0) {
+                    let total = parseFloat($(".final-amount").text());
+                    var selectedRadio = $('input[name="discount_id"]:checked');
+                    let discount_percentage = parseFloat(selectedRadio.attr('data-percentage')) / 100;
+                    let discount = total * discount_percentage;
+                    let final_amount = total - discount;
+                    
+                    $(".discount-fee").text('-' + discount.toFixed(2));
+                    $(".final-amount").text(final_amount.toFixed(2));
+                }
+            }
 
             function calculation() {
                 if (!gateway) return;

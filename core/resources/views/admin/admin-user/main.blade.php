@@ -93,6 +93,10 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label> @lang('Discount Passcode')</label>
+                            <input type="text" class="form-control" name="passcode">
+                        </div>
 
                     </div>
                     <div class="modal-footer">

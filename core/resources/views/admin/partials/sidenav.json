@@ -347,7 +347,6 @@
         "icon": "la la-list",
         "menu_active": "admin.report*",
         "submenu": [
-            
             {
                 "keyword": [
                     "travel manifest",
@@ -427,7 +426,7 @@
         "route_name": "admin.counter.index",
         "menu_active": "admin.counter.index"
     },
-        "kiosk": {
+    "kiosk": {
         "keyword": [
             "Kiosk",
             "Manage kiosk"
@@ -534,6 +533,16 @@
                 "menu_active": "admin.trip.vehicle.assign.index"
             }
         ]
+    },
+    "discount": {
+        "keyword": [
+            "discount",
+            "Manage Discount"
+        ],
+        "title": "Discount",
+        "icon": "las la-store",
+        "route_name": "admin.discount.index",
+        "menu_active": "admin.discount.index"
     },
     "administration": {
         "title": "Users",

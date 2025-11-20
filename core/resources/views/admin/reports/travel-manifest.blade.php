@@ -26,7 +26,7 @@
                         <div>
                             <label for="">Status</label>
                             <select name="status" class="select2" required>
-                                <option value="all">@lang('All status')</option>
+                                <option {{ !request('status') || request('status') == 'all' ? 'selected' : '' }} value="all">@lang('All status')</option>
                                 <option value="{{ App\Constants\Status::BOOKED_PENDING }}"
                                     {{ request('status') == App\Constants\Status::BOOKED_PENDING ? 'selected' : '' }}>
                                     @lang('Pending')
@@ -36,7 +36,7 @@
                                     @lang('Booked')
                                 </option>
                                 <option value="{{ App\Constants\Status::BOOKED_REJECTED }}"
-                                    {{ request('status') == App\Constants\Status::BOOKED_REJECTED ? 'selected' : '' }}>
+                                    {{ request('status') == '0' ? 'selected' : '' }}>
                                     @lang('Rejected')
                                 </option>
                             </select>

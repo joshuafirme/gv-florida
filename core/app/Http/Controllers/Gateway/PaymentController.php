@@ -8,9 +8,11 @@ use App\Lib\FormProcessor;
 use App\Models\AdminNotification;
 use App\Models\BookedTicket;
 use App\Models\Deposit;
+use App\Models\Discount;
 use App\Models\GatewayCurrency;
 use App\Models\GeneralSetting;
 use App\Models\User;
+use App\Models\UserDiscount;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -38,7 +40,7 @@ class PaymentController extends Controller
         })->with('method');
 
         if (request('kiosk_id')) {
-        //    $gatewayCurrency->where('method_code', '>=', 1000);
+            //    $gatewayCurrency->where('method_code', '>=', 1000);
         }
 
         $gatewayCurrency = $gatewayCurrency->orderby('name')->get();
@@ -59,12 +61,12 @@ class PaymentController extends Controller
 
     public function depositInsert(Request $request)
     {
+        $discount_id = $request->discount_id;
         $request->validate([
             'amount' => 'required|numeric|gt:0',
             'gateway' => 'required',
             'currency' => 'required',
         ]);
-
         $booked_ticket_id = session()->get('booked_ticket_id');
         $bookedTicket = BookedTicket::find($booked_ticket_id);
 
@@ -100,7 +102,6 @@ class PaymentController extends Controller
         $deposit->amount = $bookedTicket->sub_total;
         $deposit->charge = $charge;
         $deposit->rate = $gate->rate;
-        $deposit->final_amount = $finalAmount;
         $deposit->btc_amount = 0;
         $deposit->btc_wallet = "";
         $deposit->status = Status::PAYMENT_INITIATE;
@@ -108,6 +109,17 @@ class PaymentController extends Controller
         $deposit->success_url = urlPath('user.ticket.history');
         $deposit->failed_url = urlPath('ticket');
         $deposit->save();
+
+        if ($discount_id) {
+            $discount = Discount::find($discount_id);
+            $user_discount = UserDiscount::where('deposit_id', $deposit->id)->firstOrNew();
+            $user_discount->deposit_id = $deposit->id;
+            $user_discount->percentage = $discount->percentage;
+            $user_discount->amount = $finalAmount * ($discount->percentage / 100);
+            $user_discount->save();
+            $deposit->final_amount = $finalAmount - $user_discount->amount;
+            $deposit->save();
+        }
 
         session()->put('Track', $deposit->trx);
 

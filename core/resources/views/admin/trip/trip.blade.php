@@ -13,6 +13,7 @@
                             <thead>
                                 <tr>
                                     <th>@lang('Title')</th>
+                                    <th>@lang('Destination')</th>
                                     <th>@lang('AC / Non-AC')</th>
                                     <th>@lang('Fleet Type')</th>
                                     <th>@lang('Day Off')</th>
@@ -25,7 +26,7 @@
                                 @forelse($trips as $item)
                                     <tr>
                                         <td>{{ __($item->title) }}</td>
-
+                                        <td>{{ $item->route->startFrom->city }} → {{ $item->route->endTo->city }}</td>
                                         <td>{{ __($item->fleetType->has_ac == Status::ENABLE ? 'AC' : 'Non-Ac') }}</td>
 
                                         <td>{{ __($item->fleetType->name) }}</td>
@@ -178,6 +179,7 @@
                                         <select class="select2" name="trip_status" id="trip_status">
                                             <option value="{{ Status::TRIP_ON_TIME }}">@lang(decodeSlug(Status::TRIP_ON_TIME))</option>
                                             <option value="{{ Status::TRIP_BOARDING }}">@lang(decodeSlug(Status::TRIP_BOARDING))</option>
+                                            <option value="{{ Status::TRIP_DEPARTED }}">@lang(decodeSlug(Status::TRIP_DEPARTED))</option>
                                             <option value="{{ Status::TRIP_DELAYED }}">@lang(decodeSlug(Status::TRIP_DELAYED))</option>
                                             <option value="{{ Status::TRIP_CANCELLED }}">@lang(decodeSlug(Status::TRIP_CANCELLED))</option>
                                         </select>

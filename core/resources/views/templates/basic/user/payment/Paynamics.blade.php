@@ -103,6 +103,12 @@
                                             <td colspan="2" class="text-end">Charge</td>
                                             <td class="text-end">{{ showAmount($deposit->charge) }}</td>
                                         </tr>
+                                        @if ($deposit->userDiscount)
+                                            <tr>
+                                                <td colspan="2" class="text-end">Discount</td>
+                                                <td class="text-end">- {{ showAmount($deposit->userDiscount->amount) }}</td>
+                                            </tr>
+                                        @endif
                                         <tr class="fw-bolder">
                                             <td colspan="2" class="text-end">Total</td>
                                             <td>{{ showAmount($deposit->final_amount) }}</td>

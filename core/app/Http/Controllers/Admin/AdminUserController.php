@@ -45,11 +45,10 @@ class AdminUserController extends Controller
         $user->username = $request->username;
         $user->email = $request->email;
         $user->role_id = $request->role_id;
+        $user->passcode = $request->passcode;
 
         if ($request->password) {
             $user->password = Hash::make($request->password);
-        } else {
-            unset($data['password']);
         }
 
         if ($user->save()) {
