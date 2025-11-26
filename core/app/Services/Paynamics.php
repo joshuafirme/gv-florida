@@ -57,12 +57,12 @@ class Paynamics
                     "trx_type" => "sale",
                 ],
                 "customer_info" => [
-                    "fname" => $this->user->firstname,
-                    "lname" => $this->user->lastname,
+                    "fname" => $this->user ? $this->user->firstname : 'kiosk',
+                    "lname" => $this->user ? $this->user->lastname : 'kiosk',
                     "mname" => "",
-                    "email" => $this->user->email,
-                    "phone" => $this->user->mobile,
-                    "mobile" => $this->user->mobile,
+                    "email" => $this->user ? $this->user->email : 'kiosk@gmail.com',
+                    "phone" => $this->user ? $this->user->mobile : '0',
+                    "mobile" => $this->user ? $this->user->mobile : '0',
                     "dob" => ""
                 ],
                 "order_details" => [

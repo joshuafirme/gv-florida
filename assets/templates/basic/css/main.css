@@ -4803,18 +4803,18 @@ i {
 
 .comfort-room {
     line-height: 70px;
-    position: absolute !important;
+    /* position: absolute !important; */
     cursor: auto !important;
     background-color: #fff;
     z-index: 999;
 }
 
 .cr-right {
-    right: 25px !important;
+    /* right: 25px !important; */
 }
 
 .cr-left {
-    left: 25px;
+    /* left: 25px; */
 }
 
 .disabled-seat {

@@ -139,7 +139,7 @@
             $('.cuModalBtn').on('click', function() {
                 let modal = $('#cuModal');
                 let data = $(this).data('resource');
-
+                $('#change-password').remove()
                 if (data) {
                     let change_pass_html = '<div class="d-block" id="change-password">';
                     change_pass_html +=

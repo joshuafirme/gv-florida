@@ -8453,17 +8453,8 @@ label.required:after {
 }
 
 .comfort-room {
-  position: absolute !important;
   background-color: #fff;
   z-index: 999;
-}
-
-.cr-right {
-  right: 25px !important;
-}
-
-.cr-left {
-  left: 25px;
 }
 
 @media (max-width: 575px) {

@@ -28,6 +28,14 @@
                         $cr_row_covered = $fleetType->cr_row_covered - 1;
                     }
 
+                    $position = 'absolute';
+                    $cr_offset = '25px';
+
+                    if ($colItem == 3) {
+                        $position = 'relative';
+                        $cr_offset = 0;
+                    }
+
                     $cr_height = getCRHeight($fleetType->cr_row_covered);
 
                 @endphp
@@ -59,7 +67,8 @@
                                 @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + $cr_row_covered) && $fleetType->cr_position == 'Left')
                                     @if (!$has_cr)
                                         <div>
-                                            <span class='seat comfort-room cr-left' style="height: {{ $cr_height }}; line-height: {{ $cr_height }}; width: {{ $cr_width }}">
+                                            <span class='seat comfort-room cr-left'
+                                                style="height: {{ $cr_height }}; line-height: {{ $cr_height }}; width: {{ $cr_width }}; position: {{ $position }}; left: {{ $cr_offset }};">
                                                 CR
                                                 <span></span>
                                             </span>
@@ -103,7 +112,8 @@
                                 @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + $cr_row_covered) && $fleetType->cr_position == 'Center')
                                     @if (!$has_cr)
                                         <div>
-                                            <span class='seat comfort-room cr-center' style="height: {{ $cr_height }}; line-height: {{ $cr_height }}; width: {{ $cr_width }}">
+                                            <span class='seat comfort-room cr-center'
+                                                style="height: {{ $cr_height }}; line-height: {{ $cr_height }}; width: {{ $cr_width }}">
                                                 CR
                                                 <span></span>
                                             </span>
@@ -148,7 +158,7 @@
                                     @if (!$has_cr)
                                         <div>
                                             <span class='seat comfort-room cr-right'
-                                                style="height: {{ $cr_height }}; line-height: {{ $cr_height }}; width: {{ $cr_width }}">
+                                                style="height: {{ $cr_height }}; line-height: {{ $cr_height }}; width: {{ $cr_width }}; position: {{ $position }}; right: {{ $cr_offset }};">
                                                 CR
                                                 <span></span>
                                             </span>

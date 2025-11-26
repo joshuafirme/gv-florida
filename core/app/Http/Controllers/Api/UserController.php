@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Lib\GoogleAuthenticator;
+use App\Models\Admin;
 use App\Models\DeviceToken;
 use App\Models\NotificationLog;
 use App\Models\Transaction;
@@ -16,6 +17,21 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
+    public function authAdminPasscode(Request $request)
+    {
+        $admin = Admin::where('username', $request->username)
+            ->where('passcode', $request->passcode)
+            ->first();
+
+        $is_authorized = isset($admin->id) ? true : false;
+        $message = $is_authorized ? 'Authorization success!' : 'Invalid username or passcode!';
+
+        return response()->json([
+            'is_authorized' => $is_authorized,
+            'message' => $message
+        ]);
+    }
+
     public function userDataSubmit(Request $request)
     {
         $user = auth()->user();
@@ -29,18 +45,18 @@ class UserController extends Controller
         }
 
 
-        $countryData  = (array)json_decode(file_get_contents(resource_path('views/partials/country.json')));
+        $countryData = (array) json_decode(file_get_contents(resource_path('views/partials/country.json')));
         $countryCodes = implode(',', array_keys($countryData));
-        $mobileCodes  = implode(',', array_column($countryData, 'dial_code'));
-        $countries    = implode(',', array_column($countryData, 'country'));
+        $mobileCodes = implode(',', array_column($countryData, 'dial_code'));
+        $countries = implode(',', array_column($countryData, 'country'));
 
 
         $validator = Validator::make($request->all(), [
             'country_code' => 'required|in:' . $countryCodes,
-            'country'      => 'required|in:' . $countries,
-            'mobile_code'  => 'required|in:' . $mobileCodes,
-            'username'     => 'required|unique:users|min:6',
-            'mobile'       => ['required', 'regex:/^([0-9]*)$/', Rule::unique('users')->where('dial_code', $request->mobile_code)],
+            'country' => 'required|in:' . $countries,
+            'mobile_code' => 'required|in:' . $mobileCodes,
+            'username' => 'required|unique:users|min:6',
+            'mobile' => ['required', 'regex:/^([0-9]*)$/', Rule::unique('users')->where('dial_code', $request->mobile_code)],
         ]);
 
 
@@ -64,8 +80,8 @@ class UserController extends Controller
 
 
         $user->country_code = $request->country_code;
-        $user->mobile       = $request->mobile;
-        $user->username     = $request->username;
+        $user->mobile = $request->mobile;
+        $user->username = $request->username;
 
         $user->address = $request->address;
         $user->city = $request->city;
@@ -246,10 +262,10 @@ class UserController extends Controller
             ]);
         }
 
-        $deviceToken          = new DeviceToken();
+        $deviceToken = new DeviceToken();
         $deviceToken->user_id = auth()->user()->id;
-        $deviceToken->token   = $request->token;
-        $deviceToken->is_app  = Status::NO;
+        $deviceToken->token = $request->token;
+        $deviceToken->is_app = Status::NO;
         $deviceToken->save();
 
         $notify[] = 'Token saved successfully';

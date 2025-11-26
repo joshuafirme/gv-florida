@@ -355,6 +355,16 @@
                     let has_cr = false;
                     let cr_row_covered = fleetType.cr_row_covered ? fleetType.cr_row_covered - 1 : 0;
 
+                    let position = 'absolute';
+                    let offset = '25px';
+
+                    let seatColumns = busLayout.sitLayouts().left + busLayout.sitLayouts().right + busLayout.sitLayouts().center;
+                    console.log('seatColumns', seatColumns)
+                    if (seatColumns == 3) {
+                        position = 'relative';
+                        offset = 0
+                    }
+
                     // Main Rows
                     for (let row = 1; row <= totalRow; row++) {
                         const $seatWrapper = $('<div>', {
@@ -378,7 +388,9 @@
                                     }).css({
                                         height: cr_height,
                                         lineHeight: cr_height,
-                                        width: cr_width
+                                        width: cr_width,
+                                        position: position,
+                                        right: offset
                                     });
                                     $leftSide.append($('<div>').append($crSpan));
                                     has_cr = true;
@@ -446,7 +458,9 @@
                                     }).css({
                                         height: cr_height,
                                         lineHeight: cr_height,
-                                        width: cr_width
+                                        width: cr_width,
+                                        position: position,
+                                        right: offset
                                     });
                                     $rightSide.append($('<div>').append($crSpan));
                                 }

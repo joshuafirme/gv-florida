@@ -195,7 +195,7 @@ class PaymentController extends Controller
 
             if (!$isManual) {
                 $adminNotification = new AdminNotification();
-                $adminNotification->user_id = $user->id;
+                $adminNotification->user_id = isset($user->id) ? $user->id : null;
                 $adminNotification->title = 'Payment successful via ' . $deposit->gatewayCurrency()->name;
                 $adminNotification->click_url = urlPath('admin.vehicle.ticket.booked');
                 $adminNotification->save();
@@ -204,23 +204,25 @@ class PaymentController extends Controller
 
             $general = GeneralSetting::first();
 
-            notify($user, $isManual ? 'PAYMENT_APPROVE' : 'PAYMENT_COMPLETE', [
-                'method_name' => $deposit->gatewayCurrency()->name,
-                'method_currency' => $deposit->method_currency,
-                'method_amount' => showAmount($deposit->final_amount, currencyFormat: false),
-                'amount' => showAmount($deposit->amount, currencyFormat: false),
-                'charge' => showAmount($deposit->charge, currencyFormat: false),
-                'currency' => $general->cur_text,
-                'rate' => showAmount($deposit->rate, currencyFormat: false),
-                'trx' => $deposit->trx,
-                'journey_date' => showDateTime($bookedTicket->date_of_journey, 'd m, Y'),
-                'seats' => implode(',', $bookedTicket->seats),
-                'total_seats' => sizeof($bookedTicket->seats),
-                'source' => $bookedTicket->pickup->name,
-                'destination' => $bookedTicket->drop->name,
-                'ticket' => $bookedTicket,
-                'has_file' => true
-            ]);
+            if ($user) {
+                notify($user, $isManual ? 'PAYMENT_APPROVE' : 'PAYMENT_COMPLETE', [
+                    'method_name' => $deposit->gatewayCurrency()->name,
+                    'method_currency' => $deposit->method_currency,
+                    'method_amount' => showAmount($deposit->final_amount, currencyFormat: false),
+                    'amount' => showAmount($deposit->amount, currencyFormat: false),
+                    'charge' => showAmount($deposit->charge, currencyFormat: false),
+                    'currency' => $general->cur_text,
+                    'rate' => showAmount($deposit->rate, currencyFormat: false),
+                    'trx' => $deposit->trx,
+                    'journey_date' => showDateTime($bookedTicket->date_of_journey, 'd m, Y'),
+                    'seats' => implode(',', $bookedTicket->seats),
+                    'total_seats' => sizeof($bookedTicket->seats),
+                    'source' => $bookedTicket->pickup->name,
+                    'destination' => $bookedTicket->drop->name,
+                    'ticket' => $bookedTicket,
+                    'has_file' => true
+                ]);
+            }
         }
     }
 

@@ -63,24 +63,27 @@
                                         </button>
                                     @endif
                                 </div>
-                                <div>
-                                    <h4 class="mb-3">Discount</h4>
-                                    <div class="d-flex gap-3">
-                                        @php
-                                            $discounts = App\Models\Discount::where('status', 1)->get();
-                                        @endphp
-                                        @foreach ($discounts as $discount)
-                                            <div class="form-check">
-                                                <input name="discount_id" class="form-check-input chk-discount" type="radio"
-                                                    data-percentage="{{ $discount->percentage }}"
-                                                    value="{{ $discount->id }}">
-                                                <label class="form-check-label" for="flexCheckDefault">
-                                                    {{ $discount->name }} ({{ number_format($discount->percentage, 0) }}%)
-                                                </label>
-                                            </div>
-                                        @endforeach
+                                @if ($kiosk_id)
+                                    <div>
+                                        <h4 class="mb-3">Discount</h4>
+                                        <div class="d-flex gap-3">
+                                            @php
+                                                $discounts = App\Models\Discount::where('status', 1)->get();
+                                            @endphp
+                                            @foreach ($discounts as $discount)
+                                                <div class="form-check">
+                                                    <input name="discount_id" class="form-check-input chk-discount"
+                                                        type="radio" data-percentage="{{ $discount->percentage }}"
+                                                        value="{{ $discount->id }}">
+                                                    <label class="form-check-label" for="flexCheckDefault">
+                                                        {{ $discount->name }}
+                                                        ({{ number_format($discount->percentage, 0) }}%)
+                                                    </label>
+                                                </div>
+                                            @endforeach
+                                        </div>
                                     </div>
-                                </div>
+                                @endif
                             </div>
                             <div class="col-lg-6">
                                 <div class="payment-system-list p-3">
@@ -231,6 +234,46 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="authAdminModal">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title method-name">Authorize Admin Passcode</h5>
+                    <a href="javascript:void(0)" class="close" data-bs-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </a>
+                </div>
+                <form method="post" id="authAdminForm" autocomplete="off">
+                    @csrf
+                    <div class="modal-body">
+
+                        <div class="row gy-3">
+                            <div class="form-group col-12">
+                                <label class="form-label">@lang('Username')</label>
+                                <input type="text" class="form-control form--control" name="username" required
+                                    autocomplete="new-password">
+                            </div>
+                            <div class="form-group col-12">
+                                <label class="form-label">@lang('Password code')</label>
+                                <input type="password"
+                                    class="form-control form--control @if (gs('secure_password')) secure-password @endif"
+                                    name="passcode" required autocomplete="new-password">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn--danger w-auto btn--sm"
+                            data-bs-dismiss="modal">@lang('Close')</button>
+                        <div>
+                            <button type="submit" id="btn-autorize"
+                                class="btn btn--success confirm-btn btn--sm">@lang('Authorize')</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 
@@ -262,7 +305,7 @@
 
             // location.reload();
             var amount = parseFloat($('.amount').val() || 0);
-            var gateway, minAmount, maxAmount;
+            var gateway, minAmount, maxAmount, isPasscodeValid;
 
 
             $('.amount').on('input', function(e) {
@@ -294,6 +337,47 @@
 
             gatewayChange();
 
+
+
+            $("#authAdminForm").on("submit", function(e) {
+                e.preventDefault()
+                let authBtn = $('#btn-authorize');
+                authBtn.prop('disabled', true);
+                authBtn.text('Please wait...');
+                if (!isPasscodeValid) {
+                    const form = document.querySelector('#authAdminForm');
+                    const data = new FormData(form);
+                    console.log(data)
+                    fetch("{{ env('APP_URL') }}api/auth-admin-passcode", {
+                            method: 'POST',
+                            body: data
+                        })
+                        .then(response => response.json())
+                        .then(response => {
+                            console.log(response);
+
+                            if (response.is_authorized) {
+                                isPasscodeValid = true;
+                                triggerToaster('success', response.message);
+                                $('#authAdminModal').modal('hide')
+                            } else {
+                                isPasscodeValid = false;
+                                triggerToaster('error', response.message);
+                            }
+
+                            authBtn.prop('disabled', false);
+                            authBtn.text('Autorize');
+                        })
+                        .catch(error => {
+                            console.error('Fetch error:', error);
+                            triggerToaster('error', 'Something went wrong!');
+                        });
+
+                }
+
+                return false;
+            });
+
             $(".more-gateway-option").on("click", function(e) {
                 let paymentList = $(".gateway-option-list");
                 paymentList.find(".gateway-option").removeClass("d-none");
@@ -304,6 +388,11 @@
             });
 
             $(".chk-discount").on("click", function(e) {
+                if (!isPasscodeValid) {
+                    $('#authAdminModal').modal('show')
+                    $(this).prop('checked', false)
+                    return
+                }
                 calculation()
                 calculateWithDiscount()
             });
@@ -315,7 +404,7 @@
                     let discount_percentage = parseFloat(selectedRadio.attr('data-percentage')) / 100;
                     let discount = total * discount_percentage;
                     let final_amount = total - discount;
-                    
+
                     $(".discount-fee").text('-' + discount.toFixed(2));
                     $(".final-amount").text(final_amount.toFixed(2));
                 }
