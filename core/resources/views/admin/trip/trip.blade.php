@@ -1,8 +1,8 @@
 @extends('admin.layouts.app')
 @section('panel')
-@php
-    use App\Constants\Status;
-@endphp
+    @php
+        use App\Constants\Status;
+    @endphp
 
     <div class="row">
         <div class="col-md-12">
@@ -47,10 +47,13 @@
                                         <td>
                                             <div class="button--group">
                                                 <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn"
-                                                    data-resource="{{ $item }}" data-modal_title="@lang('Edit Trip')">
+                                                    data-resource="{{ $item }}"
+                                                    data-modal_title="@lang('Edit Trip')">
                                                     <i class="la la-pencil"></i>@lang('Edit')
                                                 </button>
-
+                                                <a href="{{ url("/admin/manage/trip/manifest-seat-layout/$item->id") }}" target="_blank" class="btn btn-sm btn-outline--primary">
+                                                    Manifest
+                                                </a>
                                                 @if (!$item->status)
                                                     <button type="button"
                                                         class="btn btn-sm btn-outline--success confirmationBtn"

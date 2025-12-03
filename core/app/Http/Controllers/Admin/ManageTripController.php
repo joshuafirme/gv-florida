@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Constants\Status;
 use App\Http\Controllers\Controller;
+use App\Lib\BusLayout;
 use App\Models\AssignedVehicle;
 use App\Models\BookedTicket;
 use Illuminate\Http\Request;
@@ -325,5 +327,21 @@ class ManageTripController extends Controller
 
         return $pdf->stream("Reservation Slip.pdf");
     }
+
+    public function manifestSeatLayout($trip_id)
+    {
+
+        $trip = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo', 'assignedVehicle.vehicle', 'bookedTickets'])
+            ->where('status', Status::ENABLE)->where('id', $trip_id)
+            ->firstOrFail();
+            
+        $busLayout = new BusLayout($trip);
+
+        return view('admin.pdf.manifest-seat-layout', [
+            "trip" => $trip,
+            "busLayout" => $busLayout
+        ]);
+    }
+
 
 }

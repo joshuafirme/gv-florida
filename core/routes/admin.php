@@ -118,6 +118,8 @@ Route::middleware('admin')->group(function () {
             Route::post('/store/{id?}', 'tripStore')->name('store');
             Route::post('status/{id}', 'tripStatus')->name('status');
             Route::get('reservation-slip/{id}', 'reservationSlip')->name('reservationSlip');
+            Route::get('manifest-seat-layout/{trip_id}', 'manifestSeatLayout')->name('manifestSeatLayout');
+            
         });
 
         Route::prefix('route')->name('route.')->group(function () {

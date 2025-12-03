@@ -1,10 +1,11 @@
 @php
     $disabled_seats = $fleetType->disabled_seats ? $fleetType->disabled_seats : [];
+    $from_manifest = isset($from_manifest) ? $from_manifest : false;
 @endphp
 <div class="container p-4">
     <h4>{{ $fleetType->name }}</h4>
     @foreach ($fleetType->deck_seats as $key => $seat)
-        <div class="seat-plan-inner" style="max-width: 400px">
+        <div class="seat-plan-inner">
             <div class="single">
 
                 @php
@@ -60,8 +61,10 @@
                                         }
                                     }
                                     $cr_width = '30px';
+                                    $cr_width = $from_manifest ? '70px' : $cr_width;
                                     if ($seatlayout->right == 2) {
                                         $cr_width = '70px';
+                                        $cr_width = $from_manifest ? '150px' : $cr_width;
                                     }
                                 @endphp
                                 @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + $cr_row_covered) && $fleetType->cr_position == 'Left')
@@ -104,8 +107,10 @@
                                         }
                                     }
                                     $cr_width = '30px';
+                                    $cr_width = $from_manifest ? '70px' : $cr_width;
                                     if ($seatlayout->center == 2) {
                                         $cr_width = '70px';
+                                        $cr_width = $from_manifest ? '150px' : $cr_width;
                                     }
                                 @endphp
                                 {{-- This logic assumes a CR could be positioned in the center --}}
@@ -151,6 +156,7 @@
                                     $cr_width = '30px';
                                     if ($seatlayout->right == 2) {
                                         $cr_width = '70px';
+                                        $cr_width = $from_manifest ? '150px' : $cr_width;
                                     }
                                 @endphp
 
