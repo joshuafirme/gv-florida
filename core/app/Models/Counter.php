@@ -15,7 +15,13 @@ class Counter extends Model
     public function scopeRouteStoppages($query, $array)
     {
         return $query->whereIn('id', $array)
+            ->active()
             ->orderByRaw("field(id," . implode(',', $array) . ")")->get();
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', Status::ENABLE);
     }
 
     public function trips()

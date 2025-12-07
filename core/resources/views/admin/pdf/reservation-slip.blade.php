@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Reservation Slip Replica</title>
+    <title>Reservation Slip</title>
 
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -87,8 +87,8 @@
 
     <div class="slip-container">
 
-        <div class="slip-title">TRANSPORTPRO SERVICES, INC.</div>
-        <div class="slip-subtitle">Terminals: Manila & North Luzon</div>
+        <div class="slip-title">G.V. FLORIDA TRANSPORT, INC.</div>
+        <div class="slip-subtitle">Allacapan, Cagayan</div>
 
         <div class="section-title">RESERVATION SLIP</div>
 
@@ -139,7 +139,7 @@
         <div class="small-label">Authorized Signature</div>
 
         <div class="mt-4 small-label">
-            TIME <span class="line-input" style="width:90px">{{ date('H:i') }}</span> AM / PM
+            TIME <span class="line-input" style="width:90px">{{ date('H:i A', strtotime($ticket->trip->schedule->start_from)) }}</span>
         </div>
 {{-- 
         <div class="d-flex align-items-center mt-4">

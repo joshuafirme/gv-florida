@@ -10,10 +10,6 @@
     @endif
     @extends($activeTemplate . $layout)
 
-    @php
-        $counters = App\Models\Counter::get();
-    @endphp
-
     <div class="ticket-search-bar bg_img padding-top"
         style="background: url({{ getImage('assets/templates/basic/images/search_bg.jpg') }}) left center;">
         <div class="container">

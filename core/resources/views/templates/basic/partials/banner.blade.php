@@ -1,6 +1,5 @@
 @php
     $contents = getContent('banner.content', true);
-    $counters = App\Models\Counter::get();
 @endphp
 <!-- Banner Section Starts Here -->
 <section class="banner-section"
