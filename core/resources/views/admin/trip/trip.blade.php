@@ -2,10 +2,30 @@
 @section('panel')
     @php
         use App\Constants\Status;
+        $status = request('status');
     @endphp
 
     <div class="row">
         <div class="col-md-12">
+            <div class="col-12 mb-2">
+                <form action="{{ url('/admin/manage/trip') }}">
+                    <div class="d-flex flex-wrap gap-4">
+                        <div style="width: 250px;">
+                            <label for="">Status</label>
+                            <select name="status" class="select2" required>
+                                <option value="all">@lang('All status')</option>
+                                <option value="1" {{ $status == 1 ? 'selected' : '' }}>@lang('Enabled')
+                                </option>
+                                <option value="0" {{ request()->has('status') && $status == 0 ? 'selected' : '' }}>@lang('Disabled')
+                                </option>
+                            </select>
+                        </div>
+                        <div class="align-self-end">
+                            <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> Filter</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
             <div class="card">
                 <div class="card-body p-0">
                     <div class="table-responsive--sm table-responsive">
@@ -51,7 +71,8 @@
                                                     data-modal_title="@lang('Edit Trip')">
                                                     <i class="la la-pencil"></i>@lang('Edit')
                                                 </button>
-                                                <a href="{{ url("/admin/manage/trip/manifest-seat-layout/$item->id") }}" target="_blank" class="btn btn-sm btn-outline--primary">
+                                                <a href="{{ url("/admin/manage/trip/manifest-seat-layout/$item->id") }}"
+                                                    target="_blank" class="btn btn-sm btn-outline--primary">
                                                     Manifest
                                                 </a>
                                                 @if (!$item->status)

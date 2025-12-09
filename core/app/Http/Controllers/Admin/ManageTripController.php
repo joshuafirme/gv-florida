@@ -199,7 +199,14 @@ class ManageTripController extends Controller
         $schedules = Schedule::where('status', 1)->get();
         $stoppages = Counter::where('status', 1)->get();
 
-        $trips = Trip::with(['fleetType', 'route', 'schedule'])->searchable(['title'])->orderBy('id', 'desc')->paginate(getPaginate());
+        $trips = Trip::with(['fleetType', 'route', 'schedule'])->searchable(['title'])->orderBy('id', 'desc');
+
+        if (request()->has('status')) {
+            $trips->where('status', request('status'));
+        }
+
+        $trips = $trips->paginate(getPaginate());
+
         return view('admin.trip.trip', compact('pageTitle', 'emptyMessage', 'trips', 'fleetTypes', 'routes', 'schedules', 'stoppages'));
     }
 

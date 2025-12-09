@@ -139,7 +139,7 @@
         <div class="small-label">Authorized Signature</div>
 
         <div class="mt-4 small-label">
-            TIME <span class="line-input" style="width:90px">{{ date('H:i A', strtotime($ticket->trip->schedule->start_from)) }}</span>
+            TIME <span class="line-input" style="width:90px">{{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}</span>
         </div>
 {{-- 
         <div class="d-flex align-items-center mt-4">

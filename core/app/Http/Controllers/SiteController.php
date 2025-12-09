@@ -501,13 +501,14 @@ class SiteController extends Controller
         $fleetType = FleetType::active()->get();
         $schedules = Schedule::all();
         $routes = VehicleRoute::active()->get();
+        $counters = Counter::active()->get();
 
         if (auth()->user()) {
             $layout = 'layouts.master';
         } else {
             $layout = 'layouts.frontend';
         }
-        return view("Template::ticket", compact('pageTitle', 'fleetType', 'trips', 'routes', 'schedules', 'emptyMessage', 'layout'));
+        return view("Template::ticket", compact('pageTitle', 'fleetType', 'trips', 'routes', 'counters', 'schedules', 'emptyMessage', 'layout'));
     }
 
     public function getDroppingPoints($counter_id)
