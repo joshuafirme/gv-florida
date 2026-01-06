@@ -54,15 +54,9 @@
                         <div class="left-side">
                             @for ($ls = 1; $ls <= $seatlayout->left; $ls++)
                                 @php
-                                    if ($fleetType->last_row) {
-                                        $offset = $seat - $fleetType->last_row[$key];
-                                        if ($seatCounter > $offset) {
-                                            continue;
-                                        }
-                                    }
                                     $cr_width = '30px';
                                     $cr_width = $from_manifest ? '70px' : $cr_width;
-                                    if ($seatlayout->right == 2) {
+                                    if ($seatlayout->left == 2) {
                                         $cr_width = '70px';
                                         $cr_width = $from_manifest ? '150px' : $cr_width;
                                     }
@@ -83,6 +77,12 @@
                                     @endphp
                                 @else
                                     @php
+                                        if ($fleetType->last_row) {
+                                            $offset = $seat - $fleetType->last_row[$key];
+                                            if ($seatCounter > $offset) {
+                                                continue;
+                                            }
+                                        }
                                         $label = $prefix . $seatCounter;
                                         if (in_array($label, $disabled_seats)) {
                                             $label = "<del>$label</del>";
@@ -100,12 +100,6 @@
                         <div class="center-side">
                             @for ($cs = 1; $cs <= $seatlayout->center; $cs++)
                                 @php
-                                    if ($fleetType->last_row) {
-                                        $offset = $seat - $fleetType->last_row[$key];
-                                        if ($seatCounter > $offset) {
-                                            continue;
-                                        }
-                                    }
                                     $cr_width = '30px';
                                     $cr_width = $from_manifest ? '70px' : $cr_width;
                                     if ($seatlayout->center == 2) {
@@ -130,6 +124,13 @@
                                     @endphp
                                 @else
                                     @php
+
+                                        if ($fleetType->last_row) {
+                                            $offset = $seat - $fleetType->last_row[$key];
+                                            if ($seatCounter > $offset) {
+                                                continue;
+                                            }
+                                        }
                                         $label = $prefix . $seatCounter;
                                         if (in_array($label, $disabled_seats)) {
                                             $label = "<del>$label</del>";
@@ -147,12 +148,6 @@
                         <div class="right-side">
                             @for ($rs = 1; $rs <= $seatlayout->right; $rs++)
                                 @php
-                                    if ($fleetType->last_row) {
-                                        $offset = $seat - $fleetType->last_row[$key];
-                                        if ($seatCounter > $offset) {
-                                            continue;
-                                        }
-                                    }
                                     $cr_width = '30px';
                                     if ($seatlayout->right == 2) {
                                         $cr_width = '70px';
@@ -171,13 +166,19 @@
                                         </div>
                                     @endif
                                     @php
+                                        $has_cr = true;
                                         if (!$fleetType->cr_override_seat) {
                                             $seatCounter--;
                                         }
-                                        $has_cr = true;
                                     @endphp
                                 @else
                                     @php
+                                        if ($fleetType->last_row) {
+                                            $offset = $seat - $fleetType->last_row[$key];
+                                            if ($seatCounter > $offset) {
+                                                continue;
+                                            }
+                                        }
                                         $label = $prefix . $seatCounter;
                                         if (in_array($label, $disabled_seats)) {
                                             $label = "<del>$label</del>";

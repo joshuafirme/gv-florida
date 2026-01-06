@@ -117,6 +117,7 @@ Route::middleware('admin')->group(function () {
             Route::get('/', 'trips')->name('list');
             Route::post('/store/{id?}', 'tripStore')->name('store');
             Route::post('status/{id}', 'tripStatus')->name('status');
+            Route::post('/disable-all', 'disableAll')->name('disableAll');
             Route::get('reservation-slip/{id}', 'reservationSlip')->name('reservationSlip');
             Route::get('manifest-seat-layout/{trip_id}', 'manifestSeatLayout')->name('manifestSeatLayout');
             

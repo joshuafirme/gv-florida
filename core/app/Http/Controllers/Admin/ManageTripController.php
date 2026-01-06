@@ -341,13 +341,33 @@ class ManageTripController extends Controller
         $trip = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo', 'assignedVehicle.vehicle', 'bookedTickets'])
             ->where('status', Status::ENABLE)->where('id', $trip_id)
             ->firstOrFail();
-            
+
         $busLayout = new BusLayout($trip);
 
         return view('admin.pdf.manifest-seat-layout', [
             "trip" => $trip,
             "busLayout" => $busLayout
         ]);
+    }
+
+    public function disableAll()
+    {
+        $trip = Trip::where('status', Status::ENABLE)->update(['status' => Status::DISABLE]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "All trips have been disabled successfully.",
+        ]);
+        // if ($trip) {
+        //     return response()->json([
+        //         'success' => true,
+        //         'message' => "All trips have been disabled successfully.",
+        //     ]);
+        // }
+
+        // return response()->json([
+        //     'message' => "Updating failed.",
+        // ], 500);
     }
 
 

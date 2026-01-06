@@ -16,12 +16,16 @@
                                 <option value="all">@lang('All status')</option>
                                 <option value="1" {{ $status == 1 ? 'selected' : '' }}>@lang('Enabled')
                                 </option>
-                                <option value="0" {{ request()->has('status') && $status == 0 ? 'selected' : '' }}>@lang('Disabled')
+                                <option value="0" {{ request()->has('status') && $status == 0 ? 'selected' : '' }}>
+                                    @lang('Disabled')
                                 </option>
                             </select>
                         </div>
                         <div class="align-self-end">
                             <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> Filter</button>
+                        </div>
+                        <div class="align-self-end">
+                            <a class="btn btn--danger w-100 h-45" id="btn-disable-all">Disable All</a>
                         </div>
                     </div>
                 </form>
@@ -244,4 +248,53 @@
 
     @push('script-lib')
         <script src="{{ asset('assets/admin/js/cu-modal.js?v=' . buildVer()) }}"></script>
+        <script src="{{ asset('assets/global/js/sweetalert2.min.js') }}"></script>
+
+        <script>
+            $(function() {
+                $(document).on('click', '#btn-disable-all', function() {
+                    Swal.fire({
+                        title: 'Please confirm',
+                        html: `Are you sure you want to disable all the trips?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Yes'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+
+                            Swal.fire({
+                                title: 'Please wait...',
+                                html: '',
+                                timerProgressBar: true,
+                                didOpen: () => {
+                                    Swal.showLoading();
+                                }
+                            })
+                            $.ajax({
+                                    type: 'POST',
+                                    url: `{{ route('admin.trip.disableAll') }}`,
+                                    data: {
+                                        '_token': "{{ csrf_token() }}"
+                                    },
+                                })
+                                .done(function(data) {
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: '',
+                                        html: data.message,
+                                    })
+                                    setTimeout(() => {
+                                        location.reload()
+                                    }, 2500);
+                                })
+                                .fail(function() {
+                                    alert("Error occured. Please try again.", 'error');
+                                });
+                        }
+                    })
+                })
+            })
+        </script>
     @endpush
