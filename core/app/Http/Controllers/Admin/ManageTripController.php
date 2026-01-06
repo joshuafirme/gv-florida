@@ -350,13 +350,13 @@ class ManageTripController extends Controller
         ]);
     }
 
-    public function disableAll()
+    public function changeAllStatus(Request $request)
     {
-        $trip = Trip::where('status', Status::ENABLE)->update(['status' => Status::DISABLE]);
+        $trip = Trip::whereNot('status', $request->status)->update(['status' => $request->status]);
 
         return response()->json([
             'success' => true,
-            'message' => "All trips have been disabled successfully.",
+            'message' => "All trips have been updated successfully.",
         ]);
         // if ($trip) {
         //     return response()->json([

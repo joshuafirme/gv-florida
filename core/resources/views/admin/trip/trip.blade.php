@@ -24,6 +24,10 @@
                         <div class="align-self-end">
                             <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> Filter</button>
                         </div>
+
+                        <div class="align-self-end">
+                            <a class="btn btn--success w-100 h-45" id="btn-enable-all">Enable All</a>
+                        </div>
                         <div class="align-self-end">
                             <a class="btn btn--danger w-100 h-45" id="btn-disable-all">Disable All</a>
                         </div>
@@ -253,9 +257,20 @@
         <script>
             $(function() {
                 $(document).on('click', '#btn-disable-all', function() {
+                    changeAllStatus(0)
+                });
+
+
+                $(document).on('click', '#btn-enable-all', function() {
+                    changeAllStatus(1)
+                });
+
+                function changeAllStatus(status) {
+                    let status_txt = 'enable';
+                    status_txt = !status ? 'disable' : status_txt;
                     Swal.fire({
                         title: 'Please confirm',
-                        html: `Are you sure you want to disable all the trips?`,
+                        html: `Are you sure you want to ${status_txt} all the trips?`,
                         icon: 'warning',
                         showCancelButton: true,
                         confirmButtonColor: '#3085d6',
@@ -274,9 +289,10 @@
                             })
                             $.ajax({
                                     type: 'POST',
-                                    url: `{{ route('admin.trip.disableAll') }}`,
+                                    url: `{{ route('admin.trip.changeAllStatus') }}`,
                                     data: {
-                                        '_token': "{{ csrf_token() }}"
+                                        '_token': "{{ csrf_token() }}",
+                                        'status': status
                                     },
                                 })
                                 .done(function(data) {
@@ -294,7 +310,7 @@
                                 });
                         }
                     })
-                })
+                }
             })
         </script>
     @endpush
