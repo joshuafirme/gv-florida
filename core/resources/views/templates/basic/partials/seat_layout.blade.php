@@ -61,7 +61,7 @@
                                         $cr_width = $from_manifest ? '150px' : $cr_width;
                                     }
                                 @endphp
-                                @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + $cr_row_covered) && $fleetType->cr_position == 'Left')
+                                @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + $cr_row_covered) && $fleetType->cr_position == 'Left' && $key == 0)
                                     @if (!$has_cr)
                                         <div>
                                             <span class='seat comfort-room cr-left'
@@ -108,7 +108,7 @@
                                     }
                                 @endphp
                                 {{-- This logic assumes a CR could be positioned in the center --}}
-                                @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + $cr_row_covered) && $fleetType->cr_position == 'Center')
+                                @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + $cr_row_covered) && $fleetType->cr_position == 'Center' && $key == 0)
                                     @if (!$has_cr)
                                         <div>
                                             <span class='seat comfort-room cr-center'
@@ -155,7 +155,7 @@
                                     }
                                 @endphp
 
-                                @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + $cr_row_covered) && $fleetType->cr_position == 'Right')
+                                @if (($row == $fleetType->cr_row || $row == $fleetType->cr_row + $cr_row_covered) && $fleetType->cr_position == 'Right' && $key == 0)
                                     @if (!$has_cr)
                                         <div>
                                             <span class='seat comfort-room cr-right'
