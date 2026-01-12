@@ -72,7 +72,35 @@ class VehicleTicketController extends Controller
         $pageTitle = "All Ticket Price";
         $fleetTypes = FleetType::active()->get();
         $routes = VehicleRoute::active()->get();
-        $prices = TicketPrice::with(['fleetType', 'route'])->orderBy('id', 'desc')->paginate(getPaginate());
+        $query = TicketPrice::with(['fleetType', 'route.startFrom']);
+
+        $searchTerm = request('search');
+
+        if (!empty($searchTerm)) {
+            $query->where(function ($q) use ($searchTerm) {
+
+                // Search route start location
+                $q->whereHas('route.startFrom', function ($q) use ($searchTerm) {
+                    $q->where('name', 'LIKE', "%{$searchTerm}%");
+                });
+
+                // OPTIONAL: search route end location
+                $q->orWhereHas('route.endTo', function ($q) use ($searchTerm) {
+                    $q->where('name', 'LIKE', "%{$searchTerm}%");
+                });
+
+                // OPTIONAL: search fleet type
+                $q->orWhereHas('fleetType', function ($q) use ($searchTerm) {
+                    $q->where('name', 'LIKE', "%{$searchTerm}%");
+                });
+
+            });
+        }
+
+        $prices = $query
+            ->orderByDesc('id')
+            ->paginate(getPaginate());
+
         return view('admin.trip.ticket.price_list', compact('pageTitle', 'prices', 'fleetTypes', 'routes'));
     }
 

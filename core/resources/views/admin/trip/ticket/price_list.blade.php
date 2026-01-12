@@ -22,11 +22,16 @@
                                         <td>{{ __(showAmount($item->price)) }}</td>
                                         <td>
                                             <div class="button--group">
-                                                <a href="{{ route('admin.trip.ticket.price.edit', $item->id) }}" class="btn btn-sm btn-outline--primary">
+                                                <a href="{{ route('admin.trip.ticket.price.edit', $item->id) }}"
+                                                    class="btn btn-sm btn-outline--primary">
                                                     <i class="la la-pencil"></i>@lang('Edit')
                                                 </a>
 
-                                                <button type="button" class="btn btn-sm btn-outline--danger confirmationBtn" data-question="@lang('Are you sure to remove price list?')" data-action="{{ route('admin.trip.ticket.price.delete', $item->id) }}"><i class="la la-trash"></i>@lang('Remove')
+                                                <button type="button"
+                                                    class="btn btn-sm btn-outline--danger confirmationBtn"
+                                                    data-question="@lang('Are you sure to remove price list?')"
+                                                    data-action="{{ route('admin.trip.ticket.price.delete', $item->id) }}"><i
+                                                        class="la la-trash"></i>@lang('Remove')
                                                 </button>
 
                                             </div>
@@ -57,4 +62,5 @@
     <a href="{{ route('admin.trip.ticket.price.create') }}" class="btn btn-sm btn-outline--primary">
         <i class="las la-plus"></i> @lang('Add New')
     </a>
+    <x-search-form placeholder="Search..." />
 @endpush

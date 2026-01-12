@@ -22,9 +22,9 @@ class ManageTripController extends Controller
     {
         $pageTitle = 'All Routes';
         $routes = VehicleRoute::searchable(['name'])->with(['startFrom', 'endTo']);
-        if (request('status') != 'all') {
-            $routes->where('status', request('status'));
-        }
+        // if (request('status') != 'all') {
+        //     $routes->where('status', request('status'));
+        // }
         $routes = $routes->orderBy('id', 'desc')->paginate(getPaginate());
         $stoppages = Counter::active()->get();
         return view('admin.trip.route.list', compact('pageTitle', 'routes', 'stoppages'));

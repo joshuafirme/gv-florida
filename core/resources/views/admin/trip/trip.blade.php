@@ -42,9 +42,11 @@
                                 <tr>
                                     <th>@lang('Title')</th>
                                     <th>@lang('Destination')</th>
+                                    <th>@lang('Stoppages')</th>
                                     <th>@lang('AC / Non-AC')</th>
                                     <th>@lang('Fleet Type')</th>
                                     <th>@lang('Day Off')</th>
+                                    <th>@lang('Schedule')</th>
                                     <th>@lang('Trip Status')</th>
                                     <th>@lang('Status')</th>
                                     <th>@lang('Action')</th>
@@ -55,6 +57,16 @@
                                     <tr>
                                         <td>{{ __($item->title) }}</td>
                                         <td>{{ $item->route->startFrom->city }} → {{ $item->route->endTo->city }}</td>
+                                        <td>
+                                            @php
+                                                $stoppageArr = $item->route->stoppages;
+                                                $stoppages = App\Models\Counter::routeStoppages($stoppageArr);
+                                                $stoppages = $stoppages->slice(1, -1);
+                                            @endphp
+                                            @foreach ($stoppages as  $stoppage)
+                                                <div>{{  $stoppage->name }}</div>
+                                            @endforeach
+                                        </td>
                                         <td>{{ __($item->fleetType->has_ac == Status::ENABLE ? 'AC' : 'Non-Ac') }}</td>
 
                                         <td>{{ __($item->fleetType->name) }}</td>
@@ -69,7 +81,8 @@
                                                 @lang('No Off Day')
                                             @endif
                                         </td>
-
+                                        <td>{{ showDateTime($item->schedule->start_from, 'h:i A') }} -
+                                            {{ showDateTime($item->schedule->end_at, 'h:i A') }}</td>
                                         <td>@php echo decodeSlug($item->trip_status); @endphp </td>
                                         <td>@php echo $item->statusBadge; @endphp </td>
                                         <td>

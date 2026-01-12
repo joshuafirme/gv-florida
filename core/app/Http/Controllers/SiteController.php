@@ -208,7 +208,7 @@ class SiteController extends Controller
     public function showSeat(Request $request, $id)
     {
         $trip = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo', 'assignedVehicle.vehicle', 'bookedTickets'])->where('status', Status::ENABLE)->where('id', $id)->firstOrFail();
-        $pageTitle = $trip->title;
+        $pageTitle = $trip->route->name;
         $route = $trip->route;
         $stoppageArr = $trip->route->stoppages;
         $stoppages = Counter::routeStoppages($stoppageArr);

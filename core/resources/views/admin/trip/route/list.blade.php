@@ -12,7 +12,7 @@
                             <option value="0" {{ request('status') == 0 ? 'selected' : '' }}>@lang('Disabled')</option>
                         </select>
                     </div>
-                    <div class="align-self-end">
+                    <di56v class="align-self-end">
                         <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> Filter</button>
                     </div>
                 </div>
