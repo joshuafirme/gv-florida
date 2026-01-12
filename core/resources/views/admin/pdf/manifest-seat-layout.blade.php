@@ -160,7 +160,7 @@
 
         <hr style="margin:20px 0;">
 
-        <h3>Manifest</h3>
+        <h5>Manifest ({{ $trip->route->name }})</h5>
 
         @include('templates.basic.partials.seat_layout', ['fleetType' => $trip->fleetType, 'from_manifest' => true])
 
