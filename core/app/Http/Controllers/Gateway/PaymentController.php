@@ -108,6 +108,7 @@ class PaymentController extends Controller
         $deposit->expiry_limit = date('Y-m-d H:i:s', strtotime(date('Y-m-d H:i:s') . ' + 1 hour'));
         $deposit->success_url = urlPath('user.ticket.history');
         $deposit->failed_url = urlPath('ticket');
+        $deposit->final_amount = $finalAmount;
         $deposit->save();
 
         if ($discount_id) {

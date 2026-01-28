@@ -722,7 +722,7 @@ function frontendImage($sectionName, $image, $size = null, $seo = false)
 
 function getCRHeight($row_covered)
 {
-    $height = ($row_covered == 2) ? '85px' : '40px';
+    $height = ($row_covered == 2) ? '95px' : '40px';
     $height = ($row_covered == 3) ? '130px' : $height;
     return $height;
 }
