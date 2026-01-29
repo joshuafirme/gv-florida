@@ -39,7 +39,8 @@
                                             </option>
                                         @endforeach
                                     </select> --}}
-                                    <input type="hidden" name="pickup_point" id="pickup_point" value="{{ $trip->startFrom->id }}">
+                                    <input type="hidden" name="pickup_point" id="pickup_point"
+                                        value="{{ $trip->startFrom->id }}">
 
                                     <h5>{{ $trip->startFrom->name }}</h5>
                                 </div>
@@ -50,7 +51,8 @@
                                     {{-- <select name="dropping_point" id="dropping_point" class="form--control select2">
                                         <option value="">@lang('Select One')</option>
                                     </select> --}}
-                                    <input type="hidden" name="dropping_point" id="dropping_point" value="{{ $trip->endto->id }}">
+                                    <input type="hidden" name="dropping_point" id="dropping_point"
+                                        value="{{ $trip->endto->id }}">
                                     <h5>{{ $trip->endto->name }}</h5>
                                 </div>
                             </div>
@@ -350,6 +352,7 @@
                         "source_id": sourceId,
                         "destination_id": destinationId,
                         "date": date,
+                        "start_from_time": '{{ $trip->schedule->start_from }}'
                     }
                     $.ajax({
                         type: "get",
@@ -436,51 +439,70 @@
                                         bookedDestination = stoppages.indexOf(bookedDestination
                                             .toString());
 
-
-                                        if (reqDestination <= bookedSource || reqSource >=
-                                            bookedDestination) {
-                                            $.each(v.seats, function(index, val) {
-                                                if (v.gender == 1) {
-                                                    $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                        .parent().removeClass(
-                                                            'seat-condition selected-by-gents disabled'
-                                                        );
-                                                }
-                                                if (v.gender == 2) {
-                                                    $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                        .parent().removeClass(
-                                                            'seat-condition selected-by-ladies disabled'
-                                                        );
-                                                }
-                                                if (v.gender == 3) {
-                                                    $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                        .parent().removeClass(
-                                                            'seat-condition selected-by-others disabled'
-                                                        );
-                                                }
-                                            });
-                                        } else {
-                                            $.each(v.seats, function(index, val) {
-                                                if (v.gender == 1) {
-                                                    $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                        .parent().addClass(
-                                                            'seat-condition selected-by-gents disabled'
-                                                        );
-                                                }
-                                                if (v.gender == 2) {
-                                                    $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                        .parent().addClass(
-                                                            'seat-condition selected-by-ladies disabled'
-                                                        );
-                                                }
-                                                if (v.gender == 3) {
-                                                    $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                        .parent().addClass(
-                                                            'seat-condition selected-by-others disabled'
-                                                        );
-                                                }
-                                            });
-                                        }
+                                        $.each(v.seats, function(index, val) {
+                                            if (v.gender == 1) {
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().addClass(
+                                                        'seat-condition selected-by-gents disabled'
+                                                    );
+                                            }
+                                            if (v.gender == 2) {
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().addClass(
+                                                        'seat-condition selected-by-ladies disabled'
+                                                    );
+                                            }
+                                            if (v.gender == 3) {
+                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                                    .parent().addClass(
+                                                        'seat-condition selected-by-others disabled'
+                                                    );
+                                            }
+                                        });
+                                        // if (reqDestination <= bookedSource || reqSource >=
+                                        //     bookedDestination) {
+                                        //     $.each(v.seats, function(index, val) {
+                                        //         if (v.gender == 1) {
+                                        //             $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                        //                 .parent().removeClass(
+                                        //                     'seat-condition selected-by-gents disabled'
+                                        //                 );
+                                        //         }
+                                        //         if (v.gender == 2) {
+                                        //             $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                        //                 .parent().removeClass(
+                                        //                     'seat-condition selected-by-ladies disabled'
+                                        //                 );
+                                        //         }
+                                        //         if (v.gender == 3) {
+                                        //             $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                        //                 .parent().removeClass(
+                                        //                     'seat-condition selected-by-others disabled'
+                                        //                 );
+                                        //         }
+                                        //     });
+                                        // } else {
+                                        //     $.each(v.seats, function(index, val) {
+                                        //         if (v.gender == 1) {
+                                        //             $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                        //                 .parent().addClass(
+                                        //                     'seat-condition selected-by-gents disabled'
+                                        //                 );
+                                        //         }
+                                        //         if (v.gender == 2) {
+                                        //             $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                        //                 .parent().addClass(
+                                        //                     'seat-condition selected-by-ladies disabled'
+                                        //                 );
+                                        //         }
+                                        //         if (v.gender == 3) {
+                                        //             $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                        //                 .parent().addClass(
+                                        //                     'seat-condition selected-by-others disabled'
+                                        //                 );
+                                        //         }
+                                        //     });
+                                        // }
                                     });
                                 }
 

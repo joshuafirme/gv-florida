@@ -162,7 +162,10 @@
 
         <h5>Manifest ({{ $trip->route->name }})</h5>
 
-        @include('templates.basic.partials.seat_layout', ['fleetType' => $trip->fleetType, 'from_manifest' => true])
+        @include('templates.basic.partials.seat_layout', [
+            'fleetType' => $trip->fleetType,
+            'from_manifest' => true,
+        ])
 
     </div>
 
@@ -220,6 +223,7 @@
                 "source_id": sourceId,
                 "destination_id": destinationId,
                 "date": date,
+                "start_from_time": '{{ $trip->schedule->start_from }}'
             }
             $.ajax({
                 type: "get",
@@ -310,24 +314,30 @@
                                 if (reqDestination <= bookedSource || reqSource >=
                                     bookedDestination) {
                                     $.each(v.seats, function(index, val) {
-                                        if (v.gender == 1) {
-                                            $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                .parent().removeClass(
-                                                    'seat-condition selected-by-gents disabled'
-                                                );
-                                        }
-                                        if (v.gender == 2) {
-                                            $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                .parent().removeClass(
-                                                    'seat-condition selected-by-ladies disabled'
-                                                );
-                                        }
-                                        if (v.gender == 3) {
-                                            $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                .parent().removeClass(
-                                                    'seat-condition selected-by-others disabled'
-                                                );
-                                        }
+                                        $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                            .parent().addClass(
+                                                'seat-condition selected-by-gents disabled'
+                                            );
+                                        $(`.seat-wrapper .seat[data-seat="${val}"]`).text(
+                                            `${val} Occupied`);
+                                        // if (v.gender == 1) {
+                                        //     $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                        //         .parent().removeClass(
+                                        //             'seat-condition selected-by-gents disabled'
+                                        //         );
+                                        // }
+                                        // if (v.gender == 2) {
+                                        //     $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                        //         .parent().removeClass(
+                                        //             'seat-condition selected-by-ladies disabled'
+                                        //         );
+                                        // }
+                                        // if (v.gender == 3) {
+                                        //     $(`.seat-wrapper .seat[data-seat="${val}"]`)
+                                        //         .parent().removeClass(
+                                        //             'seat-condition selected-by-others disabled'
+                                        //         );
+                                        // }
                                     });
                                 } else {
                                     $.each(v.seats, function(index, val) {

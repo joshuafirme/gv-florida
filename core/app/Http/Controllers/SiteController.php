@@ -231,7 +231,32 @@ class SiteController extends Controller
         $sourcePos = array_search($request->source_id, $stoppages);
         $destinationPos = array_search($request->destination_id, $stoppages);
 
-        $bookedTicket = BookedTicket::where('trip_id', $request->trip_id)->where('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])->get()->toArray();
+        $bookedTicket = BookedTicket::whereIn('status', [
+            Status::BOOKED_APPROVED,
+            Status::BOOKED_PENDING
+        ])
+            ->where('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
+
+            // Filter BookedTicket by Trip + Schedule conditions
+            ->whereHas('trip', function ($query) use ($request) {
+
+                $query->where('fleet_type_id', $request->fleet_type_id)
+                    ->where('start_from', $request->source_id)
+
+                    // Filter by schedule start_from_time
+                    ->whereHas('schedule', function ($q) use ($request) {
+                        $q->where('start_from', $request->start_from_time);
+                    });
+            })
+
+            // Eager load relationships properly
+            ->with([
+                'trip.schedule' => function ($q) use ($request) {
+                    $q->where('start_from', $request->start_from_time);
+                }
+            ])
+            ->get()
+            ->toArray();
 
         $startPoint = array_search($trip->start_from, array_values($trip->route->stoppages));
         $endPoint = array_search($trip->end_to, array_values($trip->route->stoppages));
