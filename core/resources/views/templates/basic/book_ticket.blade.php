@@ -19,7 +19,7 @@
                             @csrf
                             <input type="hidden" name="kiosk_id" value="{{ request('kiosk_id') }}" hidden>
                             <input type="text" name="price" hidden>
-                            <div class="col-12">
+                            <div class="col-12 mb-2">
                                 <div class="form-group">
                                     <label for="date_of_journey" class="form-label">@lang('Journey Date')</label>
                                     <input type="text" id="date_of_journey" class="form--control date-range"
@@ -27,7 +27,13 @@
                                         name="date_of_journey">
                                 </div>
                             </div>
-                            <div class="col-12">
+                            <div class="col-12 mb-2">
+                                <div class="form-group">
+                                    <label for="date_of_journey" class="form-label">@lang('Departure Time')</label>
+                                    <h5>{{ date('h:i A', strtotime($trip->schedule->start_from)) }}</h5>
+                                </div>
+                            </div>
+                            <div class="col-12 mb-2">
                                 <div class="form-group">
                                     <label for="pickup_point" class="form-label">@lang('Pickup Point')</label>
                                     {{-- <select name="pickup_point" id="pickup_point" class="form--control select2">
@@ -45,7 +51,7 @@
                                     <h5>{{ $trip->startFrom->name }}</h5>
                                 </div>
                             </div>
-                            <div class="col-12">
+                            <div class="col-12 mb-2">
                                 <div class="form-group">
                                     <label for="dropping_point" class="form-label">@lang('Dropping Point')</label>
                                     {{-- <select name="dropping_point" id="dropping_point" class="form--control select2">
