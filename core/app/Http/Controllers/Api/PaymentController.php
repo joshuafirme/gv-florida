@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Gateway\PaymentController as GatewayPaymentController;
 use App\Models\Deposit;
 use App\Models\GatewayCurrency;
+use Http;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Models\AdminNotification;
@@ -24,7 +25,7 @@ class PaymentController extends Controller
             'message' => ['success' => $notify],
             'data' => [
                 'methods' => $gatewayCurrency,
-                'image_path'=>getFilePath('gateway')
+                'image_path' => getFilePath('gateway')
             ],
         ]);
     }
@@ -39,9 +40,9 @@ class PaymentController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'remark'=>'validation_error',
-                'status'=>'error',
-                'message'=>['error'=>$validator->errors()->all()],
+                'remark' => 'validation_error',
+                'status' => 'error',
+                'message' => ['error' => $validator->errors()->all()],
             ]);
         }
 
@@ -53,18 +54,18 @@ class PaymentController extends Controller
         if (!$gate) {
             $notify[] = 'Invalid gateway';
             return response()->json([
-                'remark'=>'validation_error',
-                'status'=>'error',
-                'message'=>['error'=>$notify],
+                'remark' => 'validation_error',
+                'status' => 'error',
+                'message' => ['error' => $notify],
             ]);
         }
 
         if ($gate->min_amount > $request->amount || $gate->max_amount < $request->amount) {
-            $notify[] =  'Please follow deposit limit';
+            $notify[] = 'Please follow deposit limit';
             return response()->json([
-                'remark'=>'validation_error',
-                'status'=>'error',
-                'message'=>['error'=>$notify],
+                'remark' => 'validation_error',
+                'status' => 'error',
+                'message' => ['error' => $notify],
             ]);
         }
 
@@ -88,15 +89,29 @@ class PaymentController extends Controller
         $data->trx = getTrx();
         $data->save();
 
-        $notify[] =  'Deposit inserted';
+        $notify[] = 'Deposit inserted';
         return response()->json([
-            'remark'=>'deposit_inserted',
-            'status'=>'success',
-            'message'=>['success'=>$notify],
-            'data'=>[
+            'remark' => 'deposit_inserted',
+            'status' => 'success',
+            'message' => ['success' => $notify],
+            'data' => [
                 'deposit' => $data,
                 'redirect_url' => route('deposit.app.confirm', encrypt($data->id))
             ]
         ]);
+    }
+
+    public function getIp()
+    {
+        $apiKey = env("COINS_API_KEY");
+        $baseUrl = env("COINS_BASE_URL");
+
+        $response = Http::withHeaders([
+            "X-COINS-APIKEY" => $apiKey,
+        ])->asForm()->get(
+                $baseUrl . "/openapi/v1/user/ip"
+            );
+
+        return $response->json();
     }
 }

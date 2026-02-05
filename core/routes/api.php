@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Gateway\Paynamics\ProcessController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,8 @@ function get_client_ip()
         $ipaddress = 'UNKNOWN';
     return $ipaddress;
 }
+
+Route::get('get-ip', [PaymentController::class, 'getIp']);
 
 Route::
         namespace('Api')->name('api.')->group(function () {
