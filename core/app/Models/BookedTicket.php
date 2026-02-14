@@ -20,6 +20,11 @@ class BookedTicket extends Model
         return $this->hasOne(Deposit::class);
     }
 
+    public function approvedBy()
+    {
+        return $this->hasOne(Admin::class, 'id', 'approved_by');
+    }
+
     public function kiosk()
     {
         return $this->hasOne(Kiosk::class, 'id', 'kiosk_id');

@@ -16,6 +16,7 @@
                                 <tr>
                                     <th>@lang('Gateway | Transaction')</th>
                                     <th>@lang('Initiated')</th>
+                                    <th>@lang('PNR')</th>
                                     <th>@lang('User')</th>
                                     <th>@lang('Amount')</th>
                                     <th>@lang('Conversion')</th>
@@ -45,12 +46,13 @@
                                                 </a>
                                             </span>
                                             <br>
-                                            <small> {{ $deposit->trx }} </small>
+                                        <small> {{ $deposit->trx }} </small>
                                         </td>
 
                                         <td>
                                             {{ showDateTime($deposit->created_at) }}<br>{{ diffForHumans($deposit->created_at) }}
                                         </td>
+                                        <td>{{ $deposit->bookedTicket->pnr_number }}</td>
                                         <td>
                                             @if ($deposit->user)
                                                 <span class="fw-bold">{{ $deposit->user->fullname }}</span>
@@ -109,5 +111,5 @@
 @endsection
 
 @push('breadcrumb-plugins')
-    <x-search-form dateSearch='yes' placeholder='Username / TRX' />
+    <x-search-form dateSearch='yes' placeholder='PNR / Username / TRX' />
 @endpush

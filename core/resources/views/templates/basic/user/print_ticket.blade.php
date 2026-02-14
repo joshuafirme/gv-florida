@@ -173,13 +173,13 @@
 
                 <div class="qr">
                     @php
-                        $url = route('admin.vehicle.ticket.search', [
-                            'scope' => 'list',
-                            'search' => $ticket->pnr_number,
-                        ]);
+                        // $url = route('admin.vehicle.ticket.search', [
+                        //     'scope' => 'list',
+                        //     'search' => $ticket->pnr_number,
+                        // ]);
 
                         // Generate QR as SVG (no Imagick required)
-                        $qr = base64_encode(QrCode::format('svg')->size(130)->generate($url));
+                        $qr = base64_encode(QrCode::format('svg')->size(130)->generate($ticket->pnr_number));
                     @endphp
                     <img src="data:image/svg+xml;base64,{{ $qr }}" width="130" height="130"
                         alt="QR Code">

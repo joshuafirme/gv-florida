@@ -355,6 +355,11 @@ function decodeSlug($str, $delimiter = '_', $uppercase = false)
     return $output;
 }
 
+function readPaymentChannel($pcode)
+{
+    $res = decodeSlug($pcode);
+    return strtoupper($res);
+}
 
 function getPaginate($paginate = null)
 {

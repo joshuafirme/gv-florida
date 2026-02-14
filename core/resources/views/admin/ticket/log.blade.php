@@ -13,11 +13,10 @@
                                     <th>@lang('PNR Number')</th>
                                     <th>@lang('Journey Date')</th>
                                     <th>@lang('Trip')</th>
-                                    <th>@lang('Pickup Point')</th>
-                                    <th>@lang('Dropping Point')</th>
-                                    <th>@lang('Status')</th>
-                                    <th>@lang('Ticket Count')</th>
                                     <th>@lang('Fare')</th>
+                                    <th>@lang('Booking Source')</th>
+                                    <th>@lang('Payment Method')</th>
+                                    <th>@lang('Processed By')</th>
                                     <th>@lang('Action')</th>
                                 </tr>
                             </thead>
@@ -37,24 +36,7 @@
                                             @endif
                                         </td>
                                         <td data-label="@lang('PNR Number')">
-                                            <span class="text-muted">{{ __($item->pnr_number) }}</span>
-                                        </td>
-                                        <td data-label="@lang('Journey Date')">
-                                            {{ __(showDateTime($item->date_of_journey, 'd M, Y')) }}
-                                        </td>
-                                        <td data-label="@lang('Trip')">
-                                            <span class="font-weight-bold">{{ __($item->trip->fleetType->name) }}</span>
-                                            <br>
-                                            <span class="font-weight-bold"> {{ __($item->trip->startFrom->name) }} -
-                                                {{ __($item->trip->endTo->name) }}</span>
-                                        </td>
-                                        <td data-label="@lang('Pickup Point')">
-                                            {{ __($item->pickup->name) }}
-                                        </td>
-                                        <td data-label="@lang('Dropping Point')">
-                                            {{ __($item->drop->name) }}
-                                        </td>
-                                        <td data-label="@lang('Status')">
+                                            <div><span class="text-muted">{{ __($item->pnr_number) }}</span></div>
                                             @if ($item->status == 1)
                                                 <span
                                                     class="badge badge--success font-weight-normal text--samll">@lang('Booked')</span>
@@ -66,15 +48,41 @@
                                                     class="badge badge--danger font-weight-normal text--samll">@lang('Rejected')</span>
                                             @endif
                                         </td>
-                                        <td data-label="@lang('Ticket Count')">
-                                            {{ $item->seats ? __(sizeof($item->seats)) : '' }}
+                                        <td data-label="@lang('Journey Date')">
+                                            {{ __(showDateTime($item->date_of_journey, 'd M, Y')) }}
+                                        </td>
+                                        <td data-label="@lang('Trip')">
+                                            <span class="font-weight-bold">{{ __($item->trip->fleetType->name) }}</span>
+                                            <br>
+                                            <span class="font-weight-bold"> {{ __($item->trip->startFrom->name) }} -
+                                                {{ __($item->trip->endTo->name) }}</span>
                                         </td>
                                         <td data-label="@lang('Fare')">
                                             {{ __(showAmount($item->sub_total)) }}
+                                            <div>Ticket Count: {{ $item->seats ? __(sizeof($item->seats)) : '' }}</div>
+                                        </td>
+                                        <td>{{ $item->kiosk_id ? $item->kiosk->name : 'Online' }}</td>
+                                        <td>
+                                            @if ($item->deposit && $item->deposit->pchannel)
+                                                {{ readPaymentChannel($item->deposit->pchannel) }}
+                                            @elseif($item->deposit)
+                                                {{ $item->deposit->gatewayCurrency()->name }}
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($item->approved_by)
+                                                {{ $item->approvedBy->name }}
+                                            @elseif ($item->kiosk_id)
+                                                {{ $item->kiosk->name }}
+                                            @elseif ($item->deposit->pchannel)
+                                                Paynamics
+                                            @endif
                                         </td>
                                         <td>
                                             @if ($item->status == Status::BOOKED_APPROVED)
-                                                <a data-bs-toggle="tooltip" data-bs-placement="bottom" title="Reservation slip" target="_blank" href="{{ route('admin.trip.reservationSlip', $item->id) }}"
+                                                <a data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                    title="Reservation slip" target="_blank"
+                                                    href="{{ route('admin.trip.reservationSlip', $item->id) }}"
                                                     class="btn btn-sm btn-outline--primary ms-1">
                                                     <i class="fa-solid fa-receipt"></i>
                                                 </a>

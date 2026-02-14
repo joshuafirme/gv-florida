@@ -3,6 +3,8 @@
          const resultContainer = document.getElementById('result');
          let lastScanTime = 0;
          const scanCooldown = 3000; // Cooldown in milliseconds (3 seconds)
+         let search = $('input[name="search"]');
+         search.focus()
 
          // This function is called when a QR code is successfully scanned
          function onScanSuccess(decodedText, decodedResult) {
@@ -18,8 +20,11 @@
              resultContainer.className = '';
 
              // Send the decoded text to the Laravel backend using fetch API
-             window.location.href = decodedText;
+             // window.location.href = decodedText;
              console.log('open decodedText', decodedText)
+             search.focus()
+             search.val(decodedText)
+             search.parent().parent().submit()
          }
 
          // This function is called when a scan fails (e.g., no QR code found)

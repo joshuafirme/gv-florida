@@ -73,7 +73,7 @@ class DepositController extends Controller
             $deposits = $deposits->where('user_id', $userId);
         }
 
-        $deposits = $deposits->searchable(['trx', 'user:username'])->dateFilter();
+        $deposits = $deposits->searchable(['trx', 'user:username', 'bookedTicket:pnr_number'])->dateFilter();
 
         $request = request();
 
@@ -128,7 +128,8 @@ class DepositController extends Controller
     public function approve($id)
     {
         $deposit = Deposit::where('id', $id)->where('status', Status::PAYMENT_PENDING)->firstOrFail();
-
+        $deposit->bookedTicket->approved_by = auth()->id();
+        $deposit->bookedTicket->save();
         PaymentController::userDataUpdate($deposit, true);
 
         $notify[] = ['success', 'Deposit request approved successfully'];
