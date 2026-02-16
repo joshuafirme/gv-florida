@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Lib\GoogleAuthenticator;
 use App\Models\Admin;
 use App\Models\BookedTicket;
+use App\Models\Deposit;
 use App\Models\DeviceToken;
 use App\Models\NotificationLog;
 use App\Models\Transaction;
@@ -16,6 +17,7 @@ use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Http\Controllers\Gateway\PaymentController;
 
 class UserController extends Controller
 {
@@ -38,7 +40,6 @@ class UserController extends Controller
     {
         $ticket = BookedTicket::findOrFail($id);
 
-        // 2️⃣ Generate PDF using DOMPDF
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true,
             'defaultFont' => 'DejaVu Sans',
@@ -49,27 +50,37 @@ class UserController extends Controller
                     'pageTitle' => "Reservation Slip"
                 ]);
 
-        // 3️⃣ Set custom paper size for thermal printing
         $pdf->setPaper([0, 0, 114, 600], 'portrait');
 
-        // 4️⃣ Save PDF temporarily (optional, useful for QZ Tray)
         $path = "app/public/tickets/reservation-slip-{$ticket->id}.pdf";
         $pdfPath = storage_path($path);
-
 
         if (!file_exists(dirname($pdfPath))) {
             mkdir(dirname($pdfPath), 0755, true);
         }
-        // fileUploader($request->image,$path)
+
         $pdf->save($pdfPath);
 
-        // 5️⃣ Return the PDF file for inline viewing / fetch
+        $this->approve($ticket->deposit->id);
+
         $base = env('APP_URL') . "core/storage/";
 
         return response()->json([
             'success' => true,
             'file_url' => "$base$path"
         ]);
+    }
+
+    public function approve($id)
+    {
+        $deposit = Deposit::where('id', $id)->where('status', Status::PAYMENT_PENDING)->firstOrFail();
+        $deposit->bookedTicket->approved_by = auth()->id();
+        $deposit->bookedTicket->save();
+        PaymentController::userDataUpdate($deposit, true);
+
+        $notify[] = ['success', 'Deposit request approved successfully'];
+
+        return to_route('admin.deposit.pending')->withNotify($notify);
     }
 
     public function userDataSubmit(Request $request)

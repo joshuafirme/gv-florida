@@ -38,7 +38,7 @@
         }
 
         .terms {
-            font-size: 8px;
+            font-size: 7px;
             line-height: 1.3em;
         }
 

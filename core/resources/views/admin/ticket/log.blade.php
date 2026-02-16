@@ -74,7 +74,7 @@
                                                 {{ $item->approvedBy->name }}
                                             @elseif ($item->kiosk_id)
                                                 {{ $item->kiosk->name }}
-                                            @elseif ($item->deposit->pchannel)
+                                            @elseif ($item->deposit && $item->deposit->pchannel)
                                                 Paynamics
                                             @endif
                                         </td>

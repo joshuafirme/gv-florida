@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\BookedTicketController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Gateway\Paynamics\ProcessController;
 use Illuminate\Support\Facades\Route;
@@ -44,6 +45,9 @@ Route::
             Route::post('auth-admin-passcode', 'UserController@authAdminPasscode');
             Route::post('paynamics/notification', [ProcessController::class, 'notification'])->name('paynamics.notification');
             Route::get('ticket/download/reservation-slip/{id}', 'UserController@reservationSlip')->name('reservationSlip');
+
+            Route::post('ticket/update-expired', [BookedTicketController::class, 'updateExpiredTicket'])->name('ticket.updateExpiredTicket');
+            
 
             Route::get('qz/sign', function () {
                 $toSign = request()->input('data');

@@ -297,7 +297,9 @@ class PaymentController extends Controller
         $notify[] = ['success', 'You have deposit request has been taken'];
 
         if ($bookedTicket->kiosk_id) {
-            return to_route('user.ticket.print', $bookedTicket->id)->withNotify($notify);
+            return view('Template::user.print_ticket_kiosk', ['ticket' => $bookedTicket, 'pageTitle' => 'print']);
+            //     return to_route('user.ticket.print', $bookedTicket->id)->withNotify($notify);
+
         }
 
         return to_route('user.ticket.history')->withNotify($notify);
