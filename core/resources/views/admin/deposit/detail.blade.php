@@ -194,12 +194,12 @@
 
 @push('script')
     <script src="
-    https://cdn.jsdelivr.net/npm/qz-tray@2.2.5/qz-tray.min.js
-    "></script>
+        https://cdn.jsdelivr.net/npm/qz-tray@2.2.5/qz-tray.min.js
+        "></script>
     <script>
         $(document).ready(function() {
 
-            const BASE_URL = "{{ url('/') }}/"; 
+            const BASE_URL = "{{ url('/') }}/";
 
 
             function printPDF(id) {
@@ -286,30 +286,28 @@
             qz.security.setCertificatePromise(function(resolve, reject) {
 
                 resolve(`-----BEGIN CERTIFICATE-----
-MIIEATCCAumgAwIBAgIUaehgUoqVlOwY1sOtoDJcZBhMccUwDQYJKoZIhvcNAQEL
-BQAwgY8xCzAJBgNVBAYTAlBIMRIwEAYDVQQIDAlCYXRhbmdhcyAxEDAOBgNVBAcM
-B05hc3VnYnUxDzANBgNVBAoMBk1ha29wYTEPMA0GA1UECwwGTWFrb3BhMQ0wCwYD
-VQQDDARqb3NoMSkwJwYJKoZIhvcNAQkBFhpqb3NodWEuZmlybWVAbWFrb3BhLm9u
-bGluZTAeFw0yNjAyMTYwMTEyMjRaFw0zNjAyMTQwMTEyMjRaMIGPMQswCQYDVQQG
-EwJQSDESMBAGA1UECAwJQmF0YW5nYXMgMRAwDgYDVQQHDAdOYXN1Z2J1MQ8wDQYD
-VQQKDAZNYWtvcGExDzANBgNVBAsMBk1ha29wYTENMAsGA1UEAwwEam9zaDEpMCcG
-CSqGSIb3DQEJARYaam9zaHVhLmZpcm1lQG1ha29wYS5vbmxpbmUwggEiMA0GCSqG
-SIb3DQEBAQUAA4IBDwAwggEKAoIBAQDhzg/PfB/ilOHk/HdQQoE2NMHbX0VEQ8lT
-3iCeyRA6TXGsmAuMyBa1XnrIUJ8lHZc4oG7LgfpdQ+V3AJ++tR3G5p+dSjM5XMCh
-jiyXy5knrYUWUJpmYFFfBMBLWzGgxMkKdcC7THwXEK8BObVSU+AYVhZ9UsLJOFwr
-PgzMqs/Zv7wm3JrvYyQF4b0ODcvHBa75LjcllWeGqs9NmaJPYCm2VfCusIolQY3D
-qV5w8Hb2DKrLYEXSI+P4zN5sKqO39KMn7+6svK+k39paG5P39SRp1tUj6M1P/sDH
-QKwk9KWPsp5iias8n9JMwncFluBGxHe52fujp4B8pmnobJXl+oUxAgMBAAGjUzBR
-MB0GA1UdDgQWBBRyMFkEVRmg+s3sdnpm0m3uUw0gGDAfBgNVHSMEGDAWgBRyMFkE
-VRmg+s3sdnpm0m3uUw0gGDAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUA
-A4IBAQDTosUKW8GR2kBMEgYuNyagMEaPPA8d9CUWoCch41liMJnv3khNt+6cf+r2
-SfCUjy0YtL7oVQQINxOBuL9aYWvlIoECAlAWgNCnmNySyr5nWYnWhYa2Q/NaFhuv
-ZRMvET41VS/jx255rZt2Jrr+3rzdHawM01SfjfCZ98e2Cp1owEWlNODZ4ItKTJUR
-EwUJwuQN1iX/dxVovyU0MaxHglbUYIxPepmM6gtcWgk24U5szFTQJnH6S54vSRqH
-LNQTDnxq50QxG2FkAaQt2aMTrU6u1K2guWFl0CjUbB9dYTbp6SIR/o7dTY/QMKR4
-hWspD7WtHj4IhjW/ioyWt9PkQune
------END CERTIFICATE-----
-`);
+MIIDxzCCAq+gAwIBAgIUL+1ANo6tvEBOu/vVHSeJaCPfUL4wDQYJKoZIhvcNAQEL
+BQAwgYsxCzAJBgNVBAYTAlBIMREwDwYDVQQIDAhCYXRhbmdhczEQMA4GA1UEBwwH
+TmFzdWdidTESMBAGA1UECgwJR1ZGTE9SSURBMQswCQYDVQQLDAJHVjELMAkGA1UE
+AwwCR1YxKTAnBgkqhkiG9w0BCQEWGmpvc2h1YS5maXJtZUBtYWtvcGEub25saW5l
+MB4XDTI2MDIxNjAyNTY1OFoXDTM2MDIxNDAyNTY1OFowgYsxCzAJBgNVBAYTAlBI
+MREwDwYDVQQIDAhCYXRhbmdhczEQMA4GA1UEBwwHTmFzdWdidTESMBAGA1UECgwJ
+R1ZGTE9SSURBMQswCQYDVQQLDAJHVjELMAkGA1UEAwwCR1YxKTAnBgkqhkiG9w0B
+CQEWGmpvc2h1YS5maXJtZUBtYWtvcGEub25saW5lMIIBIjANBgkqhkiG9w0BAQEF
+AAOCAQ8AMIIBCgKCAQEA6uUKna8o9SZ9mi17VZctefCsnxDJTH6RvFgc8Gi5o/XY
+ASMSmLcUCwuY+GSUmZrOL9Re9dpHeXQPTHccgD7jfQje+zEMaHrHJCLS4J9YHlOj
+HUA69v5Dciv/kyCUOBuzGpb4Cn1A1iIqMoihUP0IqqmvJgPwuIiAiPf9C3nw6s/t
+u1ClgYEyfcBnvKuaQMAnz646VJSC/DT06uWb2C7+nZSZiTNjklXer6l5lRUuitXI
+36isGwseXMSkyl8K4JOMcq06yNW5t2lVEnD0EJyT1IThMZhi9z4GpYuNPCkTxS8u
+ecp4LU/wp3GzqXLJJYuzf70WkjiJKgqPAgjcuyzJWwIDAQABoyEwHzAdBgNVHQ4E
+FgQUalAwII6KlkQBpnmQiddHA50y4MEwDQYJKoZIhvcNAQELBQADggEBAItS4N0q
+drNrRSZ7sNns46DIpmcEx5/mWdu/UW+pXF2/SGH6vz3gPjVGRRsTAElLBIDjp8S0
+x3rZH+WxiSKntWcT/DQAzyhZK/CfDQHYBzZsQHhJ/phAsM5/DKinIByfh1t+X4uK
+yZWV7TXpH0Lnis4sgT0vFhz4Z6mOm+O9zo8hjXZg0twOCy3zuHjApzIcY6Gj6aRB
+5AbQrHxt0GGHmbVYdcyxndJ1x/luid7J52/2QI6nze5r88rLxrXlLz80RHl0MqPO
+KlLgxzWgQVeKww41g0gmwZZqydKDTayoHiml0V5/NNYio3rMilioDQCDc7t/e5KG
+CIi4il8SxWsN43U=
+-----END CERTIFICATE-----`);
 
             });
 
@@ -318,38 +316,20 @@ hWspD7WtHj4IhjW/ioyWt9PkQune
                SIGNATURE
             ===================================================== */
 
-            // qz.security.setSignaturePromise(function(toSign) {
-
-            //     return function(resolve, reject) {
-
-            //         return fetch(BASE_URL + "api/qz/sign", {
-            //                 method: "POST",
-            //                 headers: {
-            //                     "Content-Type": "application/json",
-            //                     "X-CSRF-TOKEN": "{{ csrf_token() }}"
-            //                 },
-            //                 body: JSON.stringify({
-            //                     data: toSign
-            //                 })
-            //             })
-
-            //             .then(response => response.text())
-
-            //             .then(signature => {
-            //                 if (!signature) {
-            //                     reject("Empty signature");
-            //                     return;
-            //                 }
-            //                 resolve(signature); // ✅ IMPORTANT
-            //             })
-
-            //             .catch(error => {
-            //                 reject(error);
-            //             });
-
-            //     };
-
-            // });
+            qz.security.setSignatureAlgorithm("SHA512"); // Since 2.1
+            qz.security.setSignaturePromise(function(toSign) {
+                return function(resolve, reject) {
+                    fetch(BASE_URL + "api/qz/sign?data="+toSign, {
+                            cache: 'no-store',
+                            headers: {
+                                'Content-Type': 'text/plain'
+                            },
+                        })
+                        .then(function(data) {
+                            data.ok ? resolve(data.text()) : reject(data.text());
+                        });
+                };
+            });
 
 
             /* =====================================================

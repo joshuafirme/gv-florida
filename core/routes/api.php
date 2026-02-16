@@ -45,16 +45,16 @@ Route::
             Route::post('paynamics/notification', [ProcessController::class, 'notification'])->name('paynamics.notification');
             Route::get('ticket/download/reservation-slip/{id}', 'UserController@reservationSlip')->name('reservationSlip');
 
-            Route::post('qz/sign', function () {
+            Route::get('qz/sign', function () {
                 $toSign = request()->input('data');
 
                 // Load private key (from file or env)
-                $privateKey = file_get_contents(storage_path('qz/private.key'));
-                openssl_sign($toSign, $signature, $privateKey, OPENSSL_ALGO_SHA256);
+                $privateKey = openssl_get_privatekey(file_get_contents(storage_path('qz/private-key.pem')));
+                $signature = null;
+                openssl_sign($toSign, $signature, $privateKey, "sha512");
 
-             
-    return response(base64_encode($signature))
-           ->header('Content-Type', 'text/plain');
+                return response(base64_encode($signature))
+                    ->header('Content-Type', 'text/plain');
             });
 
 
