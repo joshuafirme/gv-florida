@@ -6,6 +6,7 @@ use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Lib\GoogleAuthenticator;
 use App\Models\Admin;
+use App\Models\BookedTicket;
 use App\Models\DeviceToken;
 use App\Models\NotificationLog;
 use App\Models\Transaction;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class UserController extends Controller
 {
@@ -29,6 +31,44 @@ class UserController extends Controller
         return response()->json([
             'is_authorized' => $is_authorized,
             'message' => $message
+        ]);
+    }
+
+    public function reservationSlip($id = null)
+    {
+        $ticket = BookedTicket::findOrFail($id);
+
+        // 2️⃣ Generate PDF using DOMPDF
+        $pdf = Pdf::setOptions([
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'DejaVu Sans',
+            'isHtml5ParserEnabled' => true,
+            'isPhpEnabled' => true,
+        ])->loadView('admin.pdf.reservation-slip', [
+                    'ticket' => $ticket,
+                    'pageTitle' => "Reservation Slip"
+                ]);
+
+        // 3️⃣ Set custom paper size for thermal printing
+        $pdf->setPaper([0, 0, 114, 600], 'portrait');
+
+        // 4️⃣ Save PDF temporarily (optional, useful for QZ Tray)
+        $path = "app/public/tickets/reservation-slip-{$ticket->id}.pdf";
+        $pdfPath = storage_path($path);
+
+
+        if (!file_exists(dirname($pdfPath))) {
+            mkdir(dirname($pdfPath), 0755, true);
+        }
+        // fileUploader($request->image,$path)
+        $pdf->save($pdfPath);
+
+        // 5️⃣ Return the PDF file for inline viewing / fetch
+        $base = env('APP_URL') . "core/storage/";
+
+        return response()->json([
+            'success' => true,
+            'file_url' => "$base$path"
         ]);
     }
 

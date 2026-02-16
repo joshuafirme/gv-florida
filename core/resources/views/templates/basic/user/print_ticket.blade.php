@@ -6,186 +6,144 @@
     <title>{{ $ticket->pnr_number }}</title>
     <style>
         @page {
-            margin: 20px;
+            margin: 0;
         }
 
         body {
             font-family: Arial, Helvetica, sans-serif !important;
-            font-size: 13px;
-            margin: 0;
-            padding: 0;
-        }
-
-        .page {
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            padding: 20px;
+            font-size: 10px;
+            margin: 0 auto;
+            padding: 5px; /* ONLY 5px padding */
+            width: 114px;
+            line-height: 17px;
         }
 
         .ticket-wrapper {
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, .08);
-            padding: 25px;
-        }
-
-        .ticket-inner {
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 20px;
+            width: 100%;
         }
 
         .ticket-header {
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 6px;
         }
 
         .ticket-logo img {
-            width: 90px;
-            margin-bottom: 8px;
+            width: 60px;
+            margin-bottom: 4px;
         }
 
         .ticket-header h4 {
-            font-size: 18px;
-            margin: 4px 0;
-            color: #222;
+            font-size: 12px;
+            margin: 2px 0;
         }
 
         .ticket-header p {
-            font-size: 13px;
-            color: #666;
+            font-size: 10px;
             margin: 0;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 12px;
+            margin-bottom: 6px;
+            word-wrap: break-word;
         }
 
         td {
-            padding: 4px 6px;
+            padding: 2px 0;
             vertical-align: top;
+            font-size: 10px;
         }
 
         .title {
             font-weight: bold;
-            color: #444;
-            font-size: 13px;
         }
 
         .value {
-            font-weight: bold;
-            color: #444;
-            font-size: 13px;
+            word-break: break-word;
         }
 
-        .status-paid {
-            background: #28a745;
-            color: #fff;
-            font-size: 12px;
-            padding: 3px 6px;
-            border-radius: 3px;
-            display: inline-block;
-        }
+      
 
         .qr {
             text-align: center;
-            margin-top: 15px;
+            margin-top: 6px;
         }
 
-        /* Avoid cutting content across pages */
-        .ticket-wrapper,
-        .ticket-inner {
+        .qr img {
+            width: 50px;
+            height: 50px;
+        }
+
+        .ticket-wrapper {
             page-break-inside: avoid;
         }
     </style>
 </head>
 
 <body>
-    <div class="page">
-        <div class="ticket-wrapper">
-            <div class="ticket-inner">
-                <div class="ticket-header">
-                    <div class="ticket-logo">
-                        <img src="{{env('APP_URL')}}assets/images/logo_icon/logo.png" alt="Logo">
-                    </div>
-                    <h4>{{ __(@$ticket->trip->assignedVehicle->vehicle->nick_name) }}</h4>
-                    <p>@lang('E-Ticket / Reservation Voucher')</p>
-                </div>
+    <div class="ticket-wrapper">
 
-                <table>
-                    <tr>
-                        <td class="title">@lang('PNR Number')</td>
-                        <td>:</td>
-                        <td class="value">{{ __($ticket->pnr_number) }}</td>
-                    </tr>
-                    @if ($ticket->user)
-                        <tr>
-                            <td class="title">@lang('Name')</td>
-                            <td>:</td>
-                            <td class="value">{{ __($ticket->user->fullname) }}</td>
-                        </tr>
-                    @endif
-                    <tr>
-                        <td class="title">@lang('Journey Date')</td>
-                        <td>:</td>
-                        <td class="value">{{ showDateTime($ticket->date_of_journey, 'F d, Y') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="title">@lang('Journey Day')</td>
-                        <td>:</td>
-                        <td class="value">{{ showDateTime($ticket->date_of_journey, 'l') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="title">@lang('Total Seats')</td>
-                        <td>:</td>
-                        <td class="value">{{ sizeof($ticket->seats) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="title">@lang('Seat Numbers')</td>
-                        <td>:</td>
-                        <td class="value">{{ implode(',', $ticket->seats) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="title">@lang('Total Amount')</td>
-                        <td>:</td>
-                        <td class="value">{{ number_format($ticket->deposit->amount, 2) }} PHP</td>
-                    </tr>
-                    <tr>
-                        <td class="title">@lang('Payment Method')</td>
-                        <td>:</td>
-                        <td class="value">
-                            @if ($ticket->deposit->gateway->name == 'Paynamics')
-                                {{ getPaynamicsPChannel($ticket->deposit->pchannel, true) }}
-                            @else
-                                {{ $ticket->deposit->gateway->name }}
-                            @endif
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="title">@lang('Payment Status')</td>
-                        <td>:</td>
-                        <td><span class="status-paid">{!! paymentStatus($ticket->deposit->status) !!}</span></td>
-                    </tr>
-                </table>
-
-                <div class="qr">
-                    @php
-                        // $url = route('admin.vehicle.ticket.search', [
-                        //     'scope' => 'list',
-                        //     'search' => $ticket->pnr_number,
-                        // ]);
-
-                        // Generate QR as SVG (no Imagick required)
-                        $qr = base64_encode(QrCode::format('svg')->size(130)->generate($ticket->pnr_number));
-                    @endphp
-                    <img src="data:image/svg+xml;base64,{{ $qr }}" width="130" height="130"
-                        alt="QR Code">
-                </div>
+        <div class="ticket-header">
+            <div class="ticket-logo">
+                <img src="{{env('APP_URL')}}assets/admin/images/GV.png" alt="Logo">
             </div>
+            <h4>{{ __(@$ticket->trip->assignedVehicle->vehicle->nick_name) }}</h4>
+            <p>@lang('E-Ticket / Reservation Voucher')</p>
         </div>
+
+        <table>
+            <tr>
+                <td class="title">PNR</td>
+                <td class="value">{{ $ticket->pnr_number }}</td>
+            </tr>
+
+            @if ($ticket->user)
+            <tr>
+                <td class="title">Name</td>
+                <td class="value">{{ $ticket->user->fullname }}</td>
+            </tr>
+            @endif
+
+            <tr>
+                <td class="title">Date</td>
+                <td class="value">{{ showDateTime($ticket->date_of_journey, 'M d, Y') }}</td>
+            </tr>
+
+            <tr>
+                <td class="title">Seats</td>
+                <td class="value">{{ implode(',', $ticket->seats) }}</td>
+            </tr>
+
+            <tr>
+                <td class="title">Amount</td>
+                <td class="value">{{ number_format($ticket->deposit->amount, 2) }} PHP</td>
+            </tr>
+
+            <tr>
+                <td class="title">Method</td>
+                <td class="value">
+                    @if ($ticket->deposit->gateway->name == 'Paynamics')
+                        {{ getPaynamicsPChannel($ticket->deposit->pchannel, true) }}
+                    @else
+                        {{ $ticket->deposit->gateway->name }}
+                    @endif
+                </td>
+            </tr>
+
+            <tr>
+                <td class="title">Status</td>
+                <td><span class="status-paid">{!! paymentStatus($ticket->deposit->status) !!}</span></td>
+            </tr>
+        </table>
+
+        <div class="qr">
+            @php
+                $qr = base64_encode(QrCode::format('svg')->size(100)->generate($ticket->pnr_number));
+            @endphp
+            <img src="data:image/svg+xml;base64,{{ $qr }}" alt="QR Code">
+        </div>
+
     </div>
 </body>
 
