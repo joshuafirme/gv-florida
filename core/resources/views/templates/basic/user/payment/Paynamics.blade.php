@@ -1,10 +1,17 @@
-@extends($activeTemplate . 'layouts.frontend')
-
-@php
-    $pmethod = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'));
-@endphp
-
 @section('content')
+    @php
+        $kiosk_id = request()->kiosk_id;
+    @endphp
+    @if ($kiosk_id)
+        @include('templates.basic.partials.kiosk_nav')
+    @endif
+
+    @extends($activeTemplate . $layout)
+
+    @php
+        $pmethod = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'));
+    @endphp
+
     <div class="container padding-top padding-bottom">
 
         <form action="{{ route('user.paynamics.redirect') }}" method="post">
@@ -106,7 +113,8 @@
                                         @if ($deposit->userDiscount)
                                             <tr>
                                                 <td colspan="2" class="text-end">Discount</td>
-                                                <td class="text-end">- {{ showAmount($deposit->userDiscount->amount) }}</td>
+                                                <td class="text-end">- {{ showAmount($deposit->userDiscount->amount) }}
+                                                </td>
                                             </tr>
                                         @endif
                                         <tr class="fw-bolder">

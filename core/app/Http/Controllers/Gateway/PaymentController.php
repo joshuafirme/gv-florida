@@ -176,10 +176,19 @@ class PaymentController extends Controller
         }
 
 
+        if (auth()->user()) {
+            $layout = 'layouts.master';
+        } else {
+            $layout = 'layouts.frontend';
+        }
+        if (session('kiosk_id')) {
+            $layout = 'layouts.kiosk';
+        }
+
         $ticket = BookedTicket::where('id', $deposit->booked_ticket_id)->with(['trip', 'pickup', 'drop'])->first();
 
         $pageTitle = 'Confirm Payment';
-        return view("Template::$data->view", compact('data', 'pageTitle', 'deposit', 'ticket'));
+        return view("Template::$data->view", compact('data', 'pageTitle', 'deposit', 'ticket', 'layout'));
     }
 
 
@@ -195,7 +204,7 @@ class PaymentController extends Controller
             $bookedTicket->status = 1;
             $bookedTicket->save();
 
-            if (!$isManual) {
+            if (!$isManual && !$bookedTicket->kiosk_id) {
                 $adminNotification = new AdminNotification();
                 $adminNotification->user_id = isset($user->id) ? $user->id : null;
                 $adminNotification->title = 'Payment successful via ' . $deposit->gatewayCurrency()->name;

@@ -102,7 +102,16 @@ class ProcessController extends Controller
             $bookedTicket->save();
         }
 
-        return view('templates/basic/user/payment/response/paynamics', compact('transaction', 'pageTitle'));
+        if (auth()->user()) {
+            $layout = 'layouts.master';
+        } else {
+            $layout = 'layouts.frontend';
+        }
+        if (session('kiosk_id')) {
+            $layout = 'layouts.kiosk';
+        }
+
+        return view('templates/basic/user/payment/response/paynamics', compact('ticket', 'transaction', 'pageTitle', 'layout'));
     }
 
     public function getTransaction($request_id)
