@@ -56,8 +56,15 @@
                                 = {{ showAmount($deposit->rate, currencyFormat: false) }}
                                 {{ __($deposit->baseCurrency()) }}</span>
                         </li> --}}
+                        @if ($deposit->userDiscount)
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ $deposit->userDiscount->description }} @lang('Discount') ({{ number_format($deposit->userDiscount->percentage) }}%)
+                                <span class="fw-bold">{{ showAmount($deposit->userDiscount->amount, currencyFormat: false) }}
+                                    {{ __($deposit->method_currency) }}</span>
+                            </li>
+                        @endif
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            @lang('After Rate Conversion')
+                            @lang('Total Amount')
                             <span class="fw-bold">{{ showAmount($deposit->final_amount, currencyFormat: false) }}
                                 {{ __($deposit->method_currency) }}</span>
                         </li>
@@ -235,7 +242,7 @@
                                         autoRotate: true
                                     }
                                 }]);
-                                
+
                                 setTimeout(() => {
                                     window.location.reload()
                                 }, 1000);

@@ -117,6 +117,7 @@ class PaymentController extends Controller
             $user_discount->deposit_id = $deposit->id;
             $user_discount->percentage = $discount->percentage;
             $user_discount->amount = $finalAmount * ($discount->percentage / 100);
+            $user_discount->description = $discount->name;
             $user_discount->save();
             $deposit->final_amount = $finalAmount - $user_discount->amount;
             $deposit->save();

@@ -74,7 +74,7 @@
                                                 <div class="form-check">
                                                     <input name="discount_id" class="form-check-input chk-discount"
                                                         type="radio" data-percentage="{{ $discount->percentage }}"
-                                                        value="{{ $discount->id }}">
+                                                        data-name="{{ $discount->name }}" value="{{ $discount->id }}">
                                                     <label class="form-check-label" for="flexCheckDefault">
                                                         {{ $discount->name }}
                                                         ({{ number_format($discount->percentage, 0) }}%)
@@ -145,7 +145,7 @@
                                     </div>
                                     <div class="deposit-info">
                                         <div class="deposit-info__title">
-                                            <p class="text has-icon">@lang('Discount')
+                                            <p class="text has-icon discount-label">@lang('Discount')
                                             </p>
                                         </div>
                                         <div class="deposit-info__input">
@@ -360,6 +360,14 @@
                                 isPasscodeValid = true;
                                 triggerToaster('success', response.message);
                                 $('#authAdminModal').modal('hide')
+                                // alert(selected_discount)
+                                if (selected_discount) {
+                                    $(`input[type="radio"][value="${selected_discount}"]`)
+                                        .prop('checked', true)
+
+                                    calculation()
+                                    calculateWithDiscount()
+                                }
                             } else {
                                 isPasscodeValid = false;
                                 triggerToaster('error', response.message);
@@ -387,7 +395,10 @@
                 }, 'slow');
             });
 
+            var selected_discount = null;
+
             $(".chk-discount").on("click", function(e) {
+                selected_discount = $(this).val();
                 if (!isPasscodeValid) {
                     $('#authAdminModal').modal('show')
                     $(this).prop('checked', false)
@@ -401,12 +412,16 @@
                 if ($('input[name="discount_id"]:checked').length > 0) {
                     let total = parseFloat($(".final-amount").text());
                     var selectedRadio = $('input[name="discount_id"]:checked');
-                    let discount_percentage = parseFloat(selectedRadio.attr('data-percentage')) / 100;
+                    let percentage = parseFloat(selectedRadio.attr('data-percentage'));
+                    let discount_percentage = percentage / 100;
                     let discount = total * discount_percentage;
                     let final_amount = total - discount;
 
+                    let discount_name = selectedRadio.attr('data-name');
+
                     $(".discount-fee").text('-' + discount.toFixed(2));
                     $(".final-amount").text(final_amount.toFixed(2));
+                    $(".discount-label").text(`${discount_name} Discount (${percentage.toFixed(0)}%)`);
                 }
             }
 

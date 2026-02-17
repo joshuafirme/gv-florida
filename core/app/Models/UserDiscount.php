@@ -12,6 +12,7 @@ class UserDiscount extends Model
     protected $fillable = [
         'deposit_id',
         'percentage',
-        'amount'
+        'amount',
+        'description'
     ];
 }

@@ -61,7 +61,9 @@ class UserController extends Controller
 
         $pdf->save($pdfPath);
 
-        $this->approve($ticket->deposit->id);
+        if (!$ticket->kiosk_id) {
+            $this->approve($ticket->deposit->id);
+        }
 
         $base = env('APP_URL') . "core/storage/";
 

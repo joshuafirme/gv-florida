@@ -98,9 +98,15 @@
                     <td class="value">{{ implode(',', $ticket->seats) }}</td>
                 </tr>
 
+                @if (isset($ticket->deposit->userDiscount))
+                    <tr>
+                        <td class="title">Discount</td>
+                        <td class="value"> - {{ number_format($ticket->deposit->userDiscount->amount, 2) }} PHP</td>
+                    </tr>
+                @endif
                 <tr>
                     <td class="title">Amount</td>
-                    <td class="value"> {{ number_format($ticket->deposit->amount, 2) }} PHP</td>
+                    <td class="value"> {{ number_format($ticket->deposit->final_amount, 2) }} PHP</td>
                 </tr>
 
                 <tr>
