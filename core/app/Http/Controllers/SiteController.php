@@ -203,7 +203,12 @@ class SiteController extends Controller
 
         $schedules = Schedule::all();
         $routes = VehicleRoute::active()->get();
-        $counters = Counter::active()->get();
+        $counters = Counter::active();
+
+        if ($request->kiosk_id) {
+            $counters->where('id', request('counter_id'));
+        }
+        $counters = $counters->get();
 
         return view("Template::ticket", compact('pageTitle', 'fleetType', 'counters', 'trips', 'routes', 'schedules', 'emptyMessage', 'layout'));
     }
