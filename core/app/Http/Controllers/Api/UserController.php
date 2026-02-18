@@ -61,7 +61,9 @@ class UserController extends Controller
 
         $pdf->save($pdfPath);
 
-        if (!$ticket->kiosk_id) {
+        $admin_request = request('admin_request');
+
+        if (!$ticket->kiosk_id && $admin_request) {
             $this->approve($ticket->deposit->id);
         }
 

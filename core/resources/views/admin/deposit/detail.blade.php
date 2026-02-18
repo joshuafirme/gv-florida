@@ -229,7 +229,7 @@
                             colorType: 'color'
                         });
 
-                        fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id)
+                        fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id + '?admin_request=true')
                             .then(res => res.json())
                             .then(data => {
                                 btn.html(default_btn)
