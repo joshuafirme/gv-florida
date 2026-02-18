@@ -9,43 +9,50 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Gateway\PaymentController;
 use App\Models\BookedTicket;
 use Illuminate\Http\Request;
+use App\Exports\PaymentExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DepositController extends Controller
 {
     public function pending($userId = null)
     {
         $pageTitle = 'Pending Deposits';
-        $deposits = $this->depositData('pending', userId: $userId);
-        return view('admin.deposit.log', compact('pageTitle', 'deposits'));
+        $status = 'pending';
+        $deposits = $this->depositData($status, userId: $userId);
+        return view('admin.deposit.log', compact('pageTitle', 'deposits', 'status'));
     }
 
 
     public function approved($userId = null)
     {
         $pageTitle = 'Approved Deposits';
-        $deposits = $this->depositData('approved', userId: $userId);
-        return view('admin.deposit.log', compact('pageTitle', 'deposits'));
+        $status = 'approved';
+        $deposits = $this->depositData($status, userId: $userId);
+        return view('admin.deposit.log', compact('pageTitle', 'deposits', 'status'));
     }
 
     public function successful($userId = null)
     {
         $pageTitle = 'Successful Deposits';
-        $deposits = $this->depositData('successful', userId: $userId);
-        return view('admin.deposit.log', compact('pageTitle', 'deposits'));
+        $status = 'successful';
+        $deposits = $this->depositData($status, userId: $userId);
+        return view('admin.deposit.log', compact('pageTitle', 'deposits', 'status'));
     }
 
     public function rejected($userId = null)
     {
         $pageTitle = 'Rejected Deposits';
-        $deposits = $this->depositData('rejected', userId: $userId);
-        return view('admin.deposit.log', compact('pageTitle', 'deposits'));
+        $status = 'approved';
+        $deposits = $this->depositData($status, userId: $userId);
+        return view('admin.deposit.log', compact('pageTitle', 'deposits', 'status'));
     }
 
     public function initiated($userId = null)
     {
         $pageTitle = 'Initiated Deposits';
-        $deposits = $this->depositData('initiated', userId: $userId);
-        return view('admin.deposit.log', compact('pageTitle', 'deposits'));
+        $status = 'initiated';
+        $deposits = $this->depositData($status, userId: $userId);
+        return view('admin.deposit.log', compact('pageTitle', 'deposits', 'status'));
     }
 
     public function deposit($userId = null)
@@ -71,6 +78,10 @@ class DepositController extends Controller
 
         if ($userId) {
             $deposits = $deposits->where('user_id', $userId);
+        }
+
+        if (request('method_code')) {
+            $deposits = $deposits->where('method_code', request('method_code'));
         }
 
         $deposits = $deposits->searchable(['trx', 'user:username', 'bookedTicket:pnr_number'])->dateFilter();
@@ -172,5 +183,15 @@ class DepositController extends Controller
 
         $notify[] = ['success', 'Deposit request rejected successfully'];
         return to_route('admin.deposit.pending')->withNotify($notify);
+    }
+
+    public function export()
+    {
+        $file_name = "Deposits";
+  
+        return Excel::download(
+            new PaymentExport,
+            $file_name . ' - ' . date('Ymdhi') . '.xlsx'
+        );
     }
 }

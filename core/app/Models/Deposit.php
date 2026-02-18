@@ -63,6 +63,25 @@ class Deposit extends Model
         });
     }
 
+    public function statusString(): Attribute
+    {
+        return new Attribute(function () {
+            $html = '';
+            if ($this->status == Status::PAYMENT_PENDING) {
+                $html = trans('Pending');
+            } elseif ($this->status == Status::PAYMENT_SUCCESS && $this->method_code >= 1000 && $this->method_code <= 5000) {
+                $html = trans('Approved');
+            } elseif ($this->status == Status::PAYMENT_SUCCESS && ($this->method_code < 1000 || $this->method_code >= 5000)) {
+                $html = trans('Succeed');
+            } elseif ($this->status == Status::PAYMENT_REJECT) {
+                $html = trans('Rejected');
+            } else {
+                $html = trans('Initiated');
+            }
+            return $html;
+        });
+    }
+
     // scope
     public function gatewayCurrency()
     {

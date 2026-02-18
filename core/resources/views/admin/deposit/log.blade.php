@@ -1,5 +1,9 @@
 @extends('admin.layouts.app')
 @section('panel')
+@php
+    $search = request('search');
+    $date = request('date');
+@endphp
     <div class="row justify-content-center">
         @if (request()->routeIs('admin.deposit.list') || request()->routeIs('admin.deposit.method'))
             <div class="col-12">
@@ -7,6 +11,33 @@
             </div>
         @endif
 
+        <div class="col-md-12 mb-3">
+            <form action="#">
+                <div class="d-flex flex-wrap gap-4">
+                    <div style="width: 250px;">
+                        <label for="">Payment Method</label>
+                        @php
+                            $gateways = App\Models\GatewayCurrency::get();
+                            $method_code = request()->method_code;
+                        @endphp
+                        <select name="method_code" class="select2" required>
+                            <option value="all">@lang('All')</option>
+                            @foreach ($gateways as $gateway)
+                                <option value="{{ $gateway->method_code }}"
+                                    {{ $gateway->method_code == $method_code ? 'selected' : '' }}>{{ $gateway->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="align-self-end">
+                        <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> Filter</button>
+                    </div>
+                    <div class="align-self-end">
+                        <a class="btn btn--success w-100 h-45" href="{{ url("/admin/deposit/export?status=$status&date=$date&search=$search") }}"><i class="fa-solid fa-file-export"></i> Export</a>
+                    </div>
+                </div>
+            </form>
+        </div>
         <div class="col-md-12">
             <div class="card">
                 <div class="card-body p-0">
@@ -19,7 +50,6 @@
                                     <th>@lang('PNR')</th>
                                     <th>@lang('User')</th>
                                     <th>@lang('Amount')</th>
-                                    <th>@lang('Conversion')</th>
                                     <th>@lang('Status')</th>
                                     <th>@lang('Action')</th>
                                 </tr>
@@ -46,7 +76,7 @@
                                                 </a>
                                             </span>
                                             <br>
-                                        <small> {{ $deposit->trx }} </small>
+                                            <small> {{ $deposit->trx }} </small>
                                         </td>
 
                                         <td>
@@ -67,19 +97,7 @@
                                             @endif
                                         </td>
                                         <td>
-                                            {{ showAmount($deposit->amount) }} + <span class="text--danger"
-                                                title="@lang('charge')">{{ showAmount($deposit->charge) }} </span>
-                                            <br>
-                                            <strong title="@lang('Amount with charge')">
-                                                {{ showAmount($deposit->amount + $deposit->charge) }}
-                                            </strong>
-                                        </td>
-                                        <td>
-                                            {{ showAmount(1) }} = {{ showAmount($deposit->rate, currencyFormat: false) }}
-                                            {{ __($deposit->method_currency) }}
-                                            <br>
-                                            <strong>{{ showAmount($deposit->final_amount, currencyFormat: false) }}
-                                                {{ __($deposit->method_currency) }}</strong>
+                                            {{ showAmount($deposit->final_amount) }}
                                         </td>
                                         <td>
                                             @php echo $deposit->statusBadge @endphp

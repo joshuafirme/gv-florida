@@ -228,6 +228,7 @@ Route::middleware('admin')->group(function () {
     // DEPOSIT SYSTEM
     Route::controller('DepositController')->prefix('deposit')->name('deposit.')->group(function () {
         Route::get('all/{user_id?}', 'deposit')->name('list');
+        Route::get('export', 'export');
         Route::get('pending/{user_id?}', 'pending')->name('pending');
         Route::get('rejected/{user_id?}', 'rejected')->name('rejected');
         Route::get('approved/{user_id?}', 'approved')->name('approved');
