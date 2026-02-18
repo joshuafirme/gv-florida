@@ -8,6 +8,9 @@
         @endphp
         @include('templates.basic.partials.kiosk_nav')
     @endif
+    @php
+        $selected_counter = request('pickup') ? request('pickup') : request('counter_id');
+    @endphp
     @extends($activeTemplate . $layout)
 
     <div class="ticket-search-bar bg_img padding-top"
@@ -24,7 +27,7 @@
                             <select name="pickup" class="form--control select2">
                                 <option value="">@lang('Pickup Point')</option>
                                 @foreach ($counters as $counter)
-                                    <option value="{{ $counter->id }}" @if (request()->pickup == $counter->id) selected @endif>
+                                    <option value="{{ $counter->id }}" @if ($selected_counter == $counter->id) selected @endif>
                                         {{ __($counter->name) }}</option>
                                 @endforeach
                             </select>
@@ -62,6 +65,7 @@
                         @if (request()->kiosk_id)
                             <input type="hidden" name="kiosk_id" value="{{ request()->kiosk_id }}">
                         @endif
+                            <input type="hidden" name="counter_id" value="{{ $selected_counter }}">
                         <div class="ticket-filter">
                             <div class="filter-header filter-item">
                                 <h4 class="title mb-0">@lang('Filter')</h4>

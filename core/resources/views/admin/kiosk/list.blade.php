@@ -27,7 +27,7 @@
                                         <td>
                                             <div class="button--group">
 
-                                                <a target="_blank" href="{{ route('ticket', ['kiosk_id' => $item->id]) }}"
+                                                <a target="_blank" href="{{ route('ticket', ['kiosk_id' => $item->id, 'counter_id' => $item->counter->id]) }}"
                                                     class="btn btn-sm btn-outline--primary">
                                                     <i class="la la-ticket"></i>@lang('Open Kiosk')
                                                 </a>

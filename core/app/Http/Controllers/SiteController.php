@@ -188,13 +188,13 @@ class SiteController extends Controller
         // $tripIds = array_filter($tripIds);
         // $tripIds = array_unique($tripIds);
         // $tripIds = array_map('intval', $tripIds);
-       // $tripIds = array_slice($tripIds, 0, 50);
+        // $tripIds = array_slice($tripIds, 0, 50);
         if ($request->kiosk_id) {
             $trips_query->whereIntegerInRaw('id', $tripIds);
         }
 
         $trips = $trips_query->paginate(getPaginate(25));
-      //  return $trips;
+        //  return $trips;
         if (auth()->user()) {
             $layout = 'layouts.master';
         } else {
@@ -450,7 +450,7 @@ class SiteController extends Controller
         $trips_query = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->active();
 
         if ($request->kiosk_id) {
-            $trips_query->whereIn('id', $tripIds);
+            $trips_query->whereIntegerInRaw('id', $tripIds);
         }
 
         $trips = $trips_query;
