@@ -529,7 +529,12 @@ class SiteController extends Controller
         $fleetType = FleetType::active()->get();
         $schedules = Schedule::all();
         $routes = VehicleRoute::active()->get();
-        $counters = Counter::active()->get();
+        $counters = Counter::active();
+        if ($request->kiosk_id) {
+            $counters->where('id', request('counter_id'));
+        }
+
+        $counters = $counters->get();
 
         if (auth()->user()) {
             $layout = 'layouts.master';
