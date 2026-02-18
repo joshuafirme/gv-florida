@@ -163,7 +163,7 @@
                                                 {{ __(gs('cur_text')) }}</p>
                                         </div>
                                     </div>
-
+{{-- 
                                     <div class="deposit-info gateway-conversion d-none total-amount pt-2">
                                         <div class="deposit-info__title">
                                             <p class="text">@lang('Conversion')
@@ -188,7 +188,7 @@
                                     </div>
                                     <div class="d-none crypto-message mb-3">
                                         @lang('Conversion with') <span class="gateway-currency"></span> @lang('and final value will Show on next step')
-                                    </div>
+                                    </div> --}}
                                     <button type="submit" class="btn btn--base w-100">
                                         @lang('Confirm Payment')
                                     </button>
