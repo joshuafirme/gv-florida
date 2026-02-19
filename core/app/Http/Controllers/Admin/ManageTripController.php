@@ -22,9 +22,9 @@ class ManageTripController extends Controller
     {
         $pageTitle = 'All Routes';
         $routes = VehicleRoute::searchable(['name'])->with(['startFrom', 'endTo']);
-        // if (request('status') != 'all') {
-        //     $routes->where('status', request('status'));
-        // }
+        if (request('status') != 'all') {
+            $routes->where('status', request('status'));
+        }
         $routes = $routes->orderBy('id', 'desc')->paginate(getPaginate());
         $stoppages = Counter::active()->get();
         return view('admin.trip.route.list', compact('pageTitle', 'routes', 'stoppages'));
@@ -149,10 +149,27 @@ class ManageTripController extends Controller
         return VehicleRoute::changeStatus($id);
     }
 
-    public function schedules()
+    public function schedules(Request $request)
     {
         $pageTitle = 'All Schedules';
-        $schedules = Schedule::orderBy('id', 'desc')->get();
+        $schedules = Schedule::orderBy('id', 'desc');
+
+
+        if ($request->start_at) {
+            $start = Carbon::parse(request('start_at'))->format('H:i:s');
+            $schedules->whereTime('start_from', '=', $start);
+        }
+        if ($request->end_at) {
+            $end = Carbon::parse(request('end_at'))->format('H:i:s');
+            $schedules->whereTime('end_at', '=', $end);
+        }
+
+        if ($request->status != 'all') {
+            $schedules->where('status', $request->status);
+        }
+
+        $schedules = $schedules->paginate(getPaginate());
+
         return view('admin.trip.schedule', compact('pageTitle', 'schedules'));
     }
 

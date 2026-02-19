@@ -158,7 +158,6 @@
                             if ($end->lt($start)) {
                                 $end->addDay();
                             }
-                            $diff = $start->diff($end);
 
                             $ticket = App\Models\TicketPrice::where('fleet_type_id', $trip->fleetType->id)
                                 ->where('vehicle_route_id', $trip->route->id)
@@ -180,7 +179,7 @@
                                     </div>
                                     <div class=" bus-time">
                                         <i class="las la-arrow-right"></i>
-                                        <p>{{ $diff->format('%H:%I min') }}</p>
+                                        <p>{{ timeDifferenceReadable($trip->schedule->start_from, $trip->schedule->end_at) }}</p>
                                     </div>
                                     <div class=" bus-time">
                                         <p class="time">{{ showDateTime($trip->schedule->end_at, 'h:i A') }}</p>

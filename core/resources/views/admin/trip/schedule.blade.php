@@ -1,12 +1,58 @@
 @extends('admin.layouts.app')
-
+@php
+    use App\Constants\Status;
+    $status = request('status');
+@endphp
 @section('panel')
     <div class="row">
         <div class="col-md-12">
+            <div class="col-12 mb-2">
+                <form action="{{ url('/admin/manage/schedule') }}">
+
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+
+                        <div class="align-self-end">
+                            <a class="btn btn--success w-100 h-45" id="btn-enable-all">Enable All</a>
+                        </div>
+                        <div class="align-self-end">
+                            <a class="btn btn--danger w-100 h-45" id="btn-disable-all">Disable All</a>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <div style="width: 250px;">
+                            <label for="">Status</label>
+                            <select name="status" class="select2" required>
+                                <option value="all">@lang('All status')</option>
+                                <option value="1" {{ $status == 1 ? 'selected' : '' }}>@lang('Enabled')
+                                </option>
+                                <option value="0" {{ request()->has('status') && $status == 0 ? 'selected' : '' }}>
+                                    @lang('Disabled')
+                                </option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="">Time Start</label>
+                            <input type="time" name="start_at" class="form-control" value="{{ request('start_at') }}">
+                        </div>
+                        <div>
+                            <label for="">Time End</label>
+                            <input type="time" name="end_at" class="form-control" value="{{ request('end_at') }}">
+                        </div>
+                        <div class="align-self-end">
+                            <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> Filter</button>
+                        </div>
+                        <div class="align-self-end">
+                            <a href="{{ url('/admin/manage/schedule') }}" class="btn btn--primary w-100 h-45"><i
+                                    class="fas fa-sync"></i> Clear</a>
+                        </div>
+
+                    </div>
+                </form>
+            </div>
             <div class="card">
                 <div class="card-body p-0">
                     <div class="table-responsive--sm table-responsive">
-                        <table class="table table--light style--two" id="datatable">
+                        <table class="table table--light style--two">
                             <thead>
                                 <tr>
                                     <th>@lang('Start From')</th>
@@ -34,16 +80,24 @@
                                         <td>@php echo $item->statusBadge; @endphp</td>
                                         <td>
                                             <div class="button--group">
-                                                <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn" data-resource="{{ $item }}" data-modal_title="@lang('Edit Schedule')">
+                                                <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn"
+                                                    data-resource="{{ $item }}"
+                                                    data-modal_title="@lang('Edit Schedule')">
                                                     <i class="la la-pencil"></i>@lang('Edit')
                                                 </button>
 
                                                 @if (!$item->status)
-                                                    <button type="button" class="btn btn-sm btn-outline--success confirmationBtn" data-action="{{ route('admin.trip.schedule.status', $item->id) }}" data-question="@lang('Are you sure to enable this schedule?')">
+                                                    <button type="button"
+                                                        class="btn btn-sm btn-outline--success confirmationBtn"
+                                                        data-action="{{ route('admin.trip.schedule.status', $item->id) }}"
+                                                        data-question="@lang('Are you sure to enable this schedule?')">
                                                         <i class="la la-eye"></i>@lang('Enable')
                                                     </button>
                                                 @else
-                                                    <button type="button" class="btn btn-sm btn-outline--danger  confirmationBtn" data-action="{{ route('admin.trip.schedule.status', $item->id) }}" data-question="@lang('Are you sure to disable this schedule?')">
+                                                    <button type="button"
+                                                        class="btn btn-sm btn-outline--danger  confirmationBtn"
+                                                        data-action="{{ route('admin.trip.schedule.status', $item->id) }}"
+                                                        data-question="@lang('Are you sure to disable this schedule?')">
                                                         <i class="la la-eye-slash"></i>@lang('Disable')
                                                     </button>
                                                 @endif
@@ -60,7 +114,7 @@
                     </div>
                 </div>
 
-                @if (method_exists($schedules, 'hasPages') && $schedules->hasPages())
+                @if ($schedules->hasPages())
                     <div class="card-footer py-4">
                         {{ paginateLinks($schedules) }}
                     </div>

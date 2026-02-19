@@ -29,6 +29,42 @@ function buildVer()
     return systemDetails()['build_version'];
 }
 
+if (!function_exists('timeDifferenceReadable')) {
+    function timeDifferenceReadable($startTime, $endTime)
+    {
+        try {
+            $start = new DateTime($startTime);
+            $end = new DateTime($endTime);
+
+            // If end is earlier, assume next day
+            if ($end <= $start) {
+                $end->modify('+1 day');
+            }
+
+            $diff = $start->diff($end);
+
+            $hours = ($diff->days * 24) + $diff->h;
+            $minutes = $diff->i;
+
+            $parts = [];
+
+            if ($hours > 0) {
+                $parts[] = $hours . ' hrs';
+            }
+
+            if ($minutes > 0) {
+                $parts[] = $minutes . ' mins';
+            }
+
+            return empty($parts) ? '0 mins' : implode(' ', $parts);
+
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+}
+
+
 function generateTicketQR($pnr_number, $size = 150)
 {
     return QrCode::size($size)->generate(route('admin.vehicle.ticket.search', ['scope' => 'list', 'search' => $pnr_number]));

@@ -9,7 +9,7 @@
                         <select name="status" class="select2" required>
                             <option value="all">@lang('All status')</option>
                             <option value="1" {{ request('status') == 1 ? 'selected' : '' }}>@lang('Enabled')</option>
-                            <option value="0" {{ request('status') == 0 ? 'selected' : '' }}>@lang('Disabled')</option>
+                            <option value="0" {{ request()->has('status') && request('status') == 0 ? 'selected' : '' }}>@lang('Disabled')</option>
                         </select>
                     </div>
                     <di56v class="align-self-end">
