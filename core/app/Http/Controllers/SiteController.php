@@ -460,12 +460,13 @@ class SiteController extends Controller
 
         $trips = $trips_query;
 
-        if ($request->pickup && $request->destination) {
-            Session::flash('pickup', $request->pickup);
-            Session::flash('destination', $request->destination);
+        $pickup = $request->pickup ? $request->pickup : $request->counter_id;
+        $destination = $request->destination ? $request->destination : $request->selected_destination;
 
-            $pickup = $request->pickup;
-            $destination = $request->destination;
+        if ($pickup && $destination) {
+            Session::flash('pickup', $pickup);
+            Session::flash('destination', $destination);
+
             $trips = $trips->with('route')->get();
             $tripArray = array();
 
@@ -492,42 +493,22 @@ class SiteController extends Controller
 
             $trips = Trip::active()->whereIn('id', $tripArray);
         } else {
-            if ($request->pickup) {
-                Session::flash('pickup', $request->pickup);
-                $pickup = $request->pickup;
+            if ($pickup) {
+                Session::flash('pickup', $pickup);
                 $trips = $trips->whereHas('route', function ($route) use ($pickup) {
                     $route->whereJsonContains('stoppages', $pickup);
                 });
             }
 
-            if ($request->destination) {
-                Session::flash('destination', $request->destination);
-                $destination = $request->destination;
+            if ($destination) {
+                Session::flash('destination', $destination);
                 $trips = $trips->whereHas('route', function ($route) use ($destination) {
                     $route->whereJsonContains('stoppages', $destination);
                 });
             }
         }
 
-        if ($request->fleetType) {
-            $trips = $trips->whereIn('fleet_type_id', $request->fleetType);
-        }
-
-        if ($request->routes) {
-            $trips = $trips->whereIn('vehicle_route_id', $request->routes);
-        }
-
-        if ($request->schedules) {
-            $trips = $trips->whereIn('schedule_id', $request->schedules);
-        }
-
-        if ($request->date_of_journey) {
-            Session::flash('date_of_journey', $request->date_of_journey);
-            $dayOff = Carbon::parse($request->date_of_journey)->format('w');
-            $trips = $trips->whereJsonDoesntContain('day_off', $dayOff);
-        }
-
-        $trips = $trips->with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->where('status', Status::ENABLE)->paginate(getPaginate());
+        $trips = $this->filterTrip($trips)->paginate(getPaginate());
 
         $pageTitle = 'Search Result';
         $emptyMessage = 'There is no trip available';
@@ -547,6 +528,30 @@ class SiteController extends Controller
             $layout = 'layouts.frontend';
         }
         return view("Template::ticket", compact('pageTitle', 'fleetType', 'trips', 'routes', 'counters', 'schedules', 'emptyMessage', 'layout'));
+    }
+
+    public function filterTrip($trips)
+    {
+        $request = request();
+        if ($request->fleetType) {
+            $trips = $trips->whereIn('fleet_type_id', $request->fleetType);
+        }
+
+        if ($request->routes) {
+            $trips = $trips->whereIn('vehicle_route_id', $request->routes);
+        }
+
+        if ($request->schedules) {
+            $trips = $trips->whereIn('schedule_id', $request->schedules);
+        }
+
+        if ($request->date_of_journey) {
+            Session::flash('date_of_journey', $request->date_of_journey);
+            $dayOff = Carbon::parse($request->date_of_journey)->format('w');
+            $trips = $trips->whereJsonDoesntContain('day_off', $dayOff);
+        }
+
+        return $trips->with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->where('status', Status::ENABLE);
     }
 
     public function getDroppingPoints($counter_id)

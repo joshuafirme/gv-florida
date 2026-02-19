@@ -10,6 +10,7 @@
     @endif
     @php
         $selected_counter = request('pickup') ? request('pickup') : request('counter_id');
+        $selected_destination = request('destination') ? request('destination') : request('selected_destination');
     @endphp
     @extends($activeTemplate . $layout)
 
@@ -21,6 +22,7 @@
                     @if (request()->kiosk_id)
                         <input type="hidden" name="kiosk_id" value="{{ request()->kiosk_id }}">
                     @endif
+                    <input type="hidden" name="counter_id" value="{{ $selected_counter }}">
                     <div class="col-md-4 col-lg-3">
                         <div class="form--group">
                             <i class="las la-location-arrow"></i>
@@ -65,62 +67,63 @@
                         @if (request()->kiosk_id)
                             <input type="hidden" name="kiosk_id" value="{{ request()->kiosk_id }}">
                         @endif
-                            <input type="hidden" name="counter_id" value="{{ $selected_counter }}">
+                        <input type="hidden" name="counter_id" value="{{ $selected_counter }}">
+                        <input type="hidden" name="selected_destination" value="{{ $selected_destination }}">
                         <div class="ticket-filter">
                             <div class="filter-header filter-item">
                                 <h4 class="title mb-0">@lang('Filter')</h4>
                                 <button type="reset" class="reset-button h-auto">@lang('Reset All')</button>
                             </div>
-                            
 
-                        @if ($routes)
-                            <div class="filter-item">
-                                <h5 class="title">@lang('Routes')</h5>
-                                <select class="form--control select2 search search-multiple" name="routes[]"
-                                    multiple="multiple">
-                                    @foreach ($routes as $route)
-                                        @php
-                                            $selected = '';
-                                            if (request()->routes) {
-                                                foreach (request()->routes as $item) {
-                                                    if ($item == $route->id) {
-                                                        $selected = 'selected';
+
+                            @if ($routes)
+                                <div class="filter-item">
+                                    <h5 class="title">@lang('Routes')</h5>
+                                    <select class="form--control select2 search search-multiple" name="routes[]"
+                                        multiple="multiple">
+                                        @foreach ($routes as $route)
+                                            @php
+                                                $selected = '';
+                                                if (request()->routes) {
+                                                    foreach (request()->routes as $item) {
+                                                        if ($item == $route->id) {
+                                                            $selected = 'selected';
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        @endphp
-                                        <option value="{{ $route->id }}" id="route.{{ $route->id }}"
-                                            {{ $selected }}>{{ __($route->name) }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        @endif
+                                            @endphp
+                                            <option value="{{ $route->id }}" id="route.{{ $route->id }}"
+                                                {{ $selected }}>{{ __($route->name) }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @endif
 
-                        @if ($schedules)
-                            <div class="filter-item">
-                                <h5 class="title">@lang('Schedules')</h5>
-                                <select class="form-control select2 search search-multiple" name="schedules[]"
-                                    multiple="multiple">
-                                    @foreach ($schedules as $schedule)
-                                        @php
-                                            $selected = '';
-                                            if (request()->schedules) {
-                                                foreach (request()->schedules as $item) {
-                                                    if ($item == $schedule->id) {
-                                                        $selected = 'selected';
+                            @if ($schedules)
+                                <div class="filter-item">
+                                    <h5 class="title">@lang('Schedules')</h5>
+                                    <select class="form-control select2 search search-multiple" name="schedules[]"
+                                        multiple="multiple">
+                                        @foreach ($schedules as $schedule)
+                                            @php
+                                                $selected = '';
+                                                if (request()->schedules) {
+                                                    foreach (request()->schedules as $item) {
+                                                        if ($item == $schedule->id) {
+                                                            $selected = 'selected';
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        @endphp
-                                        <option value="{{ $schedule->id }}" id="schedule.{{ $schedule->id }}"
-                                            {{ $selected }}>
-                                            {{ showDateTime($schedule->start_from, 'h:i a') . ' - ' . showDateTime($schedule->end_at, 'h:i a') }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        @endif
+                                            @endphp
+                                            <option value="{{ $schedule->id }}" id="schedule.{{ $schedule->id }}"
+                                                {{ $selected }}>
+                                                {{ showDateTime($schedule->start_from, 'h:i a') . ' - ' . showDateTime($schedule->end_at, 'h:i a') }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            @endif
                             @if ($fleetType)
                                 <div class="filter-item">
                                     <h5 class="title">@lang('Vehicle Type')</h5>
@@ -250,13 +253,14 @@
     <script src="{{ asset('assets/global/js/select2.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/moment.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/daterangepicker.min.js') }}"></script>
-    <script src="{{ asset('assets/global/js/dropping-points.js') }}"></script>
+    <script src="{{ asset('assets/global/js/dropping-points.js?v=' . buildVer()) }}"></script>
 @endpush
 
 @push('script')
     <script>
         (function($) {
             "use strict";
+
             $('.search').on('change', function() {
                 $('#filterForm').submit();
             });

@@ -26,13 +26,23 @@
             .then(function (data) {
                 console.log('data----', data)
                 $('select[name=destination]').empty();
-                
+
                 let options = '';
-                    options += `<option value="">--Dropping point--</option>`
+                options += `<option value="">--Dropping point--</option>`
                 data.forEach(v => {
                     options += `<option value="${v.id}">${v.name}</option>`
                 });
                 $('select[name=destination]').append(options)
+
+
+                const queryString = window.location.search;
+                const urlParams = new URLSearchParams(queryString);
+                setTimeout(() => {
+                    let destination = urlParams.get('destination');
+                    destination = destination ? destination : urlParams.get('selected_destination');
+                    
+                    $('select[name=destination]').val(destination).trigger("change");
+                }, 1800);
             })
             .catch(error => console.error('Error:', error));
     }
