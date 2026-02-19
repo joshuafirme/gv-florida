@@ -9,6 +9,8 @@
                             <thead>
                                 <tr>
                                     <th>@lang('Trip')</th>
+                                    <th>@lang('Fleet type')</th>
+                                    <th>@lang('Departure time')</th>
                                     <th>@lang('Vehicle\'s Nick Name')</th>
                                     <th>@lang('Reg. No.')</th>
                                     <th>@lang('Status')</th>
@@ -20,6 +22,12 @@
                                     <tr>
                                         <td>
                                             {{ __($item->trip->title) }}
+                                        </td>
+                                        <td>
+                                            {{ __($item->trip->fleetType->name) }}
+                                        </td>
+                                        <td>
+                                            {{ __($item->trip->schedule->start_from) }}
                                         </td>
                                         <td>
                                             {{ __($item->vehicle->nick_name) }}
@@ -94,7 +102,7 @@
                                 <option value="">@lang('Select an option')</option>
                                 @foreach ($trips as $item)
                                     <option value="{{ $item->id }}"
-                                        data-vehicles="{{ $item->fleetType->activeVehicles }}">{{ __($item->title) }}
+                                        data-vehicles="{{ $item->fleetType->activeVehicles }}">{{ __($item->title) }} ({{  $item->fleetType->name }}) - {{  $item->schedule->start_from }}
                                     </option>
                                 @endforeach
                             </select>
