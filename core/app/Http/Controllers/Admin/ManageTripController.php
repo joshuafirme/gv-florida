@@ -22,7 +22,7 @@ class ManageTripController extends Controller
     {
         $pageTitle = 'All Routes';
         $routes = VehicleRoute::searchable(['name'])->with(['startFrom', 'endTo']);
-        if (request('status') != 'all') {
+        if (request('status') && request('status') != 'all') {
             $routes->where('status', request('status'));
         }
         $routes = $routes->orderBy('id', 'desc')->paginate(getPaginate());
@@ -164,7 +164,7 @@ class ManageTripController extends Controller
             $schedules->whereTime('end_at', '=', $end);
         }
 
-        if ($request->status != 'all') {
+        if ($request->status && $request->status != 'all') {
             $schedules->where('status', $request->status);
         }
 
