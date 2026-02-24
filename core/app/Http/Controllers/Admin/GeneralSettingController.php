@@ -135,9 +135,11 @@ class GeneralSettingController extends Controller
     public function reservationSlip()
     {
         $pageTitle = 'Reservation Slip';
-        $file = 'assets/admin/contents/reservation-slip.json';
+        $dir = 'assets/admin/contents/';
+        $file = "{$dir}reservation-slip.json";
         if (!file_exists($file)) {
             $content['data'] = '';
+            mkdir($dir);
             file_put_contents($file, json_encode($content));
         }
         $fileContent = @file_get_contents($file);
