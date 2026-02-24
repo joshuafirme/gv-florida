@@ -340,10 +340,12 @@ class ManageTripController extends Controller
     {
         $ticket = BookedTicket::find($id);
 
-        $file = 'assets/admin/contents/reservation-slip.json';
+        $dir = 'assets/admin/contents/';
+        $file = "{$dir}reservation-slip-$ticket->pickup_point.json";
         if (!file_exists($file)) {
-            $content['data'] = '';
-            file_put_contents($file, json_encode($content));
+            if (!is_dir($dir)) {
+                mkdir($dir);
+            }
         }
         $fileContent = @file_get_contents($file);
         $content = json_decode($fileContent);

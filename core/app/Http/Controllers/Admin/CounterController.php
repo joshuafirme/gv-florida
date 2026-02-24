@@ -141,8 +141,9 @@ class CounterController extends Controller
 
         $dir = 'assets/admin/contents/';
         $file = "{$dir}reservation-slip-$request->counter_id.json";
+        $content['data'] = '';
+
         if (!file_exists($file)) {
-            $content['data'] = '';
             mkdir($dir);
             file_put_contents($file, json_encode($content));
         }

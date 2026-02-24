@@ -87,8 +87,8 @@
 
     <div class="slip-container">
 
-        <div class="slip-title">G.V. FLORIDA TRANSPORT, INC.</div>
-        <div class="slip-subtitle">Allacapan, Cagayan</div>
+        <div class="slip-title">{{ isset($content->heading) ? $content->heading : '' }}</div>
+        <div class="slip-subtitle">{{ isset($content->subheading) ? $content->subheading : '' }}</div>
 
         <div class="section-title">RESERVATION SLIP</div>
 
@@ -129,9 +129,10 @@
         <div class="small-label">Authorized Signature</div>
 
         <div class="mt-4 small-label">
-            TIME <span class="line-input" style="width:90px">{{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}</span>
+            TIME <span class="line-input"
+                style="width:90px">{{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}</span>
         </div>
-{{-- 
+        {{-- 
         <div class="d-flex align-items-center mt-4">
             <span class="small-label">No. :</span>
             <span class="number-box ms-2">237951</span>

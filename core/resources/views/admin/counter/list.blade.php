@@ -42,7 +42,7 @@
                                                 </button>
                                                 <a target="_blank"
                                                     href="{{ route('admin.counter.reservation-slip', ['counter_id' => $item->id]) }}"
-                                                    class="btn btn-sm btn-outline--primary">@lang('Contents')
+                                                    class="btn btn-sm btn-outline--primary">@lang('Reservation Slip')
                                                 </a>
 
 
