@@ -17,7 +17,7 @@
                             <div class="col-md-12">
                                 <div class="form-group">
                                     <label>Terms & Condition Contents</label>
-                                    <textarea rows="10" class="form-control nicEdit" name="terms_and_conditions">{{ isset($content->terms_and_conditions) ? $content->terms_and_conditions : '' }}</textarea>
+                                    <textarea rows="10" class="form-control nicEdit" name="terms_and_conditions">{{ isset($data->terms_and_conditions) ? $data->terms_and_conditions : '' }}</textarea>
                                 </div>
                             </div>
                         </div>
