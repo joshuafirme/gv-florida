@@ -339,17 +339,5 @@
         "subtitle": "Insert the robots.txt content here to enhance bot web crawlers and instruct them on how to interact with certain areas of the website.",
         "icon": "las la-robot",
         "route_name": "admin.setting.robot"
-    },
-    "reservation_slip": {
-        "keyword": [
-            "Reservation Slip"
-        ],
-        "title": "Reservation Slip",
-        "subtitle": "Edit Reservation Slip content",
-        "icon": "las la-file",
-        "route_name": "admin.setting.reservation-slip",
-        "params": {
-            "key": "reservation_slip"
-        }
     }
 }

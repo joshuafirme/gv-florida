@@ -133,4 +133,35 @@ class CounterController extends Controller
     {
         return Counter::changeStatus($id);
     }
+
+    public function reservationSlip(Request $request)
+    {
+        $counter = Counter::find($request->counter_id);
+        $pageTitle = "$counter->name Reservation Slip Content";
+
+        $dir = 'assets/admin/contents/';
+        $file = "{$dir}reservation-slip-$request->counter_id.json";
+        if (!file_exists($file)) {
+            $content['data'] = '';
+            mkdir($dir);
+            file_put_contents($file, json_encode($content));
+        }
+        $fileContent = @file_get_contents($file);
+        $data = json_decode($fileContent);
+        return view('admin.counter.contents.reservation-slip', compact('pageTitle', 'data', 'counter'));
+    }
+
+    public function updateReservationSlip(Request $request)
+    {
+        $file = "assets/admin/contents/reservation-slip-$request->counter_id.json";
+        if (!file_exists($file)) {
+            fopen($file, "w");
+        }
+        $data['heading'] = $request->heading;
+        $data['subheading'] = $request->subheading;
+        $data['terms_and_conditions'] = $request->terms_and_conditions;
+        file_put_contents($file, json_encode($data));
+        $notify[] = ['success', 'Content updated successfully'];
+        return back()->withNotify($notify);
+    }
 }

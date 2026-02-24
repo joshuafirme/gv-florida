@@ -30,7 +30,9 @@
                                         </td>
                                         <td>
                                             <div class="button--group">
-                                                <a target="_blank" href="{{ route('admin.counter.scheduleBoard', $item->id) }}" class="btn btn-sm btn-outline--primary">
+                                                <a target="_blank"
+                                                    href="{{ route('admin.counter.scheduleBoard', $item->id) }}"
+                                                    class="btn btn-sm btn-outline--primary">
                                                     <i class="la la-tv"></i>@lang('Schedule Board')
                                                 </a>
                                                 <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn"
@@ -38,6 +40,11 @@
                                                     data-modal_title="@lang('Edit Counter')">
                                                     <i class="la la-pencil"></i>@lang('Edit')
                                                 </button>
+                                                <a target="_blank"
+                                                    href="{{ route('admin.counter.reservation-slip', ['counter_id' => $item->id]) }}"
+                                                    class="btn btn-sm btn-outline--primary">@lang('Contents')
+                                                </a>
+
 
                                                 @if (!$item->status)
                                                     <button type="button"

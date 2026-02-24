@@ -69,6 +69,10 @@ Route::middleware('admin')->group(function () {
     });
 
     Route::controller('CounterController')->name('counter.')->prefix('counter')->group(function () {
+        
+        Route::get('reservation-slip', 'reservationSlip')->name('reservation-slip');
+        Route::post('reservation-slip', 'updateReservationSlip')->name('reservation-slip.udpate');
+        
         Route::get('', 'counters')->name('index');
         Route::get('schedule-board/{id}', 'scheduleBoard')->name('scheduleBoard');
         Route::get('schedule-board/json/{id}', 'scheduleBoardJSON')->name('scheduleBoardJSON');
@@ -303,9 +307,6 @@ Route::middleware('admin')->group(function () {
         //Custom CSS
         Route::get('custom-css', 'customCss')->name('setting.custom.css');
         Route::post('custom-css', 'customCssSubmit');
-        
-        Route::get('reservation-slip', 'reservationSlip')->name('setting.reservation-slip');
-        Route::post('reservation-slip', 'updateReservationSlip')->name('settings.reservation-slip.udpate');
 
         Route::get('sitemap', 'sitemap')->name('setting.sitemap');
         Route::post('sitemap', 'sitemapSubmit');
