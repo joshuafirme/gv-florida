@@ -144,7 +144,9 @@ class CounterController extends Controller
         $content['data'] = '';
 
         if (!file_exists($file)) {
-            mkdir($dir);
+            if (!is_dir($dir)) {
+                mkdir($dir);
+            }
             file_put_contents($file, json_encode($content));
         }
         $fileContent = @file_get_contents($file);
