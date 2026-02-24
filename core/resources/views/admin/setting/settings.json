@@ -347,7 +347,7 @@
         "title": "Reservation Slip",
         "subtitle": "Edit Reservation Slip content",
         "icon": "las la-file",
-        "route_name": "admin.frontend.sections",
+        "route_name": "admin.setting.reservation-slip",
         "params": {
             "key": "reservation_slip"
         }

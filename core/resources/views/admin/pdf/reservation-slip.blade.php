@@ -94,17 +94,7 @@
 
         <div class="terms">
             <strong>TERMS & CONDITIONS:</strong>
-            <ol>
-                <li>Strictly no boarding / refund allowed for lost reservation slip.</li>
-                <li>Reservation slip is valid only on time and date indicated.</li>
-                <li>Reservation forfeited if passenger fails to board during scheduled trip.</li>
-                <li>Request for refund must be made prior to scheduled trip and subject to 50% surcharge which shall be
-                    made after the day of scheduled trip.</li>
-                <li>Rebooking is allowed only once and must be made one day before scheduled trip. Re-scheduling to a
-                    date beyond two days after the original date is not allowed.</li>
-                <li>Re-scheduled / Rebooked reservation slip is non-refundable.</li>
-                <li>Note: Trip schedules and prices may change without prior notice.</li>
-            </ol>
+            <div>{!! isset($content->terms_and_conditions) ? $content->terms_and_conditions : '' !!}</div>
         </div>
 
         <div class="mt-3 small-label">

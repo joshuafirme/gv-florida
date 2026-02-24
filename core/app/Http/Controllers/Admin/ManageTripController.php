@@ -340,12 +340,20 @@ class ManageTripController extends Controller
     {
         $ticket = BookedTicket::find($id);
 
+        $file = 'assets/admin/contents/reservation-slip.json';
+        if (!file_exists($file)) {
+            $content['data'] = '';
+            file_put_contents($file, json_encode($content));
+        }
+        $fileContent = @file_get_contents($file);
+        $content = json_decode($fileContent);
+
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true,
             'defaultFont' => 'DejaVu Sans',
             'isHtml5ParserEnabled' => true,
             'isPhpEnabled' => true,
-        ])->loadView('admin.pdf.reservation-slip', ['ticket' => $ticket, 'pageTitle' => "Reservation Slip"]);
+        ])->loadView('admin.pdf.reservation-slip', ['ticket' => $ticket, 'pageTitle' => "Reservation Slip", 'content' => $content]);
 
         $pdf->setPaper([0, 0, 114, 600], 'portrait');
 

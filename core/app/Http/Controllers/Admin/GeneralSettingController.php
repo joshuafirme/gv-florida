@@ -10,17 +10,18 @@ use Illuminate\Http\Request;
 
 class GeneralSettingController extends Controller
 {
-    public function systemSetting(){
+    public function systemSetting()
+    {
         $pageTitle = 'System Settings';
         $settings = json_decode(file_get_contents(resource_path('views/admin/setting/settings.json')));
-        return view('admin.setting.system', compact('pageTitle','settings'));
+        return view('admin.setting.system', compact('pageTitle', 'settings'));
     }
     public function general()
     {
         $pageTitle = 'General Setting';
         $timezones = timezone_identifiers_list();
-        $currentTimezone = array_search(config('app.timezone'),$timezones);
-        return view('admin.setting.general', compact('pageTitle','timezones','currentTimezone'));
+        $currentTimezone = array_search(config('app.timezone'), $timezones);
+        return view('admin.setting.general', compact('pageTitle', 'timezones', 'currentTimezone'));
     }
 
     public function generalUpdate(Request $request)
@@ -31,8 +32,8 @@ class GeneralSettingController extends Controller
             'cur_sym' => 'required|string|max:40',
             'base_color' => 'nullable|regex:/^[a-f0-9]{6}$/i',
             'timezone' => 'required|integer',
-            'currency_format'=>'required|in:1,2,3',
-            'paginate_number'=>'required|integer'
+            'currency_format' => 'required|in:1,2,3',
+            'paginate_number' => 'required|integer'
         ]);
 
         $timezones = timezone_identifiers_list();
@@ -43,18 +44,19 @@ class GeneralSettingController extends Controller
         $general->cur_text = $request->cur_text;
         $general->cur_sym = $request->cur_sym;
         $general->paginate_number = $request->paginate_number;
-        $general->base_color = str_replace('#','',$request->base_color);
+        $general->base_color = str_replace('#', '', $request->base_color);
         $general->currency_format = $request->currency_format;
         $general->save();
 
         $timezoneFile = config_path('timezone.php');
-        $content = '<?php $timezone = "'.$timezone.'" ?>';
+        $content = '<?php $timezone = "' . $timezone . '" ?>';
         file_put_contents($timezoneFile, $content);
         $notify[] = ['success', 'General setting updated successfully'];
         return back()->withNotify($notify);
     }
 
-    public function systemConfiguration(){
+    public function systemConfiguration()
+    {
         $pageTitle = 'System Configuration';
         return view('admin.setting.configuration', compact('pageTitle'));
     }
@@ -89,13 +91,13 @@ class GeneralSettingController extends Controller
     public function logoIconUpdate(Request $request)
     {
         $request->validate([
-            'logo' => ['image',new FileTypeValidate(['jpg','jpeg','png'])],
-            'favicon' => ['image',new FileTypeValidate(['png'])],
+            'logo' => ['image', new FileTypeValidate(['jpg', 'jpeg', 'png'])],
+            'favicon' => ['image', new FileTypeValidate(['png'])],
         ]);
         $path = getFilePath('logoIcon');
         if ($request->hasFile('logo')) {
             try {
-                fileUploader($request->logo,$path,filename:'logo.png');
+                fileUploader($request->logo, $path, filename: 'logo.png');
             } catch (\Exception $exp) {
                 $notify[] = ['error', 'Couldn\'t upload the logo'];
                 return back()->withNotify($notify);
@@ -103,7 +105,7 @@ class GeneralSettingController extends Controller
         }
         if ($request->hasFile('logo_dark')) {
             try {
-                fileUploader($request->logo_dark,$path,filename:'logo_dark.png');
+                fileUploader($request->logo_dark, $path, filename: 'logo_dark.png');
             } catch (\Exception $exp) {
                 $notify[] = ['error', 'Couldn\'t upload the dark logo'];
                 return back()->withNotify($notify);
@@ -112,7 +114,7 @@ class GeneralSettingController extends Controller
 
         if ($request->hasFile('favicon')) {
             try {
-                fileUploader($request->favicon,$path,filename:'favicon.png');
+                fileUploader($request->favicon, $path, filename: 'favicon.png');
             } catch (\Exception $exp) {
                 $notify[] = ['error', 'Couldn\'t upload the favicon'];
                 return back()->withNotify($notify);
@@ -122,78 +124,109 @@ class GeneralSettingController extends Controller
         return back()->withNotify($notify);
     }
 
-    public function customCss(){
+    public function customCss()
+    {
         $pageTitle = 'Custom CSS';
-        $file = activeTemplate(true).'css/custom.css';
+        $file = activeTemplate(true) . 'css/custom.css';
         $fileContent = @file_get_contents($file);
-        return view('admin.setting.custom_css',compact('pageTitle','fileContent'));
+        return view('admin.setting.custom_css', compact('pageTitle', 'fileContent'));
     }
 
-    public function sitemap(){
+    public function reservationSlip()
+    {
+        $pageTitle = 'Reservation Slip';
+        $file = 'assets/admin/contents/reservation-slip.json';
+        if (!file_exists($file)) {
+            $content['data'] = '';
+            file_put_contents($file, json_encode($content));
+        }
+        $fileContent = @file_get_contents($file);
+        $data = json_decode($fileContent);
+        return view('admin.setting.reservation-slip', compact('pageTitle', 'data'));
+    }
+
+    public function updateReservationSlip(Request $request)
+    {
+        $file = 'assets/admin/contents/reservation-slip.json';
+        if (!file_exists($file)) {
+            fopen($file, "w");
+        }
+        $data['terms_and_conditions'] = $request->terms_and_conditions;
+        file_put_contents($file, json_encode($data));
+        $notify[] = ['success', 'Content updated successfully'];
+        return back()->withNotify($notify);
+    }
+
+    public function sitemap()
+    {
         $pageTitle = 'Sitemap XML';
         $file = 'sitemap.xml';
         $fileContent = @file_get_contents($file);
-        return view('admin.setting.sitemap',compact('pageTitle','fileContent'));
+        return view('admin.setting.sitemap', compact('pageTitle', 'fileContent'));
     }
 
-    public function sitemapSubmit(Request $request){
+    public function sitemapSubmit(Request $request)
+    {
         $file = 'sitemap.xml';
         if (!file_exists($file)) {
             fopen($file, "w");
         }
-        file_put_contents($file,$request->sitemap);
-        $notify[] = ['success','Sitemap updated successfully'];
+        file_put_contents($file, $request->sitemap);
+        $notify[] = ['success', 'Sitemap updated successfully'];
         return back()->withNotify($notify);
     }
 
 
 
-    public function robot(){
+    public function robot()
+    {
         $pageTitle = 'Robots TXT';
         $file = 'robots.xml';
         $fileContent = @file_get_contents($file);
-        return view('admin.setting.robots',compact('pageTitle','fileContent'));
+        return view('admin.setting.robots', compact('pageTitle', 'fileContent'));
     }
 
-    public function robotSubmit(Request $request){
+    public function robotSubmit(Request $request)
+    {
         $file = 'robots.xml';
         if (!file_exists($file)) {
             fopen($file, "w");
         }
-        file_put_contents($file,$request->robots);
-        $notify[] = ['success','Robots txt updated successfully'];
+        file_put_contents($file, $request->robots);
+        $notify[] = ['success', 'Robots txt updated successfully'];
         return back()->withNotify($notify);
     }
 
 
-    public function customCssSubmit(Request $request){
-        $file = activeTemplate(true).'css/custom.css';
+    public function customCssSubmit(Request $request)
+    {
+        $file = activeTemplate(true) . 'css/custom.css';
         if (!file_exists($file)) {
             fopen($file, "w");
         }
-        file_put_contents($file,$request->css);
-        $notify[] = ['success','CSS updated successfully'];
+        file_put_contents($file, $request->css);
+        $notify[] = ['success', 'CSS updated successfully'];
         return back()->withNotify($notify);
     }
 
     public function maintenanceMode()
     {
         $pageTitle = 'Maintenance Mode';
-        $maintenance = Frontend::where('data_keys','maintenance.data')->firstOrFail();
-        return view('admin.setting.maintenance',compact('pageTitle','maintenance'));
+        $maintenance = Frontend::where('data_keys', 'maintenance.data')->firstOrFail();
+        return view('admin.setting.maintenance', compact('pageTitle', 'maintenance'));
     }
 
     public function maintenanceModeSubmit(Request $request)
     {
         $request->validate([
-            'description'=>'required',
-            'image'=>['nullable',new FileTypeValidate(['jpg','jpeg','png'])]
+            'description' => 'required',
+            'image' => ['nullable', new FileTypeValidate(['jpg', 'jpeg', 'png'])]
         ]);
         $general = gs();
         $general->maintenance_mode = $request->status ? Status::ENABLE : Status::DISABLE;
         $general->save();
 
-        $maintenance = Frontend::where('data_keys','maintenance.data')->firstOrFail();
+        $maintenance = Frontend::where('data_keys', 'maintenance.data')->firstOrFail();
         $image = @$maintenance->data_values->image;
         if ($request->hasFile('image')) {
             try {
@@ -207,33 +240,35 @@ class GeneralSettingController extends Controller
 
         $maintenance->data_values = [
             'description' => $request->description,
-            'image'=>$image
+            'image' => $image
         ];
         $maintenance->save();
 
-        $notify[] = ['success','Maintenance mode updated successfully'];
+        $notify[] = ['success', 'Maintenance mode updated successfully'];
         return back()->withNotify($notify);
     }
 
-    public function cookie(){
+    public function cookie()
+    {
         $pageTitle = 'GDPR Cookie';
-        $cookie = Frontend::where('data_keys','cookie.data')->firstOrFail();
-        return view('admin.setting.cookie',compact('pageTitle','cookie'));
+        $cookie = Frontend::where('data_keys', 'cookie.data')->firstOrFail();
+        return view('admin.setting.cookie', compact('pageTitle', 'cookie'));
     }
 
-    public function cookieSubmit(Request $request){
+    public function cookieSubmit(Request $request)
+    {
         $request->validate([
-            'short_desc'=>'required|string|max:255',
-            'description'=>'required',
+            'short_desc' => 'required|string|max:255',
+            'description' => 'required',
         ]);
-        $cookie = Frontend::where('data_keys','cookie.data')->firstOrFail();
+        $cookie = Frontend::where('data_keys', 'cookie.data')->firstOrFail();
         $cookie->data_values = [
             'short_desc' => $request->short_desc,
             'description' => $request->description,
             'status' => $request->status ? Status::ENABLE : Status::DISABLE,
         ];
         $cookie->save();
-        $notify[] = ['success','Cookie policy updated successfully'];
+        $notify[] = ['success', 'Cookie policy updated successfully'];
         return back()->withNotify($notify);
     }
 

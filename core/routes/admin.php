@@ -303,6 +303,9 @@ Route::middleware('admin')->group(function () {
         //Custom CSS
         Route::get('custom-css', 'customCss')->name('setting.custom.css');
         Route::post('custom-css', 'customCssSubmit');
+        
+        Route::get('reservation-slip', 'reservationSlip')->name('setting.reservation-slip');
+        Route::post('reservation-slip', 'updateReservationSlip')->name('settings.reservation-slip.udpate');
 
         Route::get('sitemap', 'sitemap')->name('setting.sitemap');
         Route::post('sitemap', 'sitemapSubmit');
