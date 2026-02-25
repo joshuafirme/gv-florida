@@ -97,11 +97,11 @@
             <div>{!! isset($content->terms_and_conditions) ? $content->terms_and_conditions : '' !!}</div>
         </div>
 
-        <div class="mt-3 small-label">
+        <div class="mt-2 small-label">
             Destination <span class="line-input">{{ $ticket->drop->name }}</span> Km. Post
         </div>
 
-        <div class="mt-2 small-label">
+        <div class="mt-1 small-label">
             Seat No. <span class="line-input" style="width:60px">
                 @foreach ($ticket->seats as $seat)
                     {{ $seat }} &nbsp;
@@ -109,26 +109,26 @@
             </span>
         </div>
 
-        <div class="mt-2 small-label">
+        <div class="mt-1 small-label">
             Date <span class="line-input" style="width:60px">
                 {{ $ticket->date_of_journey }}
         </div>
 
-        <div class="mt-2 small-label">
+        <div class="mt-1 small-label">
             Fare <span class="line-input"
                 style="width:80px">{{ number_format($ticket->deposit->final_amount, 2) }}</span> (Php)
         </div>
 
-        <div class="mt-2 small-label">
+        <div class="mt-1 small-label">
             No. of Pass <span class="line-input" style="width:100px">
                 {{ array_sum($ticket->trip->fleetType->deck_seats) }}
             </span>
         </div>
 
-        <div class="signature-line mt-4"></div>
+        <div class="signature-line mt-2"></div>
         <div class="small-label">Authorized Signature</div>
 
-        <div class="mt-4 small-label">
+        <div class="mt-1 small-label">
             TIME <span class="line-input"
                 style="width:90px">{{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}</span>
         </div>
