@@ -446,8 +446,7 @@
                             class: 'right-side'
                         });
                         for (let rs = 1; rs <= seatlayout.right; rs++) {
-                            const isCrSpot = (row === fleetType.cr_row || row === fleetType.cr_row +
-                                cr_row_covered) && fleetType.cr_position === 'Right' && key == 0;
+                            const isCrSpot = (row === fleetType.cr_row) && fleetType.cr_position === 'Right' && key == 0;
                             if (isCrSpot) {
                                 if (!has_cr) {
                                     let cr_height = getCRHeight(fleetType.cr_row_covered);
@@ -516,7 +515,7 @@
             }
 
             function getCRHeight(row_covered) {
-                let height = (row_covered == 2) ? '85px' : '40px';
+                let height = (row_covered == 2) ? '40px' : '40px';
                 height = (row_covered == 3) ? '130px' : height;
                 return height;
             }
