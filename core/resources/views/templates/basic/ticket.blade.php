@@ -26,7 +26,7 @@
         @media screen and (min-width: 990px) {
             .ticket-filter-container {
                 position: sticky;
-                top: 150px;
+                top: 250px;
                 /* height of the top search bar */
                 align-self: flex-start;
                 z-index: 10;
@@ -276,6 +276,7 @@
 
             $('.reset-button').on('click', function() {
                 $('.search').attr('checked', false);
+                $('.search').val(null).trigger('change');
                 $('#filterForm').submit();
             })
 

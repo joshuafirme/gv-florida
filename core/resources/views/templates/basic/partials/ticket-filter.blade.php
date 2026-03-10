@@ -7,7 +7,16 @@
     <div class="ticket-filter">
         <div class="filter-header filter-item">
             <h4 class="title mb-0">@lang('Filter')</h4>
-            <button type="reset" class="reset-button h-auto">@lang('Reset All')</button>
+
+            <div class="d-flex gap-1">
+                <button class="btn btn-sm btn--base w-100 mt-3">
+                    Apply
+                </button>
+                
+                <button style="white-space: nowrap;" class="btn btn-sm btn--base-outline w-100 mt-3 reset-button">
+                    @lang('Reset All')
+                </button>
+            </div>
         </div>
 
         @if ($schedules)
@@ -52,8 +61,5 @@
         </ul>
     </div>
     @endif
-    <button class="btn btn--base w-100 mt-3">
-        Apply Filters
-    </button>
     </div>
 </form>
