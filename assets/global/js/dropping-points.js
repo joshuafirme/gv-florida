@@ -24,7 +24,6 @@
         fetch(url + counter_id)
             .then(response => response.json())
             .then(function (data) {
-                console.log('data----', data)
                 $('select[name=destination]').empty();
 
                 let options = '';

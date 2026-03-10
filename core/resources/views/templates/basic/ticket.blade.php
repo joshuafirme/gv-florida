@@ -14,6 +14,64 @@
     @endphp
     @extends($activeTemplate . $layout)
 
+    <style>
+        .ticket-search-bar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: #fff;
+        }
+
+
+        @media screen and (min-width: 990px) {
+            .ticket-filter-container {
+                position: sticky;
+                top: 150px;
+                /* height of the top search bar */
+                align-self: flex-start;
+                z-index: 10;
+            }
+        }
+
+        @media screen and (max-width: 989px) {
+            .container {
+                max-width: 100%;
+            }
+
+            .ticket-filter-container {
+                background: #fff;
+                padding: 15px;
+                border-radius: 10px;
+                margin-bottom: 15px;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+                display: none;
+            }
+
+        }
+
+
+        /* TRIPS COLUMN */
+
+        /* Trip card layout improvement */
+        .ticket-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* Seats badge */
+        .seat-count {
+            font-weight: 600;
+            font-size: 14px;
+            background: #eef6ff;
+            color: #0d6efd;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+    </style>
+
     <div class="ticket-search-bar bg_img padding-top"
         style="background: url({{ getImage('assets/templates/basic/images/search_bg.jpg') }}) left center;">
         <div class="container">
@@ -56,189 +114,128 @@
                         </div>
                     </div>
                 </form>
+                <div class="d-lg-none mb-3">
+                    <button class="btn btn--base w-100" data-bs-toggle="offcanvas" data-bs-target="#filterPanel">
+                        <i class="las la-filter"></i> Filters
+                    </button>
+                </div>
             </div>
+        </div>
+    </div>
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="filterPanel">
+        <div class="offcanvas-header">
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+
+        <div class="offcanvas-body">
+
+
+            @include('templates.basic.partials.ticket-filter')
+
         </div>
     </div>
     <section class="ticket-section padding-bottom section-bg">
         <div class="container">
             <div class="row gy-5">
-                <div class="col-lg-3">
-                    <form action="{{ route('search') }}" id="filterForm">
-                        @if (request()->kiosk_id)
-                            <input type="hidden" name="kiosk_id" value="{{ request()->kiosk_id }}">
-                        @endif
-                        <input type="hidden" name="counter_id" value="{{ $selected_counter }}">
-                        <input type="hidden" name="selected_destination" value="{{ $selected_destination }}">
-                        <div class="ticket-filter">
-                            <div class="filter-header filter-item">
-                                <h4 class="title mb-0">@lang('Filter')</h4>
-                                <button type="reset" class="reset-button h-auto">@lang('Reset All')</button>
-                            </div>
-
-
-                            @if ($routes)
-                                <div class="filter-item">
-                                    <h5 class="title">@lang('Routes')</h5>
-                                    <select class="form--control select2 search search-multiple" name="routes[]"
-                                        multiple="multiple">
-                                        @foreach ($routes as $route)
-                                            @php
-                                                $selected = '';
-                                                if (request()->routes) {
-                                                    foreach (request()->routes as $item) {
-                                                        if ($item == $route->id) {
-                                                            $selected = 'selected';
-                                                        }
-                                                    }
-                                                }
-                                            @endphp
-                                            <option value="{{ $route->id }}" id="route.{{ $route->id }}"
-                                                {{ $selected }}>{{ __($route->name) }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            @endif
-
-                            @if ($schedules)
-                                <div class="filter-item">
-                                    <h5 class="title">@lang('Schedules')</h5>
-                                    <select class="form-control select2 search search-multiple" name="schedules[]"
-                                        multiple="multiple">
-                                        @foreach ($schedules as $schedule)
-                                            @php
-                                                $selected = '';
-                                                if (request()->schedules) {
-                                                    foreach (request()->schedules as $item) {
-                                                        if ($item == $schedule->id) {
-                                                            $selected = 'selected';
-                                                        }
-                                                    }
-                                                }
-                                            @endphp
-                                            <option value="{{ $schedule->id }}" id="schedule.{{ $schedule->id }}"
-                                                {{ $selected }}>
-                                                {{ showDateTime($schedule->start_from, 'h:i a') . ' - ' . showDateTime($schedule->end_at, 'h:i a') }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                            @endif
-                            @if ($fleetType)
-                                <div class="filter-item">
-                                    <h5 class="title">@lang('Vehicle Type')</h5>
-                                    <ul class="bus-type">
-                                        @foreach ($fleetType as $fleet)
-                                            <li class="custom--checkbox">
-                                                <input name="fleetType[]" class="search" value="{{ $fleet->id }}"
-                                                    id="{{ $fleet->name }}" type="checkbox"
-                                                    @if (request()->fleetType) @foreach (request()->fleetType as $item)
-                                                @if ($item == $fleet->id)
-                                                checked @endif
-                                                    @endforeach
-                                        @endif >
-                                        <label for="{{ $fleet->name }}"><span><i
-                                                    class="las la-bus"></i>{{ __($fleet->name) }}</span></label>
-                                        </li>
-                            @endforeach
-                            </ul>
-                        </div>
-                        @endif
+                <div class="col-lg-3 ticket-filter-container">
+                    @include('templates.basic.partials.ticket-filter')
                 </div>
-                </form>
-            </div>
 
-            <div class="col-lg-9">
-                <div class="ticket-wrapper">
-                    @forelse ($trips as $trip)
-                        @php
-                            $start = Carbon\Carbon::parse($trip->schedule->start_from);
-                            $end = Carbon\Carbon::parse($trip->schedule->end_at);
+                <div class="col-lg-9">
+                    <div class="ticket-wrapper">
+                        @forelse ($trips as $trip)
+                            @php
+                                $start = Carbon\Carbon::parse($trip->schedule->start_from);
+                                $end = Carbon\Carbon::parse($trip->schedule->end_at);
 
-                            if ($end->lt($start)) {
-                                $end->addDay();
-                            }
+                                if ($end->lt($start)) {
+                                    $end->addDay();
+                                }
 
-                            $ticket = App\Models\TicketPrice::where('fleet_type_id', $trip->fleetType->id)
-                                ->where('vehicle_route_id', $trip->route->id)
-                                ->first();
-                        @endphp
+                                $ticket = App\Models\TicketPrice::where('fleet_type_id', $trip->fleetType->id)
+                                    ->where('vehicle_route_id', $trip->route->id)
+                                    ->first();
+                            @endphp
 
-                        @if ($ticket)
-                            <div class="ticket-item mb-2">
-                                <div class="ticket-item-inner">
-                                    <h5 class="bus-name">{{ __($trip->title) }}</h5>
-                                    <span class="bus-info">@lang('Seat Layout - ')
-                                        {{ __($trip->fleetType->seat_layout) }}</span>
-                                    <span class="ratting"><i class="las la-bus"></i>{{ __($trip->fleetType->name) }}</span>
-                                </div>
-                                <div class="ticket-item-inner travel-time">
-                                    <div class="bus-time">
-                                        <p class="time">{{ showDateTime($trip->schedule->start_from, 'h:i A') }}</p>
-                                        <p class="place">{{ __($trip->startFrom->name) }}</p>
+                            @if ($ticket)
+                                <div class="ticket-item mb-2">
+                                    <div class="ticket-item-inner">
+                                        <h5 class="bus-name">{{ __($trip->title) }}</h5>
+                                        <span class="bus-info">@lang('Seat Layout - ')
+                                            {{ __($trip->fleetType->seat_layout) }}</span>
+                                        <span class="ratting"><i
+                                                class="las la-bus"></i>{{ __($trip->fleetType->name) }}</span>
                                     </div>
-                                    <div class=" bus-time">
-                                        <i class="las la-arrow-right"></i>
-                                        <p>{{ timeDifferenceReadable($trip->schedule->start_from, $trip->schedule->end_at) }}</p>
+                                    <div class="ticket-item-inner travel-time">
+                                        <div class="bus-time">
+                                            <p class="time">{{ showDateTime($trip->schedule->start_from, 'h:i A') }}</p>
+                                            <p class="place">{{ __($trip->startFrom->name) }}</p>
+                                        </div>
+                                        <div class=" bus-time">
+                                            <i class="las la-arrow-right"></i>
+                                            <p>{{ timeDifferenceReadable($trip->schedule->start_from, $trip->schedule->end_at) }}
+                                            </p>
+                                        </div>
+                                        <div class=" bus-time">
+                                            <p class="time">{{ showDateTime($trip->schedule->end_at, 'h:i A') }}</p>
+                                            <p class="place">{{ __($trip->endTo->name) }}</p>
+                                        </div>
                                     </div>
-                                    <div class=" bus-time">
-                                        <p class="time">{{ showDateTime($trip->schedule->end_at, 'h:i A') }}</p>
-                                        <p class="place">{{ __($trip->endTo->name) }}</p>
+                                    <div class="ticket-item-inner book-ticket">
+                                        <p class="rent mb-0">
+                                            {{ __(gs('cur_sym')) }}{{ showAmount($ticket->price, currencyFormat: false) }}
+                                        </p>
+                                        @if ($trip->day_off)
+                                            <div class="seats-left mt-2 mb-3 fs--14px">
+                                                @lang('Off Days'): <div class="d-inline-flex flex-wrap" style="gap:5px">
+                                                    @foreach ($trip->day_off as $item)
+                                                        <span
+                                                            class="badge badge--primary">{{ __(showDayOff($item)) }}</span>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @else
+                                            @lang('Every day available')
+                                        @endif
                                     </div>
-                                </div>
-                                <div class="ticket-item-inner book-ticket">
-                                    <p class="rent mb-0">
-                                        {{ __(gs('cur_sym')) }}{{ showAmount($ticket->price, currencyFormat: false) }}</p>
-                                    @if ($trip->day_off)
-                                        <div class="seats-left mt-2 mb-3 fs--14px">
-                                            @lang('Off Days'): <div class="d-inline-flex flex-wrap" style="gap:5px">
-                                                @foreach ($trip->day_off as $item)
-                                                    <span class="badge badge--primary">{{ __(showDayOff($item)) }}</span>
-                                                @endforeach
+                                    <a class="btn btn--base"
+                                        href="{{ route('ticket.seats', [
+                                            $trip->id,
+                                            slug($trip->title),
+                                            'start_from' => $trip->start_from,
+                                            'end_to' => $trip->end_to,
+                                            'kiosk_id' => $kiosk_id,
+                                            'date_of_journey' => request('date_of_journey'),
+                                        ]) }}">@lang('Select Seat')</a>
+
+
+                                    @if ($trip->fleetType->facilities)
+                                        <div class="ticket-item-footer">
+                                            <div class="d-flex content-justify-center">
+                                                <span>
+                                                    <strong>@lang('Amenities - ')</strong>
+                                                    @foreach ($trip->fleetType->facilities as $item)
+                                                        <span class="facilities">{{ __($item) }}</span>
+                                                    @endforeach
+                                                </span>
                                             </div>
                                         </div>
-                                    @else
-                                        @lang('Every day available')
                                     @endif
                                 </div>
-                                <a class="btn btn--base"
-                                    href="{{ route('ticket.seats', [
-                                        $trip->id,
-                                        slug($trip->title),
-                                        'start_from' => $trip->start_from,
-                                        'end_to' => $trip->end_to,
-                                        'kiosk_id' => $kiosk_id,
-                                        'date_of_journey' => request('date_of_journey'),
-                                    ]) }}">@lang('Select Seat')</a>
-
-
-                                @if ($trip->fleetType->facilities)
-                                    <div class="ticket-item-footer">
-                                        <div class="d-flex content-justify-center">
-                                            <span>
-                                                <strong>@lang('Amenities - ')</strong>
-                                                @foreach ($trip->fleetType->facilities as $item)
-                                                    <span class="facilities">{{ __($item) }}</span>
-                                                @endforeach
-                                            </span>
-                                        </div>
-                                    </div>
-                                @endif
+                            @endif
+                        @empty
+                            <div class="ticket-item">
+                                <h5>{{ __($emptyMessage) }}</h5>
+                            </div>
+                        @endforelse
+                        @if ($trips->hasPages())
+                            <div class="custom-pagination">
+                                {{ paginateLinks($trips) }}
                             </div>
                         @endif
-                    @empty
-                        <div class="ticket-item">
-                            <h5>{{ __($emptyMessage) }}</h5>
-                        </div>
-                    @endforelse
-                    @if ($trips->hasPages())
-                        <div class="custom-pagination">
-                            {{ paginateLinks($trips) }}
-                        </div>
-                    @endif
+                    </div>
                 </div>
             </div>
-        </div>
         </div>
     </section>
 @endsection
@@ -260,9 +257,9 @@
         (function($) {
             "use strict";
 
-            $('.search').on('change', function() {
-                $('#filterForm').submit();
-            });
+            // $('.search').on('change', function() {
+            //     $('#filterForm').submit();
+            // });
 
             $('.select2').select2();
 
@@ -281,6 +278,16 @@
                 $('.search').attr('checked', false);
                 $('#filterForm').submit();
             })
+
+            var windowHeight = $(window).height();
+            console.log(windowHeight)
+
+            // if (windowHeight < 920) {
+            //     $('.ticket-filter').css({
+            //         'overflow-y': 'auto',
+            //         'height': '500px'
+            //     })
+            // }
         })(jQuery)
     </script>
 @endpush
