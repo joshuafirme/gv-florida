@@ -114,10 +114,12 @@
                         </div>
                     </div>
                 </form>
-                <div class="d-lg-none mb-3">
-                    <button class="btn btn--base w-100" data-bs-toggle="offcanvas" data-bs-target="#filterPanel">
-                        <i class="las la-filter"></i> Filters
-                    </button>
+                <div class="d-lg-none row d-flex justify-content-center">
+                    <div class="col-md-6">
+                        <button class="btn btn--base w-100" data-bs-toggle="offcanvas" data-bs-target="#filterPanel">
+                            <i class="las la-filter"></i> Filters
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -155,6 +157,25 @@
                                 $ticket = App\Models\TicketPrice::where('fleet_type_id', $trip->fleetType->id)
                                     ->where('vehicle_route_id', $trip->route->id)
                                     ->first();
+
+                                $tickets = App\Models\BookedTicket::where('trip_id', $trip->id)
+                                    ->wheredate('date_of_journey', date('Y-m-d'))
+                                    ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
+                                    ->get();
+
+                                $occupied_seats_ctr = 0;
+
+                                foreach ($tickets as $key => $ticket) {
+                                    $occupied_seats_ctr += count($ticket->seats);
+                                }
+
+                                $available_seats_ctr = 0;
+                                $deck_seats = $trip->fleetType->deck_seats;
+                                $deck_seats = (int) $deck_seats[$trip->fleetType->deck - 1];
+                                $available_seats_ctr = $deck_seats - $occupied_seats_ctr;
+                                if ($available_seats_ctr < 1) {
+                                    continue;
+                                }
                             @endphp
 
                             @if ($ticket)
@@ -185,6 +206,9 @@
                                         <p class="rent mb-0">
                                             {{ __(gs('cur_sym')) }}{{ showAmount($ticket->price, currencyFormat: false) }}
                                         </p>
+                                        <div class="seat-count mt-2">
+                                            Available Seats: {{ $available_seats_ctr }}
+                                        </div>
                                         @if ($trip->day_off)
                                             <div class="seats-left mt-2 mb-3 fs--14px">
                                                 @lang('Off Days'): <div class="d-inline-flex flex-wrap" style="gap:5px">
