@@ -171,7 +171,10 @@
 
                                 $available_seats_ctr = 0;
                                 $deck_seats = $trip->fleetType->deck_seats;
-                                $deck_seats = (int) $deck_seats[$trip->fleetType->deck - 1];
+                                $deck_seats = (int) $deck_seats[0];
+                                if ($trip->fleetType->deck == 2) {
+                                    $deck_seats += (int) $trip->fleetType->deck_seats[1];
+                                }
                                 $available_seats_ctr = $deck_seats - $occupied_seats_ctr;
                                 if ($available_seats_ctr < 1) {
                                     continue;

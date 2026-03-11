@@ -96,9 +96,9 @@
             "use strict";
 
 
-            $('.search').on('change', function() {
-                $('#filterForm').submit();
-            });
+            // $('.search').on('change', function() {
+            //     $('#filterForm').submit();
+            // });
         })(jQuery);
     </script>
 @endpush
