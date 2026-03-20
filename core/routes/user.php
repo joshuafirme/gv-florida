@@ -106,5 +106,7 @@ Route::get('payment/confirm', 'Gateway\PaymentController@depositConfirm')->name(
 Route::get('payment/manual', 'Gateway\PaymentController@manualDepositConfirm')->name('user.deposit.manual.confirm');
 Route::post('payment/manual', 'Gateway\PaymentController@manualDepositUpdate')->name('user.deposit.manual.update');
 
+Route::get('booked-ticket/print-view/{id}', 'User\UserController@printTicketView')->name('user.ticket.view');
 Route::get('booked-ticket/print/{id}', 'User\UserController@printTicket')->name('user.ticket.print');
+
 Route::get('booked-ticket/download/{id}', 'User\UserController@downloadTicket')->name('user.ticket.download');

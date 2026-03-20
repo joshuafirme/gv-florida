@@ -45,6 +45,8 @@ Route::
             Route::post('auth-admin-passcode', 'UserController@authAdminPasscode');
             Route::post('paynamics/notification', [ProcessController::class, 'notification'])->name('paynamics.notification');
             Route::get('ticket/download/reservation-slip/{id}', 'UserController@reservationSlip')->name('reservationSlip');
+            Route::get('ticket/download/print-ticket/{id}', 'UserController@printTicket')->name('printTicket');
+            
 
             Route::post('ticket/update-expired', [BookedTicketController::class, 'updateExpiredTicket'])->name('ticket.updateExpiredTicket');
             

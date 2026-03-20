@@ -75,6 +75,59 @@ class UserController extends Controller
         ]);
     }
 
+    public function printTicket($id = null)
+    {
+        $ticket = $this->getTicketDetails($id);
+    
+        $pdf = Pdf::setOptions([
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'DejaVu Sans',
+            'isHtml5ParserEnabled' => true,
+            'isPhpEnabled' => true,
+        ])->loadView('templates.basic.user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $ticket->pnr_number]);
+
+        $pdf->setPaper([0, 0, 114, 600], 'portrait');
+
+        $path = "app/public/tickets/ticket-{$ticket->id}.pdf";
+        $pdfPath = storage_path($path);
+
+        if (!file_exists(dirname($pdfPath))) {
+            mkdir(dirname($pdfPath), 0755, true);
+        }
+
+        $pdf->save($pdfPath);
+
+        $admin_request = request('admin_request');
+
+        if (!$ticket->kiosk_id || $admin_request) {
+            $this->approve($ticket->deposit->id);
+        }
+
+        $base = env('APP_URL') . "core/storage/";
+
+        return response()->json([
+            'success' => true,
+            'file_url' => "$base$path"
+        ]);
+    }
+
+    public function getTicketDetails($id)
+    {
+        $ticket = BookedTicket::with([
+            'trip.fleetType',
+            'trip.startFrom',
+            'trip.endTo',
+            'trip.schedule',
+            'trip.assignedVehicle.vehicle',
+            'pickup',
+            'drop',
+            'user',
+            'deposit'
+        ]);
+
+        return $ticket->findOrFail($id);
+    }
+
     public function approve($id)
     {
         $deposit = Deposit::where('id', $id)->where('status', Status::PAYMENT_PENDING)->firstOrFail();

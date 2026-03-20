@@ -262,7 +262,8 @@ class PaymentController extends Controller
     public function manualDepositUpdate(Request $request)
     {
         $track = session()->get('Track');
-        $data = Deposit::with('gateway')->where('status', Status::PAYMENT_INITIATE)->where('trx', $track)->first();
+
+        $data = Deposit::with('gateway')->whereIn('status', [Status::PAYMENT_INITIATE, Status::PAYMENT_PENDING])->where('trx', $track)->first();
         abort_if(!$data, 404);
         $gatewayCurrency = $data->gatewayCurrency();
         $gateway = $gatewayCurrency->method;

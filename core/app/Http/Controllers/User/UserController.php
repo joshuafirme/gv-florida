@@ -250,13 +250,22 @@ class UserController extends Controller
 
 
         if ($ticket->kiosk_id) {
-           // $pdf->setPaper([0, 0, 226.77, 1200], 'portrait');
-           $pdf->setPaper([0, 0, 114, 600], 'portrait');
+            // $pdf->setPaper([0, 0, 226.77, 1200], 'portrait');
+            $pdf->setPaper([0, 0, 114, 600], 'portrait');
         } else {
             $pdf->setPaper('A4', 'portrait');
         }
 
         return $pdf->stream("$ticket->pnr_number.pdf");
+    }
+
+    public function printTicketView($id)
+    {
+        $pageTitle = "Ticket Print";
+
+        $ticket = $this->getTicketDetails($id);
+
+        return view('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
     }
 
     public function downloadTicket($id)
