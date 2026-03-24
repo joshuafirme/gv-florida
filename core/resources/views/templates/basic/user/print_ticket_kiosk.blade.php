@@ -235,9 +235,9 @@
             const BASE_URL = "{{ url('/') }}/";
             const id = "{{ $ticket->id }}";
 
-            //  printVouch()
+             printVouch()
 
-            printDiv('print-area')
+            //printDiv('print-area')
 
             function printDiv(divId) {
                 var divToPrint = document.getElementById(divId);
