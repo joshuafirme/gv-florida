@@ -143,7 +143,7 @@
         <div class="d-flex">
             <img class="m-auto" src="{{ asset('assets/admin/images/atm.png') }}" alt="">
         </div>
-        <div class="e-vouch-wrapper" id="print-area">
+        {{-- <div class="e-vouch-wrapper" id="print-area">
 
             <div class="ticket-header">
                 <div class="ticket-logo">
@@ -205,7 +205,7 @@
                 <img src="data:image/svg+xml;base64,{{ $qr }}" alt="QR Code">
             </div>
 
-        </div>
+        </div> --}}
         <div class="d-flex mt-4">
             <a class="btn btn-outline-success btn-lg m-auto" href="{{ url("/tickets?kiosk_id=$ticket->kiosk_id") }}">
                 Start a new transaction
