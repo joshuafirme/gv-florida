@@ -261,58 +261,76 @@
 
             function printVouch() {
 
-                connectQZ()
+                const data = {
+                    pnr: "{{ $ticket->pnr_number }}",
+                    name: "{{ $ticket->user->first_name ?? '' }}",
+                    date: "{{ showDateTime($ticket->date_of_journey, 'M d, Y') }}",
+                    seats: "{{ implode(',', $ticket->seats) }}",
+                    amount: "{{ number_format($ticket->deposit->amount, 2) }}",
+                    method: "{{ $ticket->deposit->gateway->name }}",
+                    status: "{{ strip_tags(paymentStatus($ticket->deposit->status)) }}"
+                };
 
-                    .then(() => {
+                if (window.Android) {
+                    console.log('Android bridge running...')
+                    Android.printReceipt(JSON.stringify(data));
+                } else {
+                    alert("Android bridge not available");
 
 
-                        return getPrinter();
-                    })
+                    connectQZ()
 
-                    .then(printer => {
-                        let btn = $('#printBtn');
-                        let default_btn = btn.html();
-                        btn.html("Printing...")
-                        btn.prop('disabled', true)
+                        .then(() => {
 
-                        let config = qz.configs.create(printer, {
-                            scaleContent: true,
-                            colorType: 'color'
-                        });
 
-                        fetch(BASE_URL + 'api/ticket/download/print-ticket/' + id)
-                            .then(res => res.json())
-                            .then(data => {
-                                if (data.success) {
+                            return getPrinter();
+                        })
 
-                                }
-                                btn.html(default_btn)
-                                btn.prop('disabled', false)
-                                qz.print(config, [{
-                                    type: 'pdf',
-                                    format: 'file',
-                                    data: data.file_url,
-                                    options: {
-                                        autoRotate: true
+                        .then(printer => {
+                            let btn = $('#printBtn');
+                            let default_btn = btn.html();
+                            btn.html("Printing...")
+                            btn.prop('disabled', true)
+
+                            let config = qz.configs.create(printer, {
+                                scaleContent: true,
+                                colorType: 'color'
+                            });
+
+                            fetch(BASE_URL + 'api/ticket/download/print-ticket/' + id)
+                                .then(res => res.json())
+                                .then(data => {
+                                    if (data.success) {
+
                                     }
-                                }]);
-                            })
-                            .catch(console.error);
-                    })
+                                    btn.html(default_btn)
+                                    btn.prop('disabled', false)
+                                    qz.print(config, [{
+                                        type: 'pdf',
+                                        format: 'file',
+                                        data: data.file_url,
+                                        options: {
+                                            autoRotate: true
+                                        }
+                                    }]);
+                                })
+                                .catch(console.error);
+                        })
 
-                    .then(() => {
+                        .then(() => {
 
-                        $('#status').text('✅ Printed successfully!');
-                    })
+                            $('#status').text('✅ Printed successfully!');
+                        })
 
-                    .catch(err => {
+                        .catch(err => {
 
-                        console.error(err);
+                            console.error(err);
 
-                        $('#status').text('❌ Error: ' + err);
+                            $('#status').text('❌ Error: ' + err);
 
-                        alert('Print Error: ' + err);
-                    });
+                            alert('Print Error: ' + err);
+                        });
+                }
             }
 
 
