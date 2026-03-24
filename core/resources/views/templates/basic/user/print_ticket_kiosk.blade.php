@@ -268,14 +268,14 @@
                     seats: "{{ implode(',', $ticket->seats) }}",
                     amount: "{{ number_format($ticket->deposit->amount, 2) }}",
                     method: "{{ $ticket->deposit->gateway->name }}",
-                    status: "{{ strip_tags(paymentStatus($ticket->deposit->status)) }}"
+                    status: "{{ $ticket->deposit->status }}"
                 };
 
                 if (window.Android) {
                     console.log('Android bridge running...')
                     Android.printReceipt(JSON.stringify(data));
                 } else {
-                    alert("Android bridge not available");
+                    console.log("Android bridge not available");
 
 
                     connectQZ()
