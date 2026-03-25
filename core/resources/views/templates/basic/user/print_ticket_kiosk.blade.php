@@ -236,17 +236,17 @@
             const id = "{{ $ticket->id }}";
 
             //
-
+            printVouch()
             //printDiv('print-area')
 
-            var userAgent = navigator.userAgent;
-            if (userAgent.indexOf("Android") > -1) {
-                printVouchRawBT()
-            } else {
-                // Code for other devices
-                console.log("This is not an Android device.");
-                printVouch()
-            }
+            // var userAgent = navigator.userAgent;
+            // if (userAgent.indexOf("Android") > -1) {
+            //     printVouchRawBT()
+            // } else {
+            //     // Code for other devices
+            //     console.log("This is not an Android device.");
+            //     printVouch()
+            // }
 
 
             function printDiv(divId) {
