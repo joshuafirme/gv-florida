@@ -235,9 +235,19 @@
             const BASE_URL = "{{ url('/') }}/";
             const id = "{{ $ticket->id }}";
 
-             printVouch()
+            //
 
             //printDiv('print-area')
+
+            var userAgent = navigator.userAgent;
+            if (userAgent.indexOf("Android") > -1) {
+                printVouchRawBT()
+            } else {
+                // Code for other devices
+                console.log("This is not an Android device.");
+                printVouch()
+            }
+
 
             function printDiv(divId) {
                 var divToPrint = document.getElementById(divId);
@@ -257,6 +267,34 @@
 
                 // Close the new window after printing
                 newWin.close();
+            }
+
+            function printVouchRawBT() {
+                let text = `
+                        <CENTER><B>GV FLORIDA</B></CENTER>
+                        <CENTER>E-Ticket / Reservation Voucher</CENTER>
+
+                        PNR: {{ $ticket->pnr_number }}
+                        Name: {{ $ticket->user->fullname ?? '' }}
+                        Date: {{ showDateTime($ticket->date_of_journey, 'M d, Y') }}
+                        Seats: {{ implode(',', $ticket->seats) }}
+                        Amount: {{ number_format($ticket->deposit->amount, 2) }} PHP
+                        Method: {{ $ticket->deposit->gateway->name }}
+                        Status: {{ strip_tags(paymentStatus($ticket->deposit->status)) }}
+
+                        ------------------------------
+
+                        QR: {{ $ticket->pnr_number }}
+
+                        Thank you!
+                    `;
+
+                console.log('Printing rawbt...')
+                // Encode text
+                let encoded = encodeURIComponent(text);
+
+                // Trigger RawBT
+                window.location.href = "rawbt:" + encoded;
             }
 
             function printVouch() {
