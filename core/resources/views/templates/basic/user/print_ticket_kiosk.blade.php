@@ -280,7 +280,7 @@
                         Seats: {{ implode(',', $ticket->seats) }}
                         Amount: {{ number_format($ticket->deposit->amount, 2) }} PHP
                         Method: {{ $ticket->deposit->gateway->name }}
-                        Status: {{ strip_tags(paymentStatus($ticket->deposit->status)) }}
+                        Status: {{ $ticket->deposit->status }}
 
                         ------------------------------
 
