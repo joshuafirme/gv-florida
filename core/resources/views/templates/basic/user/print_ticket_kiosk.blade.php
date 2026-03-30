@@ -104,7 +104,10 @@
                     <td class="title">Seats</td>
                     <td class="value">{{ implode(',', $ticket->seats) }}</td>
                 </tr>
-
+                <tr>
+                    <td class="title">Amount</td>
+                    <td class="value"> {{ number_format($ticket->deposit->amount, 2) }} PHP</td>
+                </tr>
                 @if (isset($ticket->deposit->userDiscount))
                     <tr>
                         <td class="title">Discount</td>
@@ -112,7 +115,7 @@
                     </tr>
                 @endif
                 <tr>
-                    <td class="title">Amount</td>
+                    <td class="title">Total Amount</td>
                     <td class="value"> {{ number_format($ticket->deposit->final_amount, 2) }} PHP</td>
                 </tr>
 
@@ -178,6 +181,7 @@
                     created_at: "{{ showDateTime($ticket->created_at, 'M d, Y') }}",
                     seats: "{{ implode(',', $ticket->seats) }}",
                     amount: "{{ number_format($ticket->deposit->amount, 2) }}",
+                    final_amount: "{{ number_format($ticket->deposit->final_amount, 2) }}",
                     method: "{{ $ticket->deposit->gateway->name }}",
                     status: "{{ $ticket->deposit->statusString }}"
                 };

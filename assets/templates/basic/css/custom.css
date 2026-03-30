@@ -411,7 +411,7 @@
   --hover-border-color: var(--main-color);
   background-color: #fff;
   border-radius: 5px;
-  height: 100%;
+  /* height: 100%; */
 }
 
 .payment-system-list.is-scrollable {

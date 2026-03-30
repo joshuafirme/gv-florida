@@ -28,6 +28,9 @@
                                     @foreach ($gatewayCurrency as $data)
                                         @php
                                             $description = '';
+                                                if ($kiosk_id && $data->name == 'Paynamics') {
+                                                    continue;
+                                                }
                                             if ($data->name == 'Paynamics') {
                                                 $description = $data->instruction;
                                             }
