@@ -173,6 +173,8 @@
             printVouch()
 
             function printVouch() {
+                
+                let discount_amount = "{{ $ticket->deposit?->userDiscount ? number_format($ticket->deposit->userDiscount->amount, 2) : '0.00' }}"
 
                 const data = {
                     pnr: "{{ $ticket->pnr_number }}",
@@ -181,6 +183,8 @@
                     created_at: "{{ showDateTime($ticket->created_at, 'M d, Y') }}",
                     seats: "{{ implode(',', $ticket->seats) }}",
                     amount: "{{ number_format($ticket->deposit->amount, 2) }}",
+                    discount_amount: discount_amount,
+                    discount_description: "{{ $ticket->deposit?->userDiscount?->description }}",
                     final_amount: "{{ number_format($ticket->deposit->final_amount, 2) }}",
                     method: "{{ $ticket->deposit->gateway->name }}",
                     status: "{{ $ticket->deposit->statusString }}"
