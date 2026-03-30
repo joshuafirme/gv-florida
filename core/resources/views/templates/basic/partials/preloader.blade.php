@@ -1,21 +1,25 @@
-<!-- Preloader -->
-<div class="preloader">
-    <div class="loader-wrapper">
-        <div class="truck-wrapper">
-            <div class="preloader-content">{{ __(gs('sitename')) }}</div>
-            <div class="truck">
-                <div class="truck-container"></div>
-                <div class="glases"></div>
-                <div class="bonet"></div>
+ @php
+    $contents = getContent('banner.content', true);
+@endphp
+ <div class="loader-wrapper">
+     <div class="loader">
 
-                <div class="base"></div>
+         <div class="road"></div>
 
-                <div class="base-aux"></div>
-                <div class="wheel-back"></div>
-                <div class="wheel-front"></div>
-                <div class="smoke"></div>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- Preloader -->
+         <div class="bus">
+             <!-- Replace src with your actual image path -->
+             <img src="{{ getImage('assets/images/frontend/banner/' . @$contents->data_values->animation_image, '200x69') }}"
+                 alt="bus">
+
+             <div class="wheel front"></div>
+             <div class="wheel back"></div>
+
+             <div class="smoke">
+                 <span></span>
+                 <span></span>
+                 <span></span>
+             </div>
+         </div>
+
+     </div>
+ </div>

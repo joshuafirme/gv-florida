@@ -148,7 +148,7 @@
         </div>
      
         <div class="d-flex mt-4">
-            <a class="btn btn-outline-success btn-lg m-auto" href="{{ url("/tickets?kiosk_id=$ticket->kiosk_id") }}">
+            <a class="btn btn-outline-success btn-lg m-auto" href="{{ url("/tickets?kiosk_id=$ticket->kiosk_id&counter_id=$ticket->pickup_point") }}">
                 Start a new transaction
                 <i class="fa-solid fa-right-from-bracket"></i>
             </a>

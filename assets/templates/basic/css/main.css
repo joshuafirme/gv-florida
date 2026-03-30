@@ -1566,6 +1566,8 @@ i {
     width: 100%;
 }
 
+
+
 @-webkit-keyframes run {
     0% {
         right: -300px;
@@ -5252,13 +5254,13 @@ i {
     padding: 0 4px;
 }
 
-.preloader {
+/* .preloader {
     position: fixed;
     height: 100%;
     width: 100%;
     z-index: 99999;
     background: #fff;
-}
+} */
 
 .truck-wrapper {
     height: 200px;
@@ -6415,4 +6417,146 @@ label.required:after {
 .success-icon {
     font-size: 4rem;
     color: #28a745;
+}
+
+/* .preloader .shape {
+    position: absolute;
+    right: 1px;
+    width: 500px;
+    -webkit-animation: run 5s linear infinite;
+    animation: run 5s linear infinite;
+}
+
+@media (max-width: 991px) {
+    .preloader .shape {
+        width: 150px;
+        animation: run 15s linear infinite;
+    }
+}
+
+@media (max-width: 767px) {
+    .preloader .shape {
+        width: 130px;
+        animation: run 10s linear infinite;
+    }
+}
+
+.preloader .shape img {
+    width: 100%;
+} */
+
+.loader {
+z-index: 999 !important;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  border: 6px solid #e0e0e0;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(#cfe8ff, #ffffff);
+   position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Bus container (moves) */
+.bus {
+  position: absolute;
+  left: 30px;
+  bottom: 80px;
+  width: 200px;
+  /* animation: moveBus 2.5s linear infinite; */
+}
+
+@keyframes moveBus {
+  0% { left: 100%; }
+  100% { left: -220px; }
+}
+
+/* Actual bus image */
+.bus img {
+  width: 100%;
+  display: block;
+}
+
+/* Wheels overlay */
+.wheel {
+  position: absolute;
+  bottom: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, #eee 20%, #aaa 21%, #111 60%);
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.4);
+  animation: spin 0.4s linear infinite;
+}
+
+.wheel::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle, #fff, #ccc);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Adjust these positions based on your image */
+.wheel.front { left: 40px; }
+.wheel.back { right: 45px; }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+/* Smoke attached to bus */
+.smoke {
+  position: absolute;
+  bottom: 25px;
+  right: -10px; /* rear of bus */
+}
+
+.smoke span {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 50%;
+  animation: smoke 1.5s infinite ease-out;
+}
+
+.smoke span:nth-child(2) { left: -12px; animation-delay: .4s; }
+.smoke span:nth-child(3) { left: -24px; animation-delay: .8s; }
+
+@keyframes smoke {
+  0% { transform: translateY(0) scale(1); opacity: 0.6; }
+  100% { transform: translateY(-40px) scale(2.5); opacity: 0; }
+}
+
+
+
+/* Road */
+.road {
+  position: absolute;
+  bottom: 60px;
+  left: 0;
+  width: 150%;
+  height: 6px;
+  background: repeating-linear-gradient(
+    to right,
+    #444 0,
+    #444 30px,
+    transparent 30px,
+    transparent 60px
+  );
+  animation: moveRoad 0.8s linear infinite;
+}
+
+@keyframes moveRoad {
+  from { transform: translateX(0); }
+  to { transform: translateX(60px); }
 }

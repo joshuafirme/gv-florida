@@ -145,7 +145,7 @@
                                 class="las la-times"></i></button>
                     </div>
                     <div class="modal-body">
-                        <strong class="text-dark">@lang('Are you sure to book these seats?')</strong>
+                        <strong class="text-dark">@lang('Are you sure you want to book the selected seat(s)?')</strong>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn--danger w-auto btn--sm px-3" data-bs-dismiss="modal">

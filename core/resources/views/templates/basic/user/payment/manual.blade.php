@@ -24,10 +24,9 @@
                             <div class="row">
                                 <div class="col-md-12">
                                     <div class="alert alert-primary">
-                                        <p class="mb-0"><i class="las la-info-circle"></i> @lang('You are requesting')
-                                            <b>{{ showAmount($data['final_amount']) }}</b> @lang('to payment.') @lang('Please pay')
-                                            <b>{{ showAmount($data['final_amount'], currencyFormat: false) . ' ' . $data['method_currency'] }}
-                                            </b> @lang('for successful payment.')
+                                        <p class="mb-0"><i class="las la-info-circle"></i> @lang('You are about to pay')
+                                            <b>{{ showAmount($data['final_amount']) }}</b>
+                                            @lang('Please proceed with the exact amount to complete your transaction.')
                                         </p>
                                     </div>
 
