@@ -2,7 +2,9 @@
 
 // Preloader
 $(window).on("load", function () {
-    $(".loader-wrapper").fadeOut(1000);
+    setTimeout(() => {
+        $(".loader-wrapper").fadeOut(1000);
+    }, 500);
 });
 
 //Menu Dropdown
@@ -58,8 +60,7 @@ $(window).on("scroll", function () {
 
 //Click event to scroll to top
 $(".scrollToTop").on("click", function () {
-    $("html, body").animate(
-        {
+    $("html, body").animate({
             scrollTop: 0,
         },
         300

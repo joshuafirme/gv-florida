@@ -1,6 +1,6 @@
  @php
-    $contents = getContent('banner.content', true);
-@endphp
+     $contents = getContent('banner.content', true);
+ @endphp
  <div class="loader-wrapper">
      <div class="loader">
 

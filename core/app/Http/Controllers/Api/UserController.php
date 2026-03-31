@@ -40,6 +40,16 @@ class UserController extends Controller
     {
         $ticket = BookedTicket::findOrFail($id);
 
+        $dir = 'assets/admin/contents/';
+        $file = "{$dir}reservation-slip-$ticket->pickup_point.json";
+        if (!file_exists($file)) {
+            if (!is_dir($dir)) {
+                mkdir($dir);
+            }
+        }
+        $fileContent = @file_get_contents($file);
+        $content = json_decode($fileContent);
+
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true,
             'defaultFont' => 'DejaVu Sans',
@@ -47,6 +57,7 @@ class UserController extends Controller
             'isPhpEnabled' => true,
         ])->loadView('admin.pdf.reservation-slip', [
                     'ticket' => $ticket,
+                    'content' => $content,
                     'pageTitle' => "Reservation Slip"
                 ]);
 
@@ -78,7 +89,7 @@ class UserController extends Controller
     public function printTicket($id = null)
     {
         $ticket = $this->getTicketDetails($id);
-    
+
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true,
             'defaultFont' => 'DejaVu Sans',

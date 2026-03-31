@@ -26,7 +26,9 @@ class CounterController extends Controller
             },
             'fleetType',
             'schedule'
-        ])->where('start_from', $counter_id)->get();
+        ])->where('start_from', $counter_id)
+        ->where('status', Status::ENABLE)
+        ->get();
 
         $data = [];
 

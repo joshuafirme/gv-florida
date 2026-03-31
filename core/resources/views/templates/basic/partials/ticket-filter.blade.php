@@ -19,7 +19,7 @@
             </div>
         </div>
 
-        @if ($schedules)
+        {{-- @if ($schedules)
             <div class="filter-item">
                 <h5 class="title">@lang('Schedules')</h5>
                 <select class="form-control select2 search search-multiple" name="schedules[]" multiple="multiple">
@@ -40,7 +40,7 @@
                     @endforeach
                 </select>
             </div>
-        @endif
+        @endif --}}
         @if ($fleetType)
             <div class="filter-item">
                 <h5 class="title">@lang('Vehicle Type')</h5>

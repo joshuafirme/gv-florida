@@ -132,12 +132,12 @@
             TIME <span class="line-input"
                 style="width:90px">{{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}</span>
         </div>
-        {{-- 
+
         <div class="d-flex align-items-center mt-4">
             <span class="small-label">No. :</span>
-            <span class="number-box ms-2">237951</span>
+            <span class="number-box ms-2">{{ $ticket->series_number }}</span>
             <span class="m-box">M</span>
-        </div> --}}
+        </div>
 
     </div>
 
