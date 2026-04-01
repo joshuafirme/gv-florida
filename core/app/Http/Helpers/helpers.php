@@ -488,6 +488,20 @@ function showDateTime($date, $format = 'Y-m-d h:i A')
     return Carbon::parse($date)->translatedFormat($format);
 }
 
+function formatDate($date, $format_time = false, $date_format = "M d, Y")
+{
+    if ($date) {
+        if ($format_time) {
+            if ($date_format == "d/m/Y") {
+                return date($date_format . ' H:i', strtotime($date));
+            }
+            return date($date_format . ' h:i a', strtotime($date));
+        }
+        return date($date_format, strtotime($date));
+    }
+    return '';
+}
+
 function getContent($dataKeys, $singleQuery = false, $limit = null, $orderById = false)
 {
 

@@ -180,8 +180,11 @@
                     pnr: "{{ $ticket->pnr_number }}",
                     name: "{{ $ticket->user->first_name ?? '' }}",
                     date: "{{ showDateTime($ticket->date_of_journey, 'M d, Y') }}",
-                    created_at: "{{ showDateTime($ticket->created_at, 'M d, Y') }}",
+                    updated_at: "{{ formatDate($ticket->deposit->updated_at, true) }}",
+                    expired_at: "{{ formatDate(date('Y-m-d H:i:s', strtotime($ticket->deposit->updated_at . ' +15 minutes')), true) }}",
                     seats: "{{ implode(',', $ticket->seats) }}",
+                    departure_time: "{{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}",
+                    bus_type: "{{ $ticket->trip->fleetType->name }}",
                     amount: "{{ number_format($ticket->deposit->amount, 2) }}",
                     discount_amount: discount_amount,
                     discount_description: "{{ $ticket->deposit?->userDiscount?->description }}",
@@ -189,6 +192,8 @@
                     method: "{{ $ticket->deposit->gateway->name }}",
                     status: "{{ $ticket->deposit->statusString }}"
                 };
+
+                console.log('passing data to android: ', data)
 
                 if (window.Android) {
                     console.log('Android bridge running...')
