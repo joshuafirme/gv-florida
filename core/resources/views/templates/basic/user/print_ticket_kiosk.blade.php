@@ -180,7 +180,7 @@
                     pnr: "{{ $ticket->pnr_number }}",
                     name: "{{ $ticket->user->first_name ?? '' }}",
                     date: "{{ showDateTime($ticket->date_of_journey, 'M d, Y') }}",
-                    destination: "{{ $ticket->pickup->name }}",
+                    destination: "{{ $ticket->drop->name }}",
                     updated_at: "{{ formatDate($ticket->deposit->updated_at, true) }}",
                     expired_at: "{{ formatDate(date('Y-m-d H:i:s', strtotime($ticket->deposit->updated_at . ' +15 minutes')), true) }}",
                     seats: "{{ implode(',', $ticket->seats) }}",
