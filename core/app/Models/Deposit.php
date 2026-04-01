@@ -56,6 +56,8 @@ class Deposit extends Model
                 $html = '<span class="badge badge--success">' . trans('Succeed') . '</span>';
             } elseif ($this->status == Status::PAYMENT_REJECT) {
                 $html = '<span><span class="badge badge--danger">' . trans('Rejected') . '</span><br>' . diffForHumans($this->updated_at) . '</span>';
+            } elseif ($this->status == Status::PAYMENT_EXPIRED) {
+                $html = '<span><span class="badge badge--danger">' . trans('Expired') . '</span><br>' . diffForHumans($this->updated_at) . '</span>';
             } else {
                 $html = '<span class="badge badge--dark">' . trans('Initiated') . '</span>';
             }
@@ -116,5 +118,11 @@ class Deposit extends Model
     public function scopeInitiated($query)
     {
         return $query->where('status', Status::PAYMENT_INITIATE);
+    }
+
+    
+    public function scopeExpired($query)
+    {
+        return $query->where('status', Status::PAYMENT_EXPIRED);
     }
 }

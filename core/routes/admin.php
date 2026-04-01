@@ -238,6 +238,7 @@ Route::middleware('admin')->group(function () {
         Route::get('approved/{user_id?}', 'approved')->name('approved');
         Route::get('successful/{user_id?}', 'successful')->name('successful');
         Route::get('initiated/{user_id?}', 'initiated')->name('initiated');
+        Route::get('expired/{user_id?}', 'expired')->name('expired');
         Route::get('details/{id}', 'details')->name('details');
         Route::post('reject', 'reject')->name('reject');
         Route::post('approve/{id}', 'approve')->name('approve');

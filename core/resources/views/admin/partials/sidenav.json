@@ -199,6 +199,20 @@
             },
             {
                 "keyword": [
+                    "Expired Payments",
+                    "Payments",
+                    "Payment management",
+                    "Payment activity"
+                ],
+                "title": "Expired Payments",
+                "route_name": "admin.deposit.expired",
+                "menu_active": "admin.deposit.expired",
+                "params": {
+                    "user_id": ""
+                }
+            },
+            {
+                "keyword": [
                     "All Payments",
                     "Payments",
                     "Payment management",

@@ -55,6 +55,14 @@ class DepositController extends Controller
         return view('admin.deposit.log', compact('pageTitle', 'deposits', 'status'));
     }
 
+    public function expired($userId = null)
+    {
+        $pageTitle = 'Expired Deposits';
+        $status = 'expired';
+        $deposits = $this->depositData($status, userId: $userId);
+        return view('admin.deposit.log', compact('pageTitle', 'deposits', 'status'));
+    }
+
     public function deposit($userId = null)
     {
         $pageTitle = 'Deposit History';
