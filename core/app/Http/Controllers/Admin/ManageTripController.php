@@ -357,7 +357,7 @@ class ManageTripController extends Controller
             'isPhpEnabled' => true,
         ])->loadView('admin.pdf.reservation-slip', ['ticket' => $ticket, 'pageTitle' => "Reservation Slip", 'content' => $content]);
 
-        $pdf->setPaper([0, 0, 144, 2000], 'portrait');
+        $pdf->setPaper([0, 0, 144, 500], 'portrait');
 
         return $pdf->stream("Reservation Slip.pdf");
     }
