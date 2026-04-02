@@ -15,7 +15,9 @@
             margin: 0 font-family: Arial, sans-serif;
         }
 
-        .slip-container {}
+        .slip-container {
+            font-size: 7px;
+        }
 
         .slip-title {
             font-weight: bold;
@@ -38,7 +40,7 @@
         }
 
         .terms {
-            font-size: 7px;
+            font-size: 7px !important;
             line-height: 1.3em;
         }
 
