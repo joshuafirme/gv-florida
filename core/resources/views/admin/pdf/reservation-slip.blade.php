@@ -39,7 +39,12 @@
             margin-bottom: 10px;
         }
 
-        .terms font, .terms pre, .terms p, .terms span {
+        .terms font,
+        .terms pre,
+        .terms p,
+        .terms span,
+        .terms div,
+        .terms li {
             font-size: 8px !important;
         }
 
@@ -160,7 +165,7 @@
                 <tr class="section-gap">
                     <td class="label">Type of Passenger:</td>
                     <td class="value">
-                        {{  $ticket->deposit?->userDiscount?->description ?: 'Regular' }}
+                        {{ $ticket->deposit?->userDiscount?->description ?: 'Regular' }}
                     </td>
                 </tr>
 
