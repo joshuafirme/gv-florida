@@ -349,7 +349,7 @@ class ManageTripController extends Controller
         }
         $fileContent = @file_get_contents($file);
         $content = json_decode($fileContent);
-    return view('admin.pdf.reservation-slip', ['ticket' => $ticket, 'pageTitle' => "Reservation Slip", 'content' => $content]);
+    
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true,
             'defaultFont' => 'DejaVu Sans',

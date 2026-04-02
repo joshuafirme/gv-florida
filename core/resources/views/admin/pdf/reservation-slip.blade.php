@@ -114,7 +114,7 @@
 
         <div class="terms">
             <strong>TERMS & CONDITIONS:</strong>
-            <div>{!! isset($content->terms_and_conditions) ? $content->terms_and_conditions : '' !!}</div>
+            <div>{{ isset($content->terms_and_conditions) ? $content->terms_and_conditions : '' }}</div>
         </div>
 
         <div class="ticket">
