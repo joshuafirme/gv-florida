@@ -15,6 +15,16 @@ class BookedTicket extends Model
 
     protected $appends = ['photo'];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            $last = self::max('series_number') ?? 99999;
+            $model->series_number = $last + 1;
+        });
+    }
+
     public function deposit()
     {
         return $this->hasOne(Deposit::class);
