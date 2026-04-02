@@ -44,6 +44,11 @@
             line-height: 1.3em;
         }
 
+        .terms div {
+            font-size: 7px !important;
+            line-height: 1.3em;
+        }
+
         .terms li {
             margin-bottom: 4px;
             color: red;
