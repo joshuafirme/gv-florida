@@ -39,50 +39,63 @@
             margin-bottom: 10px;
         }
 
+        .terms font {
+            font-size: 8px !important;
+        }
+
         .terms {
-            font-size: 7px !important;
-            line-height: 1.3em;
+            font-size: 8px !important;
         }
 
-        .terms div {
-            font-size: 7px !important;
-            line-height: 1.3em;
+
+        .ticket {
+            margin-top: 20px;
         }
 
-        .terms li {
-            margin-bottom: 4px;
-            color: red;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 9px;
         }
 
-        .line-input {
-            border-bottom: 1px solid black;
-            display: inline-block;
-            width: 80px;
-            height: 12px;
+        td {
+            padding: 4px 0;
         }
 
-        .signature-line {
-            border-bottom: 1px solid black;
-            width: 100px;
-            height: 18px;
-            margin-top: 30px;
-        }
-
-        .small-label {
-            font-size: 8px;
-        }
-
-        .number-box {
-            font-size: 20px;
-            color: red;
+        /* Key fix */
+        .label {
             font-weight: bold;
+            width: 50%;
         }
 
-        .m-box {
-            font-weight: bold;
-            font-size: 14px;
-            margin-left: 10px;
+        .value {
+            width: 50%;
+            text-align: right;
         }
+
+        .section-gap td {
+            padding-top: 10px;
+        }
+
+        .divider {
+            border-top: 2px solid #000;
+            text-align: center;
+            position: relative;
+            margin-top: 25px;
+        }
+
+        .divider span {
+            position: relative;
+            background: #fff;
+            padding: 0 10px;
+        }
+
+        .ticket-no {
+            font-size: 18px;
+            text-align: center;
+            margin-top: 10px;
+        }
+
 
         @page {
             margin: 8px;
@@ -104,46 +117,72 @@
             <div>{!! isset($content->terms_and_conditions) ? $content->terms_and_conditions : '' !!}</div>
         </div>
 
-        <div class="mt-2 small-label">
-            Destination <span class="line-input">{{ $ticket->drop->name }}</span> Km. Post
-        </div>
+        <div class="ticket">
+            <table>
+                <tr>
+                    <td class="label">Destination:</td>
+                    <td class="value">{{ $ticket->drop->name }}</td>
+                </tr>
 
-        <div class="mt-1 small-label">
-            Seat No. <span class="line-input" style="width:60px">
-                @foreach ($ticket->seats as $seat)
-                    {{ $seat }} &nbsp;
-                @endforeach
-            </span>
-        </div>
+                <tr>
+                    <td class="label">KM Post:</td>
+                    <td class="value">485</td>
+                </tr>
 
-        <div class="mt-1 small-label">
-            Date <span class="line-input" style="width:60px">
-                {{ $ticket->date_of_journey }}
-        </div>
+                <tr>
+                    <td class="label">Departure Date:</td>
+                    <td class="value">
+                        {{ date('M. d, Y', strtotime($ticket->date_of_journey)) }}
+                    </td>
+                </tr>
 
-        <div class="mt-1 small-label">
-            Fare <span class="line-input"
-                style="width:80px">{{ number_format($ticket->deposit->final_amount, 2) }}</span> (Php)
-        </div>
+                <tr>
+                    <td class="label">Departure Time:</td>
+                    <td class="value">
+                        {{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}
+                    </td>
+                </tr>
 
-        <div class="mt-1 small-label">
-            No. of Pass <span class="line-input" style="width:100px">
-                {{ array_sum($ticket->trip->fleetType->deck_seats) }}
-            </span>
-        </div>
+                <tr class="section-gap">
+                    <td class="label">Fare:</td>
+                    <td class="value">
+                        {{ number_format($ticket->deposit->final_amount, 2) }} PHP
+                    </td>
+                </tr>
 
-        <div class="signature-line mt-2"></div>
-        <div class="small-label">Authorized Signature</div>
+                <tr>
+                    <td class="label">Seat No.:</td>
+                    <td class="value">
+                        {{ implode(', ', $ticket->seats) }}
+                    </td>
+                </tr>
 
-        <div class="mt-1 small-label">
-            TIME <span class="line-input"
-                style="width:90px">{{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}</span>
-        </div>
+                <tr class="section-gap">
+                    <td class="label">Type of Passenger:</td>
+                    <td class="value">
+                        {{  $ticket->deposit?->userDiscount?->description ?: 'Regular' }}
+                    </td>
+                </tr>
 
-        <div class="d-flex align-items-center mt-4">
-            <span class="small-label">No. :</span>
-            <span class="number-box ms-2">{{ $ticket->series_number }}</span>
-            <span class="m-box">M</span>
+                <tr>
+                    <td class="label">Bus Type:</td>
+                    <td class="value">{{ $ticket->trip?->fleetType?->name }}</td>
+                </tr>
+
+                <tr>
+                    <td colspan="2">
+                        <div class="divider">
+                            <span>Authorized Signature</span>
+                        </div>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td colspan="2" class="ticket-no">
+                        <strong>No.: {{ $ticket->series_number }}</strong>
+                    </td>
+                </tr>
+            </table>
         </div>
 
     </div>
