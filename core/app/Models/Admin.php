@@ -12,7 +12,8 @@ class Admin extends Authenticatable
         'username',
         'email',
         'role_id',
-        'passcode'
+        'passcode',
+        'password'
     ];
     /**
      * The attributes that should be hidden for arrays.

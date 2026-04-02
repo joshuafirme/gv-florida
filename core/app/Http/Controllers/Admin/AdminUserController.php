@@ -32,7 +32,8 @@ class AdminUserController extends Controller
     {
         $data = $request->all();
         $data['password'] = Hash::make($request->password);
-        Admin::create($data);
+
+        $user = Admin::create($data);
 
         $notify[] = ['success', 'User was added.'];
         return back()->withNotify($notify);
