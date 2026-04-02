@@ -110,87 +110,93 @@
 
 <body>
 
-    <div class="slip-container">
+    @foreach ($ticket->seats as $seat)
+        <div class="slip-container">
 
-        <div class="slip-title">{{ isset($content->heading) ? $content->heading : '' }}</div>
-        <div class="slip-subtitle">{{ isset($content->subheading) ? $content->subheading : '' }}</div>
+            <div class="slip-title">{{ isset($content->heading) ? $content->heading : '' }}</div>
+            <div class="slip-subtitle">{{ isset($content->subheading) ? $content->subheading : '' }}</div>
 
-        <div class="section-title">RESERVATION SLIP</div>
+            <div class="section-title">RESERVATION SLIP</div>
 
-        <div class="terms">
-            <strong>TERMS & CONDITIONS:</strong>
-            <div>{!! isset($content->terms_and_conditions) ? $content->terms_and_conditions : '' !!}</div>
+            <div class="terms">
+                <strong>TERMS & CONDITIONS:</strong>
+                <div>{!! isset($content->terms_and_conditions) ? $content->terms_and_conditions : '' !!}</div>
+            </div>
+
+            <div class="ticket">
+                <table>
+                    <tr>
+                        <td class="label">Destination:</td>
+                        <td class="value">{{ $ticket->drop->name }}</td>
+                    </tr>
+
+                    <tr>
+                        <td class="label">KM Post:</td>
+                        <td class="value">485</td>
+                    </tr>
+
+                    <tr>
+                        <td class="label">Departure Date:</td>
+                        <td class="value">
+                            {{ date('M. d, Y', strtotime($ticket->date_of_journey)) }}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td class="label">Departure Time:</td>
+                        <td class="value">
+                            {{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}
+                        </td>
+                    </tr>
+
+                    <tr class="section-gap">
+                        <td class="label">Fare:</td>
+                        <td class="value">
+                            {{ number_format($ticket->deposit->final_amount, 2) }} PHP
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td class="label">Seat No.:</td>
+                        <td class="value">
+                            {{ $seat }}
+                        </td>
+                    </tr>
+
+                    <tr class="section-gap">
+                        <td class="label">Type of Passenger:</td>
+                        <td class="value">
+                            {{ $ticket->deposit?->userDiscount?->description ?: 'Regular' }}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td class="label">Bus Type:</td>
+                        <td class="value">{{ $ticket->trip?->fleetType?->name }}</td>
+                    </tr>
+
+                    <tr>
+                        <td colspan="2">
+                            <div class="divider">
+                                <span>Authorized Signature</span>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td colspan="2" class="ticket-no">
+                            <strong>No.: {{ $ticket->series_number }}</strong>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
         </div>
+        @if (!$loop->last)
+            <div style="page-break-after: always;"></div>
+        @endif
+    @endforeach
 
-        <div class="ticket">
-            <table>
-                <tr>
-                    <td class="label">Destination:</td>
-                    <td class="value">{{ $ticket->drop->name }}</td>
-                </tr>
-
-                <tr>
-                    <td class="label">KM Post:</td>
-                    <td class="value">485</td>
-                </tr>
-
-                <tr>
-                    <td class="label">Departure Date:</td>
-                    <td class="value">
-                        {{ date('M. d, Y', strtotime($ticket->date_of_journey)) }}
-                    </td>
-                </tr>
-
-                <tr>
-                    <td class="label">Departure Time:</td>
-                    <td class="value">
-                        {{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}
-                    </td>
-                </tr>
-
-                <tr class="section-gap">
-                    <td class="label">Fare:</td>
-                    <td class="value">
-                        {{ number_format($ticket->deposit->final_amount, 2) }} PHP
-                    </td>
-                </tr>
-
-                <tr>
-                    <td class="label">Seat No.:</td>
-                    <td class="value">
-                        {{ implode(', ', $ticket->seats) }}
-                    </td>
-                </tr>
-
-                <tr class="section-gap">
-                    <td class="label">Type of Passenger:</td>
-                    <td class="value">
-                        {{ $ticket->deposit?->userDiscount?->description ?: 'Regular' }}
-                    </td>
-                </tr>
-
-                <tr>
-                    <td class="label">Bus Type:</td>
-                    <td class="value">{{ $ticket->trip?->fleetType?->name }}</td>
-                </tr>
-
-                <tr>
-                    <td colspan="2">
-                        <div class="divider">
-                            <span>Authorized Signature</span>
-                        </div>
-                    </td>
-                </tr>
-
-                <tr>
-                    <td colspan="2" class="ticket-no">
-                        <strong>No.: {{ $ticket->series_number }}</strong>
-                    </td>
-                </tr>
-            </table>
-        </div>
-
-    </div>
 
 </body>
 
