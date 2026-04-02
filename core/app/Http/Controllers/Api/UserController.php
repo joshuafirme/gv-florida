@@ -61,7 +61,7 @@ class UserController extends Controller
                     'pageTitle' => "Reservation Slip"
                 ]);
 
-        $pdf->setPaper([0, 0, 114, 600], 'portrait');
+        $pdf->setPaper([0, 0, 144, 600], 'portrait');
 
         $path = "app/public/tickets/reservation-slip-{$ticket->id}.pdf";
         $pdfPath = storage_path($path);
@@ -97,7 +97,7 @@ class UserController extends Controller
             'isPhpEnabled' => true,
         ])->loadView('templates.basic.user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $ticket->pnr_number]);
 
-        $pdf->setPaper([0, 0, 114, 600], 'portrait');
+        $pdf->setPaper([0, 0, 144, 600], 'portrait');
 
         $path = "app/public/tickets/ticket-{$ticket->id}.pdf";
         $pdfPath = storage_path($path);

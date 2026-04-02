@@ -251,7 +251,7 @@ class UserController extends Controller
 
         if ($ticket->kiosk_id) {
             // $pdf->setPaper([0, 0, 226.77, 1200], 'portrait');
-            $pdf->setPaper([0, 0, 114, 600], 'portrait');
+            $pdf->setPaper([0, 0, 144, 600], 'portrait');
         } else {
             $pdf->setPaper('A4', 'portrait');
         }
