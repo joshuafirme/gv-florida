@@ -39,7 +39,7 @@
             margin-bottom: 10px;
         }
 
-        .terms font, .terms pre, .terms p {
+        .terms font, .terms pre, .terms p, .terms span {
             font-size: 8px !important;
         }
 
