@@ -311,6 +311,11 @@ class SiteController extends Controller
 
     public function bookTicket(Request $request, $id)
     {
+        if (app()->isProduction()) {
+            $notify[] = ['error', 'This feature is currently unavailable.'];
+            return redirect()->back()->withNotify($notify);
+        }
+
         $request->validate([
             "pickup_point" => "required|integer|gt:0",
             "dropping_point" => "required|integer|gt:0",
