@@ -113,14 +113,16 @@ class Paynamics
             Storage::put($path, $jsonPayload);
 
             $api_base = config('paynamics.endpoint');
+            $verify_ssl = env('VERIFY_SSL') ? true : false;
+            $verify_host = env('VERIFY_SSL');
 
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, "{$api_base}transactions");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $verify_ssl);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $verify_host);
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 "Content-Type: application/json",
                 "Authorization: Basic " . base64_encode("$basicUser:$basicPass")
