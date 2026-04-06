@@ -134,7 +134,12 @@ class Paynamics
                 curl_close($ch);
                 $json_res = json_decode($response);
 
-                return $json_res;
+                if ($json_res?->request_id) {
+                    return $json_res;
+                } else {
+                    dd($json_res);
+                }
+
             }
         } catch (\Exception $e) {
             $response = "Message: " . $e->getMessage() . "<br>" .
