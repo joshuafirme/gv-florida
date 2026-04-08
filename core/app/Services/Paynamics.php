@@ -129,7 +129,7 @@ class Paynamics
             ]);
 
             $response = curl_exec($ch);
-        dd($response);
+
             if (curl_errno($ch)) {
                 echo "cURL Error: " . curl_error($ch);
             } else {
