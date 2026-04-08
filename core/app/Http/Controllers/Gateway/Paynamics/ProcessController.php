@@ -48,7 +48,7 @@ class ProcessController extends Controller
             $ticket->deposit->pmethod = getPaynamicsPMethod($paynamics->pchannel);
             $ticket->deposit->save();
 
-            if ($transaction?->response_code == "GR011") { // if req ID is already process or exist.
+            if ($transaction && $transaction->response_code == "GR011") { // if req ID is already process or exist.
                 $ticket->deposit->trx = generateReqID();
                 session()->put('Track', $ticket->deposit->trx);
                 $ticket->deposit->save();
