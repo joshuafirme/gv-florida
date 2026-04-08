@@ -129,14 +129,13 @@ class Paynamics
             ]);
 
             $response = curl_exec($ch);
-
+        dd($response);
             if (curl_errno($ch)) {
                 echo "cURL Error: " . curl_error($ch);
             } else {
                 curl_close($ch);
                 $json_res = json_decode($response);
 
-                    dd($json_res);
                 if ($json_res?->request_id) {
                     return $json_res;
                 } else {
