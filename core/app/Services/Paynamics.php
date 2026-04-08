@@ -114,7 +114,7 @@ class Paynamics
 
             $api_base = config('paynamics.endpoint');
             $verify_ssl = env('VERIFY_SSL') ? true : false;
-            $verify_host = env('VERIFY_SSL');
+            $verify_host = env('VERIFY_HOST');
 
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, "{$api_base}transactions");
