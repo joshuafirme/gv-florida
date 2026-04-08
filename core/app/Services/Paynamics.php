@@ -136,6 +136,7 @@ class Paynamics
                 curl_close($ch);
                 $json_res = json_decode($response);
 
+                    dd($json_res);
                 if ($json_res?->request_id) {
                     return $json_res;
                 } else {
