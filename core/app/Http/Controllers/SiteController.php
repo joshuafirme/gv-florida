@@ -184,7 +184,10 @@ class SiteController extends Controller
             }
         }
 
-        $trips_query = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->where('status', Status::ENABLE);
+        $now = Carbon::now();
+
+        $trips_query = $this->getTripQuery();
+
         // $tripIds = array_filter($tripIds);
         // $tripIds = array_unique($tripIds);
         // $tripIds = array_map('intval', $tripIds);
@@ -457,7 +460,8 @@ class SiteController extends Controller
             }
         }
 
-        $trips_query = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->active();
+
+        $trips_query = $this->getTripQuery();
 
         if ($request->kiosk_id) {
             $trips_query->whereIntegerInRaw('id', $tripIds);
@@ -533,6 +537,28 @@ class SiteController extends Controller
             $layout = 'layouts.frontend';
         }
         return view("Template::ticket", compact('pageTitle', 'fleetType', 'trips', 'routes', 'counters', 'schedules', 'emptyMessage', 'layout'));
+    }
+
+    public function getTripQuery()
+    {
+        $now = Carbon::now();
+        $request = request();
+        $mins_value = $request->kiosk_id ? 15 : 30;
+
+        return Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])
+            ->whereHas('schedule', function ($q) use ($now, $request, $mins_value) {
+                $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey)->format('Y-m-d') : date('Y-m-d');
+                $q->whereRaw("
+                      DATE_SUB(
+                          STR_TO_DATE(CONCAT(?, ' ', start_from), '%Y-%m-%d %H:%i:%s'),
+                          INTERVAL 15 MINUTE
+                      ) > ?
+                  ", [
+                    Carbon::parse($date)->format('Y-m-d'),
+                    $now->format('Y-m-d H:i:s')
+                ]);
+            })
+            ->active();
     }
 
     public function filterTrip($trips)
