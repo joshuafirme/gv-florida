@@ -1,5 +1,7 @@
 @extends('admin.layouts.app')
-
+@php
+    use Carbon\Carbon;
+@endphp
 @section('panel')
     <div class="row">
         <div class="col-md-12">
@@ -17,6 +19,7 @@
                                     <th>@lang('Booking Source')</th>
                                     <th>@lang('Payment Method')</th>
                                     <th>@lang('Processed By')</th>
+                                    <th>@lang('Is Rebooked')</th>
                                     <th>@lang('Action')</th>
                                 </tr>
                             </thead>
@@ -50,6 +53,7 @@
                                         </td>
                                         <td data-label="@lang('Journey Date')">
                                             {{ __(showDateTime($item->date_of_journey, 'd M, Y')) }}
+                                            <div>{{ date('h:i A', strtotime($item->trip->schedule->start_from)) }}</div>
                                         </td>
                                         <td data-label="@lang('Trip')">
                                             <span class="font-weight-bold">{{ __($item->trip->fleetType->name) }}</span>
@@ -60,6 +64,7 @@
                                         <td data-label="@lang('Fare')">
                                             {{ __(showAmount($item->sub_total)) }}
                                             <div>Ticket Count: {{ $item->seats ? __(sizeof($item->seats)) : '' }}</div>
+                                            <div>{{ implode(', ', $item->seats) }}</div>
                                         </td>
                                         <td>{{ $item->kiosk_id ? $item->kiosk->name : 'Online' }}</td>
                                         <td>
@@ -79,6 +84,13 @@
                                             @endif
                                         </td>
                                         <td>
+                                            @if ($item->is_rebooked)
+                                                <span class="badge badge--info">@lang('Yes')</span>
+                                            @else
+                                                <span class="badge badge--secondary">@lang('No')</span>
+                                            @endif
+                                        </td>
+                                        <td>
                                             @if ($item->status == Status::BOOKED_APPROVED)
                                                 <a data-bs-toggle="tooltip" data-bs-placement="bottom"
                                                     title="Reservation slip" target="_blank"
@@ -86,6 +98,25 @@
                                                     class="btn btn-sm btn-outline--primary ms-1">
                                                     <i class="fa-solid fa-receipt"></i>
                                                 </a>
+
+                                                @if (Carbon::parse($item->date_of_journey)->greaterThan(now()) && !$item->is_rebooked)
+                                                    <button data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                        title="Change Schedule" target="_blank"
+                                                        class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"
+                                                        data-id="{{ $item->id }}"
+                                                        data-date-of-journey="{{ $item->date_of_journey }}">
+                                                        <i class="fa-solid fa-calendar-day"></i>
+                                                    </button>
+                                                @endif
+                                                @if (Carbon::parse($item->date_of_journey)->isFuture())
+                                                    <button type="button" data-bs-toggle="tooltip"
+                                                        data-bs-placement="bottom" title="Cancel Booking"
+                                                        class="btn btn-sm btn-outline--danger confirmationBtn"
+                                                        data-question="@lang('Are you sure you want to cancel this booking?')"
+                                                        data-action="{{ route('admin.trip.ticket.cancel.booking', $item->id) }}"><i
+                                                            class="fa-solid fa-circle-xmark"></i>
+                                                    </button>
+                                                @endif
                                             @endif
                                         </td>
                                     </tr>
@@ -106,6 +137,43 @@
             </div>
         </div>
     </div>
+
+    <div id="updateBookingDateModal" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Booking Date</h5>
+                    <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                        <i class="las la-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="updateBookingDateForm" method="POST">
+                        @csrf
+                        <div class="form-group">
+                            <label for="date_of_journey">New Date of Journey</label>
+                            <input type="date" class="form-control" name="date_of_journey"
+                                required>
+                        </div>
+                        <div class="form-group mt-2">
+                            <label for="username">Username</label>
+                            <input type="text" class="form-control" name="username"
+                                required>
+                        </div>
+                        <div class="form-group mt-2">
+                            <label for="passcode">Passcode</label>
+                            <input type="password" class="form-control" name="passcode"
+                                required>
+                        </div>
+
+                        <button type="submit" class="btn btn--primary">Update Date</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <x-confirmation-modal />
 @endsection
 @push('breadcrumb-plugins')
     <form
@@ -117,4 +185,25 @@
             <button class="btn btn--primary" type="submit"><i class="fa fa-search"></i></button>
         </div>
     </form>
+@endpush
+
+@push('script')
+    <script>
+        'use strict';
+
+        $(document).on("click", ".update-booking-date-btn", function(e) {
+            e.preventDefault();
+
+            let id = $(this).data('id');
+            let dateOfJourney = $(this).data('date-of-journey') || '';
+
+            // Build URL properly (pass base URL from Blade)
+            let actionUrl = "{{ url('admin/manage/update-booking-date') }}";
+            actionUrl = `${actionUrl}/${id}`;
+
+            $("#updateBookingDateModal").modal('show');
+            $("#updateBookingDateForm").attr('action', actionUrl);
+            $("#updateBookingDateForm input[name='date_of_journey']").val(dateOfJourney);
+        });
+    </script>
 @endpush

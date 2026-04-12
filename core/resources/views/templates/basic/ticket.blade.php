@@ -304,7 +304,9 @@
             const datePicker = $('.date-range').daterangepicker({
                 autoUpdateInput: true,
                 singleDatePicker: true,
-                minDate: new Date()
+                minDate: new Date(),
+                maxDate: moment().add(3, 'days') 
+
             })
 
 

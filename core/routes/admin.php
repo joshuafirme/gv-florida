@@ -69,10 +69,10 @@ Route::middleware('admin')->group(function () {
     });
 
     Route::controller('CounterController')->name('counter.')->prefix('counter')->group(function () {
-        
+
         Route::get('reservation-slip', 'reservationSlip')->name('reservation-slip');
         Route::post('reservation-slip', 'updateReservationSlip')->name('reservation-slip.udpate');
-        
+
         Route::get('', 'counters')->name('index');
         Route::get('schedule-board/{id}', 'scheduleBoard')->name('scheduleBoard');
         Route::get('schedule-board/json/{id}', 'scheduleBoardJSON')->name('scheduleBoardJSON');
@@ -124,7 +124,7 @@ Route::middleware('admin')->group(function () {
             Route::post('/change-all-status', 'changeAllStatus')->name('changeAllStatus');
             Route::get('reservation-slip/{id}', 'reservationSlip')->name('reservationSlip');
             Route::get('manifest-seat-layout/{trip_id}', 'manifestSeatLayout')->name('manifestSeatLayout');
-            
+
         });
 
         Route::prefix('route')->name('route.')->group(function () {
@@ -165,6 +165,8 @@ Route::middleware('admin')->group(function () {
 
         Route::get('price/check_price', 'checkTicketPrice')->name('check_price');
         Route::get('route-data', 'getRouteData')->name('get_route_data');
+        Route::post('cancel-booking/{id}', 'cancelBooking')->name('cancel.booking');
+        Route::post('update-booking-date/{id}', 'updateBookingDate')->name('update.booking.date');
     });
 
     Route::controller('VehicleTicketController')->prefix('tickets')->name('vehicle.ticket.')->group(function () {

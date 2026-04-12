@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Constants\Status;
 use App\Http\Controllers\Controller;
+use App\Models\Admin;
 use App\Models\BookedTicket;
 use App\Models\FleetType;
 use App\Models\VehicleRoute;
@@ -228,6 +230,43 @@ class VehicleTicketController extends Controller
         $data->delete();
 
         $notify[] = ['success', 'Price Deleted Successfully'];
+        return redirect()->back()->withNotify($notify);
+    }
+
+    public function updateBookingDate(Request $request, $id)
+    {
+
+        $admin = Admin::where('username', $request->username)
+            ->where('passcode', $request->passcode)
+            ->first();
+
+        $is_authorized = isset($admin->id) ? true : false;
+        $message = $is_authorized ? 'Authorization success!' : 'Invalid username or passcode!';
+
+        if ($is_authorized) {
+            $request->validate([
+                'date_of_journey' => 'required|date|after_or_equal:today',
+            ]);
+        } else {
+            return redirect()->back()->withErrors(['authorization' => $message]);
+        }
+
+        $data = BookedTicket::findOrFail($id);
+        $data->date_of_journey = $request->date_of_journey;
+        $data->is_rebooked = 1;
+        $data->save();
+
+        $notify[] = ['success', "Booking Date Updated Successfully"];
+        return redirect()->back()->withNotify($notify);
+    }
+
+    public function cancelBooking($id)
+    {
+        $data = BookedTicket::findOrFail($id);
+        $data->status = Status::BOOKED_REJECTED;
+        $data->save();
+
+        $notify[] = ['success', "Booking Cancelled Successfully"];
         return redirect()->back()->withNotify($notify);
     }
 
