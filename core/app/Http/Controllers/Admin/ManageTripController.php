@@ -234,8 +234,6 @@ class ManageTripController extends Controller
             'fleet_type_id' => 'required|integer|gt:0',
             'vehicle_route_id' => 'required|integer|gt:0',
             'schedule_id' => 'required|integer|gt:0',
-            'start_from' => 'required|integer|gt:0',
-            'end_to' => 'required|integer|gt:0',
             'day_off' => 'nullable|array|min:1'
         ]);
 
@@ -250,9 +248,11 @@ class ManageTripController extends Controller
         $trip->title = $request->title;
         $trip->fleet_type_id = $request->fleet_type_id;
         $trip->vehicle_route_id = $request->vehicle_route_id;
+
+        $route = VehicleRoute::find($request->vehicle_route_id);
         $trip->schedule_id = $request->schedule_id;
-        $trip->start_from = $request->start_from;
-        $trip->end_to = $request->end_to;
+        $trip->start_from = $route->start_from;
+        $trip->end_to = $route->end_to;
         $trip->day_off = $request->day_off ?? [];
         $trip->trip_status = $request->trip_status;
         $trip->save();

@@ -193,7 +193,7 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="col-sm-6">
+                                {{-- <div class="col-sm-6">
                                     <div class="form-group">
                                         <label> @lang('Start From')</label>
                                         <select name="start_from" class="select2" required>
@@ -217,7 +217,7 @@
                                             @endforeach
                                         </select>
                                     </div>
-                                </div>
+                                </div> --}}
                                 <div class="col-sm-6">
                                     <div class="form-group">
                                         <label for="trip_status">@lang('Trip Status')</label>
