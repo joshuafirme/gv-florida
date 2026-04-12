@@ -547,16 +547,18 @@ class SiteController extends Controller
 
         return Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])
             ->whereHas('schedule', function ($q) use ($now, $request, $mins_value) {
-                $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey)->format('Y-m-d') : date('Y-m-d');
-                $q->whereRaw("
+                $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey) : Carbon::now();
+                if ($date->isToday()) {
+                    $q->whereRaw("
                       DATE_SUB(
                           STR_TO_DATE(CONCAT(?, ' ', start_from), '%Y-%m-%d %H:%i:%s'),
                           INTERVAL 15 MINUTE
                       ) > ?
                   ", [
-                    Carbon::parse($date)->format('Y-m-d'),
-                    $now->format('Y-m-d H:i:s')
-                ]);
+                        Carbon::parse($date)->format('Y-m-d'),
+                        $now->format('Y-m-d H:i:s')
+                    ]);
+                }
             })
             ->active();
     }

@@ -193,7 +193,7 @@
                                     <div class="ticket-item-inner">
                                         <h5 class="bus-name">{{ __($trip->route->name) }}</h5>
                                         <span class="bus-info">@lang('Seat Layout - ')
-                                            {{ __($trip->fleetType->seat_layout) }}</span> {{ $trip->route->id }}
+                                            {{ __($trip->fleetType->seat_layout) }}</span>
                                         <span class="ratting"><i
                                                 class="las la-bus"></i>{{ __($trip->fleetType->name) }}</span>
                                     </div>
