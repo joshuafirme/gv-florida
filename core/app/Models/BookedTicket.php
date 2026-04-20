@@ -30,6 +30,11 @@ class BookedTicket extends Model
         return $this->hasOne(Deposit::class);
     }
 
+    public function slipSeriesNumbers()
+    {
+        return $this->hasMany(SlipSeriesNumber::class, 'booked_ticket_id');
+    }
+
     public function approvedBy()
     {
         return $this->hasOne(Admin::class, 'id', 'approved_by');

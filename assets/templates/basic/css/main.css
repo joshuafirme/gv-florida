@@ -6445,6 +6445,10 @@ label.required:after {
     width: 100%;
 } */
 
+.bus-name {
+    max-width: 250px;
+}
+
 .loader-wrapper {
   position: fixed;      /* KEY */
   top: 0;

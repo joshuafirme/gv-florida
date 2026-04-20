@@ -9,6 +9,7 @@ use App\Models\FleetType;
 use App\Models\Frontend;
 use App\Models\Kiosk;
 use App\Models\Schedule;
+use App\Models\SlipSeriesNumber;
 use App\Models\Trip;
 use App\Models\TicketPrice;
 use App\Models\BookedTicket;
@@ -423,6 +424,16 @@ class SiteController extends Controller
         $bookedTicket->status = Status::BOOKED_PENDING;
         $bookedTicket->kiosk_id = $request->kiosk_id;
         $bookedTicket->save();
+
+        
+        foreach ($seats as $seat) {
+            SlipSeriesNumber::create([
+                'seat' => $seat,
+                'booked_ticket_id' => $bookedTicket->id,
+            ]);
+        }
+
+
         session()->put('pnr_number', $pnr_number);
         session()->put('booked_ticket_id', $bookedTicket->id);
         return redirect()->route('user.deposit.index', ['kiosk_id' => $kiosk]);

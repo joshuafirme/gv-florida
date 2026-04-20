@@ -110,7 +110,7 @@
 
 <body>
 
-    @foreach ($ticket->seats as $seat)
+    @foreach ($ticket->slipSeriesNumbers as $slip_series)
         <div class="slip-container">
 
             <div class="slip-title">{{ isset($content->heading) ? $content->heading : '' }}</div>
@@ -159,7 +159,7 @@
                     <tr>
                         <td class="label">Seat No.:</td>
                         <td class="value">
-                            {{ $seat }}
+                            {{ $slip_series->seat }}
                         </td>
                     </tr>
 
@@ -185,7 +185,7 @@
 
                     <tr>
                         <td colspan="2" class="ticket-no">
-                            <strong>No.: {{ $ticket->series_number }}</strong>
+                            <strong>No.: {{ $slip_series->id }}</strong>
                         </td>
                     </tr>
                 </table>
