@@ -286,26 +286,6 @@
 
 
             function printPDF(id) {
-
-                        fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id + '?admin_request=true&admin_id={{ auth("admin")->id() }}')
-                            .then(res => res.json())
-                            .then(data => {
-                                btn.html(default_btn)
-                                btn.prop('disabled', false)
-                                qz.print(config, [{
-                                    type: 'pdf',
-                                    format: 'file',
-                                    data: data.file_url,
-                                    options: {
-                                        autoRotate: true
-                                    }
-                                }]);
-
-                                setTimeout(() => {
-                                    window.location.reload()
-                                }, 1000);
-                            })
-                            .catch(console.error);
                 connectQZ()
 
                     .then(() => {
@@ -324,6 +304,27 @@
                             scaleContent: true,
                             colorType: 'color'
                         });
+
+                        fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id +
+                                '?admin_request=true&admin_id={{ auth('admin')->id() }}')
+                            .then(res => res.json())
+                            .then(data => {
+                                btn.html(default_btn)
+                                btn.prop('disabled', false)
+                                qz.print(config, [{
+                                    type: 'pdf',
+                                    format: 'file',
+                                    data: data.file_url,
+                                    options: {
+                                        autoRotate: true
+                                    }
+                                }]);
+
+                                setTimeout(() => {
+                                    window.location.reload()
+                                }, 1000);
+                            })
+                            .catch(console.error);
 
                     })
 
