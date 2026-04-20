@@ -4425,7 +4425,7 @@ i {
     flex-grow: 1;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1200px) {
     .ticket-item-inner {
         width: 100%;
         text-align: left;
