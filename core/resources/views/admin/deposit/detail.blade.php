@@ -286,27 +286,8 @@
 
 
             function printPDF(id) {
-                connectQZ()
 
-                    .then(() => {
-
-
-                        return getPrinter();
-                    })
-
-                    .then(printer => {
-                        let btn = $('#printBtn');
-                        let default_btn = btn.html();
-                        btn.html("Printing...")
-                        btn.prop('disabled', true)
-
-                        let config = qz.configs.create(printer, {
-                            scaleContent: true,
-                            colorType: 'color'
-                        });
-
-                        fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id +
-                                '?admin_request=true&admin_id={{ auth('admin')->id() }}')
+                        fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id + '?admin_request=true&admin_id={{ auth("admin")->id() }}')
                             .then(res => res.json())
                             .then(data => {
                                 btn.html(default_btn)
@@ -325,6 +306,24 @@
                                 }, 1000);
                             })
                             .catch(console.error);
+                connectQZ()
+
+                    .then(() => {
+
+
+                        return getPrinter();
+                    })
+
+                    .then(printer => {
+                        let btn = $('#printBtn');
+                        let default_btn = btn.html();
+                        btn.html("Printing...")
+                        btn.prop('disabled', true)
+
+                        let config = qz.configs.create(printer, {
+                            scaleContent: true,
+                            colorType: 'color'
+                        });
 
                     })
 
