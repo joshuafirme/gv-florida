@@ -80,6 +80,9 @@ class DepositController extends Controller
     {
         if ($scope) {
             $deposits = Deposit::$scope()->with(['user', 'gateway', 'bookedTicket', 'processedBy']);
+            if ($scope == 'approved') {
+                $deposits = $deposits->where('processed_by_admin_id', auth('admin')->id());
+            }
         } else {
             $deposits = Deposit::with(['user', 'gateway', 'bookedTicket']);
         }

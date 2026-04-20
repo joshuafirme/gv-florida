@@ -89,7 +89,7 @@
                                             @if ($item->is_rebooked)
                                                 <span class="badge badge--info">@lang('Yes')</span>
                                             @else
-                                                <span class="badge badge--secondary">@lang('No')</span>
+                                                <span class="badge badge--dark">@lang('No')</span>
                                             @endif
                                         </td>
                                         <td>
