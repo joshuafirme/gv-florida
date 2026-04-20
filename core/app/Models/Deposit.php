@@ -19,6 +19,12 @@ class Deposit extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function processedBy()
+    {
+        return $this->belongsTo(Admin::class, 'processed_by_admin_id');
+    }
+
     public function gateway()
     {
         return $this->belongsTo(Gateway::class, 'method_code', 'code');
@@ -120,7 +126,7 @@ class Deposit extends Model
         return $query->where('status', Status::PAYMENT_INITIATE);
     }
 
-    
+
     public function scopeExpired($query)
     {
         return $query->where('status', Status::PAYMENT_EXPIRED);

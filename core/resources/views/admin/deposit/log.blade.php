@@ -51,6 +51,9 @@
                                     <th>@lang('User')</th>
                                     <th>@lang('Amount')</th>
                                     <th>@lang('Status')</th>
+                                    @if ($status == 'approved')
+                                        <th>@lang('Processed By')</th>
+                                    @endif
                                     <th>@lang('Action')</th>
                                 </tr>
                             </thead>
@@ -102,6 +105,11 @@
                                         <td>
                                             @php echo $deposit->statusBadge @endphp
                                         </td>
+                                        @if ($status == 'approved')
+                                            <td>
+                                                {{ $deposit->processedBy ? $deposit->processedBy->name : '-' }}
+                                            </td>
+                                        @endif
                                         <td>
                                             <a href="{{ route('admin.deposit.details', $deposit->id) }}"
                                                 class="btn btn-sm btn-outline--primary ms-1">

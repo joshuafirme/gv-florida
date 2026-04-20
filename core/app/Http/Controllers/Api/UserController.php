@@ -141,7 +141,12 @@ class UserController extends Controller
 
     public function approve($id)
     {
+        $admin = Admin::find(request('admin_id'));
         $deposit = Deposit::where('id', $id)->where('status', Status::PAYMENT_PENDING)->firstOrFail();
+        $deposit->processed_by_name = $admin->name;
+        $deposit->processed_by_admin_id = $admin->id;
+        $deposit->save();
+
         $deposit->bookedTicket->approved_by = auth()->id();
         $deposit->bookedTicket->save();
         PaymentController::userDataUpdate($deposit, true);
