@@ -558,6 +558,16 @@
         "route_name": "admin.discount.index",
         "menu_active": "admin.discount.index"
     },
+    "advance_booking": {
+        "keyword": [
+            "advance booking",
+            "Manage Advance Booking"
+        ],
+        "title": "Advance Booking",
+        "icon": "las la-calendar-check",
+        "route_name": "admin.discount.index",
+        "menu_active": "admin.discount.index"
+    },
     "administration": {
         "title": "Users",
         "icon": "las la-user-tie",

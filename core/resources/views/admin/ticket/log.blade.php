@@ -64,7 +64,9 @@
                                         <td data-label="@lang('Fare')">
                                             {{ __(showAmount($item->sub_total)) }}
                                             <div>Ticket Count: {{ $item->seats ? __(sizeof($item->seats)) : '' }}</div>
-                                            <div>{{ implode(', ', $item->seats) }}</div>
+                                            @if ($item->seats && is_array($item->seats))
+                                                <div>{{ implode(', ', $item->seats) }}</div>
+                                            @endif
                                         </td>
                                         <td>{{ $item->kiosk_id ? $item->kiosk->name : 'Online' }}</td>
                                         <td>
