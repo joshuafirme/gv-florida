@@ -286,6 +286,7 @@
 
 
             function printPDF(id) {
+
                 connectQZ()
 
                     .then(() => {
@@ -305,8 +306,7 @@
                             colorType: 'color'
                         });
 
-                        fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id +
-                                '?admin_request=true&admin_id={{ auth('admin')->id() }}')
+                        fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id + '?admin_request=true&admin_id={{ auth("admin")->id() }}')
                             .then(res => res.json())
                             .then(data => {
                                 btn.html(default_btn)
@@ -325,7 +325,6 @@
                                 }, 1000);
                             })
                             .catch(console.error);
-
                     })
 
                     .then(() => {
