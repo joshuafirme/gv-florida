@@ -565,8 +565,8 @@
         ],
         "title": "Advance Booking",
         "icon": "las la-calendar-check",
-        "route_name": "admin.discount.index",
-        "menu_active": "admin.discount.index"
+        "route_name": "admin.advance.booking.settings",
+        "menu_active": "admin.advance.booking.settings"
     },
     "administration": {
         "title": "Users",

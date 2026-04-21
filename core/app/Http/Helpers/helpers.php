@@ -64,6 +64,12 @@ if (!function_exists('timeDifferenceReadable')) {
     }
 }
 
+function getAllowedAdvanceBookingDays()
+{
+    $data = Storage::exists("settings/advance_booking.json") ? json_decode(Storage::get("settings/advance_booking.json"), true) : ['allowed_days' => 3];
+    return (int) $data['allowed_days'];
+}
+
 
 function generateTicketQR($pnr_number, $size = 150)
 {

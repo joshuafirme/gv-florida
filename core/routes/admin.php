@@ -96,6 +96,7 @@ Route::middleware('admin')->group(function () {
 
     Route::controller('AdvanceBookingController')->name('advance.booking.')->prefix('advance-booking')->group(function () {
         Route::post('update-allowed-days', 'updateAllowedAdvanceBookingDays')->name('update-allowed-days');
+        Route::get('settings', 'advanceBookingDaysSettings')->name('settings');
     });
 
     Route::controller('ManageFleetController')->name('fleet.')->prefix('fleet')->group(function () {

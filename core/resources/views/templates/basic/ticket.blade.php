@@ -1,6 +1,7 @@
 @section('content')
     @php
         $kiosk_id = request()->kiosk_id;
+        $allowed_advance_booking_days = getAllowedAdvanceBookingDays();
     @endphp
     @if ($kiosk_id)
         @php
@@ -305,7 +306,7 @@
                 autoUpdateInput: true,
                 singleDatePicker: true,
                 minDate: new Date(),
-                maxDate: moment().add(3, 'days') 
+                maxDate: moment().add("{{ $allowed_advance_booking_days }}", 'days') 
 
             })
 

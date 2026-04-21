@@ -15,15 +15,10 @@ class AdvanceBookingController extends Controller
         $message = 'Allowed advance booking days updated successfully';
 
         $allowedDays = request()->input('allowed_days');
-        $data = [
-            'allowed_days' => $allowedDays,
-        ];
-        $jsonPayload = json_encode($data);
-        $path = "settings/advance_booking.json";
-        Storage::put($path, $jsonPayload);
+        $data = Storage::exists("settings/advance_booking.json") ? json_decode(Storage::get("settings/advance_booking.json"), true) : ['allowed_days' => 3];
 
         $notify[] = ['success', $message];
-        return back()->withNotify($notify);
+        return view('admin.advance-booking.settings', compact('pageTitle', 'data'));
     }
 
     public function updateAllowedAdvanceBookingDays()
