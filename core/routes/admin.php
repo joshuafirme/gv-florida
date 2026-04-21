@@ -94,11 +94,8 @@ Route::middleware('admin')->group(function () {
         Route::post('status/{id}', 'status')->name('status');
     });
 
-        Route::controller('DiscountController')->name('discount.')->prefix('discount')->group(function () {
-        Route::get('', 'discounts')->name('index');
-        Route::post('/{id?}', 'DiscountStore')->name('store');
-        Route::get('/open/{id}', 'openDiscount')->name('open');
-        Route::post('status/{id}', 'status')->name('status');
+    Route::controller('AdvanceBookingController')->name('advance.booking.')->prefix('advance-booking')->group(function () {
+        Route::post('update-allowed-days', 'updateAllowedAdvanceBookingDays')->name('update-allowed-days');
     });
 
     Route::controller('ManageFleetController')->name('fleet.')->prefix('fleet')->group(function () {

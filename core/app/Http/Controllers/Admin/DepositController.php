@@ -80,7 +80,7 @@ class DepositController extends Controller
     {
         if ($scope) {
             $deposits = Deposit::$scope()->with(['user', 'gateway', 'bookedTicket', 'processedBy']);
-            if ($scope == 'approved') {
+            if ($scope == 'approved' || $scope == 'rejected') {
                 $deposits = $deposits->where('processed_by_admin_id', auth('admin')->id());
             }
         } else {
@@ -153,7 +153,7 @@ class DepositController extends Controller
         $deposit->processed_by_name = auth()->user()->name;
         $deposit->processed_by_admin_id = auth()->user()->id;
         $deposit->save();
-        
+
         $deposit->bookedTicket->approved_by = auth()->id();
         $deposit->bookedTicket->save();
         PaymentController::userDataUpdate($deposit, true);
@@ -170,7 +170,8 @@ class DepositController extends Controller
             'message' => 'required|string|max:255'
         ]);
         $deposit = Deposit::where('id', $request->id)->where('status', Status::PAYMENT_PENDING)->firstOrFail();
-
+        $deposit->processed_by_name = auth('admin')->user()->name;
+        $deposit->processed_by_admin_id = auth('admin')->user()->id;
         $deposit->admin_feedback = $request->message;
         $deposit->status = Status::PAYMENT_REJECT;
         $deposit->save();
