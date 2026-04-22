@@ -145,8 +145,9 @@
 
         $(document).ready(function () {
             $('#scheduleTable').DataTable({
-                "searching": false,   // Removes the Search box
-                "lengthChange": false // Removes the "entries per page" dropdown
+                "searching": false,
+                "lengthChange": false,
+                "info": false
             });
         });
 
