@@ -78,10 +78,22 @@ class CounterController extends Controller
                 $occupied_seats_ctr += count($ticket->seats);
             }
 
-            $available_seats_ctr = 0;
             $deck_seats = $trip->fleetType->deck_seats;
             $deck_seats = (int) $deck_seats[$trip->fleetType->deck - 1];
+
+            $available_seats_ctr = 0;
+            $deck_seats = $trip->fleetType->deck_seats;
+            $deck_seats = (int) $deck_seats[0];
+            if ($trip->fleetType->deck == 2) {
+                $deck_seats += (int) $trip->fleetType->deck_seats[1];
+            }
             $available_seats_ctr = $deck_seats - $occupied_seats_ctr;
+            if ($trip->fleetType->cr_position) {
+                $available_seats_ctr -= (int) $trip->fleetType->cr_row_covered;
+            }
+            if ($available_seats_ctr < 1) {
+                continue;
+            }
 
             $trip['deck_seats'] = $deck_seats;
             $trip['occupied_seats'] = $occupied_seats_ctr;
