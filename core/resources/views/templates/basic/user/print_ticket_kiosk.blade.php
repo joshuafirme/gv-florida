@@ -146,14 +146,15 @@
         <div class="d-flex">
             <img class="m-auto" src="{{ asset('assets/admin/images/atm.png') }}" alt="">
         </div>
-     
+
         <div class="d-flex mt-4">
-            <a class="btn btn-outline-success btn-lg m-auto" href="{{ url("/tickets?kiosk_id=$ticket->kiosk_id&counter_id=$ticket->pickup_point") }}">
+            <a class="btn btn-outline-success btn-lg m-auto"
+                href="{{ url("/tickets?kiosk_id=$ticket->kiosk_id&counter_id=$ticket->pickup_point") }}">
                 Start a new transaction
                 <i class="fa-solid fa-right-from-bracket"></i>
             </a>
         </div>
-       
+
     </div>
 @endsection
 
@@ -165,7 +166,24 @@
     <script src="{{ asset('assets/admin/js/vendor/qz-tray.min.js') }}"></script>
     <script src="{{ asset('assets/admin/js/qz-printer.js') }}"></script>
     <script>
-        $(document).ready(function() {
+        // Push initial state
+        window.history.pushState({ page: 1 }, "", window.location.href);
+
+        // Push another state so back stays inside page first
+        window.history.pushState({ page: 2 }, "", window.location.href);
+
+        window.addEventListener('popstate', function (event) {
+
+            if (!confirm("Are you sure you want to go back?")) {
+                // Re-add state so user stays on page
+                window.history.pushState({ page: 2 }, "", window.location.href);
+            }
+            else {
+                window.location.href = '{{ url("/tickets?kiosk_id=$ticket->kiosk_id&counter_id=$ticket->pickup_point") }}';
+            }
+        });
+
+        $(document).ready(function () {
 
             const BASE_URL = "{{ url('/') }}/";
             const id = "{{ $ticket->id }}";
@@ -173,7 +191,7 @@
             printVouch()
 
             function printVouch() {
-                
+
                 let discount_amount = "{{ $ticket->deposit?->userDiscount ? number_format($ticket->deposit->userDiscount->amount, 2) : '0.00' }}"
 
                 const data = {
