@@ -1,5 +1,6 @@
 @php
     $contents = getContent('banner.content', true);
+    $allowed_advance_booking_days = getAllowedAdvanceBookingDays();
 @endphp
 <!-- Banner Section Starts Here -->
 <section class="banner-section"
@@ -85,7 +86,8 @@
             const datePicker = $('.date-range').daterangepicker({
                 autoUpdateInput: true,
                 singleDatePicker: true,
-                minDate:new Date()
+                minDate:new Date(),
+                maxDate: moment().add("{{ $allowed_advance_booking_days }}", 'days')
             })
 
         })(jQuery)

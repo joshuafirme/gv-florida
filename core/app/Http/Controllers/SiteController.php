@@ -613,7 +613,7 @@ class SiteController extends Controller
 
     public function getDroppingPoints($counter_id)
     {
-        $routes = VehicleRoute::whereJsonContains('stoppages', $counter_id)->get();
+        $routes = VehicleRoute::whereJsonContains('stoppages', $counter_id)->active()->get();
         $dropping_points = [];
         foreach ($routes as $route) {
             foreach ($route->stoppages as $stoppage) {
@@ -626,7 +626,7 @@ class SiteController extends Controller
             }
         }
 
-        $dropping_counters = Counter::whereIn('id', $dropping_points)->get();
+        $dropping_counters = Counter::whereIn('id', $dropping_points)->active()->get();
 
         return $dropping_counters;
     }
