@@ -626,7 +626,7 @@ class SiteController extends Controller
             }
         }
 
-        $dropping_counters = Counter::whereIn('id', $dropping_points)->active()->get();
+        $dropping_counters = Counter::whereIn('id', $dropping_points)->get();
 
         return $dropping_counters;
     }
