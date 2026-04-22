@@ -103,12 +103,11 @@
                             <table id="scheduleTable" class="table table-hover align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th scope="col">Bus number</th>
-                                        <th scope="col">Trip</th>
-                                        <th scope="col">Bus type</th>
-                                        <th scope="col">Route</th>
-                                        <th scope="col" class="text-center">Available seats</th>
                                         <th scope="col">Departure time</th>
+                                        <th scope="col">Destination</th>
+                                        <th scope="col">Bus number</th>
+                                        <th scope="col">Class</th>
+                                        <th scope="col" class="text-center">Available seats</th>
                                         <th scope="col">Status</th>
                                     </tr>
                                 </thead>
@@ -143,7 +142,13 @@
     <script src="{{ asset('assets/admin/js/vendor/datatables.min.2.3.4.js') }}"></script>
 
     <script>
-        let table = new DataTable('#scheduleTable');
+
+        $(document).ready(function () {
+            $('#scheduleTable').DataTable({
+                "searching": false,   // Removes the Search box
+                "lengthChange": false // Removes the "entries per page" dropdown
+            });
+        });
 
         scheduleBoard()
 
@@ -176,7 +181,7 @@
                 data: {
                     '_token': "{{ csrf_token() }}"
                 },
-                success: function(data) {
+                success: function (data) {
                     if (last_updated && last_updated != data.last_updated) {
                         console.log('tick!')
                         tickLastUpdate()
@@ -196,20 +201,18 @@
 
                         html += `
                     <tr>
-                        <td>${bus_no}</td>
-                        <td>${item.title}</td>
-                        <td>${item.fleet_type.name}</td>
-                        <td>${item.route.start_from.city} → ${item.route.end_to.city}
-                        </td>
-                        <td class="text-center">${item.available_seats}</td>
                         <td>${formatTime(item.schedule.start_from)}</td>
+                        <td>${item.route.end_to.city}</td>
+                        <td>${bus_no}</td>
+                        <td>${item.fleet_type.name}</td>
+                        <td class="text-center">${item.available_seats > 0 ? item.available_seats : 'Full'}</td>
                         <td>${generateTripStatusHTML(item.trip_status)}</td>
                     </tr>
                     `
                     }
                     $('#scheduleTable tbody').append(html)
                 },
-                error: function(err) {},
+                error: function (err) { },
             });
         }
 
