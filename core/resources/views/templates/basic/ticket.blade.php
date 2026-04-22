@@ -159,10 +159,6 @@
                                     $end->addDay();
                                 }
 
-                                $ticket = App\Models\TicketPrice::where('fleet_type_id', $trip->fleetType->id)
-                                    ->where('vehicle_route_id', $trip->route->id)
-                                    ->first();
-
                                 $tickets = App\Models\BookedTicket::where('trip_id', $trip->id)
                                     ->wheredate('date_of_journey', date('Y-m-d'))
                                     ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
@@ -215,7 +211,7 @@
                                     </div>
                                     <div class="ticket-item-inner book-ticket">
                                         <p class="rent mb-0">
-                                            {{ __(gs('cur_sym')) }}{{ showAmount($ticket->price, currencyFormat: false) }}
+                                            {{ __(gs('cur_sym')) }}{{ showAmount($trip->ticketPrice?->price, currencyFormat: false) }}
                                         </p>
                                         <div class="seat-count mt-2">
                                             Available Seats: {{ $available_seats_ctr }}

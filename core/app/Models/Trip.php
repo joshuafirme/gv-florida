@@ -16,6 +16,12 @@ class Trip extends Model
         'day_off' => 'array'
     ];
 
+    public function ticketPrice()
+    {
+        return $this->hasOne(TicketPrice::class, 'fleet_type_id', 'fleet_type_id')
+            ->where('vehicle_route_id', $this->vehicle_route_id);
+    }
+
     public function fleetType()
     {
         return $this->belongsTo(FleetType::class);
