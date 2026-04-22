@@ -6,6 +6,7 @@ use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Models\BookedTicket;
 use App\Models\Trip;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\Counter;
 
@@ -61,18 +62,7 @@ class CounterController extends Controller
 
     public function scheduleBoardJSON($counter_id)
     {
-        $trips = Trip::with([
-            'route' => function ($query) {
-                $query->with(['startFrom', 'endTo']);
-            },
-            'fleetType',
-            'assignedVehicle' => function ($query) {
-                $query->with(['vehicle']);
-            },
-            'schedule'
-        ])->where('start_from', $counter_id)
-            ->where('status', Status::ENABLE)
-            ->get();
+        $trips = $this->getTripQuery()->get();
 
         $data = [];
 
@@ -104,6 +94,39 @@ class CounterController extends Controller
             'res' => $data,
             'last_updated' => Trip::max('updated_at')
         ]);
+    }
+
+    public function getTripQuery()
+    {
+        $now = Carbon::now();
+        $request = request();
+        $mins_value = $request->kiosk_id ? 15 : 30;
+
+        return Trip::with([
+            'route' => function ($query) {
+                $query->with(['startFrom', 'endTo']);
+            },
+            'fleetType',
+            'assignedVehicle' => function ($query) {
+                $query->with(['vehicle']);
+            },
+            'schedule'
+        ])
+            ->whereHas('schedule', function ($q) use ($now, $request, $mins_value) {
+                $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey) : Carbon::now();
+                if ($date->isToday()) {
+                    $q->whereRaw("
+                      DATE_SUB(
+                          STR_TO_DATE(CONCAT(?, ' ', start_from), '%Y-%m-%d %H:%i:%s'),
+                          INTERVAL 15 MINUTE
+                      ) > ?
+                  ", [
+                        Carbon::parse($date)->format('Y-m-d'),
+                        $now->format('Y-m-d H:i:s')
+                    ]);
+                }
+            })
+            ->active();
     }
 
     public function counterStore(Request $request, $id = 0)
