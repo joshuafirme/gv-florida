@@ -24,7 +24,7 @@
                                             <form action="{{ route('admin.trip.ticket.price.update', $ticket->id) }}" class="update-form">
                                                 @csrf
                                                 <div class="form-group">
-                                                    <label for="point-{{ $loop->iteration }}">{{ $sd[0]->name }} - {{ $sd[1]->name }}</label>
+                                                    <label for="point-{{ $loop->iteration }}">Price</label>
                                                     <div class="input-group">
                                                         <div class="input-group-text">{{ __(gs('cur_text')) }}</div>
                                                         <input type="number" id="point-{{ $loop->iteration }}" class="form-control prices-auto numeric-validation" name="price" min="0" required value="{{ $ticket->price }}">
