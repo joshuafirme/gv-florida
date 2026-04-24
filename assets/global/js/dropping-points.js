@@ -33,9 +33,9 @@
                     const via = extractFromKeyword(v.name, 'via ')
 
                     if (via) {
-                        options += `<option value="${v.id}">${v.end_to?.name} ${via}</option>`
+                        options += `<option value="${v.end_to.id}">${v.end_to?.name} ${v.end_to?.location} ${via}</option>`
                     } else {
-                        options += `<option value="${v.id}">${v.end_to?.name}</option>`
+                        options += `<option value="${v.end_to.id}">${v.end_to?.name} ${v.end_to?.location}</option>`
                     }
 
                 });
