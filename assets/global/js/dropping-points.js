@@ -29,16 +29,27 @@
 
                 let options = '';
                 options += `<option value="">--Dropping point--</option>`;
-                data.forEach(v => {
-                    const via = extractFromKeyword(v.name, 'via ')
 
-                    if (via) {
-                        options += `<option value="${v.end_to.id}">${v.end_to?.name} ${v.end_to?.location} ${via}</option>`
-                    } else {
-                        options += `<option value="${v.end_to.id}">${v.end_to?.name} ${v.end_to?.location}</option>`
-                    }
+                data
+                    .filter(v => v.end_to?.name)
+                    .sort((a, b) => {
+                        const viaA = extractFromKeyword(a.name, 'via ') || '';
+                        const viaB = extractFromKeyword(b.name, 'via ') || '';
 
-                });
+                        const nameA = `${a.end_to.name} ${viaA}`.trim();
+                        const nameB = `${b.end_to.name} ${viaB}`.trim();
+
+                        return nameA.localeCompare(nameB);
+                    })
+                    .forEach(v => {
+                        const via = extractFromKeyword(v.name, 'via ');
+
+                        const label = via ?
+                            `${v.end_to.name} ${via}` :
+                            v.end_to.name;
+
+                        options += `<option value="${v.end_to.id}">${label}</option>`;
+                    });
                 $('select[name=destination]').append(options)
 
 
