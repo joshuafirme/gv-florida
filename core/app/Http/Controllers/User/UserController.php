@@ -242,7 +242,7 @@ class UserController extends Controller
         $pageTitle = "Ticket Print";
 
         $ticket = $this->getTicketDetails($id);
-
+  //  return view('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true
         ])->loadView('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
