@@ -40,6 +40,15 @@ class DiscountController extends Controller
 
     public function status($id)
     {
-        return Discount::changeStatus($id);
+        $discount = Discount::find($id);
+        if (!$discount) {
+            $notify[] = ['error', 'Discount not found'];
+            return back()->withNotify($notify);
+        }
+        $discount->status = $discount->status == Status::ENABLE ? Status::DISABLE : Status::ENABLE;
+        $discount->save();
+
+        $notify[] = ['success', "Discount status updated successfully"];
+        return back()->withNotify($notify);
     }
 }

@@ -12,7 +12,7 @@
                                     <th>@lang('Fleet type')</th>
                                     <th>@lang('Departure time')</th>
                                     <th>@lang('Vehicle\'s Nick Name')</th>
-                                    <th>@lang('Reg. No.')</th>
+                                    <th>@lang('Plate Number')</th>
                                     <th>@lang('Status')</th>
                                     <th>@lang('Action')</th>
                                 </tr>
@@ -27,7 +27,7 @@
                                             {{ __($item->trip->fleetType->name) }}
                                         </td>
                                         <td>
-                                            {{ __($item->trip->schedule->start_from) }}
+                                            {{ __(date('h:i A', strtotime($item->trip->schedule->start_from))) }}
                                         </td>
                                         <td>
                                             {{ __($item->vehicle->nick_name) }}

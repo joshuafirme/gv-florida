@@ -628,6 +628,10 @@ class SiteController extends Controller
 
         $dropping_counters = Counter::whereIn('id', $dropping_points)->get();
 
+        $dropping_counters = VehicleRoute::where('start_from', $counter_id)->active()
+            ->distinct()
+            ->get();
+
         return $dropping_counters;
     }
 
