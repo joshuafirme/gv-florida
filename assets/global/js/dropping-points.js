@@ -26,10 +26,18 @@
             .then(function (data) {
                 $('select[name=destination]').empty();
 
+
                 let options = '';
-                options += `<option value="">--Dropping point--</option>`
+                options += `<option value="">--Dropping point--</option>`;
                 data.forEach(v => {
-                    options += `<option value="${v.id}">${v.end_to?.name}</option>`
+                    const via = extractFromKeyword(v.name, 'via ')
+
+                    if (via) {
+                        options += `<option value="${v.id}">${v.end_to?.name} ${via}</option>`
+                    } else {
+                        options += `<option value="${v.id}">${v.end_to?.name}</option>`
+                    }
+
                 });
                 $('select[name=destination]').append(options)
 
@@ -39,10 +47,26 @@
                 setTimeout(() => {
                     let destination = urlParams.get('destination');
                     destination = destination ? destination : urlParams.get('selected_destination');
-                    
+
                     $('select[name=destination]').val(destination).trigger("change");
                 }, 1800);
             })
             .catch(error => console.error('Error:', error));
+    }
+
+    function extractFromKeyword(text, keyword) {
+        if (!text || !keyword) return null;
+
+        const lowerText = text.toLowerCase();
+        const lowerKeyword = keyword.toLowerCase();
+
+        const pos = lowerText.indexOf(lowerKeyword);
+
+        if (pos === -1) {
+            return null; // keyword not found
+        }
+
+        // Preserve original casing from the source string
+        return text.substring(pos);
     }
 })(jQuery)

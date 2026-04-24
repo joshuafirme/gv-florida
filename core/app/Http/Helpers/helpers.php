@@ -20,7 +20,7 @@ function systemDetails()
 {
     $system['name'] = 'GV Florida';
     $system['version'] = '2.0';
-    $system['build_version'] = '5.3.1';
+    $system['build_version'] = '5.3.2';
     return $system;
 }
 
@@ -61,6 +61,19 @@ if (!function_exists('timeDifferenceReadable')) {
         } catch (Exception $e) {
             return null;
         }
+    }
+}
+
+if (!function_exists('extract_from_keyword')) {
+    function extract_from_keyword(string $text, string $keyword): ?string
+    {
+        $pos = stripos($text, $keyword);
+
+        if ($pos === false) {
+            return null;
+        }
+
+        return substr($text, $pos);
     }
 }
 
