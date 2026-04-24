@@ -29,7 +29,7 @@
                 let options = '';
                 options += `<option value="">--Dropping point--</option>`
                 data.forEach(v => {
-                    options += `<option value="${v.id}">${v.name}</option>`
+                    options += `<option value="${v.id}">${v.end_to?.name}</option>`
                 });
                 $('select[name=destination]').append(options)
 

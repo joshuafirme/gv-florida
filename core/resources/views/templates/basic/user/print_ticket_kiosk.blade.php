@@ -140,6 +140,7 @@
         @if ($ticket->deposit->status != Status::PAYMENT_SUCCESS)
             <div class="alert alert-info">
                 Transaction complete. Please collect and bring your printed Reservation Voucher to the Cashier.
+                Please be advised that this reservation is valid for 15 minutes only.
             </div>
         @endif
 

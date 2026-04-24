@@ -570,6 +570,7 @@ class SiteController extends Controller
         $mins_value = $request->kiosk_id ? 15 : 30;
 
         return Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])
+            ->withMin('schedule as earliest_start', 'start_from')
             ->whereHas('schedule', function ($q) use ($now, $request, $mins_value) {
                 $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey) : Carbon::now();
                 if ($date->isToday()) {
@@ -584,6 +585,7 @@ class SiteController extends Controller
                     ]);
                 }
             })
+            ->orderBy('earliest_start')
             ->active();
     }
 
@@ -613,22 +615,7 @@ class SiteController extends Controller
 
     public function getDroppingPoints($counter_id)
     {
-        $routes = VehicleRoute::whereJsonContains('stoppages', $counter_id)->get();
-        $dropping_points = [];
-        foreach ($routes as $route) {
-            foreach ($route->stoppages as $stoppage) {
-                if ($route->start_from == $stoppage) {
-                    //   continue;
-                }
-                if (!in_array($stoppage, $dropping_points)) {
-                    $dropping_points[] = $stoppage;
-                }
-            }
-        }
-
-        $dropping_counters = Counter::whereIn('id', $dropping_points)->get();
-
-        $dropping_counters = VehicleRoute::where('start_from', $counter_id)->active()
+        $dropping_counters = VehicleRoute::where('start_from', $counter_id)->with(['endTo'])->active()
             ->distinct()
             ->get();
 
