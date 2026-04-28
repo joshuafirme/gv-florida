@@ -18,6 +18,9 @@
                         <form action="{{ route('ticket.book', $trip->id) }}" method="POST" id="bookingForm" class="row gy-2">
                             @csrf
                             <input type="hidden" name="kiosk_id" value="{{ request('kiosk_id') }}" hidden>
+                            <input type="hidden" name="start_from_time" value="{{ $trip->schedule->start_from }}" hidden>
+                            <input type="hidden" name="fleet_type_id" value="{{ $trip->fleetType->id }}" hidden>
+                           
                             <input type="text" name="price" hidden>
                             <div class="col-12 mb-2">
                                 <div class="form-group">
