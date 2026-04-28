@@ -4425,10 +4425,28 @@ i {
     flex-grow: 1;
 }
 
-@media (max-width: 1200px) {
+/* @media (min-width: 953px) and (max-width: 800px) {
     .ticket-item-inner {
-        width: 100%;
+        width: 180;
         text-align: left;
+    }
+} */
+
+@media (min-width: 770px) {
+    .ticket-item-inner {
+        width: 25%;
+        text-align: left;
+    }
+}
+
+
+@media (max-width: 769px) {
+    .ticket-item-inner {
+        width: 50%;
+        text-align: left;
+    }
+    .travel-time{
+        width: 50%;
     }
 }
 
