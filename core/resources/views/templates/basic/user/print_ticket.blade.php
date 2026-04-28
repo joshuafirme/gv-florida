@@ -176,7 +176,7 @@
                         <table>
                             <tr>
                                 <td style="vertical-align:middle;">
-                                    <img src="{{ env('APP_URL') }}assets/images/logo_icon/logo.png" alt="Logo"
+                                    <img src="{{ env('APP_URL') }}assets/images/logo_icon/logo.png"
                                         style="width:85px; height:auto;">
                                 </td>
                                 <td style="vertical-align:middle; padding-left:10px;">

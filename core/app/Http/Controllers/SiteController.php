@@ -452,116 +452,170 @@ class SiteController extends Controller
         }
     }
 
-    public function ticketSearch(Request $request)
-    {
-        if ($request->pickup && $request->destination && $request->pickup == $request->destination) {
-            $notify[] = ['error', 'Please select pickup point and destination point properly'];
-            return redirect()->back()->withNotify($notify);
-        }
-        if ($request->date_of_journey && Carbon::parse($request->date_of_journey)->format('Y-m-d') < Carbon::now()->format('Y-m-d')) {
-            $notify[] = ['error', 'Date of journey can\'t be less than today.'];
-            return redirect()->back()->withNotify($notify);
-        }
+public function ticketSearch(Request $request)
+{
+    // -------------------------------
+    // VALIDATIONS
+    // -------------------------------
+    if ($request->pickup && $request->destination && $request->pickup == $request->destination) {
+        $notify[] = ['error', 'Please select pickup point and destination point properly'];
+        return redirect()->back()->withNotify($notify);
+    }
 
-        $tripIds = [];
-        if ($request->kiosk_id) {
-            $ksk_trips = Kiosk::where('id', $request->kiosk_id)->with([
-                'counter' => function ($q) {
-                    $q->with([
-                        'trips' => function ($q) {
-                            $q->select('id', 'start_from');
-                        },
-                    ]);
-                },
-            ])->get();
+    if ($request->date_of_journey && Carbon::parse($request->date_of_journey)->format('Y-m-d') < Carbon::now()->format('Y-m-d')) {
+        $notify[] = ['error', 'Date of journey can\'t be less than today.'];
+        return redirect()->back()->withNotify($notify);
+    }
 
-            foreach ($ksk_trips as $kiosk) {
-                if (isset($kiosk['counter']['trips'])) {
-                    foreach ($kiosk['counter']['trips'] as $trip) {
-                        $tripIds[] = $trip['id'];
-                    }
+    // -------------------------------
+    // KIOSK FILTER
+    // -------------------------------
+    $tripIds = [];
+
+    if ($request->kiosk_id) {
+        $ksk_trips = Kiosk::where('id', $request->kiosk_id)->with([
+            'counter.trips' => function ($q) {
+                $q->select('id', 'start_from');
+            }
+        ])->get();
+
+        foreach ($ksk_trips as $kiosk) {
+            if (isset($kiosk['counter']['trips'])) {
+                foreach ($kiosk['counter']['trips'] as $trip) {
+                    $tripIds[] = $trip['id'];
+                }
+            }
+        }
+    }
+
+    // -------------------------------
+    // BASE QUERY
+    // -------------------------------
+    $trips_query = $this->getTripQuery();
+
+    if ($request->kiosk_id) {
+        $trips_query->whereIntegerInRaw('id', $tripIds);
+    }
+
+    $pickup = $request->pickup ?: $request->counter_id;
+    $destination = $request->destination ?: $request->selected_destination;
+
+    // -------------------------------
+    // MAIN FILTER LOGIC
+    // -------------------------------
+    if ($pickup && $destination) {
+
+        Session::flash('pickup', $pickup);
+        Session::flash('destination', $destination);
+
+        // STEP 1: TEMP fetch (for route logic only)
+        $tripsCollection = $trips_query->with('route')->get();
+
+        $tripIdsFiltered = [];
+
+        foreach ($tripsCollection as $trip) {
+
+            $stoppages = array_values($trip->route->stoppages);
+
+            $startPoint = array_search($trip->start_from, $stoppages);
+            $endPoint = array_search($trip->end_to, $stoppages);
+            $pickup_point = array_search($pickup, $stoppages);
+            $destination_point = array_search($destination, $stoppages);
+
+            if ($startPoint < $endPoint) {
+
+                if (
+                    $pickup_point >= $startPoint &&
+                    $pickup_point < $endPoint &&
+                    $destination_point > $startPoint &&
+                    $destination_point <= $endPoint
+                ) {
+                    $tripIdsFiltered[] = $trip->id;
+                }
+
+            } else {
+
+                $revArray = array_reverse($stoppages);
+
+                $startPoint = array_search($trip->start_from, $revArray);
+                $endPoint = array_search($trip->end_to, $revArray);
+                $pickup_point = array_search($pickup, $revArray);
+                $destination_point = array_search($destination, $revArray);
+
+                if (
+                    $pickup_point >= $startPoint &&
+                    $pickup_point < $endPoint &&
+                    $destination_point > $startPoint &&
+                    $destination_point <= $endPoint
+                ) {
+                    $tripIdsFiltered[] = $trip->id;
                 }
             }
         }
 
+        // STEP 2: REBUILD QUERY (IMPORTANT FIX)
+        $trips = $this->getTripQuery()
+            ->when($request->kiosk_id, function ($q) use ($tripIds) {
+                $q->whereIntegerInRaw('id', $tripIds);
+            })
+            ->whereIn('id', $tripIdsFiltered);
 
-        $trips_query = $this->getTripQuery();
+    } else {
 
-        if ($request->kiosk_id) {
-            $trips_query->whereIntegerInRaw('id', $tripIds);
-        }
-
+        // -------------------------------
+        // PARTIAL FILTERS
+        // -------------------------------
         $trips = $trips_query;
 
-        $pickup = $request->pickup ? $request->pickup : $request->counter_id;
-        $destination = $request->destination ? $request->destination : $request->selected_destination;
-
-        if ($pickup && $destination) {
+        if ($pickup) {
             Session::flash('pickup', $pickup);
+            $trips->whereHas('route', function ($route) use ($pickup) {
+                $route->whereJsonContains('stoppages', $pickup);
+            });
+        }
+
+        if ($destination) {
             Session::flash('destination', $destination);
-
-            $trips = $trips->with('route')->get();
-            $tripArray = array();
-
-            foreach ($trips as $trip) {
-                $startPoint = array_search($trip->start_from, array_values($trip->route->stoppages));
-                $endPoint = array_search($trip->end_to, array_values($trip->route->stoppages));
-                $pickup_point = array_search($pickup, array_values($trip->route->stoppages));
-                $destination_point = array_search($destination, array_values($trip->route->stoppages));
-                if ($startPoint < $endPoint) {
-                    if ($pickup_point >= $startPoint && $pickup_point < $endPoint && $destination_point > $startPoint && $destination_point <= $endPoint) {
-                        array_push($tripArray, $trip->id);
-                    }
-                } else {
-                    $revArray = array_reverse($trip->route->stoppages);
-                    $startPoint = array_search($trip->start_from, array_values($revArray));
-                    $endPoint = array_search($trip->end_to, array_values($revArray));
-                    $pickup_point = array_search($pickup, array_values($revArray));
-                    $destination_point = array_search($destination, array_values($revArray));
-                    if ($pickup_point >= $startPoint && $pickup_point < $endPoint && $destination_point > $startPoint && $destination_point <= $endPoint) {
-                        array_push($tripArray, $trip->id);
-                    }
-                }
-            }
-
-            $trips = Trip::active()->whereIn('id', $tripArray);
-        } else {
-            if ($pickup) {
-                Session::flash('pickup', $pickup);
-                $trips = $trips->whereHas('route', function ($route) use ($pickup) {
-                    $route->whereJsonContains('stoppages', $pickup);
-                });
-            }
-
-            if ($destination) {
-                Session::flash('destination', $destination);
-                $trips = $trips->whereHas('route', function ($route) use ($destination) {
-                    $route->whereJsonContains('stoppages', $destination);
-                });
-            }
+            $trips->whereHas('route', function ($route) use ($destination) {
+                $route->whereJsonContains('stoppages', $destination);
+            });
         }
-
-        $trips = $this->filterTrip($trips)->paginate(getPaginate());
-
-        $pageTitle = 'Search Result';
-        $emptyMessage = 'There is no trip available';
-        $fleetType = FleetType::active()->get();
-        $schedules = Schedule::all();
-        $routes = VehicleRoute::active()->get();
-        $counters = Counter::active();
-        if ($request->kiosk_id) {
-            $counters->where('id', request('counter_id'));
-        }
-
-        $counters = $counters->get();
-
-        if (auth()->user()) {
-            $layout = 'layouts.master';
-        } else {
-            $layout = 'layouts.frontend';
-        }
-        return view("Template::ticket", compact('pageTitle', 'fleetType', 'trips', 'routes', 'counters', 'schedules', 'emptyMessage', 'layout'));
     }
+
+    // -------------------------------
+    // FINAL QUERY (ORDER PRESERVED)
+    // -------------------------------
+    $trips = $this->filterTrip($trips)->paginate(getPaginate());
+
+    // -------------------------------
+    // VIEW DATA
+    // -------------------------------
+    $pageTitle = 'Search Result';
+    $emptyMessage = 'There is no trip available';
+
+    $fleetType = FleetType::active()->get();
+    $schedules = Schedule::all();
+    $routes = VehicleRoute::active()->get();
+
+    $counters = Counter::active();
+    if ($request->kiosk_id) {
+        $counters->where('id', $request->counter_id);
+    }
+    $counters = $counters->get();
+
+    $layout = auth()->user() ? 'layouts.master' : 'layouts.frontend';
+
+    return view("Template::ticket", compact(
+        'pageTitle',
+        'fleetType',
+        'trips',
+        'routes',
+        'counters',
+        'schedules',
+        'emptyMessage',
+        'layout'
+    ));
+}
 
     public function getTripQuery()
     {
