@@ -33,7 +33,7 @@ class ManageTripController extends Controller
     public function routeCreate()
     {
         $pageTitle = 'Create Route';
-        $stoppages = Counter::active()->get();
+        $stoppages = Counter::get();
         return view('admin.trip.route.create', compact('pageTitle', 'stoppages'));
     }
 
@@ -83,7 +83,7 @@ class ManageTripController extends Controller
     {
         $route = VehicleRoute::findOrFail($id);
         $pageTitle = 'Update Route - ' . $route->name;
-        $allStoppages = Counter::active()->get();
+        $allStoppages = Counter::get();
 
         $stoppagesArray = $route->stoppages;
         $pos = array_search($route->start_from, $stoppagesArray);
