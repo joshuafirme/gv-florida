@@ -11,7 +11,7 @@
                                     <th>@lang('Trip')</th>
                                     <th>@lang('Fleet type')</th>
                                     <th>@lang('Departure time')</th>
-                                    <th>@lang('Vehicle\'s Nick Name')</th>
+                                    {{-- <th>@lang('Vehicle\'s Nick Name')</th> --}}
                                     <th>@lang('Plate Number')</th>
                                     <th>@lang('Status')</th>
                                     <th>@lang('Action')</th>
@@ -29,11 +29,11 @@
                                         <td>
                                             {{ __(date('h:i A', strtotime($item->trip->schedule->start_from))) }}
                                         </td>
+                                        {{-- <td>
+                                            {{ __($item->vehicle?->nick_name) }}
+                                        </td> --}}
                                         <td>
-                                            {{ __($item->vehicle->nick_name) }}
-                                        </td>
-                                        <td>
-                                            {{ __($item->vehicle->register_no) }}
+                                            {{ __($item->vehicle?->register_no) }}
                                         </td>
                                         <td>@php echo $item->statusBadge; @endphp </td>
                                         <td>
