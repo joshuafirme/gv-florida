@@ -10,10 +10,8 @@
                             <thead>
                                 <tr>
                                     <th>@lang('Nick Name')</th>
-                                    <th>@lang('Reg. No.')</th>
-                                    <th>@lang('Engine No.')</th>
-                                    <th>@lang('Chassis No.')</th>
-                                    <th>@lang('Model No.')</th>
+                                    <th>@lang('Plate No.')</th>
+                                    <th>@lang('Bus Make')</th>
                                     <th>@lang('Bus No.')</th>
                                     <th>@lang('Fleet Type')</th>
                                     <th>@lang('Status')</th>
@@ -25,8 +23,6 @@
                                     <tr>
                                         <td>{{ __($item->nick_name) }}</td>
                                         <td>{{ __($item->register_no) }}</td>
-                                        <td>{{ __($item->engine_no) }}</td>
-                                        <td>{{ __($item->chasis_no) }}</td>
                                         <td>{{ __($item->model_no) }}</td>
                                         <td>{{ __($item->bus_no) }}</td>
                                         <td>{{ __($item->fleetType->name) }}</td>
@@ -55,6 +51,12 @@
                                                         <i class="la la-eye-slash"></i>@lang('Disable')
                                                     </button>
                                                 @endif
+
+                                                <button type="button"
+                                                    class="btn btn-sm btn-outline--danger confirmationBtn"
+                                                    data-method="delete" data-question="@lang('Are you sure to delete this vehicle?')"
+                                                    data-action="{{ route('admin.fleet.vehicles.delete', $item->id) }}">
+                                                    <i class="la la-trash"></i>@lang('Delete')</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -95,7 +97,7 @@
                         </div>
                         <div class="form-group">
                             <label> @lang('Fleet Type')</label>
-                            <select name="fleet_type_id" class="form-control select2"  data-minimum-results-for-search="-1">
+                            <select name="fleet_type_id" class="form-control select2" data-minimum-results-for-search="-1">
                                 <option value="">@lang('Select an option')</option>
                                 @foreach ($fleetType as $item)
                                     <option value="{{ $item->id }}">{{ __($item->name) }}</option>
@@ -103,19 +105,11 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label> @lang('Register No.')</label>
+                            <label> @lang('Plate Number')</label>
                             <input type="text" class="form-control" name="register_no" required>
                         </div>
                         <div class="form-group">
-                            <label> @lang('Engine No.')</label>
-                            <input type="text" class="form-control" name="engine_no" required>
-                        </div>
-                        <div class="form-chassis">
-                            <label> @lang('Chassis No.')</label>
-                            <input type="text" class="form-control" name="chasis_no" required>
-                        </div>
-                        <div class="form-group">
-                            <label> @lang('Model No.')</label>
+                            <label> @lang('Bus Make')</label>
                             <input type="text" class="form-control" name="model_no" required>
                         </div>
                         <div class="form-group">
@@ -144,4 +138,3 @@
 @push('script-lib')
     <script src="{{ asset('assets/admin/js/cu-modal.js?v=' . buildVer()) }}"></script>
 @endpush
-

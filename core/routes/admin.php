@@ -118,6 +118,7 @@ Route::middleware('admin')->group(function () {
             Route::get('', 'vehicles')->name('index');
             Route::post('store/{id?}', 'vehiclesStore')->name('store');
             Route::post('status/{id}', 'vehicleStatus')->name('status');
+            Route::post('delete/{id}', 'deleteVehicle')->name('delete');
         });
     });
 

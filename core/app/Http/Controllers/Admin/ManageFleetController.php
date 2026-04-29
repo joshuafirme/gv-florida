@@ -136,15 +136,18 @@ class ManageFleetController extends Controller
     public function vehiclesStore(Request $request, $id = 0)
     {
 
-        $request->validate([
-            'nick_name' => 'required|string',
-            'fleet_type_id' => 'required|numeric',
-            'register_no' => 'required|string|unique:vehicles,register_no,' . $id,
-            'engine_no' => 'required|string|unique:vehicles,engine_no,' . $id,
-            'model_no' => 'required|string',
-            'chasis_no' => 'required|string|unique:vehicles,chasis_no,' . $id,
-            'bus_no' => 'required|string|unique:vehicles,bus_no,' . $id,
-        ]);
+        $request->validate(
+            [
+                'nick_name' => 'required|string',
+                'fleet_type_id' => 'required|numeric',
+                'register_no' => 'required|string|unique:vehicles,register_no,' . $id,
+                'model_no' => 'required|string',
+                'bus_no' => 'required|string|unique:vehicles,bus_no,' . $id,
+            ],
+            [
+                'model_no.required' => 'Bus make field is required.',
+            ]
+        );
 
         if ($id) {
             $vehicle = Vehicle::findOrFail($id);
@@ -170,5 +173,18 @@ class ManageFleetController extends Controller
     public function vehicleStatus($id)
     {
         return Vehicle::changeStatus($id);
+    }
+
+    public function deleteVehicle($id)
+    {
+
+        $query = Vehicle::find($id);
+        if ($query->delete()) {
+            $notify[] = ['success', 'Vehicle was deleted.'];
+            return back()->withNotify($notify);
+        }
+
+        $notify[] = ['error', 'Posting failed.'];
+        return back()->withNotify($notify);
     }
 }
