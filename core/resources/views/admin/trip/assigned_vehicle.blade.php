@@ -102,7 +102,7 @@
                                 <option value="">@lang('Select an option')</option>
                                 @foreach ($trips as $item)
                                     <option value="{{ $item->id }}"
-                                        data-vehicles="{{ $item->fleetType->activeVehicles }}">{{ __($item->title) }} ({{  $item->fleetType->name }}) - {{  $item->schedule->start_from }}
+                                        data-vehicles="{{ $item->fleetType->activeVehicles }}">{{ __($item->title) }} ({{  $item->fleetType->name }}) - {{ date('h:i A', strtotime($item->schedule->start_from )) }}
                                     </option>
                                 @endforeach
                             </select>
