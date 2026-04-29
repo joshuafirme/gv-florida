@@ -3,80 +3,97 @@
 @section('panel')
     <div class="row">
         <div class="col-md-12">
-            <div class="card">
-                <div class="card-body p-0">
-                    <div class="table-responsive--sm table-responsive">
-                        <table class="table table--light style--two">
-                            <thead>
-                                <tr>
-                                    <th>@lang('Nick Name')</th>
-                                    <th>@lang('Plate No.')</th>
-                                    <th>@lang('Bus Make')</th>
-                                    <th>@lang('Bus No.')</th>
-                                    <th>@lang('Fleet Type')</th>
-                                    <th>@lang('Status')</th>
-                                    <th>@lang('Action')</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($vehicles as $item)
-                                    <tr>
-                                        <td>{{ __($item->nick_name) }}</td>
-                                        <td>{{ __($item->register_no) }}</td>
-                                        <td>{{ __($item->model_no) }}</td>
-                                        <td>{{ __($item->bus_no) }}</td>
-                                        <td>{{ __($item->fleetType->name) }}</td>
-                                        <td>
-                                            @php echo $item->statusBadge; @endphp
-                                        </td>
-                                        <td>
-                                            <div class="button--group">
-                                                <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn"
-                                                    data-resource="{{ $item }}" data-modal_title="@lang('Edit Vehicle')">
-                                                    <i class="la la-pencil"></i>@lang('Edit')
-                                                </button>
-
-                                                @if (!$item->status)
-                                                    <button type="button"
-                                                        class="btn btn-sm btn-outline--success confirmationBtn"
-                                                        data-action="{{ route('admin.fleet.vehicles.status', $item->id) }}"
-                                                        data-question="@lang('Are you sure to enable this vehicle?')">
-                                                        <i class="la la-eye"></i>@lang('Enable')
-                                                    </button>
-                                                @else
-                                                    <button type="button"
-                                                        class="btn btn-sm btn-outline--danger  confirmationBtn"
-                                                        data-action="{{ route('admin.fleet.vehicles.status', $item->id) }}"
-                                                        data-question="@lang('Are you sure to disable this vehicle?')">
-                                                        <i class="la la-eye-slash"></i>@lang('Disable')
-                                                    </button>
-                                                @endif
-
-                                                <button type="button"
-                                                    class="btn btn-sm btn-outline--danger confirmationBtn"
-                                                    data-method="delete" data-question="@lang('Are you sure to delete this vehicle?')"
-                                                    data-action="{{ route('admin.fleet.vehicles.delete', $item->id) }}">
-                                                    <i class="la la-trash"></i>@lang('Delete')</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td class="text-muted text-center" colspan="100%">{{ __($emptyMessage) }}</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+            <div class="col-12 mb-3">
+                <form action="{{ url('admin/fleet/vehicles') }}">
+                    <div class="d-flex flex-wrap gap-4">
+                        <div style="width: 250px;">
+                            <label for="">Status</label>
+                            <select name="fleetTypeId" class="select2" required>
+                                <option value="all">@lang('All Fleet Type')</option>
+                                @foreach ($fleetType as $item)
+                                    <option value="{{ $item->id }}" {{ $item->id == request('fleetTypeId') ? 'selected' : '' }}>{{ __($item->name) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <di56v class="align-self-end">
+                            <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> Filter</button>
                     </div>
-                </div>
-
-                @if ($vehicles->hasPages())
-                    <div class="card-footer py-4">
-                        {{ paginateLinks($vehicles) }}
-                    </div>
-                @endif
             </div>
+            </form>
         </div>
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive--sm table-responsive">
+                    <table class="table table--light style--two">
+                        <thead>
+                            <tr>
+                                <th>@lang('Nick Name')</th>
+                                <th>@lang('Plate No.')</th>
+                                <th>@lang('Bus Make')</th>
+                                <th>@lang('Bus No.')</th>
+                                <th>@lang('Fleet Type')</th>
+                                <th>@lang('Status')</th>
+                                <th>@lang('Action')</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($vehicles as $item)
+                                <tr>
+                                    <td>{{ __($item->nick_name) }}</td>
+                                    <td>{{ __($item->register_no) }}</td>
+                                    <td>{{ __($item->model_no) }}</td>
+                                    <td>{{ __($item->bus_no) }}</td>
+                                    <td>{{ __($item->fleetType->name) }}</td>
+                                    <td>
+                                        @php echo $item->statusBadge; @endphp
+                                    </td>
+                                    <td>
+                                        <div class="button--group">
+                                            <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn"
+                                                data-resource="{{ $item }}" data-modal_title="@lang('Edit Vehicle')">
+                                                <i class="la la-pencil"></i>@lang('Edit')
+                                            </button>
+
+                                            @if (!$item->status)
+                                                <button type="button"
+                                                    class="btn btn-sm btn-outline--success confirmationBtn"
+                                                    data-action="{{ route('admin.fleet.vehicles.status', $item->id) }}"
+                                                    data-question="@lang('Are you sure to enable this vehicle?')">
+                                                    <i class="la la-eye"></i>@lang('Enable')
+                                                </button>
+                                            @else
+                                                <button type="button"
+                                                    class="btn btn-sm btn-outline--danger  confirmationBtn"
+                                                    data-action="{{ route('admin.fleet.vehicles.status', $item->id) }}"
+                                                    data-question="@lang('Are you sure to disable this vehicle?')">
+                                                    <i class="la la-eye-slash"></i>@lang('Disable')
+                                                </button>
+                                            @endif
+
+                                            <button type="button" class="btn btn-sm btn-outline--danger confirmationBtn"
+                                                data-method="delete" data-question="@lang('Are you sure to delete this vehicle?')"
+                                                data-action="{{ route('admin.fleet.vehicles.delete', $item->id) }}">
+                                                <i class="la la-trash"></i>@lang('Delete')</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td class="text-muted text-center" colspan="100%">{{ __($emptyMessage) }}</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            @if ($vehicles->hasPages())
+                <div class="card-footer py-4">
+                    {{ paginateLinks($vehicles) }}
+                </div>
+            @endif
+        </div>
+    </div>
     </div>
 
     <div id="cuModal" class="modal fade" tabindex="-1" role="dialog">

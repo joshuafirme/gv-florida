@@ -129,7 +129,14 @@ class ManageFleetController extends Controller
     {
         $pageTitle = 'All Vehicles';
         $fleetType = FleetType::where('status', Status::ENABLE)->orderBy('id', 'desc')->get();
-        $vehicles = Vehicle::searchable(['nick_name'])->with('fleetType')->orderBy('id', 'desc')->paginate(getPaginate());
+        $vehicles = Vehicle::searchable(['nick_name'])->with('fleetType')->orderBy('id', 'desc');
+
+        $fleet_type_id = request('fleetTypeId');
+        if ($fleet_type_id && $fleet_type_id != 'all') {
+            $vehicles->where('fleet_type_id', $fleet_type_id);
+        }
+        
+        $vehicles = $vehicles->paginate(getPaginate());
         return view('admin.fleet.vehicles', compact('pageTitle', 'vehicles', 'fleetType'));
     }
 
