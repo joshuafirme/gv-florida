@@ -328,8 +328,6 @@
                 return fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id + '?admin_request=true&admin_id={{ auth("admin")->id() }}')
                     .then(res => res.json())
                     .then(data => {
-                        btn.html(default_btn)
-                        btn.prop('disabled', false)
 
                         if (config == null) {
                             qz.print(config, [{
