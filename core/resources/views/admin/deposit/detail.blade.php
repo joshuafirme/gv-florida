@@ -344,7 +344,14 @@
                             window.location.reload()
                         }, 1000);
                     })
-                    .catch(console.error);
+                   .catch(err => {
+
+                        console.log('getReservationSlip catch called');
+
+                        console.error(err);
+                        
+                        window.location.reload()
+                    });
             }
 
             function cleanMoneyInput(value) {
