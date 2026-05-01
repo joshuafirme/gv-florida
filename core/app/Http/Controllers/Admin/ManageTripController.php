@@ -283,7 +283,12 @@ class ManageTripController extends Controller
         ]);
 
         //Check if the trip has already a assigned vehicle;
-        $trip_check = AssignedVehicle::where('trip_id', $request->trip_id)->first();
+        $trip_check = AssignedVehicle::where('trip_id', $request->trip_id);
+
+        if ($id) {
+            $trip_check->whereNot('id', $id);
+        }
+        $trip_check = $trip_check->first();
 
         if ($trip_check) {
             $notify[] = ['error', 'A vehicle had already been assigned to this trip'];
@@ -305,9 +310,13 @@ class ManageTripController extends Controller
                 $q->where('end_at', '>=', $start_time)
                     ->where('end_at', '<=', $end_time)
                     ->where('vehicle_id', $request->vehicle_id);
-            })
-            ->first();
+            });
 
+        if ($id) {
+            $vehicle_check->whereNot('id', $id);
+        }
+
+        $vehicle_check = $vehicle_check->first();
 
         if ($vehicle_check) {
             $notify[] = ['error', 'This vehicle had already been assigned to another trip on this time'];
@@ -349,7 +358,7 @@ class ManageTripController extends Controller
         }
         $fileContent = @file_get_contents($file);
         $content = json_decode($fileContent);
-    
+
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true,
             'defaultFont' => 'DejaVu Sans',
