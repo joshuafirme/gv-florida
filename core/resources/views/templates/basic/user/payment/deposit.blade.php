@@ -28,9 +28,16 @@
                                     @foreach ($gatewayCurrency as $data)
                                         @php
                                             $description = '';
-                                                if ($kiosk_id && $data->name == 'Paynamics') {
-                                                    continue;
-                                                }
+                                            $select_paynamics = '';
+                                            if (!$kiosk_id && $data->name == 'Paynamics') {
+                                                $select_paynamics = 'checked';
+                                            }
+                                            if ($kiosk_id && $data->name == 'Paynamics') {
+                                                continue;
+                                            }
+                                            if (!$kiosk_id && $data->name == 'Cash') {
+                                                continue;
+                                            }
                                             if ($data->name == 'Paynamics') {
                                                 $description = $data->instruction;
                                             }
@@ -53,7 +60,7 @@
                                             <input class="payment-item__radio gateway-input"
                                                 id="{{ titleToKey($data->name) }}" hidden
                                                 data-gateway='@json($data)' type="radio" name="gateway"
-                                                value="{{ $data->method_code }}"
+                                                {{ $select_paynamics }} value="{{ $data->method_code }}"
                                                 @if (old('gateway')) @checked(old('gateway') == $data->method_code) @else @checked($loop->first) @endif
                                                 data-min-amount="{{ showAmount($data->min_amount) }}"
                                                 data-max-amount="{{ showAmount($data->max_amount) }}">
@@ -166,7 +173,7 @@
                                                 {{ __(gs('cur_text')) }}</p>
                                         </div>
                                     </div>
-{{-- 
+                                    {{-- 
                                     <div class="deposit-info gateway-conversion d-none total-amount pt-2">
                                         <div class="deposit-info__title">
                                             <p class="text">@lang('Conversion')

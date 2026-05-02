@@ -59,7 +59,7 @@
                         <div class="form-check mt-3">
                             <input class="form-check-input" type="checkbox" id="terms" required>
                             <label class="form-check-label" for="terms">
-                                I agree to the <a target="_blank" href="#">Terms and Conditions</a>.
+                                I agree to the <a target="_blank" href="{{ url('/policy/terms-of-service') }}">Terms and Conditions</a>.
                             </label>
                         </div>
 
