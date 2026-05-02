@@ -21,48 +21,14 @@ class CounterController extends Controller
 
     public function scheduleBoard(Request $request, $counter_id)
     {
-        $trips = Trip::with([
-            'route' => function ($query) {
-                $query->with(['startFrom', 'endTo']);
-            },
-            'fleetType',
-            'schedule'
-        ])->where('start_from', $counter_id)
-            ->where('status', Status::ENABLE)
-            ->get();
 
-        $data = [];
-
-        foreach ($trips as $key => $trip) {
-            $tickets = BookedTicket::where('trip_id', $trip->id)
-                ->wheredate('date_of_journey', date('Y-m-d'))
-                ->where('status', Status::BOOKED_APPROVED)
-                ->get();
-
-            $occupied_seats_ctr = 0;
-
-            foreach ($tickets as $key => $ticket) {
-                $occupied_seats_ctr += count($ticket->seats);
-            }
-
-            $available_seats_ctr = 0;
-            $deck_seats = $trip->fleetType->deck_seats;
-            $deck_seats = (int) $deck_seats[$trip->fleetType->deck - 1];
-            $available_seats_ctr = $deck_seats - $occupied_seats_ctr;
-
-            $trip['deck_seats'] = $deck_seats;
-            $trip['occupied_seats'] = $occupied_seats_ctr;
-            $trip['available_seats'] = $available_seats_ctr;
-
-            $data[] = $trip;
-        }
         // return $data;
-        return view('admin.counter.board', compact('data'));
+        return view('admin.counter.board');
     }
 
     public function scheduleBoardJSON($counter_id)
     {
-        $trips = $this->getTripQuery()->get();
+        $trips = $this->getTripQuery($counter_id)->get();
 
         $data = [];
 
@@ -108,36 +74,33 @@ class CounterController extends Controller
         ]);
     }
 
-    public function getTripQuery()
+    public function getTripQuery($counter_id)
     {
         $now = Carbon::now();
         $request = request();
-        $mins_value = $request->kiosk_id ? 15 : 30;
+        $mins_value = 15;
 
         return Trip::with([
             'route' => function ($query) {
                 $query->with(['startFrom', 'endTo']);
             },
             'fleetType',
-            'assignedVehicle' => function ($query) {
-                $query->with(['vehicle']);
-            },
             'schedule'
         ])
-            ->whereHas('schedule', function ($q) use ($now, $request, $mins_value) {
-                $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey) : Carbon::now();
-                if ($date->isToday()) {
-                    $q->whereRaw("
+            ->withMin('schedule as earliest_start', 'start_from')
+            ->whereHas('schedule', function ($q) use ($now) {
+                $q->whereRaw("
                       DATE_SUB(
                           STR_TO_DATE(CONCAT(?, ' ', start_from), '%Y-%m-%d %H:%i:%s'),
                           INTERVAL 15 MINUTE
                       ) > ?
                   ", [
-                        Carbon::parse($date)->format('Y-m-d'),
-                        $now->format('Y-m-d H:i:s')
-                    ]);
-                }
+                    Carbon::parse($now)->format('Y-m-d'),
+                    $now->format('Y-m-d H:i:s')
+                ]);
             })
+            ->where('start_from', $counter_id)
+            ->orderBy('earliest_start')
             ->active();
     }
 

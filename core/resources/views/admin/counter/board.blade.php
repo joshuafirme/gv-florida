@@ -144,11 +144,12 @@
     <script>
 
         $(document).ready(function () {
-            $('#scheduleTable').DataTable({
-                "searching": false,
-                "lengthChange": false,
-                "info": false
-            });
+            // $('#scheduleTable').DataTable({
+            //     "searching": false,
+            //     "lengthChange": false,
+            //     "info": false,
+            //     "order": [[ 0, "asc" ]]
+            // });
         });
 
         scheduleBoard()
@@ -202,7 +203,7 @@
 
                         html += `
                     <tr>
-                        <td>${formatTime(item.schedule.start_from)}</td>
+                        <td data-order="${item.schedule.start_from}">${formatTime(item.schedule.start_from)}</td>
                         <td>${item.route.end_to.city}</td>
                         <td>${bus_no}</td>
                         <td>${item.fleet_type.name}</td>
