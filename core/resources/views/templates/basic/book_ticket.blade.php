@@ -5,6 +5,8 @@
     @if ($kiosk_id)
         @php
             $layout = 'layouts.kiosk';
+            $date_of_journey = request('date_of_journey') ? request('date_of_journey') : date('m/d/Y');
+            $date_of_journey_formatted = formatDate($date_of_journey);
         @endphp
         @include('templates.basic.partials.kiosk_nav')
     @endif
@@ -12,6 +14,7 @@
 
     <div class="padding-top padding-bottom">
         <div class="container">
+            <a href="{{ url("/tickets?kiosk_id=$kiosk_id&counter_id={$trip->startFrom->id}&pickup={$trip->startFrom->id}&destination={$trip->endTo->id}&date_of_journey=$date_of_journey") }}"><i class="fa-solid fa-arrow-left"></i> Back</a>
             <div class="row gx-xl-5 gy-4 gy-sm-5 justify-content-center">
                 <div class="col-md-6">
                     <div class="seat-overview-wrapper">
@@ -20,13 +23,15 @@
                             <input type="hidden" name="kiosk_id" value="{{ request('kiosk_id') }}" hidden>
                             <input type="hidden" name="start_from_time" value="{{ $trip->schedule->start_from }}" hidden>
                             <input type="hidden" name="fleet_type_id" value="{{ $trip->fleetType->id }}" hidden>
-                           
+
                             <input type="text" name="price" hidden>
                             <div class="col-12 mb-2">
                                 <div class="form-group">
                                     <label for="date_of_journey" class="form-label">@lang('Journey Date')</label>
-                                    <input type="text" id="date_of_journey" class="form--control date-range"
-                                        value="{{ request('date_of_journey') ? request('date_of_journey') : date('m/d/Y') }}"
+                                    <h5>{{ $date_of_journey_formatted }}</h5>
+
+                                    <input type="hidden"
+                                        value="{{ $date_of_journey }}"
                                         name="date_of_journey">
                                 </div>
                             </div>

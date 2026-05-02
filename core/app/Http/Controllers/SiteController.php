@@ -322,6 +322,17 @@ class SiteController extends Controller
                 return redirect()->back()->withNotify($notify);
             }
 
+            $trip = Trip::with('schedule')->find($id);
+
+            $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey) : Carbon::now();
+            
+            if ($date->isToday()) {
+                if (strtotime($trip->schedule->start_from) <= strtotime('+15 minutes')) {
+                    $notify[] = ['error', 'Invalid request: The trip is within 15 minutes of its scheduled departure time.'];
+                    return redirect()->back()->withNotify($notify);
+                }
+            }
+
             $allowed_advance_booking_days = getAllowedAdvanceBookingDays();
             if ($allowed_advance_booking_days) {
                 $maxDate = Carbon::now()->addDays($allowed_advance_booking_days)->format('Y-m-d');

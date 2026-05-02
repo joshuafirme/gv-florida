@@ -77,7 +77,7 @@
     <div class="ticket-wrapper">
 
         <div class="ticket-header mt-5">
-            <h4>{{ __(@$ticket->trip->assignedVehicle->vehicle->nick_name) }}</h4>
+            {{-- <h4>{{ __(@$ticket->trip->assignedVehicle->vehicle->nick_name) }}</h4> --}}
             <p>@lang('E-Ticket / Reservation Voucher')</p>
         </div>
 
