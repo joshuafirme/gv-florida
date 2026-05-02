@@ -35,7 +35,7 @@ class CounterController extends Controller
         foreach ($trips as $key => $trip) {
             $tickets = BookedTicket::where('trip_id', $trip->id)
                 ->wheredate('date_of_journey', date('Y-m-d'))
-                ->where('status', Status::BOOKED_APPROVED)
+                ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
                 ->get();
 
             $occupied_seats_ctr = 0;
