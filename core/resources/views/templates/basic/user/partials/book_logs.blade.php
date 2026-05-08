@@ -39,7 +39,7 @@
                         @if ($item->status == 1)
                             <span class="badge badge--success"> @lang('Booked')</span>
                         @elseif($item->status == 2)
-                            @if ($beyond_sched && $item->deposit->status != Status::PAYMENT_SUCCESS)
+                            @if ($beyond_sched && $item->deposit && $item->deposit->status != Status::PAYMENT_SUCCESS)
                                 <span class="badge badge--warning"> @lang('Expired')</span>
                             @else
                                 <span class="badge badge--warning"> @lang('Pending')</span>
