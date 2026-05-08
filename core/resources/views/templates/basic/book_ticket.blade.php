@@ -1,12 +1,12 @@
 @section('content')
     @php
         $kiosk_id = request()->kiosk_id;
+        $date_of_journey = request('date_of_journey') ? request('date_of_journey') : date('m/d/Y');
+        $date_of_journey_formatted = formatDate($date_of_journey);
     @endphp
     @if ($kiosk_id)
         @php
             $layout = 'layouts.kiosk';
-            $date_of_journey = request('date_of_journey') ? request('date_of_journey') : date('m/d/Y');
-            $date_of_journey_formatted = formatDate($date_of_journey);
         @endphp
         @include('templates.basic.partials.kiosk_nav')
     @endif
@@ -14,7 +14,9 @@
 
     <div class="padding-top padding-bottom">
         <div class="container">
-            <a href="{{ url("/tickets?kiosk_id=$kiosk_id&counter_id={$trip->startFrom->id}&pickup={$trip->startFrom->id}&destination={$trip->endTo->id}&date_of_journey=$date_of_journey") }}"><i class="fa-solid fa-arrow-left"></i> Back</a>
+            <a
+                href="{{ url("/tickets?kiosk_id=$kiosk_id&counter_id={$trip->startFrom->id}&pickup={$trip->startFrom->id}&destination={$trip->endTo->id}&date_of_journey=$date_of_journey") }}"><i
+                    class="fa-solid fa-arrow-left"></i> Back</a>
             <div class="row gx-xl-5 gy-4 gy-sm-5 justify-content-center">
                 <div class="col-md-6">
                     <div class="seat-overview-wrapper">
@@ -30,9 +32,7 @@
                                     <label for="date_of_journey" class="form-label">@lang('Journey Date')</label>
                                     <h5>{{ $date_of_journey_formatted }}</h5>
 
-                                    <input type="hidden"
-                                        value="{{ $date_of_journey }}"
-                                        name="date_of_journey">
+                                    <input type="hidden" value="{{ $date_of_journey }}" name="date_of_journey">
                                 </div>
                             </div>
                             <div class="col-12 mb-2">

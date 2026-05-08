@@ -11,8 +11,12 @@
     @extends($activeTemplate . $layout)
     @php
         $counters = App\Models\Counter::get();
+        $seats = $bookedTicket->seats ? $bookedTicket->seats : session('seats');
+  
     @endphp
     <div class="container padding-top padding-bottom">
+        <button class="btn btn--base btn-outline--primary w-auto" onclick="window.history.back();"><i
+                class="fa-solid fa-arrow-left"></i> Go Back</button>
         <div class="row justify-content-center">
             <div class="col-lg-9">
                 <form action="{{ route('user.deposit.insert') }}" method="post" class="deposit-form">
@@ -108,7 +112,7 @@
                                                 {{ __($bookedTicket->trip->endTo->name) }}</span>
                                             <span
                                                 class="badge bg-success">{{ __($bookedTicket->trip->fleetType->name) }}</span>
-                                            <span>{{ 'Seats: ' . implode(', ', $bookedTicket->seats) }}</span>
+                                            <span>{{ 'Seats: ' . implode(', ', $seats) }}</span>
                                             <span>{{ "PNR: $bookedTicket->pnr_number " }}</span>
                                         </div>
                                     </div>

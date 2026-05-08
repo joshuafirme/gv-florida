@@ -28,7 +28,7 @@
                         {{ __(showDateTime($item->date_of_journey, 'd M, Y')) }}</td>
                     <td class="time" data-label="@lang('Pickup Time')">
                         {{ __(showDateTime($item->trip->schedule->start_from, 'H:i a')) }}</td>
-                    <td class="seats" data-label="@lang('Booked Seats')">{{ __(implode(',', $item->seats)) }}
+                    <td class="seats" data-label="@lang('Booked Seats')">{{ $item->seats ? __(implode(',', $item->seats)) : '' }}
                     </td>
                     <td data-label="@lang('Status')">
                         @if ($item->status == 1)

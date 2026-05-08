@@ -19,9 +19,10 @@ class Paynamics
 
             $final_amount = number_format((float) $this->data->deposit->final_amount, 2, '.', '');
 
+            $seats = $this->data->seats ? $this->data->seats : session('seats');
             $orders = [];
             $orders[] = [
-                "itemname" => "PNR: {$this->data->pnr_number} Seats: " . implode(', ', $this->data->seats),
+                "itemname" => "PNR: {$this->data->pnr_number} Seats: " . implode(', ', $seats),
                 "quantity" => 1,
                 "unitprice" => $final_amount,
                 "totalprice" => $final_amount

@@ -10,6 +10,7 @@
 
     @php
         $pmethod = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'));
+        $seats = $ticket->seats ? $ticket->seats : session('seats');
     @endphp
 
     <div class="container padding-top padding-bottom">
@@ -99,7 +100,7 @@
                                                     class="badge bg-success">{{ __($ticket->trip->fleetType->name) }}</span>
                                             </td>
                                             <td>
-                                                <span>{{ 'Seats: ' . implode(', ', $ticket->seats) }}</span>
+                                                <span>{{ 'Seats: ' . implode(', ', $seats) }}</span>
                                                 <span>{{ "PNR: $ticket->pnr_number " }}</span>
                                             </td>
                                             <td class="text-end">

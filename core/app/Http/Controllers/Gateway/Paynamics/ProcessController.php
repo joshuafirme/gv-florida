@@ -63,6 +63,10 @@ class ProcessController extends Controller
             session()->put('paynamics_request_id', $transaction->request_id);
             session()->put('paynamics_response_id', $transaction->response_id);
 
+            $ticket->seats = session()->has('seats') ? session('seats') : $ticket->seat;
+            $ticket->save();
+            session()->forget('seats');
+
             if ($transaction && isset($transaction->payment_action_info)) {
                 return redirect()->to($transaction->payment_action_info);
             } else if ($transaction && isset($transaction->direct_otc_info)) {

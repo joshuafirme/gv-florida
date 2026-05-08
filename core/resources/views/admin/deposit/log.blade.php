@@ -3,6 +3,7 @@
 @php
     $search = request('search');
     $date = request('date');
+    $status = isset($status) ? $status : 'all';
 @endphp
     <div class="row justify-content-center">
         @if (request()->routeIs('admin.deposit.list') || request()->routeIs('admin.deposit.method'))

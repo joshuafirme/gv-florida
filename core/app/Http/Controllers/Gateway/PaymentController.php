@@ -281,7 +281,10 @@ class PaymentController extends Controller
 
         $bookedTicket = BookedTicket::where('id', $data->booked_ticket_id)->first();
         $bookedTicket->status = Status::BOOKED_PENDING;
+        $bookedTicket->seats = session()->has('seats') ? session('seats') : $bookedTicket->seat;
         $bookedTicket->save();
+
+        session()->forget('seats');
 
         $adminNotification = new AdminNotification();
         $adminNotification->user_id = $data->user ? $data->user->id : 0;

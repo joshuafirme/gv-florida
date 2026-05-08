@@ -20,13 +20,13 @@ class UserController extends Controller
         $pageTitle = 'Dashboard';
         $user = auth()->user()->load('tickets');
         $widget['booked'] = $user->tickets()->booked()->count();
-        $widget['pending'] = $user->tickets()->pending()->count();
+        $widget['pending'] = $user->tickets()->pending()->whereNotNull('seats')->count();
         $widget['rejected'] = $user->tickets()->rejected()->count();
 
-        $widget['pending'] = BookedTicket::pending()->where('user_id', auth()->user()->id)->count();
+        $widget['pending'] = BookedTicket::pending()->whereNotNull('seats')->where('user_id', auth()->user()->id)->count();
         $widget['rejected'] = BookedTicket::rejected()->where('user_id', auth()->user()->id)->count();
         $bookedTickets = BookedTicket::with(['trip.fleetType', 'trip.startFrom', 'trip.endTo', 'trip.schedule', 'pickup', 'drop'])
-            ->where('user_id', auth()->user()->id)->orderBy('id', 'desc')
+            ->where('user_id', auth()->user()->id)->whereNotNull('seats')->orderBy('id', 'desc')
             ->paginate(getPaginate());
         return view('Template::user.dashboard', compact('pageTitle', 'bookedTickets', 'widget'));
     }
