@@ -18,6 +18,10 @@
         </thead>
         <tbody>
             @forelse ($bookedTickets as $item)
+                @php
+                    $beyond_sched =
+                        strtotime($item->date_of_journey . ' ' . $item->trip->schedule->start_from) < time();
+                @endphp
                 <tr>
                     <td class="ticket-no" data-label="@lang('PNR Number')">{{ __($item->pnr_number) }}</td>
                     <td data-label="@lang('AC / Non-Ac')">
@@ -28,16 +32,24 @@
                         {{ __(showDateTime($item->date_of_journey, 'd M, Y')) }}</td>
                     <td class="time" data-label="@lang('Pickup Time')">
                         {{ __(showDateTime($item->trip->schedule->start_from, 'H:i a')) }}</td>
-                    <td class="seats" data-label="@lang('Booked Seats')">{{ $item->seats ? __(implode(',', $item->seats)) : '' }}
+                    <td class="seats" data-label="@lang('Booked Seats')">
+                        {{ $item->seats ? __(implode(',', $item->seats)) : '' }}
                     </td>
                     <td data-label="@lang('Status')">
                         @if ($item->status == 1)
                             <span class="badge badge--success"> @lang('Booked')</span>
                         @elseif($item->status == 2)
-                            <span class="badge badge--warning"> @lang('Pending')</span>
+                            @if ($beyond_sched && $item->deposit->status != Status::PAYMENT_SUCCESS)
+                                <span class="badge badge--warning"> @lang('Expired')</span>
+                            @else
+                                <span class="badge badge--warning"> @lang('Pending')</span>
+                            @endif
+                        @elseif ($item->status == 3)
+                            <span class="badge badge--warning"> @lang('Expired')</span>
                         @else
                             <span class="badge badge--danger"> @lang('Rejected')</span>
                         @endif
+
                     </td>
                     <td class="fare" data-label="@lang('Fare')">
                         {{ __(showAmount($item->sub_total)) }}</td>
@@ -50,10 +62,10 @@
                     </td>
                     <td>
                         @if (
-                            @$item->deposit->status == Status::PAYMENT_PENDING &&
+                            @$item->deposit->status != Status::PAYMENT_SUCCESS &&
                                 @$item->deposit->expiry_limit &&
                                 strtotime(@$item->deposit->expiry_limit) < strtotime(date('Y-m-d H:i')))
-                            <span class="badge badge--danger">{{ __('Expired') }}</span>
+                            <span class="badge badge--warning">{{ __('Expired') }}</span>
                         @else
                             {{ paymentStatus(@$item->deposit->status) }}
                         @endif
@@ -68,9 +80,7 @@
                                     data-bs-toggle="modal" data-bs-target="#infoModal"><i
                                         class="las la-info-circle"></i></a>
                             @endif --}}
-                            @if (
-                                (@$item->status == Status::BOOKED_PENDING && @$item->deposit->status == 0) ||
-                                    (@$item->deposit->status == 2 && @$item->deposit->expiry_limit && !isExpired(@$item->deposit->expiry_limit)))
+                            @if (@$item->deposit->status == 2 && @$item->deposit->expiry_limit && !isExpired(@$item->deposit->expiry_limit))
                                 <a href="{{ url("/user/payment/deposit?booked_ticket_id=$item->id") }}"
                                     class="btn btn--base small">Pay Now</a>
                             @endif
