@@ -150,11 +150,12 @@ class DepositController extends Controller
     public function approve($id)
     {
         $deposit = Deposit::where('id', $id)->where('status', Status::PAYMENT_PENDING)->firstOrFail();
-        $deposit->processed_by_name = auth()->user()->name;
-        $deposit->processed_by_admin_id = auth()->user()->id;
+        $admin = auth('admin')->user();
+        $deposit->processed_by_name = $admin->name;
+        $deposit->processed_by_admin_id = $admin->id;
         $deposit->save();
 
-        $deposit->bookedTicket->approved_by = auth()->id();
+        $deposit->bookedTicket->approved_by = $admin->id;
         $deposit->bookedTicket->save();
         PaymentController::userDataUpdate($deposit, true);
 
