@@ -85,7 +85,10 @@ class CounterController extends Controller
                 $query->with(['startFrom', 'endTo']);
             },
             'fleetType',
-            'schedule'
+            'schedule',
+            'assignedVehicle' => function ($query) {
+                $query->with(['vehicle']);
+            },
         ])
             ->withMin('schedule as earliest_start', 'start_from')
             ->whereHas('schedule', function ($q) use ($now) {
