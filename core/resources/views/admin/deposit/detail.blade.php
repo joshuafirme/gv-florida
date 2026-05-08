@@ -5,8 +5,8 @@
             <div class="card overflow-hidden box--shadow1">
                 <div class="card-body">
                     <h5 class="mb-20 text-muted">@lang('Deposit Via') @if ($deposit->method_code < 5000)
-                        {{ __(@$deposit->gateway->name) }}
-                    @else
+                            {{ __(@$deposit->gateway->name) }}
+                        @else
                             @lang('Google Pay')
                         @endif
                     </h5>
@@ -60,7 +60,8 @@
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 {{ $deposit->userDiscount->description }} @lang('Discount')
                                 ({{ number_format($deposit->userDiscount->percentage) }}%)
-                                <span class="fw-bold">{{ showAmount($deposit->userDiscount->amount, currencyFormat: false) }}
+                                <span
+                                    class="fw-bold">{{ showAmount($deposit->userDiscount->amount, currencyFormat: false) }}
                                     {{ __($deposit->method_currency) }}</span>
                             </li>
                         @endif
@@ -104,8 +105,10 @@
                                     <small id="cashError" class="text-danger"></small>
 
                                     <div class="mt-2 mb-3">
-                                        <button class="btn btn-sm btn-outline-secondary quickCash" data-value="100">100</button>
-                                        <button class="btn btn-sm btn-outline-secondary quickCash" data-value="500">500</button>
+                                        <button class="btn btn-sm btn-outline-secondary quickCash"
+                                            data-value="100">100</button>
+                                        <button class="btn btn-sm btn-outline-secondary quickCash"
+                                            data-value="500">500</button>
                                         <button class="btn btn-sm btn-outline-secondary quickCash"
                                             data-value="1000">1000</button>
                                         <button class="btn btn-sm btn-outline-secondary quickCash"
@@ -127,40 +130,40 @@
                             </div>
                         </div>
                         @if ($details != null)
-                        @foreach (json_decode($details) as $val)
-                        @if ($deposit->method_code >= 1000)
-                        <div class="row mt-4">
-                            <div class="col-md-12">
-                                <h6>{{ __(@$val->name) }}</h6>
-                                @if ($val->type == 'checkbox')
-                                {{ implode(',', $val->value) }}
-                                @elseif($val->type == 'file')
-                                @if (@$val->value)
-                                <a
-                                    href="{{ route('admin.download.attachment', encrypt(getFilePath('verify') . '/' . $val->value)) }}"><i
-                                        class="fa-regular fa-file"></i> @lang('Attachment') </a>
-                                @else
-                                @lang('No File')
+                            @foreach (json_decode($details) as $val)
+                                @if ($deposit->method_code >= 1000)
+                                    <div class="row mt-4">
+                                        <div class="col-md-12">
+                                            <h6>{{ __(@$val->name) }}</h6>
+                                            @if ($val->type == 'checkbox')
+                                                {{ implode(',', $val->value) }}
+                                            @elseif($val->type == 'file')
+                                                @if (@$val->value)
+                                                    <a
+                                                        href="{{ route('admin.download.attachment', encrypt(getFilePath('verify') . '/' . $val->value)) }}"><i
+                                                            class="fa-regular fa-file"></i> @lang('Attachment') </a>
+                                                @else
+                                                    @lang('No File')
+                                                @endif
+                                            @else
+                                                <p>{{ __(@$val->value) }}</p>
+                                            @endif
+                                        </div>
+                                    </div>
                                 @endif
-                                @else
-                                <p>{{ __(@$val->value) }}</p>
-                                @endif
-                            </div>
-                        </div>
+                            @endforeach
+                            @if ($deposit->method_code < 1000)
+                                @include('admin.deposit.gateway_data', [
+                                    'details' => json_decode($details),
+                                ])
+                            @endif
                         @endif
-                        @endforeach
-                        @if ($deposit->method_code < 1000) @include('admin.deposit.gateway_data', [ 'details'=>
-                            json_decode($details),
-                            ])
-                            @endif
-                            @endif
-                            @if ($deposit->status == Status::PAYMENT_PENDING)
+                        @if ($deposit->status == Status::PAYMENT_PENDING)
                             <div class="row mt-4">
                                 <div class="col-md-12">
                                     <button class="btn btn-outline--success btn-sm ms-1 confirmationBtn"
                                         data-action="{{ route('admin.deposit.approve', $deposit->id) }}"
-                                        data-question="@lang('Are you sure to approve this transaction?')"><i
-                                            class="las la-check"></i>
+                                        data-question="@lang('Are you sure to approve this transaction?')"><i class="las la-check"></i>
                                         @lang('Approve')
                                     </button>
 
@@ -169,7 +172,7 @@
                                     </button>
                                 </div>
                             </div>
-                            @endif
+                        @endif
                     </div>
                 </div>
             </div>
@@ -256,8 +259,7 @@
 
                         <div class="form-group">
                             <label class="mt-2">@lang('Reason for Rejection')</label>
-                            <textarea name="message" maxlength="255" class="form-control" rows="5"
-                                required>{{ old('message') }}</textarea>
+                            <textarea name="message" maxlength="255" class="form-control" rows="5" required>{{ old('message') }}</textarea>
                         </div>
 
                     </div>
@@ -276,7 +278,7 @@
     <script src="{{ asset('assets/admin/js/vendor/qz-tray.min.js') }}"></script>
     <script src="{{ asset('assets/admin/js/qz-printer.js') }}"></script>
     <script>
-        $(document).ready(function () {
+        $(document).ready(function() {
 
             $('#cash').focus();
 
@@ -325,32 +327,33 @@
             }
 
             function getReservationSlip(id, config = null) {
-                return fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id + '?admin_request=true&admin_id={{ auth("admin")->id() }}')
+                return fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id +
+                        '?admin_request=true&admin_id={{ auth('admin')->id() }}')
                     .then(res => res.json())
                     .then(data => {
-
-                        if (config == null) {
-                            qz.print(config, [{
-                                type: 'pdf',
-                                format: 'file',
-                                data: data.file_url,
-                                options: {
-                                    autoRotate: true
-                                }
-                            }]);
-                        }
+                        console.log(data)
+                        console.log('config', config)
+                        qz.print(config, [{
+                            type: 'pdf',
+                            format: 'file',
+                            data: data.file_url,
+                            options: {
+                                autoRotate: true
+                            }
+                        }]);
 
                         setTimeout(() => {
                             window.location.reload()
-                        }, 1000);
+                        }, 2000);
+
                     })
-                   .catch(err => {
+                    .catch(err => {
 
                         console.log('getReservationSlip catch called');
 
                         console.error(err);
-                        
-                        window.location.reload()
+
+                        // window.location.reload()
                     });
             }
 
@@ -424,13 +427,13 @@
             // });
 
             // Recompute while typing
-            $('.money').on('input', function () {
+            $('.money').on('input', function() {
                 let cleaned = cleanMoneyInput($(this).val());
                 $(this).val(cleaned);
                 computeChange();
             });
 
-            $('#cash').on('keypress', function (e) {
+            $('#cash').on('keypress', function(e) {
 
                 if (e.which === 13) { // Enter key
                     e.preventDefault();
@@ -443,7 +446,7 @@
             });
 
 
-            $(document).on('keydown', function (e) {
+            $(document).on('keydown', function(e) {
                 if (!validateForm()) return;
                 // F9 key
                 if (e.key === 'F9') {
@@ -453,7 +456,7 @@
 
             });
 
-            $(document).on('click', '#printBtn', function () {
+            $(document).on('click', '#printBtn', function() {
 
                 if (!validateForm()) return;
 
@@ -478,7 +481,7 @@
 
             });
 
-            $('.quickCash').click(function () {
+            $('.quickCash').click(function() {
 
                 let value = $(this).data('value');
                 console.log(value)
@@ -488,7 +491,7 @@
 
             });
 
-            $('#printConfirmModal').on('keypress', function (e) {
+            $('#printConfirmModal').on('keypress', function(e) {
 
                 if (e.which === 13) {
                     e.preventDefault();
@@ -497,7 +500,7 @@
 
             });
 
-            $('#confirmPrint').on('click', function () {
+            $('#confirmPrint').on('click', function() {
 
                 let id = "{{ $deposit->bookedTicket->id }}";
 

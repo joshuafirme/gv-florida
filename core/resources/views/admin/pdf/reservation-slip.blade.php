@@ -54,7 +54,7 @@
 
 
         .ticket {
-            margin-top: 20px;
+            margin-top: 5px;
         }
 
         table {
@@ -64,7 +64,7 @@
         }
 
         td {
-            padding: 4px 0;
+            padding: 2px 0;
         }
 
         /* Key fix */
@@ -86,7 +86,6 @@
             border-top: 2px solid #000;
             text-align: center;
             position: relative;
-            margin-top: 25px;
         }
 
         .divider span {
@@ -120,7 +119,7 @@
 
             <div class="terms">
                 <strong>TERMS & CONDITIONS:</strong>
-                <div>{!! isset($content->terms_and_conditions) ? $content->terms_and_conditions : '' !!}</div>
+                <div style="line-height: 1;">{!! isset($content->terms_and_conditions) ? $content->terms_and_conditions : '' !!}</div>
             </div>
 
             <div class="ticket">
@@ -174,9 +173,18 @@
                         <td class="label">Bus Type:</td>
                         <td class="value">{{ $ticket->trip?->fleetType?->name }}</td>
                     </tr>
+                    <tr>
+                        <td class="label">Source</td>
+                        <td class="value">{{ $ticket->deposit?->pchannel ?: 'Kiosk' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Mode of Payment</td>
+                        <td class="value">{{ strtoupper(decodeSlug($ticket->deposit?->pchannel)) ?: 'CASH' }}</td>
+                    </tr>
 
                     <tr>
                         <td colspan="2">
+                            <div style="text-align: center; margin-top: 10px;">{{ $ticket->deposit->processed_by_name }}</div>
                             <div class="divider">
                                 <span>Authorized Signature</span>
                             </div>
