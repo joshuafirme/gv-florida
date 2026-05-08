@@ -38,7 +38,7 @@
                     <td data-label="@lang('Status')">
                         @if ($item->status == 1)
                             <span class="badge badge--success"> @lang('Booked')</span>
-                        @elseif($item->status == 2)
+                        @elseif($item->status == 2 && !$beyond_sched)
                             @if ($beyond_sched && $item->deposit && $item->deposit->status != Status::PAYMENT_SUCCESS)
                                 <span class="badge badge--warning"> @lang('Expired')</span>
                             @else

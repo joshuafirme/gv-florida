@@ -20,10 +20,19 @@ class UserController extends Controller
         $pageTitle = 'Dashboard';
         $user = auth()->user()->load('tickets');
         $widget['booked'] = $user->tickets()->booked()->count();
-        $widget['pending'] = $user->tickets()->pending()->whereNotNull('seats')->count();
+        // $widget['pending'] = $user->tickets()->pending()->whereNotNull('seats')->count();
         $widget['rejected'] = $user->tickets()->rejected()->count();
 
-        $widget['pending'] = BookedTicket::pending()->whereNotNull('seats')->where('user_id', auth()->user()->id)->count();
+        $widget['pending'] = BookedTicket::pending()
+            ->whereDoesntHave('trip.schedule', function ($query) {
+                $query->whereRaw(
+                    "CONCAT(booked_tickets.date_of_journey, ' ', schedules.start_from) < ?",
+                    [now()->format('Y-m-d H:i:s')]
+                );
+            })
+            ->whereNotNull('seats')->where('user_id', auth()->user()->id)
+            ->count();
+
         $widget['rejected'] = BookedTicket::rejected()->where('user_id', auth()->user()->id)->count();
         $bookedTickets = BookedTicket::with(['trip.fleetType', 'trip.startFrom', 'trip.endTo', 'trip.schedule', 'pickup', 'drop'])
             ->where('user_id', auth()->user()->id)->whereNotNull('seats')->orderBy('id', 'desc')
@@ -242,7 +251,7 @@ class UserController extends Controller
         $pageTitle = "Ticket Print";
 
         $ticket = $this->getTicketDetails($id);
-  //  return view('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
+        //  return view('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true
         ])->loadView('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
