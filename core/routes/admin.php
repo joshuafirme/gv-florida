@@ -173,6 +173,7 @@ Route::middleware('admin')->group(function () {
         Route::get('route-data', 'getRouteData')->name('get_route_data');
         Route::post('cancel-booking/{id}', 'cancelBooking')->name('cancel.booking');
         Route::post('update-booking-date/{id}', 'updateBookingDate')->name('update.booking.date');
+        Route::get('get-seat-layout', 'getSeatLayout')->name('get-seat-layout');
     });
 
     Route::controller('VehicleTicketController')->prefix('tickets')->name('vehicle.ticket.')->group(function () {

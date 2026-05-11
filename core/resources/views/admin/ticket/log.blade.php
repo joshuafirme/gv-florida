@@ -1,6 +1,7 @@
 @extends('admin.layouts.app')
 @php
     use Carbon\Carbon;
+    $allowed_advance_booking_days = getAllowedAdvanceBookingDays();
 @endphp
 @section('panel')
     <div class="row">
@@ -101,15 +102,15 @@
                                                     <i class="fa-solid fa-receipt"></i>
                                                 </a>
 
-                                                @if (Carbon::parse($item->date_of_journey)->greaterThan(now()) && !$item->is_rebooked)
-                                                    <button data-bs-toggle="tooltip" data-bs-placement="bottom"
-                                                        title="Change Schedule" target="_blank"
-                                                        class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"
-                                                        data-id="{{ $item->id }}"
-                                                        data-date-of-journey="{{ $item->date_of_journey }}">
-                                                        <i class="fa-solid fa-calendar-day"></i>
-                                                    </button>
-                                                @endif
+                                                {{-- @if (Carbon::parse($item->date_of_journey)->greaterThan(now()) && !$item->is_rebooked) --}}
+                                                <button data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                    title="Change Schedule" target="_blank"
+                                                    class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"
+                                                    data-id="{{ $item->id }}"
+                                                    data-date-of-journey="{{ $item->date_of_journey }}">
+                                                    <i class="fa-solid fa-calendar-day"></i>
+                                                </button>
+                                                {{-- @endif --}}
                                                 @if (Carbon::parse($item->date_of_journey)->isFuture())
                                                     <button type="button" data-bs-toggle="tooltip"
                                                         data-bs-placement="bottom" title="Cancel Booking"
@@ -141,10 +142,10 @@
     </div>
 
     <div id="updateBookingDateModal" class="modal fade" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-dialog modal-xl" role="document"> <!-- Changed to modal-xl for wider seat maps -->
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Update Booking Date</h5>
+                    <h5 class="modal-title">Update Booking Date & Seats</h5>
                     <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
                         <i class="las la-times"></i>
                     </button>
@@ -152,28 +153,91 @@
                 <div class="modal-body">
                     <form id="updateBookingDateForm" method="POST">
                         @csrf
-                        <div class="form-group">
-                            <label for="date_of_journey">New Date of Journey</label>
-                            <input type="date" class="form-control" name="date_of_journey"
-                                required>
-                        </div>
-                        <div class="form-group mt-2">
-                            <label for="username">Username</label>
-                            <input type="text" class="form-control" name="username"
-                                required>
-                        </div>
-                        <div class="form-group mt-2">
-                            <label for="passcode">Passcode</label>
-                            <input type="password" class="form-control" name="passcode"
-                                required>
-                        </div>
+                        <!-- Hidden input to store selected seats array -->
+                        <input type="hidden" name="seats" id="selected_seats_input" required>
 
-                        <button type="submit" class="btn btn--primary">Update Date</button>
+                        <div class="row">
+                            <!-- Left Side: Form Inputs -->
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="date_of_journey">New Date of Journey</label>
+                                    <input type="date" id="rebook_date" class="form-control" name="date_of_journey"
+                                        required min="{{ date('Y-m-d', strtotime('+1 day')) }}"
+                                        max="{{ date('Y-m-d', strtotime("+$allowed_advance_booking_days day")) }}">
+                                </div>
+                                <div class="form-group mt-2">
+                                    <label for="username">Admin Username</label>
+                                    <input type="text" class="form-control" name="username" required>
+                                </div>
+                                <div class="form-group mt-2">
+                                    <label for="passcode">Admin Passcode</label>
+                                    <input type="password" class="form-control" name="passcode" required>
+                                </div>
+
+                                <div class="mt-4">
+                                    <h6>Selection Info</h6>
+                                    <p>Seats Required: <span id="seats_required_count" class="font-weight-bold">0</span></p>
+                                    <p>Selected Seats: <span id="selected_seats_display"
+                                            class="font-weight-bold text-primary">None</span></p>
+                                </div>
+
+                                <button type="submit" class="btn btn--primary w-100 mt-3" id="submitUpdateBtn"
+                                    disabled>Update Date & Seats</button>
+                            </div>
+
+                            <!-- Right Side: Seat Map Container -->
+                            <div class="col-md-8">
+                                <div id="seat_map_loader" class="text-center d-none py-5">
+                                    <div class="spinner-border text-primary" role="status"></div>
+                                    <p>Loading seat layout...</p>
+                                </div>
+                                <div id="seat_map_container" class="seat-map-container">
+                                    <p class="text-muted text-center mt-5">Select a new date to view available seats.</p>
+                                </div>
+                            </div>
+                        </div>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+
+    <style>
+        .seat {
+            cursor: pointer;
+        }
+
+        /* Permanently Disabled Seats (Grey) */
+        .seat.disabled-seat,
+        .seat del {
+            background-color: #777777 !important;
+            color: white;
+            cursor: not-allowed;
+            opacity: 0.7;
+            border-color: #777777 !important;
+            text-decoration: line-through;
+        }
+
+        /* Dynamically Booked Seats (Purple) */
+        .seat.booked-seat {
+            background-color: #554BB9 !important;
+            color: white;
+            cursor: not-allowed;
+            opacity: 0.8;
+            border-color: #554BB9 !important;
+        }
+
+        /* Selected by Admin for Rebooking (Green) */
+        .seat.selected {
+            background-color: #28a745 !important;
+            color: white;
+            border-color: #28a745;
+        }
+
+        .seat.comfort-room {
+            cursor: default;
+        }
+    </style>
 
     <x-confirmation-modal />
 @endsection
@@ -190,7 +254,7 @@
 @endpush
 
 @push('script')
-    <script>
+    {{-- <script>
         'use strict';
 
         $(document).on("click", ".update-booking-date-btn", function(e) {
@@ -206,6 +270,134 @@
             $("#updateBookingDateModal").modal('show');
             $("#updateBookingDateForm").attr('action', actionUrl);
             $("#updateBookingDateForm input[name='date_of_journey']").val(dateOfJourney);
+        });
+    </script> --}}
+
+    <script>
+        'use strict';
+
+        let requiredSeatsCount = 0;
+        let selectedSeatsArray = [];
+
+        // 1. Open Modal and Setup Initial Data
+        $(document).on("click", ".update-booking-date-btn", function(e) {
+            e.preventDefault();
+
+            let id = $(this).data('id');
+            let dateOfJourney = $(this).data('date-of-journey') || '';
+
+            // Reset state
+            selectedSeatsArray = [];
+            requiredSeatsCount = 0;
+            $("#seat_map_container").html(
+                '<p class="text-muted text-center mt-5">Select a new date to view available seats.</p>');
+            $("#selected_seats_display").text('None');
+            $("#seats_required_count").text('0');
+            $("#selected_seats_input").val('');
+            $("#submitUpdateBtn").prop('disabled', true);
+
+            let url = "{{ url('/admin/manage/update-booking-date') }}";
+            let actionUrl = url + '/' + id;
+            $("#updateBookingDateForm").attr('action', actionUrl);
+            $("#updateBookingDateModal").data('ticket-id', id); // Store ID on modal for AJAX
+
+            // Show modal and set initial date
+            $("#updateBookingDateModal").modal('show');
+            $("#rebook_date").val(dateOfJourney).trigger('change'); // Trigger change to load seats immediately
+        });
+
+        // 2. Handle Date Change -> Fetch Layout via AJAX
+        $(document).on('change', '#rebook_date', function() {
+            let selectedDate = $(this).val();
+            let ticketId = $("#updateBookingDateModal").data('ticket-id');
+
+            if (!selectedDate || !ticketId) return;
+
+            $("#seat_map_container").addClass('d-none');
+            $("#seat_map_loader").removeClass('d-none');
+            $("#submitUpdateBtn").prop('disabled', true);
+            selectedSeatsArray = []; // Reset selections
+
+            $.ajax({
+                url: "{{ url('/admin/manage/get-seat-layout') }}",
+                type: "GET",
+                data: {
+                    ticket_id: ticketId,
+                    date: selectedDate
+                },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        $("#seat_map_container").html(response.html);
+                        requiredSeatsCount = response.required_seats;
+                        $("#seats_required_count").text(requiredSeatsCount);
+                        $("#selected_seats_display").text('None');
+
+                        let bookedSeats = response.booked_seats || [];
+                        let disabledSeats = response.disabled_seats || [];
+
+                        // Apply classes based on which array the seat belongs to
+                        $('.seat').each(function() {
+                            let seatText = $(this).text().trim();
+
+                            if (!seatText || $(this).hasClass('comfort-room'))
+                                return; // Skip empty/CR
+
+                            if (disabledSeats.includes(seatText)) {
+                                $(this).addClass('disabled-seat').attr('title',
+                                    'Not Available');
+                            } else if (bookedSeats.includes(seatText)) {
+                                $(this).addClass('booked-seat').attr('title', 'Already Booked');
+                            }
+                        });
+
+                        $("#seat_map_loader").addClass('d-none');
+                        $("#seat_map_container").removeClass('d-none');
+                    }
+                },
+                error: function() {
+                    alert('Failed to load seat map. Please check your connection.');
+                    $("#seat_map_loader").addClass('d-none');
+                    $("#seat_map_container").removeClass('d-none');
+                }
+            });
+        });
+
+        // 3. Handle Seat Selection Clicks
+        $(document).on('click', '.seat:not(.disabled-seat):not(.booked-seat):not(.comfort-room)', function() {
+            let seatText = $(this).text().trim();
+            if (!seatText) return; // Ignore empty wrappers
+
+            // Grab the deck number from the parent container
+            let deckNumber = $(this).closest('.seat-plan-inner').data('deck');
+
+            // Create the final prefixed string (e.g., "1-A1" or "2-S4")
+            let seatId = deckNumber + '-' + seatText;
+
+            if ($(this).hasClass('selected')) {
+                // Deselect seat
+                $(this).removeClass('selected');
+                selectedSeatsArray = selectedSeatsArray.filter(s => s !== seatId);
+            } else {
+                // Select seat
+                if (selectedSeatsArray.length >= requiredSeatsCount) {
+                    alert(`You can only select ${requiredSeatsCount} seat(s) for this rebooking.`);
+                    return;
+                }
+                $(this).addClass('selected');
+                selectedSeatsArray.push(seatId);
+            }
+
+            // Update UI and hidden input using the prefixed seatId
+            $("#selected_seats_display").text(selectedSeatsArray.length > 0 ? selectedSeatsArray.join(', ') :
+                'None');
+            $("#selected_seats_input").val(selectedSeatsArray.join(','));
+
+            // Enable submit button only if exact required seats are picked
+            if (selectedSeatsArray.length === requiredSeatsCount && requiredSeatsCount > 0) {
+                $("#submitUpdateBtn").prop('disabled', false);
+            } else {
+                $("#submitUpdateBtn").prop('disabled', true);
+            }
         });
     </script>
 @endpush

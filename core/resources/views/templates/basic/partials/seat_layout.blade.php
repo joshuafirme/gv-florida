@@ -5,7 +5,7 @@
 <div class="container p-4">
     <h4>{{ $fleetType->name }}</h4>
     @foreach ($fleetType->deck_seats as $key => $seat)
-        <div class="seat-plan-inner">
+        <div class="seat-plan-inner" data-deck="{{ $loop->index + 1 }}">
             <div class="single">
 
                 @php
@@ -204,12 +204,17 @@
     @endfor
 
     {{-- This section handles the last row which may have a different number of seats --}}
+    {{-- This section handles the last row which may have a different number of seats --}}
     @if ($fleetType->last_row)
         @php $seatNumber++ @endphp
         <div class="seat-wrapper justify-content-center">
             @for ($lsr = 1; $lsr <= $fleetType->last_row[$key]; $lsr++)
-                @php echo $busLayout->generateSeats($lsr, $deckIndex, $seatNumber, $prefix.$seatCounter); @endphp
                 @php
+                    $label = $prefix . $seatCounter;
+                    if (in_array($label, $disabled_seats)) {
+                        $label = "<del>$label</del>";
+                    }
+                    echo $busLayout->generateSeats($lsr, $deckIndex, $seatNumber, $label);
                     $seatCounter++;
                 @endphp
             @endfor
@@ -219,8 +224,14 @@
             @php $seatNumber++ @endphp
             <div class="seat-wrapper justify-content-center">
                 @for ($lsr = 1; $lsr <= $colItem + 1; $lsr++)
-                    @php echo $busLayout->generateSeats($lsr, $deckIndex, $seatNumber, $prefix.$seatCounter); @endphp
-                    @php $seatCounter++; @endphp
+                    @php
+                        $label = $prefix . $seatCounter;
+                        if (in_array($label, $disabled_seats)) {
+                            $label = "<del>$label</del>";
+                        }
+                        echo $busLayout->generateSeats($lsr, $deckIndex, $seatNumber, $label);
+                        $seatCounter++;
+                    @endphp
                 @endfor
             </div>
         @endif
@@ -228,8 +239,14 @@
             @php $seatNumber++ @endphp
             <div class="seat-wrapper justify-content-center">
                 @for ($l = 1; $l <= $lastRowSeat; $l++)
-                    @php echo $busLayout->generateSeats($l, $deckIndex, $seatNumber, $prefix.$seatCounter); @endphp
-                    @php $seatCounter++; @endphp
+                    @php
+                        $label = $prefix . $seatCounter;
+                        if (in_array($label, $disabled_seats)) {
+                            $label = "<del>$label</del>";
+                        }
+                        echo $busLayout->generateSeats($l, $deckIndex, $seatNumber, $label);
+                        $seatCounter++;
+                    @endphp
                 @endfor
             </div>
         @endif

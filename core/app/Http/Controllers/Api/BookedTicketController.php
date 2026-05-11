@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
+use App\Lib\BusLayout;
 use App\Models\BookedTicket;
 use App\Models\Deposit;
+use App\Models\Trip;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class BookedTicketController extends Controller
@@ -30,9 +33,70 @@ class BookedTicketController extends Controller
                 'success' => true,
                 'message' => count($deposits) . " expired tickets has been updated."
             ]);
-        }   return response()->json([
-                'success' => true,
-                'message' =>  "All goods."
-            ]);
+        }
+        return response()->json([
+            'success' => true,
+            'message' => "All goods."
+        ]);
+    }
+
+    public function getSeatPlan(Request $request)
+    {
+        $tripId = $request->trip_id;
+        $date = $request->date;
+
+        // 1. Fetch your Trip, FleetType, and BusLayout based on $tripId
+        $trip = Trip::findOrFail($tripId);
+        $fleetType = $trip->fleetType;
+        $busLayout = new BusLayout($fleetType); // Or however you instantiate this in your system
+
+        // 2. Check for seats already booked on this NEW date
+        $bookedSeats = BookedTicket::query()
+            ->whereIn('status', [
+                Status::BOOKED_APPROVED,
+                Status::BOOKED_PENDING
+            ])
+            ->whereDate('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
+
+            // Filter BookedTicket by Trip + Schedule conditions
+            ->whereHas('trip', function ($query) use ($request) {
+                $query->where('fleet_type_id', $request->fleet_type_id)
+                    ->where('start_from', $request->source_id);
+
+                // If you need to filter by destination as well, uncomment the line below:
+                // ->where('end_to', $request->destination_id);
+    
+                // Filter by schedule start_from_time
+                $query->whereHas('schedule', function ($q) use ($request) {
+                    $q->where('start_from', $request->start_from_time);
+                });
+            })
+
+            // Eager load relationships properly
+            ->with([
+                'trip' => function ($q) use ($request) {
+                    // Load the trip and restrict its loaded schedule to the specific time
+                    $q->with([
+                        'schedule' => function ($sq) use ($request) {
+                        $sq->where('start_from', $request->start_from_time);
+                    }
+                    ]);
+                }
+            ])
+            ->get()->toArray();
+
+        // 3. Merge disabled seats with newly booked seats
+        $disabled_seats = $fleetType->disabled_seats ? $fleetType->disabled_seats : [];
+        $disabled_seats = array_merge($disabled_seats, $bookedSeats);
+
+        // 4. Render the Blade partial
+        // Note: Save the Blade code you provided in my prompt into a file called 'seat_layout_partial.blade.php'
+        $html = view('admin.partials.seat_layout_partial', compact(
+            'fleetType',
+            'busLayout',
+            'disabled_seats'
+        ))->render();
+
+        return response()->json(['html' => $html]);
     }
 }

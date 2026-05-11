@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
+use App\Lib\BusLayout;
 use App\Models\Admin;
 use App\Models\BookedTicket;
 use App\Models\FleetType;
+use App\Models\Trip;
 use App\Models\VehicleRoute;
 use App\Models\TicketPrice;
 use App\Models\TicketPriceByStoppage;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -250,13 +253,83 @@ class VehicleTicketController extends Controller
         } else {
             return redirect()->back()->withErrors(['authorization' => $message]);
         }
+        $request->validate([
+            'date_of_journey' => 'required|date|after_or_equal:today',
+            'seats' => 'required|string', // Comma-separated string from JS hidden input
+        ]);
 
-        $data = BookedTicket::findOrFail($id);
+        $data = BookedTicket::with([
+            'trip' => function ($q) {
+                $q->with('schedule');
+            }
+        ])->findOrFail($id);
+
+        $requestedSeats = explode(',', $request->seats);
+
+        $originalSeatCount = is_array($data->seats) ? count($data->seats) : 1;
+
+        if (count($requestedSeats) !== $originalSeatCount) {
+            return redirect()->back()->withErrors(['seats' => "You must select exactly {$originalSeatCount} seat(s)."]);
+        }
+
+        // B. Fetch already booked seats for the new date and same schedule
+        $bookedTicketsData = BookedTicket::query()
+            ->where('id', '!=', $id) // Exclude current ticket to avoid self-conflict
+            ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
+            ->whereDate('date_of_journey', Carbon::parse($request->date_of_journey)->format('Y-m-d'))
+            ->whereHas('trip', function ($query) use ($data) {
+                $query->where('fleet_type_id', $data->trip->fleet_type_id)
+                    ->where('start_from', $data->trip->start_from);
+
+                $query->whereHas('schedule', function ($q) use ($data) {
+                    $q->where('start_from', $data->trip->schedule->start_from);
+                });
+            })
+            ->get(['seats']);
+
+        // Flatten all booked seats into a single array
+        $bookedSeatsArray = [];
+        foreach ($bookedTicketsData as $bookedTicket) {
+            $seats = is_string($bookedTicket->seats) ? json_decode($bookedTicket->seats, true) : $bookedTicket->seats;
+            if (is_array($seats)) {
+                foreach ($seats as $seat) {
+                    if (str_contains($seat, '-')) {
+                        $seat_parts = explode('-', $seat);
+                        $bookedSeatsArray[] = $seat_parts[1];
+                    } else {
+                        $bookedSeatsArray[] = $seat;
+                    }
+                }
+            }
+        }
+        $bookedSeatsArray = array_unique($bookedSeatsArray);
+
+        // C. Fetch permanently disabled seats for this fleet
+        $fleetType = FleetType::find($data->trip->fleet_type_id);
+        $disabledSeats = $fleetType->disabled_seats ? $fleetType->disabled_seats : [];
+
+        // Combine booked and disabled seats to check against
+        $unavailableSeats = array_merge($bookedSeatsArray, $disabledSeats);
+
+        // D. Check for overlaps (if any requested seat is inside the unavailable array)
+        $conflict = array_intersect($requestedSeats, $unavailableSeats);
+        if (!empty($conflict)) {
+            $conflictStr = implode(', ', $conflict);
+            return redirect()->back()->withErrors(['seats' => "The following seats are already booked or unavailable on this date: {$conflictStr}"]);
+        }
+        // ----------------------------------------
+
+        // 4. Save the update
         $data->date_of_journey = $request->date_of_journey;
         $data->is_rebooked = 1;
+
+        // Assuming your BookedTicket model casts 'seats' to an array/json automatically. 
+        // If not, change this to: $data->seats = json_encode($requestedSeats);
+        $data->seats = $requestedSeats;
+
         $data->save();
 
-        $notify[] = ['success', "Booking Date Updated Successfully"];
+        $notify[] = ['success', "Booking Date and Seats Updated Successfully"];
         return redirect()->back()->withNotify($notify);
     }
 
@@ -268,6 +341,79 @@ class VehicleTicketController extends Controller
 
         $notify[] = ['success', "Booking Cancelled Successfully"];
         return redirect()->back()->withNotify($notify);
+    }
+
+    public function getSeatLayout(Request $request)
+    {
+        $request->validate([
+            'ticket_id' => 'required|integer',
+            'date' => 'required|date'
+        ]);
+
+        // 1. Fetch the original ticket to get trip and schedule parameters
+        $ticket = BookedTicket::with([
+            'trip' => function ($q) {
+                $q->with('schedule');
+            }
+        ])->findOrFail($request->ticket_id);
+
+        // How many seats does the passenger need to rebook?
+        $requiredSeatsCount = is_array($ticket->seats) ? count($ticket->seats) : 1;
+
+        // 2. Run your existing checker for the NEW date
+        $bookedTicketsData = BookedTicket::whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
+            ->whereDate('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
+            ->whereHas('trip', function ($query) use ($ticket) {
+                $query->where('fleet_type_id', $ticket->trip->fleet_type_id)
+                    ->where('start_from', $ticket->trip->start_from);
+
+                $query->whereHas('schedule', function ($q) use ($ticket) {
+                    $q->where('start_from', $ticket->trip->schedule->start_from);
+                });
+            })
+            ->get(['seats']);
+
+        // 3. Extract and flatten all booked seat numbers into a single 1D array
+        $bookedSeatsArray = [];
+        foreach ($bookedTicketsData as $bookedTicket) {
+            $seats = is_string($bookedTicket->seats) ? json_decode($bookedTicket->seats, true) : $bookedTicket->seats;
+            if (is_array($seats)) {
+                $bookedSeatsArray = array_merge($bookedSeatsArray, $seats);
+            }
+        }
+
+        // 4. Fetch dependencies for the Blade partial
+        $fleetType = FleetType::findOrFail($ticket->trip->fleet_type_id);
+        // Instantiate your BusLayout service here so the blade template can use it
+        $trip = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo', 'assignedVehicle.vehicle', 'bookedTickets'])
+            ->where('status', Status::ENABLE)
+            ->where('id', $ticket->trip_id)
+            ->firstOrFail();
+
+        $busLayout = new BusLayout($trip); // Adjust namespace based on your app
+
+        // 5. Render the HTML view
+        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'busLayout'))->render();
+
+        $disabled_seats = $fleetType->disabled_seats ? $fleetType->disabled_seats : [];
+        $seats = [];
+
+        foreach ($bookedSeatsArray as $seat) {
+            if (str_contains($seat, '-')) {
+                $seat_parts = explode('-', $seat);
+                $seats[] = $seat_parts[1];
+            } else {
+                $seats[] = $seat; // Fallback just in case
+            }
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'html' => $html,
+            'booked_seats' => array_unique($seats),
+            'disabled_seats' => $disabled_seats,
+            'required_seats' => $requiredSeatsCount
+        ]);
     }
 
     public function checkTicketPrice(Request $request)
