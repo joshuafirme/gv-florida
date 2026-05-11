@@ -12,6 +12,7 @@
     @php
         $selected_counter = request('pickup') ? request('pickup') : request('counter_id');
         $selected_destination = request('destination') ? request('destination') : request('selected_destination');
+        $date_of_journey = date('Y-m-d', strtotime(request('date_of_journey'))) ?: date('Y-m-d');
     @endphp
     @extends($activeTemplate . $layout)
 
@@ -161,7 +162,7 @@
                                 }
 
                                 $tickets = App\Models\BookedTicket::where('trip_id', $trip->id)
-                                    ->wheredate('date_of_journey', date('Y-m-d'))
+                                    ->wheredate('date_of_journey', $date_of_journey)
                                     ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
                                     ->get();
 
