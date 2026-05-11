@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 
 @php
     use App\Constants\Status;
@@ -13,23 +13,43 @@
 
     <link href="{{ asset('assets/global/css/bootstrap.min.css') }}" rel="stylesheet">
     
-    <link href="{{ asset('assets/admin/css/vendor/datatables.min.2.3.4.css') }}" rel="stylesheet">
-
     <style>
+        /* Base Theme (Dark Mode) */
         :root {
-            --bg-main: #0B1423;         /* Deep navy background */
-            --bg-secondary: #102442;    /* Slightly lighter navy for headers/footers */
-            --border-color: #1B355A;    /* Border separating rows */
-            --text-blue: #8AB4F8;       /* Light blue for table headers */
+            --bg-main: #0B1423;         
+            --bg-secondary: #102442;    
+            --border-color: #1B355A;    
+            --text-blue: #8AB4F8;       
+            --text-main: #ffffff;
+            --text-muted: #A0AEC0;
+            --row-hover: rgba(255, 255, 255, 0.05);
+            --row-alt: rgba(0, 0, 0, 0.15);
+            --btn-bg: #1B355A;
+            --btn-hover: #2a4c80;
+        }
+
+        /* Light Theme Overrides */
+        [data-theme="light"] {
+            --bg-main: #f4f6f9;         
+            --bg-secondary: #ffffff;    
+            --border-color: #dee2e6;    
+            --text-blue: #0d6efd;       
+            --text-main: #212529;
+            --text-muted: #6c757d;
+            --row-hover: rgba(0, 0, 0, 0.03);
+            --row-alt: rgba(0, 0, 0, 0.02);
+            --btn-bg: #e9ecef;
+            --btn-hover: #dee2e6;
         }
 
         body {
             background-color: var(--bg-main);
-            color: #ffffff;
+            color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             margin: 0;
             padding: 0;
             overflow-x: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         /* Top Header Styling */
@@ -39,6 +59,7 @@
             align-items: center;
             padding: 1.5rem 2rem;
             border-bottom: 2px solid var(--text-blue);
+            background-color: var(--bg-main);
         }
 
         .header-title {
@@ -47,10 +68,14 @@
             letter-spacing: 1px;
             margin: 0;
             text-transform: uppercase;
+            color: var(--text-main);
         }
 
         .clock-widget {
             text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
         }
 
         .clock-time {
@@ -61,14 +86,37 @@
 
         .clock-date {
             font-size: 1rem;
-            color: #A0AEC0;
+            color: var(--text-muted);
         }
+
+        /* Theme Toggle Button */
+        .theme-toggle-btn {
+            background-color: var(--btn-bg);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .theme-toggle-btn:hover {
+            background-color: var(--btn-hover);
+        }
+
+        /* Optional: Invert white logo to black in light mode */
+    
 
         /* Table Styling */
         .table-custom {
             width: 100%;
             margin-bottom: 0;
-            color: #ffffff;
+            color: var(--text-main);
         }
 
         .table-custom th {
@@ -84,7 +132,7 @@
 
         .table-custom td {
             background-color: transparent;
-            color: #ffffff;
+            color: var(--text-main);
             font-size: 1.15rem;
             font-weight: 500;
             padding: 1rem;
@@ -92,8 +140,12 @@
             vertical-align: middle;
         }
 
+        .table-custom tbody tr:hover td {
+            background-color: var(--row-hover);
+        }
+
         .table-custom tbody tr:nth-of-type(even) td {
-            background-color: rgba(0, 0, 0, 0.15); 
+            background-color: var(--row-alt); 
         }
 
         .status-text {
@@ -101,7 +153,7 @@
             font-weight: 600;
         }
 
-        /* Pagination Dark Theme Overrides */
+        /* Pagination Dark/Light Theme Support */
         .pagination-container {
             padding: 1rem;
             display: flex;
@@ -117,21 +169,21 @@
 
         .page-link:hover {
             background-color: var(--border-color);
-            color: #ffffff;
+            color: var(--text-main);
             border-color: var(--text-blue);
         }
 
         .page-item.active .page-link {
             background-color: var(--text-blue);
             border-color: var(--text-blue);
-            color: var(--bg-main);
+            color: #ffffff; /* Always white text on active blue background */
             font-weight: bold;
         }
 
         .page-item.disabled .page-link {
             background-color: var(--bg-main);
             border-color: var(--border-color);
-            color: #4a5568;
+            color: var(--text-muted);
         }
 
         /* Footer Banner */
@@ -153,7 +205,7 @@
 
         .footer-left {
             text-align: left;
-            color: #ffffff;
+            color: var(--text-main);
         }
 
         .footer-right {
@@ -163,7 +215,7 @@
         }
 
         .last-updated-text {
-            color: #6c757d;
+            color: var(--text-muted);
         }
     </style>
 </head>
@@ -171,7 +223,7 @@
 <body>
     <header class="board-header">
         <div style="width: 25%;">
-            <img style="max-height: 60px;" src="{{ siteLogo('dark') }}" alt="Logo">
+            <img class="logo-img" style="max-height: 60px;" src="{{ siteLogo('dark') }}" alt="Logo">
         </div>
         
         <div class="text-center" style="width: 50%;">
@@ -179,6 +231,7 @@
         </div>
         
         <div class="clock-widget" style="width: 25%;">
+            <button id="themeToggle" class="theme-toggle-btn">☀️ Light Mode</button>
             <div id="clock-time" class="clock-time">--:-- --</div>
             <div id="clock-date" class="clock-date">--</div>
         </div>
@@ -222,13 +275,31 @@
     <script src="{{ asset('assets/global/js/jquery-3.7.1.min.js') }}"></script>
 
     <script>
-        // Pagination Variables
+        // --- Theme Toggle Logic ---
+        const themeToggleBtn = document.getElementById('themeToggle');
+        const htmlElement = document.documentElement;
+
+        function setTheme(theme) {
+            htmlElement.setAttribute('data-theme', theme);
+            localStorage.setItem('board_theme', theme);
+            themeToggleBtn.innerHTML = theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode';
+        }
+
+        // Check local storage for saved theme preference
+        const savedTheme = localStorage.getItem('board_theme') || 'dark';
+        setTheme(savedTheme);
+
+        themeToggleBtn.addEventListener('click', () => {
+            const currentTheme = htmlElement.getAttribute('data-theme');
+            setTheme(currentTheme === 'light' ? 'dark' : 'light');
+        });
+
+        // --- Schedule & Pagination Logic ---
         let currentPage = 1;
         const itemsPerPage = 10;
         let tableData = []; 
         let last_updated = null;
 
-        // Initialize Fetch
         scheduleBoard();
         setInterval(() => {
             scheduleBoard();
@@ -264,10 +335,7 @@
                     }
                     last_updated = data.last_updated;
                     
-                    // Store data globally for pagination
                     tableData = data.res; 
-                    
-                    // Render current page
                     renderTable();
                 },
                 error: function (err) { 
@@ -280,18 +348,15 @@
             $('#scheduleTable tbody').empty();
             let html = '';
 
-            // Handle edge case: if polling removes items and the current page is now empty
             const totalPages = Math.ceil(tableData.length / itemsPerPage);
             if (currentPage > totalPages && totalPages > 0) {
                 currentPage = totalPages;
             }
 
-            // Calculate slicing indexes
             const startIndex = (currentPage - 1) * itemsPerPage;
             const endIndex = startIndex + itemsPerPage;
             const paginatedItems = tableData.slice(startIndex, endIndex);
 
-            // Generate rows
             for (const item of paginatedItems) {
                 if (isAfterNow(item.schedule.start_from) &&
                     item.trip_status == '{{ Status::TRIP_ON_TIME }}') {
@@ -312,15 +377,12 @@
             }
 
             $('#scheduleTable tbody').append(html);
-            
-            // Re-draw pagination controls
             renderPaginationControls(tableData.length);
         }
 
         function renderPaginationControls(totalItems) {
             const totalPages = Math.ceil(totalItems / itemsPerPage);
             
-            // Hide pagination if 10 or fewer items exist
             if (totalPages <= 1) {
                 $('#paginationContainer').html('');
                 return;
@@ -328,13 +390,11 @@
 
             let paginationHtml = '<ul class="pagination mb-0">';
 
-            // Previous Button
             paginationHtml += `
                 <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
                     <a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;">Previous</a>
                 </li>`;
 
-            // Page Numbers
             for (let i = 1; i <= totalPages; i++) {
                 paginationHtml += `
                     <li class="page-item ${currentPage === i ? 'active' : ''}">
@@ -342,7 +402,6 @@
                     </li>`;
             }
 
-            // Next Button
             paginationHtml += `
                 <li class="page-item ${currentPage === totalPages || totalPages === 0 ? 'disabled' : ''}">
                     <a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;">Next</a>
@@ -353,7 +412,6 @@
             $('#paginationContainer').html(paginationHtml);
         }
 
-        // Triggered when a pagination button is clicked
         function changePage(page) {
             const totalPages = Math.ceil(tableData.length / itemsPerPage);
             if (page >= 1 && page <= totalPages) {
@@ -365,7 +423,6 @@
         function isAfterNow(hhmm) {
             const [h, m] = hhmm.split(':').map(Number);
             const target = h * 60 + m;
-
             const now = new Date();
             const current = now.getHours() * 60 + now.getMinutes();
             return target < current;
@@ -393,6 +450,7 @@
             });
         }
 
+        // --- Clock Logic ---
         function updateClock() {
             const now = new Date();
             let hours = now.getHours();
