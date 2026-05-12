@@ -255,6 +255,7 @@ class SiteController extends Controller
 
                 $query->where('fleet_type_id', $request->fleet_type_id)
                     ->where('start_from', $request->source_id)
+                    ->where('end_to', $request->destination_id)
 
                     // Filter by schedule start_from_time
                     ->whereHas('schedule', function ($q) use ($request) {
@@ -325,7 +326,7 @@ class SiteController extends Controller
             $trip = Trip::with('schedule')->find($id);
 
             $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey) : Carbon::now();
-            
+
             if ($date->isToday()) {
                 if (strtotime($trip->schedule->start_from) <= strtotime('+15 minutes')) {
                     $notify[] = ['error', 'Invalid request: The trip is within 15 minutes of its scheduled departure time.'];
@@ -452,7 +453,7 @@ class SiteController extends Controller
             $bookedTicket->source_destination = [$request->pickup_point, $request->dropping_point];
             $bookedTicket->pickup_point = $request->pickup_point;
             $bookedTicket->dropping_point = $request->dropping_point;
-         //   $bookedTicket->seats = $seats;
+            //   $bookedTicket->seats = $seats;
             $bookedTicket->ticket_count = sizeof($seats);
             $bookedTicket->unit_price = $unitPrice;
             $bookedTicket->sub_total = sizeof($seats) * $unitPrice;
