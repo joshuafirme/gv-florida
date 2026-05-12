@@ -108,7 +108,9 @@
 </head>
 
 <body>
-
+    @php
+        $fare = $ticket->deposit->final_amount / count($ticket->seats);
+    @endphp
     @foreach ($ticket->slipSeriesNumbers as $slip_series)
         <div class="slip-container">
 
@@ -151,7 +153,7 @@
                     <tr class="section-gap">
                         <td class="label">Fare:</td>
                         <td class="value">
-                            {{ number_format($ticket->deposit->final_amount, 2) }} PHP
+                            {{ number_format($fare, 2) }} PHP
                         </td>
                     </tr>
 
