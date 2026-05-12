@@ -40,6 +40,14 @@ class UserController extends Controller
     {
         $ticket = BookedTicket::findOrFail($id);
 
+        $admin_request = request('admin_request');
+
+        if (!$ticket->kiosk_id || $admin_request) {
+            $this->approve($ticket->deposit->id);
+            $ticket->refresh();
+            $ticket->load('deposit');
+        }
+
         $dir = 'assets/admin/contents/';
         $file = "{$dir}reservation-slip-$ticket->pickup_point.json";
         if (!file_exists($file)) {
@@ -72,12 +80,6 @@ class UserController extends Controller
 
         $pdf->save($pdfPath);
 
-        $admin_request = request('admin_request');
-
-        if (!$ticket->kiosk_id || $admin_request) {
-            $this->approve($ticket->deposit->id);
-        }
-
         $base = env('APP_URL') . "core/storage/";
 
         return response()->json([
@@ -89,6 +91,12 @@ class UserController extends Controller
     public function printTicket($id = null)
     {
         $ticket = $this->getTicketDetails($id);
+
+        $admin_request = request('admin_request');
+
+        if (!$ticket->kiosk_id || $admin_request) {
+            $this->approve($ticket->deposit->id);
+        }
 
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true,
@@ -107,12 +115,6 @@ class UserController extends Controller
         }
 
         $pdf->save($pdfPath);
-
-        $admin_request = request('admin_request');
-
-        if (!$ticket->kiosk_id || $admin_request) {
-            $this->approve($ticket->deposit->id);
-        }
 
         $base = env('APP_URL') . "core/storage/";
 
@@ -142,7 +144,7 @@ class UserController extends Controller
     public function approve($id)
     {
         $admin = Admin::find(request('admin_id'));
-        $deposit = Deposit::where('id', $id)->where('status', Status::PAYMENT_PENDING)->firstOrFail();
+        $deposit = Deposit::where('id', $id)->firstOrFail();
         $deposit->processed_by_name = $admin->name;
         $deposit->processed_by_admin_id = $admin->id;
         $deposit->save();

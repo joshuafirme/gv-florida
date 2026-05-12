@@ -20,6 +20,10 @@
                             <span class="fw-bold">{{ $deposit->trx }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
+                            @lang('PNR Number')
+                            <span class="fw-bold">{{ $deposit->bookedTicket->pnr_number }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Username')
                             @if ($deposit->user)
                                 <span class="fw-bold">
@@ -280,6 +284,16 @@
     <script>
         $(document).ready(function() {
 
+            const params = new URLSearchParams(window.location.search);
+
+            const newly_approved = params.get('newly_approved');
+
+            if (newly_approved) {
+                setTimeout(() => {
+                    window.open(localStorage.getItem('to_print_ticket'), '_blank');
+                }, 1000);
+            }
+
             $('#cash').focus();
 
             const BASE_URL = "{{ url('/') }}/";
@@ -327,33 +341,37 @@
             }
 
             function getReservationSlip(id, config = null) {
+                let fileUrl = ''; // Variable to store URL for later use
+
                 return fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id +
                         '?admin_request=true&admin_id={{ auth('admin')->id() }}')
                     .then(res => res.json())
                     .then(data => {
-                        console.log(data)
-                        console.log('config', config)
-                        qz.print(config, [{
+                        fileUrl = data.file_url; // Capture the URL
+                        console.log('data', data)
+                        // Start the print process
+                        return qz.print(config, [{
                             type: 'pdf',
                             format: 'file',
-                            data: data.file_url,
+                            data: fileUrl,
                             options: {
                                 autoRotate: true
                             }
                         }]);
+                    })
+                    .then(() => {
+                        console.log("Print job finished. Opening file...");
 
-                        setTimeout(() => {
-                            window.location.reload()
-                        }, 2000);
-
+                        // Open the PDF in a new tab
+                        if (fileUrl) {
+                            localStorage.setItem('to_print_ticket', fileUrl);
+                            const params = new URLSearchParams(window.location.search);
+                            params.set('newly_approved', true);
+                            window.location.search = params.toString();
+                        }
                     })
                     .catch(err => {
-
-                        console.log('getReservationSlip catch called');
-
-                        console.error(err);
-
-                        // window.location.reload()
+                        console.error("Print or Fetch error:", err);
                     });
             }
 
