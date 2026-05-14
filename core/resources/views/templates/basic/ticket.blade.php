@@ -12,7 +12,9 @@
     @php
         $selected_counter = request('pickup') ? request('pickup') : request('counter_id');
         $selected_destination = request('destination') ? request('destination') : request('selected_destination');
-        $date_of_journey = request('date_of_journey') ? date('Y-m-d', strtotime(request('date_of_journey'))) : date('Y-m-d');
+        $date_of_journey = request('date_of_journey')
+            ? date('Y-m-d', strtotime(request('date_of_journey')))
+            : date('Y-m-d');
     @endphp
     @extends($activeTemplate . $layout)
 
@@ -289,14 +291,38 @@
         (function($) {
             "use strict";
 
-            // $('.search').on('change', function() {
-            //     $('#filterForm').submit();
-            // });
+            // 1 minute in milliseconds
+            const IDLE_TIMEOUT = 60000;
+            let idleTimer;
+
+            function reloadPage() {
+                window.location.reload();
+            }
+
+            function resetTimer() {
+                clearTimeout(idleTimer);
+                idleTimer = setTimeout(reloadPage, IDLE_TIMEOUT);
+            }
+
+            const activityEvents = [
+                'mousemove',
+                'mousedown',
+                'keydown',
+                'scroll',
+                'touchstart',
+                'click'
+            ];
+
+            activityEvents.forEach(function(event) {
+                document.addEventListener(event, resetTimer, true);
+            });
+
+            resetTimer();
 
             $('.select2').select2();
 
             $('.search-multiple').select2({
-                placeholder: "Select an option" // This sets the placeholder text
+                placeholder: "Select an option"
             });
 
             const datePicker = $('.date-range').daterangepicker({
@@ -314,15 +340,6 @@
                 $('#filterForm').submit();
             })
 
-            var windowHeight = $(window).height();
-            console.log(windowHeight)
-
-            // if (windowHeight < 920) {
-            //     $('.ticket-filter').css({
-            //         'overflow-y': 'auto',
-            //         'height': '500px'
-            //     })
-            // }
         })(jQuery)
     </script>
 @endpush
