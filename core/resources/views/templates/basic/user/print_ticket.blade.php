@@ -331,11 +331,15 @@
 
         <div class="info">
             @php
-                $terms_content = App\Models\Frontend::where('slug', 'online-booking-evouch-terms')->value('data_values');
-               // $content = json_decode($data);
+                $terms_content = App\Models\Frontend::where('slug', 'online-booking-evouch-terms')->value(
+                    'data_values',
+                );
+                // $content = json_decode($data);
             @endphp
-            {!! $terms_content->title !!}
-            {!! $terms_content->details !!}
+            @if ($terms_content?->title)
+                {!! $terms_content->title !!}
+                {!! $terms_content->details !!}
+            @endif
         </div>
 
         <!-- IMPORTANT NOTICE -->
