@@ -189,7 +189,7 @@
             const BASE_URL = "{{ url('/') }}/";
             const id = "{{ $ticket->id }}";
 
-           // printVouch()
+           printVouch()
 
             function printVouch() {
 
