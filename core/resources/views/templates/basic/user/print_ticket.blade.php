@@ -225,7 +225,7 @@
                     <table class="table">
                         <tr>
                             <td class="label">Mode of Payment :</td>
-                            <td >
+                            <td>
                                 @if ($ticket->deposit->gateway->name == 'Paynamics')
                                     {{ getPaynamicsPChannel($ticket->deposit->pchannel, true) }}
                                 @else
@@ -330,12 +330,12 @@
         <div class="section-title">Information</div>
 
         <div class="info">
-            • This e-voucher is not an official ticket. Proceed to cashier for validation.<br>
-            • Arrive at least 45 minutes before departure.<br>
-            • Valid only for the indicated schedule.<br>
-            • Failure to arrive may forfeit reservation.<br>
-            • Refunds are subject to company policy.<br>
-            • Lost vouchers will not be honored.
+            @php
+                $terms_content = App\Models\Frontend::where('slug', 'online-booking-evouch-terms')->value('data_values');
+               // $content = json_decode($data);
+            @endphp
+            {!! $terms_content->title !!}
+            {!! $terms_content->details !!}
         </div>
 
         <!-- IMPORTANT NOTICE -->
