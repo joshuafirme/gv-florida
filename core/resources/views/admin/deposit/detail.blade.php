@@ -178,7 +178,10 @@
                         @if ($deposit->status == Status::PAYMENT_PENDING)
                             <div class="row mt-4">
                                 <div class="col-md-12">
-                                    @if (getPassengerType($deposit))
+                                    @php
+                                        $passenger_type = strtolower(getPassengerType($deposit));
+                                    @endphp
+                                    @if (str_contains($passenger_type, 'managed reserved') || str_contains($passenger_type, 'vip'))
                                         <button class="btn btn-outline--success btn-sm ms-1 confirmationBtn"
                                             data-action="{{ route('admin.deposit.approve', $deposit->id) }}"
                                             data-question="@lang('Are you sure to approve this transaction?')"><i class="las la-check"></i>
