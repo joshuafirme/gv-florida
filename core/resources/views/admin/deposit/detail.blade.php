@@ -68,6 +68,14 @@
                                     class="fw-bold">{{ showAmount($deposit->userDiscount->amount, currencyFormat: false) }}
                                     {{ __($deposit->method_currency) }}</span>
                             </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                @lang('ID Number')
+                                <span class="fw-bold">{{ $deposit->userDiscount->id_number }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                @lang('Discounted Passenger Name')
+                                <span class="fw-bold">{{ $deposit->userDiscount->passenger_name }}</span>
+                            </li>
                         @endif
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Total Amount')

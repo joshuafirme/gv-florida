@@ -12,16 +12,21 @@
     @php
         $counters = App\Models\Counter::get();
         $seats = $bookedTicket->seats ? $bookedTicket->seats : session('seats');
-  
+
     @endphp
     <div class="container padding-top padding-bottom">
-        <button class="btn btn--base btn-outline--primary w-auto" onclick="window.history.back();"><i
-                class="fa-solid fa-arrow-left"></i> Go Back</button>
         <div class="row justify-content-center">
             <div class="col-lg-9">
+            <div class="col-12">
+                <button class="btn btn-outline-dark w-auto" onclick="window.history.back();">
+                    <i class="fa-solid fa-arrow-left"></i> Go Back
+                </button>
+            </div>
                 <form action="{{ route('user.deposit.insert') }}" method="post" class="deposit-form">
                     @csrf
                     <input type="hidden" name="currency">
+                    <input type="hidden" name="id_number">
+                    <input type="hidden" name="passenger_name">
                     <div class="gateway-card">
                         <div class="row justify-content-center gy-sm-4 gy-3">
                             <div class="col-12">
@@ -264,6 +269,16 @@
 
                         <div class="row gy-3">
                             <div class="form-group col-12">
+                                <label class="form-label">@lang('Passenger Name')</label>
+                                <input type="text" class="form-control form--control" id="mdl_passenger_name" required
+                                    autocomplete="new-password">
+                            </div>
+                            <div class="form-group col-12">
+                                <label class="form-label">@lang('ID Number')</label>
+                                <input type="text" class="form-control form--control" id="mdl_id_number" required
+                                    autocomplete="new-password">
+                            </div>
+                            <div class="form-group col-12">
                                 <label class="form-label">@lang('Username')</label>
                                 <input type="text" class="form-control form--control" name="username" required
                                     autocomplete="new-password">
@@ -382,6 +397,9 @@
                                     calculation()
                                     calculateWithDiscount()
                                 }
+
+                                $('input[name="passenger_name"]').val($('#mdl_passenger_name').val());
+                                $('input[name="id_number"]').val($('#mdl_id_number').val());
                             } else {
                                 isPasscodeValid = false;
                                 triggerToaster('error', response.message);

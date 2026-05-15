@@ -14,9 +14,10 @@
 
     <div class="padding-top padding-bottom">
         <div class="container">
-            <a
-                href="{{ url("/tickets?kiosk_id=$kiosk_id&counter_id={$trip->startFrom->id}&pickup={$trip->startFrom->id}&destination={$trip->endTo->id}&date_of_journey=$date_of_journey") }}"><i
-                    class="fa-solid fa-arrow-left"></i> Back</a>
+            <a class="btn btn-outline-dark w-auto mb-3"
+                href="{{ url("/tickets?kiosk_id=$kiosk_id&counter_id={$trip->startFrom->id}&pickup={$trip->startFrom->id}&destination={$trip->endTo->id}&date_of_journey=$date_of_journey") }}">
+                <i class="fa-solid fa-arrow-left"></i> Go Back
+            </a>
             <div class="row gx-xl-5 gy-4 gy-sm-5 justify-content-center">
                 <div class="col-md-6">
                     <div class="seat-overview-wrapper">
