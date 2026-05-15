@@ -12,11 +12,73 @@ use App\Models\Counter;
 
 class CounterController extends Controller
 {
-    public function counters()
+    public function counters(Request $request)
     {
-        $pageTitle = 'All Counter';
-        $counters = Counter::searchable(['name', 'city', 'mobile'])->paginate(getPaginate());
-        return view('admin.counter.list', compact('pageTitle', 'counters'));
+        $pageTitle = 'All Counters';
+        $emptyMessage = 'No counters found';
+
+        $query = Counter::query();
+
+        // 1. Dynamic Filtering (Name, City, Mobile)
+        if ($request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'LIKE', "%$search%")
+                    ->orWhere('city', 'LIKE', "%$search%")
+                    ->orWhere('mobile', 'LIKE', "%$search%");
+            });
+        }
+
+        // 2. Status Filtering
+        if ($request->has('status') && $request->status != 'all') {
+            $query->where('status', $request->status);
+        }
+
+        // 3. Dynamic Sorting
+        $sortField = $request->get('sort_field', 'id');
+        $sortOrder = $request->get('sort_order', 'desc');
+
+        $allowedSorts = ['id', 'name', 'mobile', 'city', 'status'];
+
+        if (in_array($sortField, $allowedSorts)) {
+            $query->orderBy($sortField, $sortOrder);
+        }
+
+        $counters = $query->paginate(getPaginate())->appends($request->all());
+
+        return view('admin.counter.list', compact('pageTitle', 'counters', 'emptyMessage'));
+    }
+
+    public function remove($id)
+    {
+        $counter = Counter::findOrFail($id);
+        
+        if($counter->trips()->count() > 0) {
+            $notify[] = ['error', 'Cannot delete this counter because it has associated trips.'];
+            return back()->withNotify($notify);
+        }
+
+        $counter->delete();
+
+        $notify[] = ['success', 'Counter deleted successfully.'];
+        return back()->withNotify($notify);
+    }
+
+    // New Method for Bulk Enable/Disable
+    public function bulkStatus(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer',
+            'action_type' => 'required|in:enable,disable'
+        ]);
+
+        $status = $request->action_type == 'enable' ? 1 : 0;
+
+        Counter::whereIn('id', $request->ids)->update(['status' => $status]);
+
+        $notify[] = ['success', 'Selected counters have been successfully updated.'];
+        return back()->withNotify($notify);
     }
 
     public function scheduleBoard(Request $request, $counter_id)

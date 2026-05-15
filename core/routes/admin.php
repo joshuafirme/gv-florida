@@ -75,6 +75,8 @@ Route::middleware('admin')->group(function () {
         Route::get('reservation-slip', 'reservationSlip')->name('reservation-slip');
         Route::post('reservation-slip', 'updateReservationSlip')->name('reservation-slip.udpate');
 
+        Route::delete('remove/{id}', 'remove')->name('remove');
+        Route::post('bulk-status', 'bulkStatus')->name('bulk');
         Route::get('', 'counters')->name('index');
         Route::get('schedule-board/{id}', 'scheduleBoard')->name('scheduleBoard');
         Route::get('schedule-board/json/{id}', 'scheduleBoardJSON')->name('scheduleBoardJSON');
