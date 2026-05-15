@@ -199,25 +199,54 @@ class ManageTripController extends Controller
     public function schedules(Request $request)
     {
         $pageTitle = 'All Schedules';
-        $schedules = Schedule::orderBy('id', 'desc');
+        $schedules = Schedule::query();
 
-
+        // 1. Dynamic Filtering
         if ($request->start_at) {
-            $start = Carbon::parse(request('start_at'))->format('H:i:s');
+            $start = Carbon::parse($request->start_at)->format('H:i:s');
             $schedules->whereTime('start_from', '=', $start);
         }
         if ($request->end_at) {
-            $end = Carbon::parse(request('end_at'))->format('H:i:s');
+            $end = Carbon::parse($request->end_at)->format('H:i:s');
             $schedules->whereTime('end_at', '=', $end);
         }
 
-        if ($request->status && $request->status != 'all') {
+        if ($request->has('status') && $request->status != 'all') {
             $schedules->where('status', $request->status);
         }
 
-        $schedules = $schedules->paginate(getPaginate());
+        // 2. Dynamic Sorting
+        $sortField = $request->get('sort_field', 'id'); // Default sort field
+        $sortOrder = $request->get('sort_order', 'desc'); // Default sort order
+
+        // Define allowable sort fields to prevent SQL injection (Duration is computed in Blade, so we don't sort by it via SQL)
+        $allowedSorts = ['start_from', 'end_at', 'status', 'id'];
+
+        if (in_array($sortField, $allowedSorts)) {
+            $schedules->orderBy($sortField, $sortOrder);
+        }
+
+        // Paginate and append query parameters to keep filters/sorts active across pages
+        $schedules = $schedules->paginate(getPaginate())->appends($request->all());
 
         return view('admin.trip.schedule', compact('pageTitle', 'schedules'));
+    }
+
+    // New Method for Bulk Enable/Disable
+    public function bulkScheduleStatus(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer',
+            'action_type' => 'required|in:enable,disable'
+        ]);
+
+        $status = $request->action_type == 'enable' ? 1 : 0;
+
+        Schedule::whereIn('id', $request->ids)->update(['status' => $status]);
+
+        $notify[] = ['success', 'Selected schedules have been successfully updated.'];
+        return back()->withNotify($notify);
     }
 
     public function scheduleStore(Request $request, $id = 0)

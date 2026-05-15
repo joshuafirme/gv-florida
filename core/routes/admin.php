@@ -147,6 +147,7 @@ Route::middleware('admin')->group(function () {
             Route::get('/', 'schedules')->name('index');
             Route::post('store/{id?}', 'scheduleStore')->name('store');
             Route::post('status/{id}', 'scheduleStatus')->name('status');
+            Route::post('bulk-status', 'bulkScheduleStatus')->name('bulk');
         });
 
         Route::prefix('assigned-vehicle')->name('vehicle.assign.')->group(function () {
