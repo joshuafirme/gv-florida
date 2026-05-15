@@ -181,7 +181,7 @@
                                     @php
                                         $passenger_type = strtolower(getPassengerType($deposit));
                                     @endphp
-                                    @if (str_contains($passenger_type, 'managed reserved') || str_contains($passenger_type, 'vip'))
+                                    @if (str_contains($passenger_type, 'reserved') || str_contains($passenger_type, 'vip'))
                                         <button class="btn btn-outline--success btn-sm ms-1 confirmationBtn"
                                             data-action="{{ route('admin.deposit.approve', $deposit->id) }}"
                                             data-question="@lang('Are you sure to approve this transaction?')"><i class="las la-check"></i>
