@@ -55,6 +55,7 @@ Route::middleware('admin')->group(function () {
     });
 
     Route::controller('AdminUserController')->prefix('admin')->group(function () {
+        Route::post('users/bulk-status', 'bulkStatus')->name('users.bulk');
         Route::get('users', 'index')->name('users');
         Route::post('users', 'store')->name('users.store');
         Route::post('users/{id}', 'update')->name('users.update');
@@ -62,6 +63,7 @@ Route::middleware('admin')->group(function () {
     });
 
     Route::controller('RoleController')->group(function () {
+        Route::post('roles/bulk-status', 'bulkStatus')->name('roles.bulk');
         Route::get('roles', 'index')->name('roles');
         Route::post('roles', 'store')->name('roles.store');
         Route::post('roles/{id}', 'update')->name('roles.update');
@@ -130,6 +132,7 @@ Route::middleware('admin')->group(function () {
             Route::post('/change-all-status', 'changeAllStatus')->name('changeAllStatus');
             Route::get('reservation-slip/{id}', 'reservationSlip')->name('reservationSlip');
             Route::get('manifest-seat-layout/{trip_id}', 'manifestSeatLayout')->name('manifestSeatLayout');
+            Route::post('bulk-status', 'bulkTripStatus')->name('bulk');
 
         });
 

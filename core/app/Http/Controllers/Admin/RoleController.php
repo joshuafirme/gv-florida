@@ -8,15 +8,55 @@ use Illuminate\Http\Request;
 
 class RoleController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $pageTitle = "Roles";
-        $data = UserRole::paginate(getPaginate());
+        $emptyMessage = "No roles found";
+
+        $query = UserRole::query();
+
+        // 1. Dynamic Filtering (Name)
+        if ($request->search) {
+            $query->where('name', 'LIKE', '%' . $request->search . '%');
+        }
+
+        // 2. Status Filtering
+        if ($request->has('status') && $request->status != 'all') {
+            $query->where('status', $request->status);
+        }
+
+        // 3. Dynamic Sorting
+        $sortField = $request->get('sort_field', 'id');
+        $sortOrder = $request->get('sort_order', 'desc');
+
+        $allowedSorts = ['id', 'name', 'status'];
+
+        if (in_array($sortField, $allowedSorts)) {
+            $query->orderBy($sortField, $sortOrder);
+        }
+
+        $data = $query->paginate(getPaginate())->appends($request->all());
 
         $sidenav = json_decode(file_get_contents(resource_path('views/admin/partials/sidenav.json')));
 
+        return view('admin.roles.main', compact('data', 'pageTitle', 'sidenav', 'emptyMessage'));
+    }
 
-        return view('admin.roles.main', compact('data', 'pageTitle', 'sidenav'));
+    // New Method for Bulk Enable/Disable
+    public function bulkStatus(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer',
+            'action_type' => 'required|in:enable,disable'
+        ]);
+
+        $status = $request->action_type == 'enable' ? 1 : 0;
+
+        UserRole::whereIn('id', $request->ids)->update(['status' => $status]);
+
+        $notify[] = ['success', 'Selected roles have been successfully updated.'];
+        return back()->withNotify($notify);
     }
 
     public function store(Request $request)

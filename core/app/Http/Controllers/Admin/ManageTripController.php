@@ -283,7 +283,7 @@ class ManageTripController extends Controller
         return Schedule::changeStatus($id);
     }
 
-    public function trips()
+    public function trips(Request $request)
     {
         $pageTitle = "All Trip";
         $emptyMessage = "No trip found";
@@ -292,15 +292,51 @@ class ManageTripController extends Controller
         $schedules = Schedule::where('status', 1)->get();
         $stoppages = Counter::where('status', 1)->get();
 
-        $trips = Trip::with(['fleetType', 'route', 'schedule'])->searchable(['title'])->orderBy('id', 'desc');
+        $trips = Trip::with(['fleetType', 'route', 'schedule']);
 
-        if (request()->has('status')) {
-            $trips->where('status', request('status'));
+        // 1. Dynamic Filtering (Search by Title)
+        if ($request->search) {
+            $search = $request->search;
+            $trips->where('title', 'like', "%$search%");
         }
 
-        $trips = $trips->paginate(getPaginate());
+        // 2. Status Filtering
+        if ($request->has('status') && $request->status != 'all') {
+            $trips->where('status', $request->status);
+        }
+
+        // 3. Dynamic Sorting
+        $sortField = $request->get('sort_field', 'id'); // Default sort
+        $sortOrder = $request->get('sort_order', 'desc');
+
+        // Whitelist allowed sort columns
+        $allowedSorts = ['id', 'title', 'fleet_type_id', 'schedule_id', 'trip_status', 'status'];
+
+        if (in_array($sortField, $allowedSorts)) {
+            $trips->orderBy($sortField, $sortOrder);
+        }
+
+        // Paginate and append query params
+        $trips = $trips->paginate(getPaginate())->appends($request->all());
 
         return view('admin.trip.trip', compact('pageTitle', 'emptyMessage', 'trips', 'fleetTypes', 'routes', 'schedules', 'stoppages'));
+    }
+
+    // New Method for Bulk Enable/Disable
+    public function bulkTripStatus(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer',
+            'action_type' => 'required|in:enable,disable'
+        ]);
+
+        $status = $request->action_type == 'enable' ? 1 : 0;
+
+        Trip::whereIn('id', $request->ids)->update(['status' => $status]);
+
+        $notify[] = ['success', 'Selected trips have been successfully updated.'];
+        return back()->withNotify($notify);
     }
 
     public function tripStore(Request $request, $id = 0)
