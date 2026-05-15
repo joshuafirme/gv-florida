@@ -18,14 +18,45 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class ManageTripController extends Controller
 {
-    public function routeList()
+    public function routeList(Request $request)
     {
         $pageTitle = 'All Routes';
-        $routes = VehicleRoute::searchable(['name'])->with(['startFrom', 'endTo']);
-        if (request('status') && request('status') != 'all') {
-            $routes->where('status', request('status'));
+        $routes = VehicleRoute::query()->with(['startFrom', 'endTo']);
+
+        // 1. Dynamic Filtering (Search by Name, Distance, Time, or Related Starting/Ending Points)
+        if ($request->search) {
+            $search = $request->search;
+            $routes->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                    ->orWhere('distance', 'like', "%$search%")
+                    ->orWhere('time', 'like', "%$search%")
+                    ->orWhereHas('startFrom', function ($start) use ($search) {
+                        $start->where('name', 'like', "%$search%");
+                    })
+                    ->orWhereHas('endTo', function ($end) use ($search) {
+                        $end->where('name', 'like', "%$search%");
+                    });
+            });
         }
-        $routes = $routes->orderBy('id', 'desc')->paginate(getPaginate());
+
+        // 2. Status Filtering
+        if ($request->has('status') && $request->status != 'all') {
+            $routes->where('status', $request->status);
+        }
+
+        // 3. Dynamic Sorting
+        $sortField = $request->get('sort_field', 'id'); // Default sort field
+        $sortOrder = $request->get('sort_order', 'desc'); // Default sort order
+
+        // Define allowable sort fields to prevent SQL injection
+        $allowedSorts = ['name', 'distance', 'time', 'status', 'id'];
+
+        if (in_array($sortField, $allowedSorts)) {
+            $routes->orderBy($sortField, $sortOrder);
+        }
+
+        // Paginate and append all query parameters to keep filters/sorts active across pages
+        $routes = $routes->paginate(getPaginate())->appends($request->all());
         $stoppages = Counter::active()->get();
         return view('admin.trip.route.list', compact('pageTitle', 'routes', 'stoppages'));
     }
@@ -141,6 +172,22 @@ class ManageTripController extends Controller
         $route->save();
 
         $notify[] = ['success', 'Route update successfully'];
+        return back()->withNotify($notify);
+    }
+
+    public function bulkStatus(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer',
+            'action_type' => 'required|in:enable,disable'
+        ]);
+
+        $status = $request->action_type == 'enable' ? 1 : 0;
+
+        VehicleRoute::whereIn('id', $request->ids)->update(['status' => $status]);
+
+        $notify[] = ['success', 'Selected routes have been successfully updated.'];
         return back()->withNotify($notify);
     }
 

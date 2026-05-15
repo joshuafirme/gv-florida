@@ -121,6 +121,10 @@
             width: 70px !important;
             height: 50px !important;
         }
+
+        .seat {
+            display: block !important;
+        }
     </style>
 </head>
 
@@ -143,7 +147,7 @@
 
             <tr>
                 <td><strong>Bus No.:</strong>
-                    {{ $trip->assignedVehicle ? $trip->assignedVehicle->vehicle->bus_no : '' }}</td>
+                    {{ $trip->assignedVehicle ? $trip->assignedVehicle?->vehicle?->bus_no : '' }}</td>
                 <td><strong>Conductor:</strong> ____________________</td>
             </tr>
 
@@ -302,7 +306,7 @@
                             });
                         } else {
                             $.each(response.bookedSeats, function(i, v) {
-
+                                console.log('response', response)
                                 var bookedSource = v.pickup_point; //Booked
                                 var bookedDestination = v.dropping_point; //Booked
 
@@ -314,12 +318,13 @@
                                 if (reqDestination <= bookedSource || reqSource >=
                                     bookedDestination) {
                                     $.each(v.seats, function(index, val) {
+                                        console.log('index', index)
                                         $(`.seat-wrapper .seat[data-seat="${val}"]`)
                                             .parent().addClass(
                                                 'seat-condition selected-by-gents disabled'
                                             );
                                         $(`.seat-wrapper .seat[data-seat="${val}"]`).text(
-                                            `${val} Occupied`);
+                                            `${val}`);
                                         // if (v.gender == 1) {
                                         //     $(`.seat-wrapper .seat[data-seat="${val}"]`)
                                         //         .parent().removeClass(
@@ -345,8 +350,9 @@
                                             .parent().addClass(
                                                 'seat-condition selected-by-gents disabled'
                                             );
-                                        $(`.seat-wrapper .seat[data-seat="${val}"]`).text(
-                                            `${val} Occupied`);
+                                        $(`.seat-wrapper .seat[data-seat="${val}"]`).html(
+                                            `<div>${val}</div> <div style="font-size: 10px;">${response.bookedSeats[0].pnr_number}</div>`
+                                            );
                                     });
                                 }
                             });

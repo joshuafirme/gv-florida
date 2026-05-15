@@ -140,6 +140,7 @@ Route::middleware('admin')->group(function () {
             Route::get('edit/{id}', 'routeEdit')->name('edit');
             Route::post('update/{id}', 'routeUpdate')->name('update');
             Route::post('status/{id}', 'routeStatus')->name('status');
+            Route::post('bulk-status', 'bulkStatus')->name('bulk');
         });
 
         Route::prefix('schedule')->name('schedule.')->group(function () {
