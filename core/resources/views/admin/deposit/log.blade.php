@@ -51,6 +51,7 @@
                                     <th>@lang('PNR')</th>
                                     <th>@lang('User')</th>
                                     <th>@lang('Amount')</th>
+                                    <th>@lang('Passenger type')</th>
                                     <th>@lang('Status')</th>
                                     @if ($status == 'approved')
                                         <th>@lang('Processed By')</th>
@@ -103,6 +104,7 @@
                                         <td>
                                             {{ showAmount($deposit->final_amount) }}
                                         </td>
+                                        <td>{{ getPassengerType($deposit) }}</td>
                                         <td>
                                             @php echo $deposit->statusBadge @endphp
                                         </td>

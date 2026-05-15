@@ -104,6 +104,15 @@ function getPaynamicsPMethod($pchannel, $getname = false): string
     return $pmethod;
 }
 
+function getPassengerType($data) {
+    $type = 'Regular';
+    if ($data?->userDiscount) {
+        $type = $data?->userDiscount->description;
+    }
+    return $type;
+    
+}
+
 function getPaynamicsPChannel($pchannel, $getname = false): string
 {
     $pmethods = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'))->pmethod;

@@ -24,6 +24,10 @@
                             <span class="fw-bold">{{ $deposit->bookedTicket->pnr_number }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
+                            @lang('Passenger Type')
+                            <span class="fw-bold">{{ getPassengerType($deposit) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Username')
                             @if ($deposit->user)
                                 <span class="fw-bold">
@@ -107,7 +111,8 @@
                                 <div class="mb-3">
                                     <label class="form-label">Amount</label>
                                     <input type="text" id="amount" class="form-control money"
-                                        value="{{ number_format($deposit->final_amount, 2, '.') }}" placeholder="0.00">
+                                        value="{{ number_format($deposit->final_amount, 2, '.') }}" placeholder="0.00"
+                                        readonly>
                                     <small id="amountError" class="text-danger"></small>
                                 </div>
 
@@ -173,11 +178,13 @@
                         @if ($deposit->status == Status::PAYMENT_PENDING)
                             <div class="row mt-4">
                                 <div class="col-md-12">
-                                    <button class="btn btn-outline--success btn-sm ms-1 confirmationBtn"
-                                        data-action="{{ route('admin.deposit.approve', $deposit->id) }}"
-                                        data-question="@lang('Are you sure to approve this transaction?')"><i class="las la-check"></i>
-                                        @lang('Approve')
-                                    </button>
+                                    @if (getPassengerType($deposit))
+                                        <button class="btn btn-outline--success btn-sm ms-1 confirmationBtn"
+                                            data-action="{{ route('admin.deposit.approve', $deposit->id) }}"
+                                            data-question="@lang('Are you sure to approve this transaction?')"><i class="las la-check"></i>
+                                            @lang('Approve')
+                                        </button>
+                                    @endif
 
                                     <button class="btn btn-outline--danger btn-sm ms-1" data-bs-toggle="modal"
                                         data-bs-target="#rejectModal"><i class="las la-ban"></i> @lang('Reject')

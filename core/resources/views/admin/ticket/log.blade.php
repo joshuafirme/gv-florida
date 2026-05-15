@@ -17,6 +17,7 @@
                                     <th>@lang('Journey Date')</th>
                                     <th>@lang('Trip')</th>
                                     <th>@lang('Fare')</th>
+                                    <th>@lang('Passenger Type')</th>
                                     <th>@lang('Booking Source')</th>
                                     <th>@lang('Payment Method')</th>
                                     <th>@lang('Processed By')</th>
@@ -69,6 +70,7 @@
                                                 <div>{{ implode(', ', $item->seats) }}</div>
                                             @endif
                                         </td>
+                                        <td>{{ getPassengerType($item?->deposit) }}</td>
                                         <td>{{ $item->kiosk_id ? $item->kiosk->name : 'Online' }}</td>
                                         <td>
                                             @if ($item->deposit && $item->deposit->pchannel)
