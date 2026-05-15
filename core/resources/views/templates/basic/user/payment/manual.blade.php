@@ -15,7 +15,7 @@
             <div class="col-md-8">
                 <div class="card custom--card">
                     <div class="card-header card-header-bg">
-                        <h5 class="card-title">{{ __($pageTitle) }}</h5>
+                        <h5 class="card-title">Payment Instruction</h5>
                     </div>
                     <div class="card-body  ">
                         <form action="{{ route('user.deposit.manual.update') }}" method="POST" class="disableSubmission"
