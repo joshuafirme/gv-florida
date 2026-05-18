@@ -61,4 +61,9 @@ class Admin extends Authenticatable
         return $is_permitted;
     }
 
+    public function role()
+    {
+        return $this->belongsTo(UserRole::class);
+    }
+
 }

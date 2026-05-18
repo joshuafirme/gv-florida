@@ -20,16 +20,39 @@ use Illuminate\Support\Facades\Hash;
 class AdminController extends Controller
 {
 
-    public function dashboard()
+    public function dashboard(Request $request)
     {
+        $admin = request()->user('admin');
+        $role = $admin->role;
         $pageTitle = 'Dashboard';
 
-        // User Info
-        $widget['total_users']             = User::count();
-        $widget['verified_users']          = User::active()->count();
-        $widget['email_unverified_users']  = User::emailUnverified()->count();
-        $widget['mobile_unverified_users'] = User::mobileUnverified()->count();
+        if ($role?->name && str_contains(strtolower($role->name), 'cashier')) {
+            $cashierWidget['today_processed_amount'] = Deposit::where('processed_by_admin_id', $admin->id)
+                ->whereDate('updated_at', Carbon::today())
+                ->where('status', Status::PAYMENT_SUCCESS) 
+                ->sum('amount');
 
+            $cashierWidget['today_processed_count'] = Deposit::where('processed_by_admin_id', $admin->id)
+                ->whereDate('updated_at', Carbon::today())
+                ->where('status', Status::PAYMENT_SUCCESS) 
+                ->count();
+
+            $soldTickets = BookedTicket::with('user')
+                ->where('status', Status::BOOKED_APPROVED)
+                ->latest()
+                ->take(5)
+                ->get();
+
+            return view('admin.dashboard-cashier', compact('pageTitle', 'cashierWidget', 'soldTickets'));
+        }
+
+        // --- SUPER ADMIN DASHBOARD LOGIC BELOW ---
+
+        // User Info
+        $widget['total_users'] = User::count();
+        $widget['verified_users'] = User::active()->count();
+        $widget['email_unverified_users'] = User::emailUnverified()->count();
+        $widget['mobile_unverified_users'] = User::mobileUnverified()->count();
 
         // user Browsing, Country, Operating Log
         $userLoginData = UserLogin::where('created_at', '>=', Carbon::now()->subDays(30))->get(['browser', 'os', 'country']);
@@ -44,29 +67,33 @@ class AdminController extends Controller
             return collect($item)->count();
         })->sort()->reverse()->take(5);
 
-
-        $deposit['total_deposit_amount']        = Deposit::successful()->sum('amount');
-        $deposit['total_deposit_pending']       = Deposit::pending()->sum('amount');
-        $deposit['total_deposit_rejected']      = Deposit::rejected()->count('amount');
-        $deposit['total_deposit_charge']        = Deposit::successful()->sum('charge');
+        $deposit['total_deposit_amount'] = Deposit::successful()->sum('amount');
+        $deposit['total_deposit_pending'] = Deposit::pending()->sum('amount');
+        $deposit['total_deposit_rejected'] = Deposit::rejected()->count('amount');
+        $deposit['total_deposit_charge'] = Deposit::successful()->sum('charge');
 
         $widget['total_counter'] = Counter::count();
-        $widget['vehicle_with_ac'] = Vehicle::whereHas('fleetType', function($q){$q->where('has_ac', Status::ENABLE);})->count();
-        $widget['vehicle_without_ac'] = Vehicle::whereHas('fleetType', function($q){$q->where('has_ac', Status::DISABLE);})->count();
+        $widget['vehicle_with_ac'] = Vehicle::whereHas('fleetType', function ($q) {
+            $q->where('has_ac', Status::ENABLE);
+        })->count();
+        $widget['vehicle_without_ac'] = Vehicle::whereHas('fleetType', function ($q) {
+            $q->where('has_ac', Status::DISABLE);
+        })->count();
         $widget['total_vehicle'] = Vehicle::count();
 
         $soldTickets = BookedTicket::with('user')->where('status', Status::BOOKED_APPROVED)->latest()->take(5)->get();
 
-        return view('admin.dashboard', compact('pageTitle', 'widget', 'chart','deposit','soldTickets'));
+        return view('admin.dashboard', compact('pageTitle', 'widget', 'chart', 'deposit', 'soldTickets'));
     }
 
 
-    public function paymentReport(Request $request) {
+    public function paymentReport(Request $request)
+    {
 
         $diffInDays = Carbon::parse($request->start_date)->diffInDays(Carbon::parse($request->end_date));
 
         $groupBy = $diffInDays > 30 ? 'months' : 'days';
-        $format = $diffInDays > 30 ? '%M-%Y'  : '%d-%M-%Y';
+        $format = $diffInDays > 30 ? '%M-%Y' : '%d-%M-%Y';
 
         if ($groupBy == 'days') {
             $dates = $this->getAllDates($request->start_date, $request->end_date);
@@ -95,8 +122,8 @@ class AdminController extends Controller
         $data = collect($data);
 
 
-        $report['created_on']   = $data->pluck('created_on');
-        $report['data']     = [
+        $report['created_on'] = $data->pluck('created_on');
+        $report['data'] = [
             [
                 'name' => 'Payment Amount',
                 'data' => $data->pluck('deposits')
@@ -106,7 +133,8 @@ class AdminController extends Controller
         return response()->json($report);
     }
 
-    private function getAllDates($startDate, $endDate) {
+    private function getAllDates($startDate, $endDate)
+    {
         $dates = [];
         $currentDate = new \DateTime($startDate);
         $endDate = new \DateTime($endDate);
@@ -119,7 +147,8 @@ class AdminController extends Controller
         return $dates;
     }
 
-    private function  getAllMonths($startDate, $endDate) {
+    private function getAllMonths($startDate, $endDate)
+    {
         if ($endDate > now()) {
             $endDate = now()->format('Y-m-d');
         }
@@ -150,7 +179,7 @@ class AdminController extends Controller
         $request->validate([
             'name' => 'required',
             'email' => 'required|email',
-            'image' => ['nullable','image',new FileTypeValidate(['jpg','jpeg','png'])]
+            'image' => ['nullable', 'image', new FileTypeValidate(['jpg', 'jpeg', 'png'])]
         ]);
         $user = auth('admin')->user();
 
@@ -196,16 +225,18 @@ class AdminController extends Controller
         return to_route('admin.password')->withNotify($notify);
     }
 
-    public function notifications(){
-        $notifications = AdminNotification::orderBy('id','desc')->with('user')->paginate(getPaginate());
-        $hasUnread = AdminNotification::where('is_read',Status::NO)->exists();
+    public function notifications()
+    {
+        $notifications = AdminNotification::orderBy('id', 'desc')->with('user')->paginate(getPaginate());
+        $hasUnread = AdminNotification::where('is_read', Status::NO)->exists();
         $hasNotification = AdminNotification::exists();
         $pageTitle = 'Notifications';
-        return view('admin.notifications',compact('pageTitle','notifications','hasUnread','hasNotification'));
+        return view('admin.notifications', compact('pageTitle', 'notifications', 'hasUnread', 'hasNotification'));
     }
 
 
-    public function notificationRead($id){
+    public function notificationRead($id)
+    {
         $notification = AdminNotification::findOrFail($id);
         $notification->is_read = Status::YES;
         $notification->save();
@@ -222,7 +253,7 @@ class AdminController extends Controller
         $arr['app_name'] = systemDetails()['name'];
         $arr['app_url'] = env('APP_URL');
         $arr['purchase_code'] = env('PURCHASECODE');
-        $url = "https://license.viserlab.com/issue/get?".http_build_query($arr);
+        $url = "https://license.viserlab.com/issue/get?" . http_build_query($arr);
         $response = CurlRequest::curlContent($url);
         $response = json_decode($response);
         if (!$response || !@$response->status || !@$response->message) {
@@ -232,14 +263,14 @@ class AdminController extends Controller
             return to_route('admin.dashboard')->withErrors($response->message);
         }
         $reports = $response->message[0];
-        return view('admin.reports',compact('reports','pageTitle'));
+        return view('admin.reports', compact('reports', 'pageTitle'));
     }
 
     public function reportSubmit(Request $request)
     {
         $request->validate([
-            'type'=>'required|in:bug,feature',
-            'message'=>'required',
+            'type' => 'required|in:bug,feature',
+            'message' => 'required',
         ]);
         $url = 'https://license.viserlab.com/issue/add';
 
@@ -248,7 +279,7 @@ class AdminController extends Controller
         $arr['purchase_code'] = env('PURCHASECODE');
         $arr['req_type'] = $request->type;
         $arr['message'] = $request->message;
-        $response = CurlRequest::curlPostContent($url,$arr);
+        $response = CurlRequest::curlPostContent($url, $arr);
         $response = json_decode($response);
         if (!$response || !@$response->status || !@$response->message) {
             return to_route('admin.dashboard')->withErrors('Something went wrong');
@@ -256,27 +287,30 @@ class AdminController extends Controller
         if ($response->status == 'error') {
             return back()->withErrors($response->message);
         }
-        $notify[] = ['success',$response->message];
+        $notify[] = ['success', $response->message];
         return back()->withNotify($notify);
     }
 
-    public function readAllNotification(){
-        AdminNotification::where('is_read',Status::NO)->update([
-            'is_read'=>Status::YES
+    public function readAllNotification()
+    {
+        AdminNotification::where('is_read', Status::NO)->update([
+            'is_read' => Status::YES
         ]);
-        $notify[] = ['success','Notifications read successfully'];
+        $notify[] = ['success', 'Notifications read successfully'];
         return back()->withNotify($notify);
     }
 
-    public function deleteAllNotification(){
+    public function deleteAllNotification()
+    {
         AdminNotification::truncate();
-        $notify[] = ['success','Notifications deleted successfully'];
+        $notify[] = ['success', 'Notifications deleted successfully'];
         return back()->withNotify($notify);
     }
 
-    public function deleteSingleNotification($id){
-        AdminNotification::where('id',$id)->delete();
-        $notify[] = ['success','Notification deleted successfully'];
+    public function deleteSingleNotification($id)
+    {
+        AdminNotification::where('id', $id)->delete();
+        $notify[] = ['success', 'Notification deleted successfully'];
         return back()->withNotify($notify);
     }
 
@@ -284,12 +318,12 @@ class AdminController extends Controller
     {
         $filePath = decrypt($fileHash);
         $extension = pathinfo($filePath, PATHINFO_EXTENSION);
-        $title = slug(gs('site_name')).'- attachments.'.$extension;
+        $title = slug(gs('site_name')) . '- attachments.' . $extension;
 
         try {
             $mimetype = mime_content_type($filePath);
         } catch (\Exception $e) {
-            $notify[] = ['error','File does not exists'];
+            $notify[] = ['error', 'File does not exists'];
             return back()->withNotify($notify);
         }
 

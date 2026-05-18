@@ -16,7 +16,7 @@
                         $menu_active = is_array($data->menu_active) ? $data->menu_active[0] : $data->menu_active;
                         $submenus_arr = is_array(@$data->submenu) ? array_column(@$data->submenu, 'route_name') : [];
                     @endphp
-                    @if (@$data->header)
+                    @if (@$data->header && array_intersect($submenus_arr, $permissions))
                         <li class="sidebar__menu-header">{{ __($data->header) }}</li>
                     @endif
                     @if (@$data->submenu && is_array($submenus_arr) && array_intersect($submenus_arr, $permissions))
