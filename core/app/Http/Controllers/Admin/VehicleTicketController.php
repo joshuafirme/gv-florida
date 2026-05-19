@@ -8,6 +8,7 @@ use App\Lib\BusLayout;
 use App\Models\Admin;
 use App\Models\BookedTicket;
 use App\Models\FleetType;
+use App\Models\SlipSeriesNumber;
 use App\Models\Trip;
 use App\Models\VehicleRoute;
 use App\Models\TicketPrice;
@@ -322,12 +323,17 @@ class VehicleTicketController extends Controller
         // 4. Save the update
         $data->date_of_journey = $request->date_of_journey;
         $data->is_rebooked = 1;
-
-        // Assuming your BookedTicket model casts 'seats' to an array/json automatically. 
-        // If not, change this to: $data->seats = json_encode($requestedSeats);
         $data->seats = $requestedSeats;
-
         $data->save();
+
+        $slips = $data->slipSeriesNumbers;
+
+        foreach ($slips as $key => $slip) {
+            if (isset($requestedSeats[$key])) {
+                $slip->seat = $requestedSeats[$key];
+                $slip->save(); 
+            }
+        }
 
         $notify[] = ['success', "Booking Date and Seats Updated Successfully"];
         return redirect()->back()->withNotify($notify);
@@ -362,15 +368,9 @@ class VehicleTicketController extends Controller
 
         // 2. Run your existing checker for the NEW date
         $bookedTicketsData = BookedTicket::whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
+            ->where('id', '!=', $request->ticket_id)
             ->whereDate('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
-            ->whereHas('trip', function ($query) use ($ticket) {
-                $query->where('fleet_type_id', $ticket->trip->fleet_type_id)
-                    ->where('start_from', $ticket->trip->start_from);
-
-                $query->whereHas('schedule', function ($q) use ($ticket) {
-                    $q->where('start_from', $ticket->trip->schedule->start_from);
-                });
-            })
+            ->where('trip_id', $ticket->trip_id)
             ->get(['seats']);
 
         // 3. Extract and flatten all booked seat numbers into a single 1D array

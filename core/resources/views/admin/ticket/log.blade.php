@@ -104,14 +104,15 @@
                                                     <i class="fa-solid fa-receipt"></i>
                                                 </a>
 
-                                                @if (Carbon::parse($item->date_of_journey)->greaterThan(now()) && !$item->is_rebooked)
-                                                <button data-bs-toggle="tooltip" data-bs-placement="bottom"
-                                                    title="Change Schedule" target="_blank"
-                                                    class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"
-                                                    data-id="{{ $item->id }}"
-                                                    data-date-of-journey="{{ $item->date_of_journey }}">
-                                                    <i class="fa-solid fa-calendar-day"></i>
-                                                </button>
+                                                @if (Carbon::parse($item->date_of_journey)->greaterThan(now()))
+                                                    <button data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                        title="Change Schedule" target="_blank"
+                                                        class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"
+                                                        data-id="{{ $item->id }}"
+                                                        data-date-of-journey="{{ $item->date_of_journey }}"
+                                                        data-json="{{ $item }}">
+                                                        <i class="fa-solid fa-calendar-day"></i>
+                                                    </button>
                                                 @endif
                                                 @if (Carbon::parse($item->date_of_journey)->isFuture())
                                                     <button type="button" data-bs-toggle="tooltip"
@@ -184,7 +185,7 @@
                                 </div>
 
                                 <button type="submit" class="btn btn--primary w-100 mt-3" id="submitUpdateBtn"
-                                    disabled>Update Date & Seats</button>
+                                    disabled>Update</button>
                             </div>
 
                             <!-- Right Side: Seat Map Container -->
@@ -234,6 +235,18 @@
             background-color: #28a745 !important;
             color: white;
             border-color: #28a745;
+            cursor: grab;
+            /* Shows the user they can drag it */
+        }
+
+        .seat.selected:active {
+            cursor: grabbing;
+        }
+
+        /* Highlight the target seat when hovering over it with a dragged seat */
+        .seat.drag-over {
+            border: 2px dashed #28a745 !important;
+            opacity: 0.8;
         }
 
         .seat.comfort-room {
@@ -274,41 +287,60 @@
             $("#updateBookingDateForm input[name='date_of_journey']").val(dateOfJourney);
         });
     </script> --}}
-
     <script>
         'use strict';
 
         let requiredSeatsCount = 0;
         let selectedSeatsArray = [];
+        let originalDateOfJourney = ''; // <-- NEW: Track the original date
 
-        // 1. Open Modal and Setup Initial Data
-        $(document).on("click", ".update-booking-date-btn", function(e) {
+        function updateSeatSelectionUI() {
+            $("#selected_seats_display").text(selectedSeatsArray.length > 0 ? selectedSeatsArray.join(', ') : 'None');
+            $("#selected_seats_input").val(selectedSeatsArray.join(','));
+
+            // Calculate how many seats are still missing
+            let seatsStillNeeded = requiredSeatsCount - selectedSeatsArray.length;
+
+            if (seatsStillNeeded > 0) {
+                $("#seats_required_count").text(`Need ${seatsStillNeeded} more seat(s)`);
+                $("#seats_required_count").removeClass('text-success').addClass('text-danger');
+                $("#submitUpdateBtn").prop('disabled', true);
+            } else {
+                $("#seats_required_count").text(`All ${requiredSeatsCount} seat(s) selected`);
+                $("#seats_required_count").removeClass('text-danger').addClass('text-success');
+                $("#submitUpdateBtn").prop('disabled', false);
+            }
+        }
+
+        $(document).on("click", ".update-booking-date-btn", async function(e) {
             e.preventDefault();
 
             let id = $(this).data('id');
             let dateOfJourney = $(this).data('date-of-journey') || '';
+            let data = $(this).data('json') || '';
 
             // Reset state
-            selectedSeatsArray = [];
-            requiredSeatsCount = 0;
+            selectedSeatsArray = data.seats || [];
+            requiredSeatsCount = selectedSeatsArray.length;
+            originalDateOfJourney = dateOfJourney; // <-- Store it when modal opens
+
             $("#seat_map_container").html(
                 '<p class="text-muted text-center mt-5">Select a new date to view available seats.</p>');
-            $("#selected_seats_display").text('None');
-            $("#seats_required_count").text('0');
-            $("#selected_seats_input").val('');
+            $("#seats_required_count").text(requiredSeatsCount);
             $("#submitUpdateBtn").prop('disabled', true);
 
             let url = "{{ url('/admin/manage/update-booking-date') }}";
             let actionUrl = url + '/' + id;
             $("#updateBookingDateForm").attr('action', actionUrl);
-            $("#updateBookingDateModal").data('ticket-id', id); // Store ID on modal for AJAX
+            $("#updateBookingDateModal").data('ticket-id', id);
 
-            // Show modal and set initial date
             $("#updateBookingDateModal").modal('show');
-            $("#rebook_date").val(dateOfJourney).trigger('change'); // Trigger change to load seats immediately
+            $("#rebook_date").val(dateOfJourney).trigger('change');
+
+            await getSeatLayout(data.date_of_journey, data.id);
+            updateSeatSelectionUI();
         });
 
-        // 2. Handle Date Change -> Fetch Layout via AJAX
         $(document).on('change', '#rebook_date', function() {
             let selectedDate = $(this).val();
             let ticketId = $("#updateBookingDateModal").data('ticket-id');
@@ -318,9 +350,12 @@
             $("#seat_map_container").addClass('d-none');
             $("#seat_map_loader").removeClass('d-none');
             $("#submitUpdateBtn").prop('disabled', true);
-            selectedSeatsArray = []; // Reset selections
 
-            $.ajax({
+            getSeatLayout(selectedDate, ticketId);
+        });
+
+        async function getSeatLayout(selectedDate, ticketId) {
+            return $.ajax({
                 url: "{{ url('/admin/manage/get-seat-layout') }}",
                 type: "GET",
                 data: {
@@ -330,27 +365,51 @@
                 success: function(response) {
                     if (response.status === 'success') {
                         $("#seat_map_container").html(response.html);
-                        requiredSeatsCount = response.required_seats;
-                        $("#seats_required_count").text(requiredSeatsCount);
-                        $("#selected_seats_display").text('None');
 
                         let bookedSeats = response.booked_seats || [];
                         let disabledSeats = response.disabled_seats || [];
+                        let conflicts = [];
 
-                        // Apply classes based on which array the seat belongs to
                         $('.seat').each(function() {
                             let seatText = $(this).text().trim();
+                            if (!seatText || $(this).hasClass('comfort-room')) return;
 
-                            if (!seatText || $(this).hasClass('comfort-room'))
-                                return; // Skip empty/CR
+                            let deckNumber = $(this).closest('.seat-plan-inner').data('deck');
+                            let seatId = deckNumber + '-' + seatText;
+
+                            let isUnavailable = disabledSeats.includes(seatText) || bookedSeats
+                                .includes(seatText);
+
+                            // If there is a conflict, but it's the original date, it's just the passenger's own seat.
+                            // We only log a real conflict if the dates are different.
+                            if (isUnavailable && selectedSeatsArray.includes(seatId)) {
+                                if (selectedDate !== originalDateOfJourney) {
+                                    conflicts.push(seatText);
+                                    selectedSeatsArray = selectedSeatsArray.filter(s => s !==
+                                        seatId);
+                                } else {
+                                    // If it's the original date, safely ignore the backend saying it's booked
+                                    isUnavailable = false;
+                                }
+                            }
 
                             if (disabledSeats.includes(seatText)) {
-                                $(this).addClass('disabled-seat').attr('title',
-                                    'Not Available');
-                            } else if (bookedSeats.includes(seatText)) {
+                                $(this).addClass('disabled-seat').attr('title', 'Not Available');
+                            } else if (bookedSeats.includes(seatText) && isUnavailable) {
                                 $(this).addClass('booked-seat').attr('title', 'Already Booked');
+                            } else if (selectedSeatsArray.includes(seatId)) {
+                                $(this).addClass('selected').attr('draggable', true).attr('title',
+                                    'Your Seat (Drag to move)');
                             }
                         });
+
+                        if (conflicts.length > 0 && selectedDate !== originalDateOfJourney) {
+                            alert(
+                                `Warning: The seat(s) [ ${conflicts.join(', ')} ] are already booked on this new date. They have been removed from your selection.\n\nPlease click an available seat on the layout to replace them.`
+                                );
+                        }
+
+                        updateSeatSelectionUI();
 
                         $("#seat_map_loader").addClass('d-none');
                         $("#seat_map_container").removeClass('d-none');
@@ -362,44 +421,81 @@
                     $("#seat_map_container").removeClass('d-none');
                 }
             });
+        }
+
+        // --- Drag and Drop logic remains exactly the same as the previous step ---
+        $(document).on('dragstart', '.seat.selected', function(e) {
+            let seatText = $(this).text().trim();
+            let deckNumber = $(this).closest('.seat-plan-inner').data('deck');
+            e.originalEvent.dataTransfer.setData('sourceSeatId', deckNumber + '-' + seatText);
         });
 
-        // 3. Handle Seat Selection Clicks
+        $(document).on('dragover', '.seat:not(.disabled-seat):not(.booked-seat):not(.comfort-room):not(.selected)',
+            function(e) {
+                e.preventDefault();
+                $(this).addClass('drag-over');
+            });
+
+        $(document).on('dragleave', '.seat', function(e) {
+            $(this).removeClass('drag-over');
+        });
+
+        $(document).on('drop', '.seat:not(.disabled-seat):not(.booked-seat):not(.comfort-room):not(.selected)', function(
+            e) {
+            e.preventDefault();
+            $(this).removeClass('drag-over');
+
+            let sourceSeatId = e.originalEvent.dataTransfer.getData('sourceSeatId');
+            if (!sourceSeatId) return;
+
+            let targetSeatText = $(this).text().trim();
+            let targetDeckNumber = $(this).closest('.seat-plan-inner').data('deck');
+            let targetSeatId = targetDeckNumber + '-' + targetSeatText;
+
+            $('.seat.selected').each(function() {
+                let txt = $(this).text().trim();
+                let dck = $(this).closest('.seat-plan-inner').data('deck');
+                if (dck + '-' + txt === sourceSeatId) {
+                    $(this).removeClass('selected').removeAttr('draggable').removeAttr('title');
+                }
+            });
+
+            $(this).addClass('selected').attr('draggable', true).attr('title', 'Your Seat (Drag to move)');
+
+            let index = selectedSeatsArray.indexOf(sourceSeatId);
+            if (index !== -1) {
+                selectedSeatsArray[index] = targetSeatId;
+            }
+
+            updateSeatSelectionUI();
+        });
+
         $(document).on('click', '.seat:not(.disabled-seat):not(.booked-seat):not(.comfort-room)', function() {
             let seatText = $(this).text().trim();
-            if (!seatText) return; // Ignore empty wrappers
+            if (!seatText) return;
 
-            // Grab the deck number from the parent container
             let deckNumber = $(this).closest('.seat-plan-inner').data('deck');
-
-            // Create the final prefixed string (e.g., "1-A1" or "2-S4")
             let seatId = deckNumber + '-' + seatText;
 
             if ($(this).hasClass('selected')) {
-                // Deselect seat
-                $(this).removeClass('selected');
+                // Deselect the seat if they click it
+                $(this).removeClass('selected').removeAttr('draggable').removeAttr('title');
                 selectedSeatsArray = selectedSeatsArray.filter(s => s !== seatId);
             } else {
-                // Select seat
+                // Try to select a new seat
                 if (selectedSeatsArray.length >= requiredSeatsCount) {
-                    alert(`You can only select ${requiredSeatsCount} seat(s) for this rebooking.`);
+                    alert(
+                        `You already have all ${requiredSeatsCount} seat(s). Drag them to move them, or click one to deselect it first.`);
                     return;
                 }
-                $(this).addClass('selected');
+
+                // Claim the empty seat, add the selection class, and make it draggable
+                $(this).addClass('selected').attr('draggable', true).attr('title', 'Your Seat (Drag to move)');
                 selectedSeatsArray.push(seatId);
             }
 
-            // Update UI and hidden input using the prefixed seatId
-            $("#selected_seats_display").text(selectedSeatsArray.length > 0 ? selectedSeatsArray.join(', ') :
-                'None');
-            $("#selected_seats_input").val(selectedSeatsArray.join(','));
-
-            // Enable submit button only if exact required seats are picked
-            if (selectedSeatsArray.length === requiredSeatsCount && requiredSeatsCount > 0) {
-                $("#submitUpdateBtn").prop('disabled', false);
-            } else {
-                $("#submitUpdateBtn").prop('disabled', true);
-            }
+            // Update the countdown and hidden inputs
+            updateSeatSelectionUI();
         });
     </script>
 @endpush

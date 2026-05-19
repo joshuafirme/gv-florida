@@ -469,18 +469,24 @@ class ManageTripController extends Controller
             }
         }
         $fileContent = @file_get_contents($file);
-        $content = json_decode($fileContent);
+        $terms_content = json_decode($fileContent);
 
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true,
             'defaultFont' => 'DejaVu Sans',
             'isHtml5ParserEnabled' => true,
             'isPhpEnabled' => true,
-        ])->loadView('admin.pdf.reservation-slip', ['ticket' => $ticket, 'pageTitle' => "Reservation Slip", 'content' => $content]);
+        ])->loadView('admin.pdf.reservation-slip', ['ticket' => $ticket, 'pageTitle' => "Reservation Slip", 'content' => $terms_content]);
 
         $pdf->setPaper([0, 0, 144, 500], 'portrait');
 
-        return $pdf->stream("Reservation Slip.pdf");
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="Reservation Slip.pdf"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     public function manifestSeatLayout($trip_id)
