@@ -1,10 +1,11 @@
 @extends('admin.layouts.app')
 @section('panel')
-@php
-    $search = request('search');
-    $date = request('date');
-    $status = isset($status) ? $status : 'all';
-@endphp
+    @php
+        $search = request('search');
+        $date = request('date');
+        $status = isset($status) ? $status : 'all';
+        $method_code = request('method_code') ?: 'all';
+    @endphp
     <div class="row justify-content-center">
         @if (request()->routeIs('admin.deposit.list') || request()->routeIs('admin.deposit.method'))
             <div class="col-12">
@@ -16,10 +17,14 @@
             <form action="#">
                 <div class="d-flex flex-wrap gap-4">
                     <div style="width: 250px;">
+                        <label for="">Date</label>
+                        <input name="date" type="search" class="datepicker-here form-control bg--white pe-2 date-range"
+                            placeholder="@lang('Start Date - End Date')" autocomplete="off" value="{{ request()->date }}">
+                    </div>
+                    <div style="width: 250px;">
                         <label for="">Payment Method</label>
                         @php
                             $gateways = App\Models\GatewayCurrency::get();
-                            $method_code = request()->method_code;
                         @endphp
                         <select name="method_code" class="select2" required>
                             <option value="all">@lang('All')</option>
@@ -34,7 +39,9 @@
                         <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> Filter</button>
                     </div>
                     <div class="align-self-end">
-                        <a class="btn btn--success w-100 h-45" href="{{ url("/admin/deposit/export?status=$status&date=$date&search=$search") }}"><i class="fa-solid fa-file-export"></i> Export</a>
+                        <a class="btn btn--success w-100 h-45"
+                            href="{{ url("/admin/deposit/export?status=$status&date=$date&search=$search") }}"><i
+                                class="fa-solid fa-file-export"></i> Export</a>
                     </div>
                 </div>
             </form>
@@ -140,5 +147,55 @@
 @endsection
 
 @push('breadcrumb-plugins')
-    <x-search-form dateSearch='yes' placeholder='PNR / Username / TRX' />
+    <x-search-form placeholder='PNR / Username / TRX' />
+@endpush
+@push('style-lib')
+    <link rel="stylesheet" type="text/css" href="{{ asset('assets/global/css/daterangepicker.css') }}">
+@endpush
+
+@push('script')
+    <script src="{{ asset('assets/global/js/moment.min.js') }}"></script>
+    <script src="{{ asset('assets/global/js/daterangepicker.min.js') }}"></script>
+    <script>
+        (function($) {
+            "use strict"
+
+            const datePicker = $('.date-range').daterangepicker({
+                autoUpdateInput: false,
+                locale: {
+                    cancelLabel: 'Clear'
+                },
+                showDropdowns: true,
+                ranges: {
+                    'Today': [moment(), moment()],
+                    'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+                    'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+                    'Last 15 Days': [moment().subtract(14, 'days'), moment()],
+                    'Last 30 Days': [moment().subtract(30, 'days'), moment()],
+                    'This Month': [moment().startOf('month'), moment().endOf('month')],
+                    'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month')
+                        .endOf('month')
+                    ],
+                    'Last 6 Months': [moment().subtract(6, 'months').startOf('month'), moment().endOf('month')],
+                    'This Year': [moment().startOf('year'), moment().endOf('year')],
+                },
+                maxDate: moment()
+            });
+            const changeDatePickerText = (event, startDate, endDate) => {
+                $(event.target).val(startDate.format('MMMM DD, YYYY') + ' - ' + endDate.format('MMMM DD, YYYY'));
+            }
+
+
+            $('.date-range').on('apply.daterangepicker', (event, picker) => changeDatePickerText(event, picker
+                .startDate, picker.endDate));
+
+
+            if ($('.date-range').val()) {
+                let dateRange = $('.date-range').val().split(' - ');
+                $('.date-range').data('daterangepicker').setStartDate(new Date(dateRange[0]));
+                $('.date-range').data('daterangepicker').setEndDate(new Date(dateRange[1]));
+            }
+
+        })(jQuery)
+    </script>
 @endpush

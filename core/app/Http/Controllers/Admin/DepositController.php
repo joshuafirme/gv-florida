@@ -8,6 +8,8 @@ use App\Models\Gateway;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Gateway\PaymentController;
 use App\Models\BookedTicket;
+use Carbon\Carbon;
+use DB;
 use Illuminate\Http\Request;
 use App\Exports\PaymentExport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -78,6 +80,7 @@ class DepositController extends Controller
 
     protected function depositData($scope = null, $summary = false, $userId = null)
     {
+        $request = request();
         if ($scope) {
             $deposits = Deposit::$scope()->with(['user', 'gateway', 'bookedTicket', 'processedBy']);
             if ($scope == 'approved' || $scope == 'rejected') {
@@ -88,24 +91,39 @@ class DepositController extends Controller
         }
 
         if ($userId) {
-            $deposits = $deposits->where('user_id', $userId);
+            $deposits->where('user_id', $userId);
         }
 
-        if (request('method_code')) {
-            $deposits = $deposits->where('method_code', request('method_code'));
+        if ($request->method_code && $request->method_code != 'all') {
+            $deposits->where('method_code', request('method_code'));
         }
 
-        $deposits = $deposits->searchable(['trx', 'user:username', 'bookedTicket:pnr_number'])->dateFilter();
+        $deposits = $deposits->searchable([
+            'trx',
+            'user:username',
+            'bookedTicket:pnr_number'
+        ]);
 
-        $request = request();
+        if (request()->filled('date')) {
+            [$from, $to] = explode(' - ', $request->date);
 
-        if ($request->method) {
-            if ($request->method != Status::GOOGLE_PAY) {
-                $method = Gateway::where('alias', $request->method)->firstOrFail();
-                $deposits = $deposits->where('method_code', $method->code);
-            } else {
-                $deposits = $deposits->where('method_code', Status::GOOGLE_PAY);
-            }
+            $deposits->whereBetween(
+                DB::raw('DATE(created_at)'),
+                [
+                    Carbon::parse(trim($from))->toDateString(),
+                    Carbon::parse(trim($to))->toDateString(),
+                ]
+            );
+        }
+
+
+        if ($request->method_code && $request->method_code != 'all') {
+            // if ($request->method_code != Status::GOOGLE_PAY) {
+            //     $method = Gateway::where('alias', $request->method_code)->firstOrFail();
+            //     $deposits = $deposits->where('method_code', $method->code);
+            // } else {
+            //     $deposits = $deposits->where('method_code', Status::GOOGLE_PAY);
+            // }
         }
 
         if (!$summary) {
