@@ -104,7 +104,7 @@
                                                     <i class="fa-solid fa-receipt"></i>
                                                 </a>
 
-                                                @if (Carbon::parse($item->date_of_journey)->greaterThan(now()))
+                                                @if (Carbon::parse($item->date_of_journey)->greaterThan(now()) && !$item->is_rebooked)
                                                     <button data-bs-toggle="tooltip" data-bs-placement="bottom"
                                                         title="Change Schedule" target="_blank"
                                                         class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"

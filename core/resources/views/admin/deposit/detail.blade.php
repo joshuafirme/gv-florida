@@ -101,7 +101,7 @@
                 </div>
             </div>
         </div>
-        @if ($details || in_array($deposit->status, [Status::PAYMENT_PENDING, Status::PAYMENT_INITIATE]))
+        @if ($details || $deposit->status == Status::PAYMENT_PENDING)
             <div class="col-xl-8 col-md-6 mb-30">
                 <div class="card overflow-hidden box--shadow1">
                     <div class="card-body">
@@ -175,13 +175,13 @@
                                 ])
                             @endif
                         @endif
-                        @if (in_array($deposit->status, [Status::PAYMENT_PENDING, Status::PAYMENT_INITIATE]))
+                        @if ($deposit->status == Status::PAYMENT_PENDING)
                             <div class="row mt-4">
                                 <div class="col-md-12">
                                     @php
                                         $passenger_type = strtolower(getPassengerType($deposit));
                                     @endphp
-                                    @if (str_contains($passenger_type, 'reserved') || str_contains($passenger_type, 'vip') || $deposit->status == Status::PAYMENT_INITIATE)
+                                    @if (str_contains($passenger_type, 'reserved') || str_contains($passenger_type, 'vip'))
                                         <button class="btn btn-outline--success btn-sm ms-1 confirmationBtn"
                                             data-action="{{ route('admin.deposit.approve', $deposit->id) }}"
                                             data-question="@lang('Are you sure to approve this transaction?')"><i class="las la-check"></i>

@@ -195,6 +195,29 @@
     @push('style-lib')
         <link rel="stylesheet" href="{{ asset('assets/global/css/select2.min.css') }}">
         <link rel="stylesheet" type="text/css" href="{{ asset('assets/global/css/daterangepicker.css') }}">
+
+        <style>
+
+            /* Selected by Admin for Rebooking (Green) */
+            .seat.selected {
+                cursor: grab;
+                /* Shows the user they can drag it */
+            }
+
+            .seat.selected:active {
+                cursor: grabbing;
+            }
+
+            /* Highlight the target seat when hovering over it with a dragged seat */
+            .seat.drag-over {
+                border: 2px dashed #28a745 !important;
+                opacity: 0.8;
+            }
+
+            .seat.comfort-room {
+                cursor: default;
+            }
+        </style>
     @endpush
 
     @push('script-lib')
@@ -227,81 +250,101 @@
                     maxDate: moment().add(3, 'days')
                 });
 
-                // $('input[name="pickup_point"]').on('change', function() {
-                //     var counter_id = $(this).val();
-
-                //     getDroppingPoints(counter_id);
-                // });
-
-                // let pickup_point = $('input[name="pickup_point"]').val();
-
-                // if (pickup_point) {
-                //     getDroppingPoints(pickup_point);
-                // }
-
-                // function getDroppingPoints(counter_id) {
-                //     let host = window.location.hostname;
-                //     let url = '/trip/dropping-points/';
-
-                //     if (host.includes('local')) {
-                //         url = '/gv-florida/trip/dropping-points/';
-                //     }
-
-                //     fetch(url + counter_id)
-                //         .then(response => response.json())
-                //         .then(function(data) {
-                //             console.log('data----', data)
-                //             let dropping_point = $('input[name="dropping_point"]');
-                //             dropping_point.empty()
-
-                //             let options = '';
-                //             data.forEach(v => {
-                //                 options += `<option value="${v.id}">${v.name}</option>`
-                //             });
-                //             dropping_point.append(options)
-                //             setTimeout(() => {
-                //                 var url = new URL(window.location);
-                //                 var end_to = url.searchParams.get("end_to");
-                //                 console.log(end_to)
-                //                 if (end_to) {
-                //                     dropping_point.val(end_to).change()
-                //                     showBookedSeat();
-                //                 }
-                //             }, 500);
-                //         })
-                //         .catch(error => console.error('Error:', error));
-                // }
-
-                //reset all seats
                 function reset() {
-                    $('.seat-wrapper .seat').removeClass('selected');
+                    $('.seat-wrapper .seat').removeClass('selected').removeAttr('draggable').removeAttr('title');
                     $('.seat-wrapper .seat').parent().removeClass(
                         'seat-condition selected-by-ladies selected-by-gents selected-by-others disabled');
                     $('.selected-seat-details').html('');
                 }
 
-                //click on seat
-                $('.seat-wrapper .seat').on('click', function() {
-                    if ($(this).hasClass('disabled-seat') || $(this).hasClass('comfort-room')) {
-                        $(this).removeClass('selected')
+                // ==========================================
+                // CLICK SEAT LOGIC (Updated for dragging)
+                // ==========================================
+                $('.seat-wrapper .seat').off('click');
+
+                $(document).on('click', '.seat-wrapper .seat', function(e) {
+
+                    // 2. Stop any external theme scripts from double-toggling the seat
+                    e.stopImmediatePropagation();
+
+                    // 3. Ignore clicks on disabled, booked, or comfort room seats
+                    if ($(this).hasClass('disabled-seat') || $(this).hasClass('comfort-room') || $(this).parent()
+                        .hasClass('disabled')) {
+                        $(this).removeClass('selected');
+                        return;
                     }
 
                     var pickupPoint = $('input[name="pickup_point"]').val();
                     var droppingPoint = $('input[name="dropping_point"]').val();
-                    var seat = $(this).attr('data-seat')
+                    var seat = $(this).attr('data-seat');
+
                     if (seat) {
-                        console.log('pickupPoint', pickupPoint)
-                        console.log('droppingPoint', droppingPoint)
                         if (pickupPoint && droppingPoint) {
+                            // 4. Manually handle the selection toggle
+                            if ($(this).hasClass('selected')) {
+                                console.log('remove selected')
+                                $(this).removeClass('selected');
+                            } else {
+                                $(this).addClass('selected');
+                                console.log('selected')
+                            }
+
+                            // 5. Update the UI and Drag attributes
                             selectSeat();
+
                         } else {
                             $(this).removeClass('selected');
-                            notify('error', "@lang('Please select pickup point and dropping point before select any seat')")
+                            notify('error', "@lang('Please select pickup point and dropping point before select any seat')");
                         }
                     }
                 });
 
-                //select and booked seat
+                // ==========================================
+                // DRAG AND DROP SEAT LOGIC
+                // ==========================================
+                $(document).on('dragstart', '.seat.selected', function(e) {
+                    let seatData = $(this).attr('data-seat');
+                    e.originalEvent.dataTransfer.setData('sourceSeat', seatData);
+                });
+
+                $(document).on('dragover', '.seat-wrapper .seat:not(.disabled-seat):not(.comfort-room):not(.selected)',
+                    function(e) {
+                        // Prevent drop if the seat is booked (parent has 'disabled' class)
+                        if ($(this).parent().hasClass('disabled')) return;
+
+                        e.preventDefault(); // Required to allow dropping
+                        $(this).addClass('drag-over');
+                    });
+
+                $(document).on('dragleave', '.seat-wrapper .seat', function(e) {
+                    $(this).removeClass('drag-over');
+                });
+
+                $(document).on('drop', '.seat-wrapper .seat:not(.disabled-seat):not(.comfort-room):not(.selected)',
+                    function(e) {
+                        if ($(this).parent().hasClass('disabled')) return;
+
+                        e.preventDefault();
+                        $(this).removeClass('drag-over');
+
+                        let sourceSeat = e.originalEvent.dataTransfer.getData('sourceSeat');
+                        if (!sourceSeat) return;
+
+                        // 1. Remove selection from the old dragged seat
+                        let oldSeat = $(`.seat-wrapper .seat[data-seat="${sourceSeat}"]`);
+                        oldSeat.removeClass('selected').removeAttr('draggable').removeAttr('title');
+
+                        // 2. Add selection to the new dropped seat
+                        $(this).addClass('selected').attr('draggable', true).attr('title', 'Your Seat (Drag to move)');
+
+                        // 3. Update the UI, pricing, and hidden inputs
+                        selectSeat();
+                    });
+
+
+                // ==========================================
+                // BOOKING & UI LOGIC
+                // ==========================================
                 function selectSeat() {
                     let selectedSeats = $('.seat.selected');
                     let seatDetails = ``;
@@ -309,6 +352,11 @@
                     let subtotal = 0;
                     let currency = '{{ __(gs('cur_text')) }}';
                     let seats = '';
+
+                    // Sync drag-and-drop attributes across all seats safely
+                    $('.seat-wrapper .seat').not('.selected').removeAttr('draggable').removeAttr('title');
+                    selectedSeats.attr('draggable', true).attr('title', 'Your Seat (Drag to move)');
+
                     if (selectedSeats.length > 0) {
                         $('.booked-seat-details').removeClass('d-none');
                         $.each(selectedSeats, function(i, value) {
@@ -318,6 +366,9 @@
                             subtotal = subtotal + parseFloat(price);
                         });
 
+                        // Remove trailing comma
+                        seats = seats.replace(/,+$/, "");
+
                         $('input[name=seats]').val(seats);
                         $('.selected-seat-details').html(seatDetails);
                         $('.selected-seat-details').append(
@@ -326,30 +377,21 @@
                     } else {
                         $('.selected-seat-details').html('');
                         $('.booked-seat-details').addClass('d-none');
+                        $('input[name=seats]').val('');
                     }
                 }
 
-                //on change date, pickup point and destination point show available seats
-                // $(document).on('change',
-                //     'input[name="dropping_point"], input[name="date_of_journey"]',
-                //     function(e) {
-                //         showBookedSeat();
-                //     });
-
-                //booked seat
                 function showBookedSeat() {
                     reset();
                     var date = $('input[name="date_of_journey"]').val();
                     var sourceId = $('input[name="pickup_point"]').val();
                     var destinationId = $('input[name="dropping_point"]').val();
-                    console.log('sourceId', sourceId)
-                    console.log('destinationId', destinationId)
+
                     if (sourceId == destinationId && destinationId != '') {
                         notify('error', "@lang('Source Point and Destination Point Must Not Be Same')");
                         $('input[name="dropping_point"]').val('').select2();
                         return false;
                     } else if (sourceId != destinationId) {
-
                         var routeId = '{{ $trip->route->id }}';
                         var fleetTypeId = '{{ $trip->fleetType->id }}';
 
@@ -384,7 +426,6 @@
                                 $('input[name="dropping_point"]').val('');
                             } else {
                                 var stoppages = response.stoppages;
-
                                 var reqSource = response.reqSource;
                                 var reqDestination = response.reqDestination;
 
@@ -393,8 +434,8 @@
 
                                 if (response.reverse == true) {
                                     $.each(response.bookedSeats, function(i, v) {
-                                        var bookedSource = v.pickup_point; //Booked
-                                        var bookedDestination = v.dropping_point; //Booked
+                                        var bookedSource = v.pickup_point;
+                                        var bookedDestination = v.dropping_point;
 
                                         bookedSource = stoppages.indexOf(bookedSource.toString());
                                         bookedDestination = stoppages.indexOf(bookedDestination
@@ -447,9 +488,8 @@
                                     });
                                 } else {
                                     $.each(response.bookedSeats, function(i, v) {
-
-                                        var bookedSource = v.pickup_point; //Booked
-                                        var bookedDestination = v.dropping_point; //Booked
+                                        var bookedSource = v.pickup_point;
+                                        var bookedDestination = v.dropping_point;
 
                                         bookedSource = stoppages.indexOf(bookedSource.toString());
                                         bookedDestination = stoppages.indexOf(bookedDestination
@@ -475,50 +515,6 @@
                                                     );
                                             }
                                         });
-                                        // if (reqDestination <= bookedSource || reqSource >=
-                                        //     bookedDestination) {
-                                        //     $.each(v.seats, function(index, val) {
-                                        //         if (v.gender == 1) {
-                                        //             $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                        //                 .parent().removeClass(
-                                        //                     'seat-condition selected-by-gents disabled'
-                                        //                 );
-                                        //         }
-                                        //         if (v.gender == 2) {
-                                        //             $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                        //                 .parent().removeClass(
-                                        //                     'seat-condition selected-by-ladies disabled'
-                                        //                 );
-                                        //         }
-                                        //         if (v.gender == 3) {
-                                        //             $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                        //                 .parent().removeClass(
-                                        //                     'seat-condition selected-by-others disabled'
-                                        //                 );
-                                        //         }
-                                        //     });
-                                        // } else {
-                                        //     $.each(v.seats, function(index, val) {
-                                        //         if (v.gender == 1) {
-                                        //             $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                        //                 .parent().addClass(
-                                        //                     'seat-condition selected-by-gents disabled'
-                                        //                 );
-                                        //         }
-                                        //         if (v.gender == 2) {
-                                        //             $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                        //                 .parent().addClass(
-                                        //                     'seat-condition selected-by-ladies disabled'
-                                        //                 );
-                                        //         }
-                                        //         if (v.gender == 3) {
-                                        //             $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                        //                 .parent().addClass(
-                                        //                     'seat-condition selected-by-others disabled'
-                                        //                 );
-                                        //         }
-                                        //     });
-                                        // }
                                     });
                                 }
 
