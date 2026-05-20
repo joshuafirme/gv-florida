@@ -22,7 +22,8 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
 
     public function getActionItems()
     {
-        $scope = request()->status == 'all' ? 'query' : request()->status;
+        $request = request();
+        $scope = $request->status == 'all' ? 'query' : $request->status;
 
         if ($scope) {
             $deposits = Deposit::$scope()->with(['user', 'gateway', 'bookedTicket']);
@@ -30,11 +31,22 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
             $deposits = Deposit::with(['user', 'gateway', 'bookedTicket']);
         }
         $deposits = $deposits->searchable(['trx', 'user:username', 'bookedTicket:pnr_number'])->dateFilter();
+
+        $user = $request->user('admin');
+
+        if ($user->role?->name && str_contains(strtolower($user->role->name), 'cashier')) {
+            $deposits->where('processed_by_admin_id', $user->id);
+        }
+
+        if ($request->method_code && $request->method_code != 'all') {
+            $deposits->where('method_code', request('method_code'));
+        }
+
         $deposits = $deposits->orderBy('id', 'desc')->get();
 
         $output = [];
 
-        if (request()->is_template) {
+        if ($request->is_template) {
 
         } else {
             foreach ($deposits as $deposit) {
