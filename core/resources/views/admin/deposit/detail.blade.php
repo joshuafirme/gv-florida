@@ -398,6 +398,9 @@
             }
 
             function parseNumber(val) {
+                if (!val) {
+                    return 0;
+                }
                 return parseFloat(val.replace(/,/g, '')) || 0;
             }
 

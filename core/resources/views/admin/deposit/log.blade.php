@@ -40,7 +40,7 @@
                     </div>
                     <div class="align-self-end">
                         <a class="btn btn--success w-100 h-45"
-                            href="{{ url("/admin/deposit/export?status=$status&date=$date&search=$search") }}"><i
+                            href="{{ url("/admin/deposit/export?status=$status&date=$date&search=$search&method_code=$method_code") }}"><i
                                 class="fa-solid fa-file-export"></i> Export</a>
                     </div>
                 </div>
