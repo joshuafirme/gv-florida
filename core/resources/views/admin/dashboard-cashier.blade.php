@@ -54,7 +54,7 @@
                                                 <strong>{{ __($item->pnr_number) }}</strong>
                                             </td>
                                             <td data-label="@lang('Ticket Count')">
-                                                <strong>{{ __(sizeof($item->seats)) }}</strong>
+                                                <strong>{{ $item->seats ? __(sizeof($item->seats)) : '' }}</strong>
                                             </td>
                                             <td data-label="@lang('Amount')">
                                                 {{ showAmount($item->sub_total) }}
