@@ -29,7 +29,7 @@ class PaymentController extends Controller
         }
 
         $bookedTicket = BookedTicket::find($booked_ticket_id);
-
+    
         if (!$bookedTicket) {
             $notify[] = 'Please Try again.';
             return redirect()->route('ticket')->withNotify($notify);
@@ -45,11 +45,11 @@ class PaymentController extends Controller
 
         $gatewayCurrency = $gatewayCurrency->orderby('name')->get();
 
-        $bookedTicket = $bookedTicket->orderBy('id', 'desc');
-        if (!$booked_ticket_id) {
-            $bookedTicket->where('user_id', auth()->user()->id);
-        }
-        $bookedTicket = $bookedTicket->first();
+        // $bookedTicket = $bookedTicket->orderBy('id', 'desc');
+        // if (!$booked_ticket_id) {
+        //     $bookedTicket->where('user_id', auth()->user()->id);
+        // }
+        // $bookedTicket = $bookedTicket->first();
         if (auth()->user()) {
             $layout = 'layouts.master';
         } else {
@@ -188,7 +188,7 @@ class PaymentController extends Controller
         }
 
         $ticket = BookedTicket::where('id', $deposit->booked_ticket_id)->with(['trip', 'pickup', 'drop'])->first();
-
+        return $ticket;
         $pageTitle = 'Confirm Payment';
         return view("Template::$data->view", compact('data', 'pageTitle', 'deposit', 'ticket', 'layout'));
     }
@@ -281,7 +281,7 @@ class PaymentController extends Controller
         $data->status = Status::PAYMENT_PENDING;
         $data->save();
 
-        $bookedTicket = BookedTicket::where('id', $data->booked_ticket_id)->first();
+        $bookedTicket = BookedTicket::find($data->booked_ticket_id);
         $bookedTicket->status = Status::BOOKED_PENDING;
         $bookedTicket->seats = session()->has('seats') ? session('seats') : $bookedTicket->seat;
         $bookedTicket->save();

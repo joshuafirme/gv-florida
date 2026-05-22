@@ -235,8 +235,8 @@ function getAmount($amount, $length = 2)
 
 function generateReqID($prefix = 'GVF')
 {
-    $date = date('Ymd');
-    $req_id = "$prefix-$date-" . substr(uniqid(), 0, 7);
+    $date = date('YmdHis');
+    $req_id = "$prefix-$date-" . uniqid();
     return $req_id;
 }
 

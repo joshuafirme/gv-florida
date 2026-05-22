@@ -453,7 +453,7 @@ class SiteController extends Controller
             $bookedTicket->source_destination = [$request->pickup_point, $request->dropping_point];
             $bookedTicket->pickup_point = $request->pickup_point;
             $bookedTicket->dropping_point = $request->dropping_point;
-            //   $bookedTicket->seats = $seats;
+            $bookedTicket->seats = $seats;
             $bookedTicket->ticket_count = sizeof($seats);
             $bookedTicket->unit_price = $unitPrice;
             $bookedTicket->sub_total = sizeof($seats) * $unitPrice;
