@@ -262,12 +262,10 @@ class SiteController extends Controller
                         $q->where('start_from', $request->start_from_time);
                     });
             })
-            ->whereDoesntHave('deposit', function ($query) {
-                // This excludes records where the deposit is OLDER than 15 minutes.
-                // Note: If you meant to exclude deposits created WITHIN the last 15 minutes, 
-                // simply change '<=' to '>='
-                $query->where('created_at', '<=', Carbon::now()->subMinutes(15));
-            })
+            // ->whereDoesntHave('deposit', function ($query) {
+            //     // This excludes records where the deposit is OLDER than 15 minutes.
+            //     $query->where('created_at', '<=', Carbon::now()->subMinutes(15));
+            // })
             // Eager load relationships properly
             ->with([
                 'trip.schedule' => function ($q) use ($request) {
