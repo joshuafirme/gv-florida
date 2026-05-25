@@ -262,25 +262,25 @@ class SiteController extends Controller
 
             // Continue with the rest of your filters...
             ->whereDate('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
-
+            ->where('trip_id', $request->trip_id)
             // Filter BookedTicket by Trip + Schedule conditions
-            ->whereHas('trip', function ($query) use ($request) {
-                $query->where('fleet_type_id', $request->fleet_type_id)
-                    ->where('start_from', $request->source_id)
-                    ->where('end_to', $request->destination_id)
+            // ->whereHas('trip', function ($query) use ($request) {
+            //     $query->where('fleet_type_id', $request->fleet_type_id)
+            //         ->where('start_from', $request->source_id)
+            //         ->where('end_to', $request->destination_id)
 
-                    // Filter by schedule start_from_time
-                    ->whereHas('schedule', function ($q) use ($request) {
-                        $q->where('start_from', $request->start_from_time);
-                    });
-            })
+            //         // Filter by schedule start_from_time
+            //         ->whereHas('schedule', function ($q) use ($request) {
+            //             $q->where('start_from', $request->start_from_time);
+            //         });
+            // })
 
             // Eager load relationships properly
-            ->with([
-                'trip.schedule' => function ($q) use ($request) {
-                    $q->where('start_from', $request->start_from_time);
-                }
-            ])
+            // ->with([
+            //     'trip.schedule' => function ($q) use ($request) {
+            //         $q->where('start_from', $request->start_from_time);
+            //     }
+            // ])
             ->get()
             ->toArray();
 
