@@ -13,6 +13,7 @@ use App\Models\GatewayCurrency;
 use App\Models\GeneralSetting;
 use App\Models\User;
 use App\Models\UserDiscount;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -29,7 +30,7 @@ class PaymentController extends Controller
         }
 
         $bookedTicket = BookedTicket::find($booked_ticket_id);
-    
+
         if (!$bookedTicket) {
             $notify[] = 'Please Try again.';
             return redirect()->route('ticket')->withNotify($notify);
@@ -69,6 +70,8 @@ class PaymentController extends Controller
         ]);
         $booked_ticket_id = session()->get('booked_ticket_id');
         $bookedTicket = BookedTicket::find($booked_ticket_id);
+        $bookedTicket->seats = session()->has('seats') ? session('seats') : $bookedTicket->seat;
+        $bookedTicket->save();
 
         $user = auth()->user();
         $gate = GatewayCurrency::whereHas('method', function ($gate) {
@@ -77,6 +80,20 @@ class PaymentController extends Controller
         if (!$gate) {
             $notify[] = ['error', 'Invalid gateway'];
             return back()->withNotify($notify);
+        }
+
+        $booked_tickets = BookedTicket::where('trip_id', $bookedTicket->trip_id)
+            ->whereNot('id', $bookedTicket->id)
+            ->where('date_of_journey', Carbon::parse($bookedTicket->date_of_journey)->format('Y-m-d'))
+            ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
+            ->where('pickup_point', $bookedTicket->pickup_point)
+            ->where('dropping_point', $bookedTicket->dropping_point)
+            ->whereJsonContains('seats', $bookedTicket->seats)
+            ->get();
+
+        if ($booked_tickets->count() > 0) {
+            $notify[] = ['error', "The selected seats are already booked. Please go back and select different seats."];
+            return redirect()->back()->withNotify($notify)->with('reload', 'yes');
         }
 
         // if ($gate->min_amount > $bookedTicket->sub_total || $gate->max_amount < $bookedTicket->sub_total) {
@@ -283,7 +300,6 @@ class PaymentController extends Controller
 
         $bookedTicket = BookedTicket::find($data->booked_ticket_id);
         $bookedTicket->status = Status::BOOKED_PENDING;
-        $bookedTicket->seats = session()->has('seats') ? session('seats') : $bookedTicket->seat;
         $bookedTicket->save();
 
         session()->forget('seats');
