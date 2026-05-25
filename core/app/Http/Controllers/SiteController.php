@@ -244,15 +244,26 @@ class SiteController extends Controller
         $sourcePos = array_search($request->source_id, $stoppages);
         $destinationPos = array_search($request->destination_id, $stoppages);
 
-        $bookedTicket = BookedTicket::whereIn('status', [
-            Status::BOOKED_APPROVED,
-            Status::BOOKED_PENDING
-        ])
-            ->where('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
+        $bookedTicket = BookedTicket::query()
+            // Group the status and expiration logic together
+            ->where(function ($query) {
+                // 1. Include ALL Approved tickets, regardless of time
+                $query->where('status', Status::BOOKED_APPROVED)
+
+                    // 2. OR include Pending tickets, BUT only if they don't have an expired deposit
+                    ->orWhere(function ($subQuery) {
+                    $subQuery->where('status', Status::BOOKED_PENDING)
+                        ->whereDoesntHave('deposit', function ($depositQuery) {
+                            $depositQuery->where('created_at', '<=', Carbon::now()->subMinutes(15));
+                        });
+                });
+            })
+
+            // Continue with the rest of your filters...
+            ->whereDate('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
 
             // Filter BookedTicket by Trip + Schedule conditions
             ->whereHas('trip', function ($query) use ($request) {
-
                 $query->where('fleet_type_id', $request->fleet_type_id)
                     ->where('start_from', $request->source_id)
                     ->where('end_to', $request->destination_id)
@@ -262,10 +273,7 @@ class SiteController extends Controller
                         $q->where('start_from', $request->start_from_time);
                     });
             })
-            // ->whereDoesntHave('deposit', function ($query) {
-            //     // This excludes records where the deposit is OLDER than 15 minutes.
-            //     $query->where('created_at', '<=', Carbon::now()->subMinutes(15));
-            // })
+
             // Eager load relationships properly
             ->with([
                 'trip.schedule' => function ($q) use ($request) {
@@ -274,6 +282,8 @@ class SiteController extends Controller
             ])
             ->get()
             ->toArray();
+
+        //    return $bookedTicket;
 
         $startPoint = array_search($trip->start_from, array_values($trip->route->stoppages));
         $endPoint = array_search($trip->end_to, array_values($trip->route->stoppages));
