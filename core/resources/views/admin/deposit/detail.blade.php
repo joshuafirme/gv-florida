@@ -20,8 +20,16 @@
                             <span class="fw-bold">{{ $deposit->trx }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
+                            @lang('Trip')
+                            <span class="fw-bold">{{ $deposit->bookedTicket->trip->route->name }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('PNR Number')
                             <span class="fw-bold">{{ $deposit->bookedTicket->pnr_number }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            @lang('Seats')
+                            <span class="fw-bold">{{ $deposit->bookedTicket->seats ? implode(',', $deposit->bookedTicket->seats) : '' }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Passenger Type')
