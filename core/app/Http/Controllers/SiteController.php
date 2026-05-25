@@ -249,6 +249,7 @@ class SiteController extends Controller
             ->where(function ($query) {
                 // 1. Include ALL Approved tickets, regardless of time
                 $query->where('status', Status::BOOKED_APPROVED)
+                    ->whereNot('status', Status::BOOKED_EXPIRED)
 
                     // 2. OR include Pending tickets, BUT only if they don't have an expired deposit
                     ->orWhere(function ($subQuery) {

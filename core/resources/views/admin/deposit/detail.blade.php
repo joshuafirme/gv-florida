@@ -27,6 +27,11 @@
                             @lang('PNR Number')
                             <span class="fw-bold">{{ $deposit->bookedTicket->pnr_number }}</span>
                         </li>
+                        
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            @lang('Date of Journey')
+                            <span class="fw-bold">{{ $deposit->bookedTicket->date_of_journey }}</span>
+                        </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Seats')
                             <span class="fw-bold">{{ $deposit->bookedTicket->seats ? implode(',', $deposit->bookedTicket->seats) : '' }}</span>
