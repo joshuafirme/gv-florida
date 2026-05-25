@@ -57,6 +57,8 @@
                                     <th>@lang('Initiated')</th>
                                     <th>@lang('PNR')</th>
                                     <th>@lang('User')</th>
+                                    <th>Trip</th>
+                                    <th>Seats</th>
                                     <th>@lang('Amount')</th>
                                     <th>@lang('Passenger type')</th>
                                     <th>@lang('Status')</th>
@@ -108,6 +110,8 @@
                                                 <div>{{ $deposit->bookedTicket->kiosk->uid }}</div>
                                             @endif
                                         </td>
+                                        <td>{{ $deposit->bookedTicket?->trip?->route?->name }}</td>
+                                        <td>{{ $deposit->bookedTicket->seats ? implode(',', $deposit->bookedTicket->seats) : '' }}</td>
                                         <td>
                                             {{ showAmount($deposit->final_amount) }}
                                         </td>
