@@ -345,13 +345,14 @@
                                         // }
                                     });
                                 } else {
-                                    $.each(v.seats, function(index, val) {
+                                    $.each(v.seats, function(_index, val) {
                                         $(`.seat-wrapper .seat[data-seat="${val}"]`)
                                             .parent().addClass(
                                                 'seat-condition selected-by-gents disabled'
                                             );
+                                            console.log(response.bookedSeats)
                                         $(`.seat-wrapper .seat[data-seat="${val}"]`).html(
-                                            `<div>${val}</div> <div style="font-size: 10px;">${response.bookedSeats[0].pnr_number}</div>`
+                                            `<div>${val}</div> <div style="font-size: 10px;">${response.bookedSeats[i].pnr_number}</div>`
                                             );
                                     });
                                 }

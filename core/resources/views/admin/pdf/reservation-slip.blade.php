@@ -190,7 +190,7 @@
 
                     <tr>
                         <td colspan="2">
-                            <div style="text-align: center; margin-top: 10px;">{{ $ticket->deposit->processed_by_name }}</div>
+                            <div style="text-align: center; margin-top: 10px;">{{ $ticket->deposit?->processed_by_name ?: auth('admin')->user()?->name }}</div>
                             <div class="divider">
                                 <span>Authorized Signature</span>
                             </div>
