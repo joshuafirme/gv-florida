@@ -205,7 +205,7 @@ class PaymentController extends Controller
         }
 
         $ticket = BookedTicket::where('id', $deposit->booked_ticket_id)->with(['trip', 'pickup', 'drop'])->first();
-        return $ticket;
+
         $pageTitle = 'Confirm Payment';
         return view("Template::$data->view", compact('data', 'pageTitle', 'deposit', 'ticket', 'layout'));
     }
