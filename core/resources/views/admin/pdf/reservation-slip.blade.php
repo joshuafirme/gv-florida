@@ -127,13 +127,17 @@
             <div class="ticket">
                 <table>
                     <tr>
+                        <td class="label">PNR Number:</td>
+                        <td class="value">{{ $ticket->pnr_number }}</td>
+                    </tr>
+                    <tr>
                         <td class="label">Destination:</td>
                         <td class="value">{{ $ticket->drop->name }}</td>
                     </tr>
 
                     <tr>
                         <td class="label">KM Post:</td>
-                        <td class="value">485</td>
+                        <td class="value">{{ $ticket->trip?->route?->distance }}</td>
                     </tr>
 
                     <tr>
