@@ -1,5 +1,7 @@
 @section('content')
+
     @php
+        use Carbon\Carbon;
         $kiosk_id = request()->kiosk_id;
         $allowed_advance_booking_days = getAllowedAdvanceBookingDays();
     @endphp
@@ -156,16 +158,33 @@
                     <div class="ticket-wrapper">
                         @forelse ($trips as $trip)
                             @php
-                                $start = Carbon\Carbon::parse($trip->schedule->start_from);
-                                $end = Carbon\Carbon::parse($trip->schedule->end_at);
+                                $start = Carbon::parse($trip->schedule->start_from);
+                                $end = Carbon::parse($trip->schedule->end_at);
 
                                 if ($end->lt($start)) {
                                     $end->addDay();
                                 }
 
-                                $tickets = App\Models\BookedTicket::where('trip_id', $trip->id)
+                                $tickets = App\Models\BookedTicket::query()
+                                    ->where(function ($query) {
+                                        $query
+                                            ->where('status', Status::BOOKED_APPROVED)
+                                            ->whereNot('status', Status::BOOKED_EXPIRED)
+
+                                            ->orWhere(function ($subQuery) {
+                                                $subQuery
+                                                    ->where('status', Status::BOOKED_PENDING)
+                                                    ->whereDoesntHave('deposit', function ($depositQuery) {
+                                                        $depositQuery->where(
+                                                            'created_at',
+                                                            '<=',
+                                                            Carbon::now()->subMinutes(15),
+                                                        );
+                                                    });
+                                            });
+                                    })
+                                    ->where('trip_id', $trip->id)
                                     ->wheredate('date_of_journey', $date_of_journey)
-                                    ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
                                     ->get();
 
                                 $occupied_seats_ctr = 0;

@@ -233,11 +233,22 @@
                 const params = new URLSearchParams(window.location.search);
 
                 const reload_page = params.get('reload');
+                const seat_err = params.get('seat_err');
+                const booked_ticket_id = params.get('booked_ticket_id');
 
                 if (reload_page == 'yes') {
                     const url = new URL(window.location.href);
                     url.searchParams.delete('reload');
-                    window.location.href = url.toString();
+                    url.searchParams.append('seat_err', "1");
+                    url.searchParams.append('booked_ticket_id', booked_ticket_id);
+                    
+                    "{{ session()->forget('reload') }}"
+                  
+                        window.location.href = url.toString();
+                }
+
+                if (seat_err) {
+                    notify('error', "@lang('The selected seats are no longer available.')");
                 }
 
                 showBookedSeat()

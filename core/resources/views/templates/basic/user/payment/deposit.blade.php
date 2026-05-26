@@ -333,8 +333,15 @@
             "use strict";
 
             @if (session('reload'))
-                window.location.href = '{{ url("/ticket/{$bookedTicket->trip->id}/sampaloc-tuguegarao?start_from={$bookedTicket->trip->start_from}&end_to={$bookedTicket->trip->end_to}&kiosk_id={$bookedTicket->kiosk_id}&date_of_journey={$bookedTicket->date_of_journey}") }}';
-                {{ session()->remove('reload') }}
+                window.location.href =
+                    '{!! url("/ticket/{$bookedTicket->trip->id}/sampaloc-tuguegarao") !!}?{!! http_build_query([
+                        'start_from' => $bookedTicket->trip->start_from,
+                        'end_to' => $bookedTicket->trip->end_to,
+                        'kiosk_id' => $bookedTicket->kiosk_id,
+                        'date_of_journey' => $bookedTicket->date_of_journey,
+                        'reload' => 'yes',
+                        'booked_ticket_id' => $bookedTicket->id
+                    ]) !!}';
             @endif
             var amount = parseFloat($('.amount').val() || 0);
             var gateway, minAmount, maxAmount, isPasscodeValid;

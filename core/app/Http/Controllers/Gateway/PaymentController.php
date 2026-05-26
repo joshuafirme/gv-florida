@@ -93,6 +93,7 @@ class PaymentController extends Controller
 
         if ($booked_tickets->count() > 0) {
             $notify[] = ['error', "The selected seats are already booked. Please go back and select different seats."];
+
             return redirect()->back()->withNotify($notify)->with('reload', 'yes');
         }
 

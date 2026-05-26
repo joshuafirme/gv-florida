@@ -232,6 +232,13 @@ class SiteController extends Controller
             $layout = 'layouts.frontend';
         }
 
+        if ($request->seat_err && $request->booked_ticket_id) {
+            $bookedTicket = BookedTicket::find($request->booked_ticket_id);
+            $bookedTicket->slipSeriesNumbers()->delete();
+            $bookedTicket->deposit()->delete();
+            $bookedTicket->delete();
+        }
+
         return view("Template::book_ticket", compact('pageTitle', 'trip', 'stoppages', 'busLayout', 'layout'));
     }
 
