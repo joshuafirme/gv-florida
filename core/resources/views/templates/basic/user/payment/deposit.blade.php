@@ -17,11 +17,11 @@
     <div class="container padding-top padding-bottom">
         <div class="row justify-content-center">
             <div class="col-lg-9">
-            <div class="col-12">
-                <button class="btn btn-outline-dark w-auto" onclick="window.history.back();">
-                    <i class="fa-solid fa-arrow-left"></i> Go Back
-                </button>
-            </div>
+                <div class="col-12">
+                    <button class="btn btn-outline-dark w-auto" onclick="window.history.back();">
+                        <i class="fa-solid fa-arrow-left"></i> Go Back
+                    </button>
+                </div>
                 <form action="{{ route('user.deposit.insert') }}" method="post" class="deposit-form">
                     @csrf
                     <input type="hidden" name="currency">
@@ -332,7 +332,10 @@
         (function($) {
             "use strict";
 
-            // location.reload();
+            @if (session('reload'))
+                window.location.href = '{{ url("/ticket/{$bookedTicket->trip->id}/sampaloc-tuguegarao?start_from={$bookedTicket->trip->start_from}&end_to={$bookedTicket->trip->end_to}&kiosk_id={$bookedTicket->kiosk_id}&date_of_journey={$bookedTicket->date_of_journey}") }}';
+                {{ session()->remove('reload') }}
+            @endif
             var amount = parseFloat($('.amount').val() || 0);
             var gateway, minAmount, maxAmount, isPasscodeValid;
 
