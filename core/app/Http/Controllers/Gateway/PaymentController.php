@@ -88,7 +88,11 @@ class PaymentController extends Controller
             ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
             ->where('pickup_point', $bookedTicket->pickup_point)
             ->where('dropping_point', $bookedTicket->dropping_point)
-            ->whereJsonContains('seats', $bookedTicket->seats)
+            ->where(function ($query) use ($bookedTicket) {
+                foreach ($bookedTicket->seats as $seat) {
+                    $query->orWhereJsonContains('seats', $seat);
+                }
+            })
             ->get();
 
         if ($booked_tickets->count() > 0) {
