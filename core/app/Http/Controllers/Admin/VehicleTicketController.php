@@ -173,6 +173,8 @@ class VehicleTicketController extends Controller
         $create->price = $request->main_price;
         $create->save();
 
+        $route = VehicleRoute::find($create->vehicle_route_id);
+
         if ($request->price) {
             foreach ($request->price as $key => $val) {
                 $idArray = explode('-', $key);
@@ -182,6 +184,12 @@ class VehicleTicketController extends Controller
                 $priceByStoppage->price = $val;
                 $priceByStoppage->save();
             }
+        } else {
+            $priceByStoppage = new TicketPriceByStoppage();
+            $priceByStoppage->ticket_price_id = $create->id;
+            $priceByStoppage->source_destination = [$route->start_from, $route->end_to];
+            $priceByStoppage->price = $request->main_price;
+            $priceByStoppage->save();
         }
         $notify[] = ['success', 'Ticket price added successfully'];
         return back()->withNotify($notify);
