@@ -18,6 +18,7 @@
 
         .seat-plan-inner {
             width: 100% !important;
+            margin-top: 0;
         }
 
         .a4-container {
@@ -67,12 +68,10 @@
         /* Simple layout styling */
         .header {
             text-align: center;
-            margin-bottom: 25px;
         }
 
         .header h2 {
             margin: 0;
-            font-size: 22px;
         }
 
         .header small {
@@ -83,7 +82,8 @@
             width: 100%;
             margin-top: 15px;
             border-collapse: collapse;
-            font-size: 14px;
+            font-size: 12px;
+            line-height: 11px
         }
 
         .info-table td {
@@ -119,11 +119,22 @@
 
         .seat-wrapper .seat:not(.comfort-room) {
             width: 70px !important;
-            height: 50px !important;
+            height: 40px !important;
         }
+
 
         .seat {
             display: block !important;
+        }
+
+        [data-deck="1"] .single {
+            margin-bottom: 20px !important;
+            padding: 60px 25px 10px !important;
+        }
+
+        [data-deck="2"] .single {
+            margin-bottom: 20px !important;
+            padding: 38px 25px 10px !important;
         }
     </style>
 </head>
@@ -135,7 +146,7 @@
     <div class="a4-container">
 
         <div class="header">
-            <h2>G.V. FLORIDA TRANSPORT, INC.</h2>
+            <h4>G.V. FLORIDA TRANSPORT, INC.</h4>
             <small>{{ $trip->startFrom->name }}</small>
         </div>
 
@@ -162,9 +173,7 @@
             </tr>
         </table>
 
-        <hr style="margin:20px 0;">
-
-        <h5>Manifest ({{ $trip->route->name }})</h5>
+        <hr style="margin: 0 0;">
 
         @include('templates.basic.partials.seat_layout', [
             'fleetType' => $trip->fleetType,
@@ -350,10 +359,10 @@
                                             .parent().addClass(
                                                 'seat-condition selected-by-gents disabled'
                                             );
-                                            console.log(response.bookedSeats)
+                                        console.log(response.bookedSeats)
                                         $(`.seat-wrapper .seat[data-seat="${val}"]`).html(
                                             `<div>${val}</div> <div style="font-size: 10px;">${response.bookedSeats[i].pnr_number}</div>`
-                                            );
+                                        );
                                     });
                                 }
                             });
