@@ -64,7 +64,7 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
                     $deposit->bookedTicket->pnr_number,
                     implodeSeriesNo($deposit),
                     $user,
-                    showAmount($deposit->final_amount),
+                    $deposit->final_amount,
                     $deposit->statusString,
                 ]);
             }
