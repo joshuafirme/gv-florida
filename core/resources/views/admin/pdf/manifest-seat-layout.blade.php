@@ -125,6 +125,7 @@
 
         .seat {
             display: block !important;
+            line-height: 15px !important;
         }
 
         [data-deck="1"] .single {
