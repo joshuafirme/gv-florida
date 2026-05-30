@@ -173,13 +173,15 @@ class VehicleTicketController extends Controller
         $create->price = $request->main_price;
         $create->save();
 
-        foreach ($request->price as $key => $val) {
-            $idArray = explode('-', $key);
-            $priceByStoppage = new TicketPriceByStoppage();
-            $priceByStoppage->ticket_price_id = $create->id;
-            $priceByStoppage->source_destination = $idArray;
-            $priceByStoppage->price = $val;
-            $priceByStoppage->save();
+        if ($request->price) {
+            foreach ($request->price as $key => $val) {
+                $idArray = explode('-', $key);
+                $priceByStoppage = new TicketPriceByStoppage();
+                $priceByStoppage->ticket_price_id = $create->id;
+                $priceByStoppage->source_destination = $idArray;
+                $priceByStoppage->price = $val;
+                $priceByStoppage->save();
+            }
         }
         $notify[] = ['success', 'Ticket price added successfully'];
         return back()->withNotify($notify);
@@ -331,7 +333,7 @@ class VehicleTicketController extends Controller
         foreach ($slips as $key => $slip) {
             if (isset($requestedSeats[$key])) {
                 $slip->seat = $requestedSeats[$key];
-                $slip->save(); 
+                $slip->save();
             }
         }
 
