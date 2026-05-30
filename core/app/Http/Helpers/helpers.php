@@ -29,6 +29,15 @@ function buildVer()
     return systemDetails()['build_version'];
 }
 
+if (!function_exists('implodeSeriesNo')) {
+    function implodeSeriesNo($deposit)
+    {
+        if ($deposit->bookedTicket?->slipSeriesNumbers)
+            return implode(', ', $deposit->bookedTicket->slipSeriesNumbers->pluck('id')->toArray());
+
+    }
+}
+
 if (!function_exists('timeDifferenceReadable')) {
     function timeDifferenceReadable($startTime, $endTime)
     {
@@ -104,13 +113,14 @@ function getPaynamicsPMethod($pchannel, $getname = false): string
     return $pmethod;
 }
 
-function getPassengerType($data) {
+function getPassengerType($data)
+{
     $type = 'Regular';
     if ($data?->userDiscount) {
         $type = $data?->userDiscount->description;
     }
     return $type;
-    
+
 }
 
 function getPaynamicsPChannel($pchannel, $getname = false): string

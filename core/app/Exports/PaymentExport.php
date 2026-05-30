@@ -58,11 +58,11 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
                     $user = $deposit->bookedTicket->kiosk->name;
                 }
 
-
                 array_push($output, [
                     $deposit->gateway->name,
                     showDateTime($deposit->created_at),
                     $deposit->bookedTicket->pnr_number,
+                    implodeSeriesNo($deposit),
                     $user,
                     showAmount($deposit->final_amount),
                     $deposit->statusString,
@@ -79,6 +79,7 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
             'Gateway | Transaction',
             'Initiated',
             'PNR',
+            'Reference No.',
             'User',
             'Amount',
             'Status',

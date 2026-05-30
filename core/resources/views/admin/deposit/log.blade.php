@@ -56,6 +56,7 @@
                                     <th>@lang('Gateway | Transaction')</th>
                                     <th>@lang('Initiated')</th>
                                     <th>@lang('PNR')</th>
+                                    <th>Reference #</th>
                                     <th>@lang('User')</th>
                                     <th>Trip</th>
                                     <th>Seats</th>
@@ -97,6 +98,7 @@
                                             {{ showDateTime($deposit->created_at) }}<br>{{ diffForHumans($deposit->created_at) }}
                                         </td>
                                         <td>{{ $deposit->bookedTicket->pnr_number }}</td>
+                                        <td>{{ implodeSeriesNo($deposit) }}</td>
                                         <td>
                                             @if ($deposit->user)
                                                 <span class="fw-bold">{{ $deposit->user->fullname }}</span>
@@ -111,7 +113,8 @@
                                             @endif
                                         </td>
                                         <td>{{ $deposit->bookedTicket?->trip?->route?->name }}</td>
-                                        <td>{{ $deposit->bookedTicket->seats ? implode(',', $deposit->bookedTicket->seats) : '' }}</td>
+                                        <td>{{ $deposit->bookedTicket->seats ? implode(',', $deposit->bookedTicket->seats) : '' }}
+                                        </td>
                                         <td>
                                             {{ showAmount($deposit->final_amount) }}
                                         </td>
