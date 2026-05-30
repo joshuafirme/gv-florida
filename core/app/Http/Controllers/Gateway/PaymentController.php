@@ -70,7 +70,7 @@ class PaymentController extends Controller
         ]);
         $booked_ticket_id = session()->get('booked_ticket_id');
         $bookedTicket = BookedTicket::find($booked_ticket_id);
-        $bookedTicket->seats = session()->has('seats') ? session('seats') : $bookedTicket->seat;
+        $bookedTicket->seats = session()->has('seats') ? session('seats') : $bookedTicket->seats;
         $bookedTicket->save();
 
         $user = auth()->user();
@@ -86,6 +86,16 @@ class PaymentController extends Controller
             ->whereNot('id', $bookedTicket->id)
             ->where('date_of_journey', Carbon::parse($bookedTicket->date_of_journey)->format('Y-m-d'))
             ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
+            ->where(function ($query) {
+                $query->where('status', Status::BOOKED_APPROVED)
+                    ->whereNot('status', Status::BOOKED_EXPIRED)
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->where('status', Status::BOOKED_PENDING)
+                            ->whereDoesntHave('deposit', function ($depositQuery) {
+                                $depositQuery->where('created_at', '<=', Carbon::now()->subMinutes(15));
+                            });
+                    });
+            })
             ->where('pickup_point', $bookedTicket->pickup_point)
             ->where('dropping_point', $bookedTicket->dropping_point)
             ->where(function ($query) use ($bookedTicket) {
@@ -94,11 +104,10 @@ class PaymentController extends Controller
                 }
             })
             ->get();
-
+        // return $booked_tickets;
         if ($booked_tickets->count() > 0) {
             $notify[] = ['error', "The selected seats are already booked. Please go back and select different seats."];
-
-            return redirect()->back()->withNotify($notify)->with('reload', 'yes');
+            return back()->withNotify($notify);
         }
 
         // if ($gate->min_amount > $bookedTicket->sub_total || $gate->max_amount < $bookedTicket->sub_total) {
@@ -306,8 +315,6 @@ class PaymentController extends Controller
         $bookedTicket = BookedTicket::find($data->booked_ticket_id);
         $bookedTicket->status = Status::BOOKED_PENDING;
         $bookedTicket->save();
-
-        session()->forget('seats');
 
         $adminNotification = new AdminNotification();
         $adminNotification->user_id = $data->user ? $data->user->id : 0;

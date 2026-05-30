@@ -242,6 +242,24 @@ class SiteController extends Controller
         return view("Template::book_ticket", compact('pageTitle', 'trip', 'stoppages', 'busLayout', 'layout'));
     }
 
+    public function bookedQuery($request)
+    {
+        return BookedTicket::query()
+            ->where(function ($query) {
+                $query->where('status', Status::BOOKED_APPROVED)
+                    ->whereNot('status', Status::BOOKED_EXPIRED)
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->where('status', Status::BOOKED_PENDING)
+                            ->whereDoesntHave('deposit', function ($depositQuery) {
+                                $depositQuery->where('created_at', '<=', Carbon::now()->subMinutes(15));
+                            });
+                    });
+            })
+            ->whereDate('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
+            ->where('trip_id', $request->trip_id)
+            ->get();
+    }
+
     public function getTicketPrice(Request $request)
     {
         $ticketPrice = TicketPrice::where('vehicle_route_id', $request->vehicle_route_id)->where('fleet_type_id', $request->fleet_type_id)->with('route')->first();
@@ -251,45 +269,7 @@ class SiteController extends Controller
         $sourcePos = array_search($request->source_id, $stoppages);
         $destinationPos = array_search($request->destination_id, $stoppages);
 
-        $bookedTicket = BookedTicket::query()
-            // Group the status and expiration logic together
-            ->where(function ($query) {
-                // 1. Include ALL Approved tickets, regardless of time
-                $query->where('status', Status::BOOKED_APPROVED)
-                    ->whereNot('status', Status::BOOKED_EXPIRED)
-
-                    // 2. OR include Pending tickets, BUT only if they don't have an expired deposit
-                    ->orWhere(function ($subQuery) {
-                    $subQuery->where('status', Status::BOOKED_PENDING)
-                        ->whereDoesntHave('deposit', function ($depositQuery) {
-                            $depositQuery->where('created_at', '<=', Carbon::now()->subMinutes(15));
-                        });
-                });
-            })
-
-            // Continue with the rest of your filters...
-            ->whereDate('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
-            ->where('trip_id', $request->trip_id)
-            // Filter BookedTicket by Trip + Schedule conditions
-            // ->whereHas('trip', function ($query) use ($request) {
-            //     $query->where('fleet_type_id', $request->fleet_type_id)
-            //         ->where('start_from', $request->source_id)
-            //         ->where('end_to', $request->destination_id)
-
-            //         // Filter by schedule start_from_time
-            //         ->whereHas('schedule', function ($q) use ($request) {
-            //             $q->where('start_from', $request->start_from_time);
-            //         });
-            // })
-
-            // Eager load relationships properly
-            // ->with([
-            //     'trip.schedule' => function ($q) use ($request) {
-            //         $q->where('start_from', $request->start_from_time);
-            //     }
-            // ])
-            ->get()
-            ->toArray();
+        $bookedTicket = $this->bookedQuery($request)->toArray();
 
         //    return $bookedTicket;
 
@@ -405,25 +385,9 @@ class SiteController extends Controller
                 }
             }
 
-            $booked_ticket = BookedTicket::where('trip_id', $id)
-                ->where('date_of_journey', Carbon::parse($request->date_of_journey)->format('Y-m-d'))
-                ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
-                ->where('pickup_point', $request->pickup_point)
-                ->where('dropping_point', $request->dropping_point)
-                ->whereJsonContains('seats', rtrim($request->seats, ","))
-                ->whereHas('trip', function ($query) use ($request) {
-                    $query->where('fleet_type_id', $request->fleet_type_id)
-                        ->where('start_from', $request->pickup_point)
-                        ->whereHas('schedule', function ($q) use ($request) {
-                            $q->where('start_from', $request->start_from_time);
-                        });
-                })
-                ->with([
-                    'trip.schedule' => function ($q) use ($request) {
-                        $q->where('start_from', $request->start_from_time);
-                    }
-                ])
-                ->get();
+            $seats = array_filter((explode(',', $request->seats)));
+
+            $booked_ticket = $this->bookedQuery($request);
 
             if ($booked_ticket->count() > 0) {
                 $notify[] = ['error', 'Those seats are already booked'];
@@ -461,7 +425,6 @@ class SiteController extends Controller
                 $notify[] = ['error', 'Invalid selection'];
                 return back()->withNotify($notify);
             }
-            $seats = array_filter((explode(',', $request->seats)));
 
             DB::beginTransaction();
 

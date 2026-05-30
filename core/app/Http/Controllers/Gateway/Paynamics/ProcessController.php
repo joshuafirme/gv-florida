@@ -9,6 +9,7 @@ use App\Http\Controllers\Gateway\PaymentController;
 use App\Models\GeneralSetting;
 use App\Models\User;
 use App\Services\Paynamics;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Session;
@@ -33,12 +34,44 @@ class ProcessController extends Controller
         return json_encode($send);
     }
 
+    public function bookedQuery($bookedTicket)
+    {
+        return BookedTicket::where('trip_id', $bookedTicket->trip_id)
+            ->whereNot('id', $bookedTicket->id)
+            ->where('date_of_journey', Carbon::parse($bookedTicket->date_of_journey)->format('Y-m-d'))
+            ->where(function ($query) {
+                $query->where('status', Status::BOOKED_APPROVED)
+                    ->whereNot('status', Status::BOOKED_EXPIRED)
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->where('status', Status::BOOKED_PENDING)
+                            ->whereDoesntHave('deposit', function ($depositQuery) {
+                                $depositQuery->where('created_at', '<=', Carbon::now()->subMinutes(15));
+                            });
+                    });
+            })
+            ->where('pickup_point', $bookedTicket->pickup_point)
+            ->where('dropping_point', $bookedTicket->dropping_point)
+            ->where(function ($query) use ($bookedTicket) {
+                foreach ($bookedTicket->seats as $seat) {
+                    $query->orWhereJsonContains('seats', $seat);
+                }
+            })
+            ->get();
+    }
+
     public function redirect(Request $request)
     {
         try {
             $booked_ticket_id = session()->get('booked_ticket_id');
 
             $ticket = BookedTicket::find($booked_ticket_id);
+
+            $booked_tickets = $this->bookedQuery($ticket);
+            if ($booked_tickets->count() > 0) {
+                $notify[] = ['error', "The selected seats are already booked. Please go back and select different seats."];
+                return back()->withNotify($notify);
+            }
+            // $booked_tickets
 
             $paynamics = new Paynamics(request()->user());
             $paynamics->pchannel = request()->pchannel;
