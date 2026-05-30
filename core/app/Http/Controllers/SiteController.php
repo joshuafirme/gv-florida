@@ -339,7 +339,7 @@ class SiteController extends Controller
     public function bookTicket(Request $request, $id)
     {
         try {
-            if (app()->isProduction()) {
+            if (app()->isProduction() && !$request->kiosk_id) {
                 $notify[] = ['error', 'This feature is currently unavailable.'];
                 return redirect()->back()->withNotify($notify);
             }
