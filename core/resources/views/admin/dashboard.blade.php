@@ -104,7 +104,7 @@
                                                 <strong>{{ $item->seats ? __(sizeof($item->seats)) : '' }}</strong>
                                             </td>
                                             <td data-label="@lang('Amount')">
-                                                {{ showAmount($item->sub_total) }}
+                                                {{ showAmount($item->deposit->final_amount - $item->deposit?->userDiscount?->amount ?: 0) }}
                                             </td>
                                             <td data-label="@lang('Action')">
                                                 <a href="{{ route('admin.vehicle.ticket.booked') }}"

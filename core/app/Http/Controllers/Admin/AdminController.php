@@ -8,12 +8,14 @@ use App\Lib\CurlRequest;
 use App\Models\AdminNotification;
 use App\Models\BookedTicket;
 use App\Models\Counter;
+use App\Models\UserDiscount;
 use App\Models\Vehicle;
 use App\Models\Deposit;
 use App\Models\User;
 use App\Models\UserLogin;
 use App\Rules\FileTypeValidate;
 use Carbon\Carbon;
+use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -26,15 +28,27 @@ class AdminController extends Controller
         $role = $admin->role;
         $pageTitle = 'Dashboard';
 
+        $discountMath = 'deposits.final_amount - (deposits.final_amount * (COALESCE(user_discounts.percentage, 0) / 100))';
+        $discountOnlyMath = 'deposits.final_amount * (COALESCE(user_discounts.percentage, 0) / 100)';
+
         if ($role?->name && str_contains(strtolower($role->name), 'cashier')) {
-            $cashierWidget['today_processed_amount'] = Deposit::where('processed_by_admin_id', $admin->id)
-                ->whereDate('updated_at', Carbon::today())
-                ->where('status', Status::PAYMENT_SUCCESS) 
-                ->sum('amount');
+            $cashierWidget['today_processed_amount'] = Deposit::query()
+                ->leftJoin('user_discounts', 'deposits.id', '=', 'user_discounts.deposit_id')
+                ->where('deposits.processed_by_admin_id', $admin->id)
+                ->whereDate('deposits.updated_at', Carbon::tAoday())
+                ->where('deposits.status', Status::PAYMENT_SUCCESS)
+                ->sum(DB::raw('deposits.final_amount - (deposits.final_amount * (COALESCE(user_discounts.percentage, 0) / 100))'));
+
+            // $cashierWidget['today_processed_discount_amount'] = Deposit::query()
+            //     ->leftJoin('user_discounts', 'deposits.id', '=', 'user_discounts.deposit_id')
+            //     ->where('deposits.processed_by_admin_id', $admin->id)
+            //     ->whereDate('deposits.updated_at', Carbon::today())
+            //     ->where('deposits.status', Status::PAYMENT_SUCCESS)
+            //     ->sum($discountOnlyMath);
 
             $cashierWidget['today_processed_count'] = Deposit::where('processed_by_admin_id', $admin->id)
                 ->whereDate('updated_at', Carbon::today())
-                ->where('status', Status::PAYMENT_SUCCESS) 
+                ->where('status', Status::PAYMENT_SUCCESS)
                 ->count();
 
             $soldTickets = BookedTicket::with('user')
@@ -67,8 +81,31 @@ class AdminController extends Controller
             return collect($item)->count();
         })->sort()->reverse()->take(5);
 
-        $deposit['total_deposit_amount'] = Deposit::successful()->sum('amount');
-        $deposit['total_deposit_pending'] = Deposit::pending()->sum('amount');
+
+        $deposit['total_deposit_amount_no_discount'] = Deposit::query()
+            ->leftJoin('user_discounts', 'deposits.id', '=', 'user_discounts.deposit_id')
+            ->successful()
+            ->sum('final_amount');
+
+        $deposit['total_deposit_amount'] = Deposit::query()
+            ->leftJoin('user_discounts', 'deposits.id', '=', 'user_discounts.deposit_id')
+            ->successful()
+            ->sum(DB::raw($discountMath));
+
+
+        $deposit['total_deposit_pending'] = Deposit::query()
+            ->leftJoin('user_discounts', 'deposits.id', '=', 'user_discounts.deposit_id')
+            ->pending()
+            ->sum(DB::raw($discountMath));
+
+
+        $deposit['total_discount_amount_success'] = Deposit::query()
+            ->leftJoin('user_discounts', 'deposits.id', '=', 'user_discounts.deposit_id')
+            ->successful()
+            ->sum(DB::raw($discountOnlyMath));
+
+     //   return $deposit;
+
         $deposit['total_deposit_rejected'] = Deposit::rejected()->count('amount');
         $deposit['total_deposit_charge'] = Deposit::successful()->sum('charge');
 
