@@ -91,8 +91,8 @@
                                                 <input type="checkbox" name="ids[]" value="{{ $item->id }}" class="row-checkbox">
                                             </td>
                                             <td>{{ __($item->name) }}</td>
-                                            <td>{{ __($item->startFrom->name) }}</td>
-                                            <td>{{ __($item->endTo->name) }}</td>
+                                            <td>{{ __($item->startFrom?->name) }}</td>
+                                            <td>{{ __($item->endTo?->name) }}</td>
                                             <td>{{ __($item->distance) }}</td>
                                             <td>{{ __($item->time) }}</td>
                                             <td>@php echo $item->statusBadge; @endphp</td>
