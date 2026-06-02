@@ -116,10 +116,10 @@
                                         <td>{{ $deposit->bookedTicket->seats ? implode(',', $deposit->bookedTicket->seats) : '' }}
                                         </td>
                                         <td>
-                                            Fare: {{ showAmount($deposit->final_amount) }}
+                                            Fare: {{ showAmount($deposit->amount) }}
                                             <div>Discount: {{ $deposit?->userDiscount?->amount  ?: '-' }}</div>
                                             <div>Final Amount:
-                                            {{ showAmount($deposit->final_amount - $deposit?->userDiscount?->amount ?: 0) }}</div>
+                                            {{ showAmount($deposit->final_amount) }}</div>
                                         </td>
                                         <td>{{ getPassengerType($deposit) }}</td>
                                         <td>

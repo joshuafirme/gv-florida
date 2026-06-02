@@ -65,6 +65,9 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
                     implodeSeriesNo($deposit),
                     $user,
                     $deposit->final_amount,
+                    $deposit->userDiscount?->description,
+                    $deposit->userDiscount?->passenger_name,
+                    $deposit->userDiscount?->id_number,
                     $deposit->statusString,
                 ]);
             }
@@ -82,6 +85,9 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
             'Reference No.',
             'User',
             'Amount',
+            'Type',
+            'Passenger name',
+            'Passenger ID',
             'Status',
         ];
     }
