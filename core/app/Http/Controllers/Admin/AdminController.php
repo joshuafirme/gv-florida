@@ -35,7 +35,7 @@ class AdminController extends Controller
             $cashierWidget['today_processed_amount'] = Deposit::query()
                 ->leftJoin('user_discounts', 'deposits.id', '=', 'user_discounts.deposit_id')
                 ->where('deposits.processed_by_admin_id', $admin->id)
-                ->whereDate('deposits.updated_at', Carbon::tAoday())
+                ->whereDate('deposits.updated_at', Carbon::today())
                 ->where('deposits.status', Status::PAYMENT_SUCCESS)
                 ->sum(DB::raw('deposits.final_amount - (deposits.final_amount * (COALESCE(user_discounts.percentage, 0) / 100))'));
 
