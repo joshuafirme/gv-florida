@@ -140,7 +140,7 @@ Route::middleware('admin')->group(function () {
 
         Route::prefix('route')->name('route.')->group(function () {
             Route::get('/', 'routeList')->name('index');
-            Route::get('create', 'routeCreate')->name('create');
+            Route::get('route-form/{id?}', 'routeForm')->name('form');
             Route::post('store', 'routeStore')->name('store');
             Route::get('edit/{id}', 'routeEdit')->name('edit');
             Route::post('update/{id}', 'routeUpdate')->name('update');
@@ -169,7 +169,7 @@ Route::middleware('admin')->group(function () {
 
         Route::prefix('price')->name('price.')->group(function () {
             Route::get('/', 'ticketPriceList')->name('index');
-            Route::get('create', 'ticketPriceCreate')->name('create');
+            Route::get('form/{id?}', 'ticketPriceForm')->name('form');
             Route::post('store', 'ticketPriceStore')->name('store');
             Route::get('edit/{id}', 'ticketPriceEdit')->name('edit');
             Route::post('update/{id}', 'ticketPriceUpdate')->name('update');

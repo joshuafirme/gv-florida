@@ -61,11 +61,21 @@ class ManageTripController extends Controller
         return view('admin.trip.route.list', compact('pageTitle', 'routes', 'stoppages'));
     }
 
-    public function routeCreate()
+    public function routeForm($id = null)
     {
-        $pageTitle = 'Create Route';
-        $stoppages = Counter::get();
-        return view('admin.trip.route.create', compact('pageTitle', 'stoppages'));
+        $pageTitle = $id ? 'Update Route' : 'Create Route';
+        $allStoppages = Counter::get();
+
+        $route = null;
+        $stoppages = []; // Initialize as empty array for the "Create" view
+
+        if ($id) {
+            $route = VehicleRoute::findOrFail($id);
+
+            $stoppages = getIntermediateStoppages($route->stoppages);
+        }
+
+        return view('admin.trip.route.form', compact('pageTitle', 'stoppages', 'route', 'allStoppages'));
     }
 
     public function routeStore(Request $request)
@@ -342,12 +352,13 @@ class ManageTripController extends Controller
     public function tripStore(Request $request, $id = 0)
     {
         $request->validate([
-            'title' => 'required',
-            'fleet_type_id' => 'required|integer|gt:0',
-            'vehicle_route_id' => 'required|integer|gt:0',
             'schedule_id' => 'required|integer|gt:0',
-            'day_off' => 'nullable|array|min:1'
+            'vehicle_route_id' => 'required|integer|gt:0',
+            'fleet_type_id' => 'required|integer|gt:0',
         ]);
+
+        $route = VehicleRoute::findOrFail($request->vehicle_route_id);
+        $fleetType = FleetType::findOrFail($request->fleet_type_id);
 
         if ($id) {
             $trip = Trip::findOrFail($id);
@@ -355,18 +366,18 @@ class ManageTripController extends Controller
         } else {
             $trip = new Trip();
             $message = 'Trip created successfully';
+            // Set defaults for fields removed from the UI
+            $trip->trip_status = Status::TRIP_ON_TIME ?? 1;
+            $trip->day_off = [];
         }
 
-        $trip->title = $request->title;
+        // Auto-generate the title using Route and Bus Type
+        $trip->title = $route->name . ' - ' . $fleetType->name;
         $trip->fleet_type_id = $request->fleet_type_id;
         $trip->vehicle_route_id = $request->vehicle_route_id;
-
-        $route = VehicleRoute::find($request->vehicle_route_id);
         $trip->schedule_id = $request->schedule_id;
         $trip->start_from = $route->start_from;
         $trip->end_to = $route->end_to;
-        $trip->day_off = $request->day_off ?? [];
-        $trip->trip_status = $request->trip_status;
         $trip->save();
 
         $notify[] = ['success', $message];

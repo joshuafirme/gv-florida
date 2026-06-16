@@ -19,10 +19,22 @@
                                     <tr>
                                         <td>{{ __($item->fleetType->name) }}</td>
                                         <td>{{ __($item->route->name) }}</td>
-                                        <td>{{ __(showAmount($item->price)) }}</td>
+                                        @php
+                                            // Filter out the 0 values (Origin to Origin) to get the true minimum price
+                                            $minPrice = $item->prices->where('price', '>', 0)->min('price') ?? 0;
+                                            $maxPrice = $item->prices->max('price') ?? $item->price;
+                                        @endphp
+
+                                        <td>
+                                            @if ($minPrice > 0 && $minPrice != $maxPrice)
+                                                {{ showAmount($minPrice) }} - {{ showAmount($maxPrice) }}
+                                            @else
+                                                {{ showAmount($maxPrice) }}
+                                            @endif
+                                        </td>
                                         <td>
                                             <div class="button--group">
-                                                <a href="{{ route('admin.trip.ticket.price.edit', $item->id) }}"
+                                                <a href="{{ route('admin.trip.ticket.price.form', $item->id) }}"
                                                     class="btn btn-sm btn-outline--primary">
                                                     <i class="la la-pencil"></i>@lang('Edit')
                                                 </a>
@@ -59,7 +71,7 @@
     <x-confirmation-modal />
 @endsection
 @push('breadcrumb-plugins')
-    <a href="{{ route('admin.trip.ticket.price.create') }}" class="btn btn-sm btn-outline--primary">
+    <a href="{{ route('admin.trip.ticket.price.form') }}" class="btn btn-sm btn-outline--primary">
         <i class="las la-plus"></i> @lang('Add New')
     </a>
     <x-search-form placeholder="Search..." />

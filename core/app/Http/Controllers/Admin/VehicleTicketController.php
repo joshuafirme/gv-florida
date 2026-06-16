@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Lib\BusLayout;
 use App\Models\Admin;
 use App\Models\BookedTicket;
+use App\Models\Counter;
 use App\Models\FleetType;
 use App\Models\SlipSeriesNumber;
 use App\Models\Trip;
@@ -110,13 +111,41 @@ class VehicleTicketController extends Controller
         return view('admin.trip.ticket.price_list', compact('pageTitle', 'prices', 'fleetTypes', 'routes'));
     }
 
-    public function ticketPriceCreate()
-    {
-        $pageTitle = "Add Ticket Price";
-        $fleetTypes = FleetType::active()->get();
-        $routes = VehicleRoute::active()->get();
-        return view('admin.trip.ticket.add_price', compact('pageTitle', 'fleetTypes', 'routes'));
+   public function ticketPriceForm($id = null)
+{
+    $pageTitle = $id ? "Update Ticket Price Configuration" : "Ticket Price Configuration";
+    
+    $fleetTypes = FleetType::active()->get();
+    
+    // Fetch routes and ensure stoppages are available for JavaScript
+    $routes = VehicleRoute::active()->get();
+    
+    // Fetch all counters to map stoppage IDs to Names and KM Posts in the frontend
+    $counters = Counter::active()->get(); 
+    
+    // If an ID is passed, fetch the existing ticket price and its relationships
+    $ticketPrice = null;
+    $existingPrices = [];
+    if ($id) {
+        $ticketPrice = TicketPrice::findOrFail($id);
+        
+        // Map existing prices into a key-value pair: ['start-end' => price] for easy JS lookup
+        $prices = TicketPriceByStoppage::where('ticket_price_id', $id)->get();
+        foreach ($prices as $p) {
+            $key = $p->source_destination[0] . '-' . $p->source_destination[1];
+            $existingPrices[$key] = $p->price;
+        }
     }
+
+    return view('admin.trip.ticket.price_form', compact(
+        'pageTitle', 
+        'fleetTypes', 
+        'routes', 
+        'counters', 
+        'ticketPrice',
+        'existingPrices'
+    ));
+}
 
     public function ticketPriceEdit($id)
     {
@@ -145,95 +174,101 @@ class VehicleTicketController extends Controller
 
     public function ticketPriceStore(Request $request)
     {
-        $validation_rule = [
+        $request->validate([
             'fleet_type' => 'required|integer|gt:0',
-            'route' => 'required|integer|gt:0',
-            'main_price' => 'required|numeric',
-            'price' => 'sometimes|required|array|min:1',
-            'price.*' => 'sometimes|required|numeric',
-        ];
-        $messages = [
-            'main_price' => 'Price for Source to Destination',
-            'price.*.required' => 'All Price Fields are Required',
-            'price.*.numeric' => 'All Price Fields Should Be a Number',
-        ];
+            'route'      => 'required|integer|gt:0',
+            'main_price' => 'required|numeric|min:0',
+            'price'      => 'required|array|min:1',
+            'price.*'    => 'required|numeric|min:0',
+        ], [
+            'main_price.required' => 'Price for Source to Destination is required.',
+            'price.*.required'    => 'All Stoppage Ticket Prices are required.',
+            'price.*.numeric'     => 'All Stoppage Ticket Prices must be a valid number.',
+        ]);
 
-        $validator = Validator::make($request->except('_token'), $validation_rule, $messages);
-        $validator->validate();
-
-        $check = TicketPrice::where('fleet_type_id', $request->fleet_type)->where('vehicle_route_id', $request->route)->first();
+        // Duplicate Check
+        $check = TicketPrice::where('fleet_type_id', $request->fleet_type)
+                            ->where('vehicle_route_id', $request->route)
+                            ->exists();
+                            
         if ($check) {
-            $notify[] = ['error', 'Duplicate fleet type and route can\'t be allowed'];
-            return back()->withNotify($notify);
+            $notify[] = ['error', 'Ticket price for this Bus Type and Route already exists.'];
+            return back()->withNotify($notify)->withInput();
         }
 
-        $create = new TicketPrice();
-        $create->fleet_type_id = $request->fleet_type;
-        $create->vehicle_route_id = $request->route;
-        $create->price = $request->main_price;
-        $create->save();
+        // 1. Create Main Ticket Price
+        $ticketPrice = new TicketPrice();
+        $ticketPrice->fleet_type_id = $request->fleet_type;
+        $ticketPrice->vehicle_route_id = $request->route;
+        $ticketPrice->price = $request->main_price;
+        $ticketPrice->save();
 
-        $route = VehicleRoute::find($create->vehicle_route_id);
-
-        if ($request->price && is_array($request->price)) {
-            foreach ($request->price as $key => $val) {
-                $idArray = explode('-', $key);
-                $priceByStoppage = new TicketPriceByStoppage();
-                $priceByStoppage->ticket_price_id = $create->id;
-                $priceByStoppage->source_destination = $idArray;
-                $priceByStoppage->price = $val;
-                $priceByStoppage->save();
-            }
-        } else {
+        // 2. Loop through dynamic table and create Stoppage Prices
+        foreach ($request->price as $key => $val) {
+            $idArray = explode('-', $key);
+            
             $priceByStoppage = new TicketPriceByStoppage();
-            $priceByStoppage->ticket_price_id = $create->id;
-            $priceByStoppage->source_destination = [(string) $route->start_from, (string) $route->end_to];
-            $priceByStoppage->price = $request->main_price;
+            $priceByStoppage->ticket_price_id = $ticketPrice->id;
+            // Ensure IDs are strictly stored as strings in the JSON array to match your schema
+            $priceByStoppage->source_destination = [(string)$idArray[0], (string)$idArray[1]]; 
+            $priceByStoppage->price = $val;
             $priceByStoppage->save();
         }
-        $notify[] = ['success', 'Ticket price added successfully'];
+
+        $notify[] = ['success', 'Ticket price configured successfully'];
         return back()->withNotify($notify);
     }
 
     public function ticketPriceUpdate(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
-            'price' => 'required|numeric|gte:0',
+        $request->validate([
+            'fleet_type' => 'required|integer|gt:0',
+            'route'      => 'required|integer|gt:0',
+            'main_price' => 'required|numeric|min:0',
+            'price'      => 'required|array|min:1',
+            'price.*'    => 'required|numeric|min:0',
+        ], [
+            'main_price.required' => 'Price for Source to Destination is required.',
+            'price.*.required'    => 'All Stoppage Ticket Prices are required.',
+            'price.*.numeric'     => 'All Stoppage Ticket Prices must be a valid number.',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => ['error' => $validator->errors()->all()],
-            ]);
+        $ticketPrice = TicketPrice::findOrFail($id);
+
+        // Duplicate Check (Must exclude the current ticket price ID)
+        $check = TicketPrice::where('fleet_type_id', $request->fleet_type)
+                            ->where('vehicle_route_id', $request->route)
+                            ->where('id', '!=', $id)
+                            ->exists();
+                            
+        if ($check) {
+            $notify[] = ['error', 'Ticket price for this Bus Type and Route already exists.'];
+            return back()->withNotify($notify)->withInput();
         }
 
-        if ($id == 0) {
-            $sourceDestination[0] = $request->source;
-            $sourceDestination[1] = $request->destination;
-            $ticketPrice = TicketPriceByStoppage::whereJsonContains('source_destination', $sourceDestination)->where('ticket_price_id', $request->ticket_price)->first();
-            if ($ticketPrice) {
-                $ticketPrice->price = $request->price;
-                $ticketPrice->save();
-            } else {
-                $ticketPrice = new TicketPriceByStoppage();
-                $ticketPrice->ticket_price_id = $request->ticket_price;
-                $ticketPrice->source_destination = $sourceDestination;
-                $ticketPrice->price = $request->price;
-                $ticketPrice->save();
-            }
-        } else {
-            $prices = TicketPriceByStoppage::findOrFail($id);
-            $prices->price = $request->price;
-            $prices->save();
+        // 1. Update Main Ticket Price
+        $ticketPrice->fleet_type_id = $request->fleet_type;
+        $ticketPrice->vehicle_route_id = $request->route;
+        $ticketPrice->price = $request->main_price; // Now correctly takes the mirrored destination price
+        $ticketPrice->save();
 
-            $ticket_price = TicketPrice::find($prices->ticket_price_id);
-            $ticket_price->price = $request->price;
-            $ticket_price->save();
+        // 2. Sync Stoppage Prices (Fixes the "Ghost Record" & "0 Price" bugs)
+        // By wiping the old records and replacing them, we ensure perfect synchronization 
+        // in case the Admin previously removed an intermediate stop from the Route.
+        TicketPriceByStoppage::where('ticket_price_id', $ticketPrice->id)->delete();
+
+        foreach ($request->price as $key => $val) {
+            $idArray = explode('-', $key);
+            
+            $priceByStoppage = new TicketPriceByStoppage();
+            $priceByStoppage->ticket_price_id = $ticketPrice->id;
+            $priceByStoppage->source_destination = [(string)$idArray[0], (string)$idArray[1]];
+            $priceByStoppage->price = $val; // Now safely extracts the numeric value out of the array
+            $priceByStoppage->save();
         }
 
-        $notify = ['success' => true, 'message' => 'Price Updated Successfully'];
-        return response()->json($notify);
+        $notify[] = ['success', 'Ticket price updated successfully'];
+        return back()->withNotify($notify);
     }
 
     public function ticketPriceDelete($id)

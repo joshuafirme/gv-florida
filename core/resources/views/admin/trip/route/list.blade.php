@@ -78,6 +78,9 @@
                                             <a href="{{ sortUrl('time') }}" class="text--dark">@lang('Time') {!! sortIcon('time') !!}</a>
                                         </th>
                                         <th>
+                                            Stops
+                                        </th>
+                                        <th>
                                             <a href="{{ sortUrl('status') }}" class="text--dark">@lang('Status') {!! sortIcon('status') !!}</a>
                                         </th>
                                         <th>@lang('Action')</th>
@@ -95,10 +98,11 @@
                                             <td>{{ __($item->endTo?->name) }}</td>
                                             <td>{{ __($item->distance) }}</td>
                                             <td>{{ __($item->time) }}</td>
+                                            <td>{{ count(getIntermediateStoppages($item->stoppages)) }}</td>
                                             <td>@php echo $item->statusBadge; @endphp</td>
                                             <td>
                                                 <div class="button--group">
-                                                    <a href="{{ route('admin.trip.route.edit', $item->id) }}"
+                                                    <a href="{{ route('admin.trip.route.form', $item->id) }}"
                                                         class="btn btn-sm btn-outline--primary">
                                                         <i class="la la-pencil"></i>@lang('Edit')
                                                     </a>
@@ -144,7 +148,7 @@
 @endsection
 
 @push('breadcrumb-plugins')
-    <a href="{{ route('admin.trip.route.create') }}" class="btn btn-sm btn-outline--primary h-45">
+    <a href="{{ route('admin.trip.route.form') }}" class="btn btn-sm btn-outline--primary h-45">
         <i class="las la-plus"></i> @lang('Add New')
     </a>
 @endpush

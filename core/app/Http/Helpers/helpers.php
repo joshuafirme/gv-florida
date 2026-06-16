@@ -29,6 +29,35 @@ function buildVer()
     return systemDetails()['build_version'];
 }
 
+if (!function_exists('getIntermediateStoppages')) {
+    /**
+     * Get sorted intermediate stoppages (excluding origin and destination).
+     *
+     * @param array|null $stoppagesArray The full array of route stoppage IDs
+     * @return \Illuminate\Support\Collection
+     */
+    function getIntermediateStoppages(?array $stoppagesArray)
+    {
+        if (empty($stoppagesArray) || count($stoppagesArray) <= 2) {
+            // If there are 2 or fewer items, there are no intermediate stops
+            return collect();
+        }
+
+        // Re-index and slice off the first (origin) and last (destination) items
+        $intermediateIds = array_slice(array_values($stoppagesArray), 1, -1);
+
+        // Fetch the records
+        $unsortedStoppages = Counter::active()
+            ->whereIn('id', $intermediateIds)
+            ->get();
+
+        // Sort them exactly matching the order of the array
+        return $unsortedStoppages->sortBy(function ($model) use ($intermediateIds) {
+            return array_search($model->id, $intermediateIds);
+        })->values();
+    }
+}
+
 if (!function_exists('implodeSeriesNo')) {
     function implodeSeriesNo($deposit)
     {
