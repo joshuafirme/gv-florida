@@ -60,8 +60,11 @@
                                         <td data-label="@lang('Trip')">
                                             <span class="font-weight-bold">{{ __($item->trip->fleetType->name) }}</span>
                                             <br>
-                                            <span class="font-weight-bold"> {{ __($item->trip->startFrom->name) }} -
-                                                {{ __($item->trip->endTo->name) }}</span>
+                                          <span class="fw-bold text-dark text-end">
+                                                {{ $item->pickup->name }}
+                                                <i class="las la-long-arrow-alt-right mx-1 text-muted"></i>
+                                                {{ $item->drop->name }}
+                                            </span>
                                         </td>
                                         <td data-label="@lang('Fare')">
                                             {{ __(showAmount($item->sub_total)) }}
