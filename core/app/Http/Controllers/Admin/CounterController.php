@@ -190,7 +190,6 @@ class CounterController extends Controller
         $counter->city = $request->city;
         $counter->location = $request->location;
         $counter->mobile = $request->mobile;
-        $counter->km_post = $request->km_post;
         $counter->save();
 
         $notify[] = ['success', $message];

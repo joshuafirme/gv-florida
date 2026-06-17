@@ -20,26 +20,21 @@
                             <span class="fw-bold">{{ $deposit->trx }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span class="text-muted">@lang('Trip / Route')</span>
-                            <span class="fw-bold text-dark text-end">
-                                {{ $deposit->bookedTicket->pickup->name }}
-                                <i class="las la-long-arrow-alt-right mx-1 text-muted"></i>
-                                {{ $deposit->bookedTicket->drop->name }}
-                            </span>
+                            @lang('Trip')
+                            <span class="fw-bold">{{ $deposit->bookedTicket->trip->route->name }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('PNR Number')
                             <span class="fw-bold">{{ $deposit->bookedTicket->pnr_number }}</span>
                         </li>
-
+                        
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Date of Journey')
                             <span class="fw-bold">{{ $deposit->bookedTicket->date_of_journey }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Seats')
-                            <span
-                                class="fw-bold">{{ $deposit->bookedTicket->seats ? implode(',', $deposit->bookedTicket->seats) : '' }}</span>
+                            <span class="fw-bold">{{ $deposit->bookedTicket->seats ? implode(',', $deposit->bookedTicket->seats) : '' }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Passenger Type')

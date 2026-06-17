@@ -82,30 +82,24 @@
         style="background: url({{ getImage('assets/templates/basic/images/search_bg.jpg') }}) left center;">
         <div class="container">
             <div class="bus-search-header">
-                <form action="{{ route('ticket') }}" method="GET"
-                    class="ticket-form ticket-form-two row g-3 justify-content-center">
+                <form action="{{ route('search') }}" class="ticket-form ticket-form-two row g-3 justify-content-center">
                     @if (request()->kiosk_id)
                         <input type="hidden" name="kiosk_id" value="{{ request()->kiosk_id }}">
                     @endif
-
-                    @if (isset($selected_counter) || request()->counter_id)
-                        <input type="hidden" name="counter_id" value="{{ $selected_counter ?? request()->counter_id }}">
-                    @endif
-
+                    <input type="hidden" name="counter_id" value="{{ $selected_counter }}">
                     <div class="col-md-4 col-lg-3">
                         <div class="form--group">
                             <i class="las la-location-arrow"></i>
                             <select name="pickup" class="form--control select2">
                                 <option value="">@lang('Pickup Point')</option>
                                 @foreach ($counters as $counter)
-                                    <option value="{{ $counter->id }}" @selected(request('pickup', $selected_counter ?? '') == $counter->id)>
+                                    <option value="{{ $counter->id }}" @if ($selected_counter == $counter->id) selected @endif>
                                         {{ __($counter->name) }}
                                     </option>
                                 @endforeach
                             </select>
                         </div>
                     </div>
-
                     <div class="col-md-4 col-lg-3">
                         <div class="form--group">
                             <i class="las la-map-marker"></i>
@@ -114,7 +108,6 @@
                             </select>
                         </div>
                     </div>
-
                     <div class="col-md-4 col-lg-3">
                         <div class="form--group">
                             <i class="las la-calendar-check"></i>
@@ -122,14 +115,9 @@
                                 placeholder="@lang('Date of Journey')" autocomplete="off" value="{{ request()->date_of_journey }}">
                         </div>
                     </div>
-
                     <div class="col-md-6 col-lg-3">
-                        <div class="form--group d-flex gap-2">
-                            <button type="submit" class="btn btn--base w-100">@lang('Find Tickets')</button>
-                            <a href="{{ route('ticket', ['kiosk_id' => request()->kiosk_id, 'counter_id' => request()->counter_id]) }}"
-                                class="btn btn-dark w-100 d-flex align-items-center justify-content-center">
-                                @lang('Clear')
-                            </a>
+                        <div class="form--group">
+                            <button class="btn btn--base w-100">@lang('Find Tickets')</button>
                         </div>
                     </div>
                 </form>
@@ -182,6 +170,7 @@
                                         $query
                                             ->where('status', Status::BOOKED_APPROVED)
                                             ->whereNot('status', Status::BOOKED_EXPIRED)
+
                                             ->orWhere(function ($subQuery) {
                                                 $subQuery
                                                     ->where('status', Status::BOOKED_PENDING)
@@ -219,18 +208,16 @@
                                 if ($available_seats_ctr < 1) {
                                     continue;
                                 }
-
-                                $stoppageArr = $trip->route->stoppages ?? [];
-                                $routeSequence = App\Models\Counter::routeStoppages($stoppageArr);
                             @endphp
+
 
                             <div class="ticket-item mb-2">
                                 <div class="ticket-item-inner">
                                     <h5 class="bus-name">{{ __($trip->route->name) }}</h5>
-                                    <span class="bus-info">@lang('Seat Layout - ') {{ __($trip->fleetType->seat_layout) }}</span>
+                                    <span class="bus-info">@lang('Seat Layout - ')
+                                        {{ __($trip->fleetType->seat_layout) }}</span>
                                     <span class="ratting"><i class="las la-bus"></i>{{ __($trip->fleetType->name) }}</span>
                                 </div>
-
                                 <div class="ticket-item-inner travel-time">
                                     <div class="bus-time">
                                         <p class="time">{{ showDateTime($trip->schedule->start_from, 'h:i A') }}</p>
@@ -246,27 +233,13 @@
                                         <p class="place">{{ __($trip->endTo->name) }}</p>
                                     </div>
                                 </div>
-
                                 <div class="ticket-item-inner book-ticket">
-                                    @php
-                                        $ticket_price = $trip->ticketPrice;
-                                        // Filter out the 0 values (Origin to Origin) to get the true minimum price
-                                        $minPrice = $ticket_price->prices->where('price', '>', 0)->min('price') ?? 0;
-                                        $maxPrice = $ticket_price->prices->max('price') ?? $item->price;
-                                    @endphp
-
                                     <p class="rent mb-0">
-                                        @if ($minPrice > 0 && $minPrice != $maxPrice)
-                                            {{ showAmount($minPrice) }} - {{ showAmount($maxPrice) }}
-                                        @else
-                                            {{ showAmount($maxPrice) }}
-                                        @endif
+                                        {{ __(gs('cur_sym')) }}{{ showAmount($trip->ticketPrice?->price, currencyFormat: false) }}
                                     </p>
-
                                     <div class="seat-count mt-2">
                                         Available Seats: {{ $available_seats_ctr }}
                                     </div>
-
                                     @if ($trip->day_off)
                                         <div class="seats-left mt-2 mb-3 fs--14px">
                                             @lang('Off Days'): <div class="d-inline-flex flex-wrap" style="gap:5px">
@@ -279,7 +252,6 @@
                                         @lang('Every day available')
                                     @endif
                                 </div>
-
                                 <a class="btn btn--base"
                                     href="{{ route('ticket.seats', [
                                         $trip->id,
@@ -290,32 +262,9 @@
                                         'date_of_journey' => request('date_of_journey'),
                                     ]) }}">@lang('Select Seat')</a>
 
-                                @if ($routeSequence && $routeSequence->count() > 0)
-                                    <div class="w-100 mt-4 pt-3" style="border-top: 1px dashed #e5e5e5; flex-basis: 100%;">
-                                        <span class="d-block text-muted mb-2"
-                                            style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-                                            <i class="las la-map-marked-alt"></i> @lang('Route')
-                                        </span>
-                                        <div class="d-flex align-items-center flex-wrap gap-2 user-select-none"
-                                            style="font-size: 11px;">
-                                            @foreach ($routeSequence as $stop)
-                                                @if ($loop->first)
-                                                    <span class="badge bg-success px-2 py-1">{{ $stop->name }}</span>
-                                                @elseif ($loop->last)
-                                                    <span class="badge bg-danger px-2 py-1">{{ $stop->name }}</span>
-                                                @else
-                                                    <span class="badge bg-secondary px-2 py-1">{{ $stop->name }}</span>
-                                                @endif
 
-                                                @if (!$loop->last)
-                                                    <i class="las la-long-arrow-alt-right text-muted fs-6"></i>
-                                                @endif
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                @endif
                                 @if ($trip->fleetType->facilities)
-                                    <div class="ticket-item-footer mt-3 w-100" style="flex-basis: 100%;">
+                                    <div class="ticket-item-footer">
                                         <div class="d-flex content-justify-center">
                                             <span>
                                                 <strong>@lang('Amenities - ')</strong>
@@ -332,7 +281,6 @@
                                 <h5>{{ __($emptyMessage) }}</h5>
                             </div>
                         @endforelse
-
                         @if ($trips->hasPages())
                             <div class="custom-pagination">
                                 {{ paginateLinks($trips) }}

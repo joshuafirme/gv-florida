@@ -94,7 +94,6 @@
                                                 {!! sortIcon('city') !!}</a>
                                         </th>
                                         <th>@lang('Location')</th>
-                                        <th>@lang('KM Post')</th>
                                         <th>
                                             <a href="{{ sortUrl('status') }}" class="text--dark">@lang('Status')
                                                 {!! sortIcon('status') !!}</a>
@@ -115,7 +114,6 @@
                                             <td>{{ __($item->mobile) }}</td>
                                             <td>{{ __($item->city) }}</td>
                                             <td>{{ __($item->location) ?? '--' }}</td>
-                                            <td>{{ __($item->km_post) }}</td>
                                             <td>
                                                 @php echo $item->statusBadge; @endphp
                                             </td>
@@ -206,10 +204,6 @@
                         <div class="form-group">
                             <label> @lang('Location')</label>
                             <textarea name="location" class="form-control"></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label> @lang('KM Post')</label>
-                            <input name="km_post" class="form-control" type="number">
                         </div>
                         <div class="form-group">
                             <label> @lang('Mobile')</label>

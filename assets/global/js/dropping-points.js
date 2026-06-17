@@ -3,11 +3,8 @@
 
     $('select[name=pickup]').on('change', function () {
         var counter_id = $(this).val();
-        if(counter_id) {
-            getDroppingPoints(counter_id);
-        } else {
-            $('select[name=destination]').html('<option value="">--Dropping point--</option>');
-        }
+
+        getDroppingPoints(counter_id);
     });
 
     let pickup = $('select[name=pickup]').val();
@@ -20,7 +17,6 @@
         let host = window.location.hostname;
         let url = '/trip/dropping-points/';
 
-        // Preserve your local environment routing
         if (host.includes('local')) {
             url = '/gv-florida/trip/dropping-points/';
         }
@@ -28,29 +24,60 @@
         fetch(url + counter_id)
             .then(response => response.json())
             .then(function (data) {
-                let $destination = $('select[name=destination]');
-                $destination.empty();
+                $('select[name=destination]').empty();
 
-                let options = ``;
 
-                // The backend now strictly returns an array of valid {id, name}
-                data.forEach(v => {
-                    options += `<option value="${v.id}">${v.name}</option>`;
-                });
+                let options = '';
+                options += `<option value="">--Dropping point--</option>`;
 
-                $destination.append(options);
+                data
+                    .filter(v => v.end_to?.name)
+                    .sort((a, b) => {
+                        const viaA = extractFromKeyword(a.name, 'via ') || '';
+                        const viaB = extractFromKeyword(b.name, 'via ') || '';
 
-                // Re-select previously chosen destination if it exists in the URL
+                        const nameA = `${a.end_to.name} ${viaA}`.trim();
+                        const nameB = `${b.end_to.name} ${viaB}`.trim();
+
+                        return nameA.localeCompare(nameB);
+                    })
+                    .forEach(v => {
+                        const via = extractFromKeyword(v.name, 'via ');
+
+                        const label = via ?
+                            `${v.end_to.name} ${via}` :
+                            v.end_to.name;
+
+                        options += `<option value="${v.end_to.id}">${label}</option>`;
+                    });
+                $('select[name=destination]').append(options)
+
+
                 const queryString = window.location.search;
                 const urlParams = new URLSearchParams(queryString);
-                
                 setTimeout(() => {
-                    let destination = urlParams.get('destination') || urlParams.get('selected_destination');
-                    if (destination) {
-                        $destination.val(destination).trigger("change");
-                    }
-                }, 500); // Shorter timeout for a snappier UI response
+                    let destination = urlParams.get('destination');
+                    destination = destination ? destination : urlParams.get('selected_destination');
+
+                    $('select[name=destination]').val(destination).trigger("change");
+                }, 1800);
             })
-            .catch(error => console.error('Error fetching dropping points:', error));
+            .catch(error => console.error('Error:', error));
+    }
+
+    function extractFromKeyword(text, keyword) {
+        if (!text || !keyword) return null;
+
+        const lowerText = text.toLowerCase();
+        const lowerKeyword = keyword.toLowerCase();
+
+        const pos = lowerText.indexOf(lowerKeyword);
+
+        if (pos === -1) {
+            return null; // keyword not found
+        }
+
+        // Preserve original casing from the source string
+        return text.substring(pos);
     }
 })(jQuery)
