@@ -21,6 +21,9 @@ Route::controller('TicketController')->prefix('ticket')->name('ticket.')->group(
 Route::get('app/deposit/confirm/{hash}', 'Gateway\PaymentController@appDepositConfirm')->name('deposit.app.confirm');
 
 Route::controller('SiteController')->group(function () {
+    Route::get('/tickets', 'ticket')->name('ticket');
+    Route::get('ticket/search', 'ticketSearch')->name('search');
+
     Route::get('/contact', 'contact')->name('contact');
     Route::post('/contact', 'contactSubmit');
     Route::get('/change/{lang?}', 'changeLanguageTo validate your purchase detai')->name('lang');
@@ -36,12 +39,11 @@ Route::controller('SiteController')->group(function () {
     Route::get('cookie/details', 'cookieDetails')->name('cookie.details');
     Route::get('placeholder-image/{size}', 'placeholderImage')->withoutMiddleware('maintenance')->name('placeholder.image');
     Route::get('maintenance-mode', 'maintenance')->withoutMiddleware('maintenance')->name('maintenance');
-    Route::get('/tickets', 'ticket')->name('ticket');
+
     Route::get('/ticket/{id}/{slug}', 'showSeat')->name('ticket.seats');
     Route::get('/ticket/get-price', 'getTicketPrice')->name('ticket.get-price');
     Route::get('/ticket/validate', 'getTicketPrice')->name('ticket.get-price');
     Route::post('/ticket/book/{id}', 'bookTicket')->name('ticket.book');
-    Route::get('ticket/search', 'ticketSearch')->name('search');
     Route::get('ticket/kiosk', 'kioskBooking')->name('kioskBooking');
     Route::get('trip/dropping-points/{counter_id}', 'getDroppingPoints')->name('getDroppingPoints');
     Route::get('/{slug}', 'pages')->name('pages');
