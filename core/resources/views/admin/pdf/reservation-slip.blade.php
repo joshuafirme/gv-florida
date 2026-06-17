@@ -137,7 +137,7 @@
 
                     <tr>
                         <td class="label">KM Post:</td>
-                        <td class="value">{{ $ticket->drop->km_post }}</td>
+                        <td class="value">{{ $ticket->trip?->route?->distance }}</td>
                     </tr>
 
                     <tr>
