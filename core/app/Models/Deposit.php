@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Constants\Status;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
@@ -62,7 +63,7 @@ class Deposit extends Model
                 $html = '<span class="badge badge--success">' . trans('Succeed') . '</span>';
             } elseif ($this->status == Status::PAYMENT_REJECT) {
                 $html = '<span><span class="badge badge--danger">' . trans('Rejected') . '</span><br>' . diffForHumans($this->updated_at) . '</span>';
-            } elseif ($this->status == Status::PAYMENT_EXPIRED) {
+            } elseif ($this->status == Status::PAYMENT_EXPIRED || $this->where('created_at', '<=', Carbon::now()->subMinutes(15))) {
                 $html = '<span><span class="badge badge--danger">' . trans('Expired') . '</span><br>' . diffForHumans($this->updated_at) . '</span>';
             } else {
                 $html = '<span class="badge badge--dark">' . trans('Initiated') . '</span>';
@@ -129,6 +130,6 @@ class Deposit extends Model
 
     public function scopeExpired($query)
     {
-        return $query->where('status', Status::PAYMENT_EXPIRED);
+        return $query->where('created_at', '<=', Carbon::now()->subMinutes(15));
     }
 }
