@@ -215,7 +215,7 @@
         }
 
         function showBookedSeat() {
-            var date = "{{ date('Y-m-d') }}";
+            var date = "{{ request()->date_of_journey }}";
             var sourceId = '{{ $trip->startFrom->id }}';
             var destinationId = '{{ $trip->endTo->id }}';
             console.log('sourceId', sourceId)
