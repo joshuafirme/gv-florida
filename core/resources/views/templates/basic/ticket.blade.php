@@ -206,7 +206,7 @@
                                     $available_seats_ctr -= (int) $trip->fleetType->cr_row_covered;
                                 }
                                 if ($available_seats_ctr < 1) {
-                                    continue;
+                                  //  continue;
                                 }
                             @endphp
 
