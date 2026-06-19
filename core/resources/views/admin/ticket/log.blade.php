@@ -60,7 +60,7 @@
                                         <td data-label="@lang('Trip')">
                                             <span class="font-weight-bold">{{ __($item->trip->fleetType->name) }}</span>
                                             <br>
-                                          <span class="fw-bold text-dark text-end">
+                                            <span class="fw-bold text-dark text-end">
                                                 {{ $item->pickup->name }}
                                                 <i class="las la-long-arrow-alt-right mx-1 text-muted"></i>
                                                 {{ $item->drop->name }}
@@ -108,14 +108,14 @@
                                                 </a>
 
                                                 {{-- @if (Carbon::parse($item->date_of_journey)->greaterThan(now()) && !$item->is_rebooked) --}}
-                                                    <button data-bs-toggle="tooltip" data-bs-placement="bottom"
-                                                        title="Change Schedule" target="_blank"
-                                                        class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"
-                                                        data-id="{{ $item->id }}"
-                                                        data-date-of-journey="{{ $item->date_of_journey }}"
-                                                        data-json="{{ $item }}">
-                                                        <i class="fa-solid fa-calendar-day"></i>
-                                                    </button>
+                                                <button data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                    title="Change Schedule" target="_blank"
+                                                    class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"
+                                                    data-id="{{ $item->id }}"
+                                                    data-date-of-journey="{{ $item->date_of_journey }}"
+                                                    data-json="{{ $item }}">
+                                                    <i class="fa-solid fa-calendar-day"></i>
+                                                </button>
                                                 {{-- @endif --}}
                                                 @if (Carbon::parse($item->date_of_journey)->isFuture() || Carbon::parse($item->date_of_journey)->isToday())
                                                     <button type="button" data-bs-toggle="tooltip"
@@ -371,6 +371,12 @@
 
                         let bookedSeats = response.booked_seats || [];
                         let disabledSeats = response.disabled_seats || [];
+
+                        disabledSeats = Array.isArray(disabledSeats) ? disabledSeats : Object.values(
+                            disabledSeats || {});
+                        bookedSeats = Array.isArray(bookedSeats) ? bookedSeats : Object.values(
+                            bookedSeats || {});
+
                         let conflicts = [];
 
                         $('.seat').each(function() {
@@ -409,7 +415,7 @@
                         if (conflicts.length > 0 && selectedDate !== originalDateOfJourney) {
                             alert(
                                 `Warning: The seat(s) [ ${conflicts.join(', ')} ] are already booked on this new date. They have been removed from your selection.\n\nPlease click an available seat on the layout to replace them.`
-                                );
+                            );
                         }
 
                         updateSeatSelectionUI();
@@ -488,7 +494,8 @@
                 // Try to select a new seat
                 if (selectedSeatsArray.length >= requiredSeatsCount) {
                     alert(
-                        `You already have all ${requiredSeatsCount} seat(s). Drag them to move them, or click one to deselect it first.`);
+                        `You already have all ${requiredSeatsCount} seat(s). Drag them to move them, or click one to deselect it first.`
+                        );
                     return;
                 }
 

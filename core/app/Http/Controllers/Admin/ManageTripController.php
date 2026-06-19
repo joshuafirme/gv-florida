@@ -145,43 +145,52 @@ class ManageTripController extends Controller
 
     public function routeUpdate(Request $request, $id)
     {
+        // 1. Updated validation (added 'different:start_from' and made 'name' nullable to match frontend)
         $request->validate([
-            'name' => 'required',
+            'name' => 'nullable|string',
             'start_from' => 'required|integer|gt:0',
-            'end_to' => 'required|integer|gt:0',
+            'end_to' => 'required|integer|gt:0|different:start_from',
             'distance' => 'required',
             'time' => 'required',
-            'stoppages' => 'nullable|array|min:1',
+            'stoppages' => 'nullable|array',
             'stoppages.*' => 'nullable|integer|gt:0',
         ], [
+            'end_to.different' => 'Starting point and ending point cannot be the same.',
             'stoppages.*.integer' => 'Invalid Stoppage Field'
         ]);
 
-        if ($request->start_from == $request->end_to) {
-            $notify[] = ['error', 'Starting point and ending point can\'t be same'];
-            return back()->withNotify($notify);
-        }
-
+        // 2. Filter out empty values from the intermediate stops
         $stoppages = $request->stoppages ? array_filter($request->stoppages) : [];
 
-        if (!in_array($request->start_from, $stoppages)) {
-            array_unshift($stoppages, $request->start_from);
-        }
+        // 3. FORCE REMOVE the start and end points from the intermediate array 
+        // just in case the user accidentally selected them in the dropdowns.
+        $stoppages = array_diff($stoppages, [$request->start_from, $request->end_to]);
 
-        if (!in_array($request->end_to, $stoppages)) {
-            array_push($stoppages, $request->end_to);
-        }
+        // 4. Safely push the Origin to the beginning and Destination to the end
+        array_unshift($stoppages, $request->start_from);
+        array_push($stoppages, $request->end_to);
 
+        // 5. Remove any other accidental duplicates
+        $stoppages = array_unique($stoppages);
+
+        // 6. CRITICAL FIX: Reset array keys so Laravel saves it as a clean JSON array [1, 2, 3]
+        $stoppages = array_values($stoppages);
+
+        // 7. Ensure all IDs are strings to prevent JS/PHP strict-type lookup errors later
+        $stoppages = array_map('strval', $stoppages);
+
+        // 8. Save
         $route = VehicleRoute::findOrFail($id);
         $route->name = $request->name;
         $route->start_from = $request->start_from;
         $route->end_to = $request->end_to;
-        $route->stoppages = array_unique($stoppages);
+        $route->stoppages = $stoppages;
         $route->distance = $request->distance;
         $route->time = $request->time;
         $route->save();
 
-        $notify[] = ['success', 'Route update successfully'];
+
+        $notify[] = ['success', 'Route updated successfully'];
         return back()->withNotify($notify);
     }
 
