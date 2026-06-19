@@ -250,7 +250,7 @@ class SiteController extends Controller
                     ->whereNot('status', Status::BOOKED_EXPIRED)
                     ->orWhere(function ($subQuery) {
                         $subQuery->where('status', Status::BOOKED_PENDING)
-                            ->whereDoesntHave('deposit', function ($depositQuery) {
+                            ->whereHas('deposit', function ($depositQuery) {
                                 $depositQuery->where('created_at', '<=', Carbon::now()->subMinutes(15));
                             });
                     });
