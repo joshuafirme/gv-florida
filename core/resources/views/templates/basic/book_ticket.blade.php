@@ -18,85 +18,126 @@
                 href="{{ url("/tickets?kiosk_id=$kiosk_id&counter_id={$trip->startFrom->id}&pickup={$trip->startFrom->id}&destination={$trip->endTo->id}&date_of_journey=$date_of_journey") }}">
                 <i class="fa-solid fa-arrow-left"></i> Go Back
             </a>
+            <div class="card border-0 shadow-sm rounded-4 mb-4 trip-header-banner">
+                <div class="card-body p-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+
+                    <div class="header-left">
+                        <h4 class="fw-bolder mb-1 text-uppercase trip-route-title">
+                            {{ $trip->route->name }}
+                        </h4>
+                        <div class="d-flex align-items-center fw-bold trip-fleet-type">
+                            <i class="las la-bus fs-5 me-1"></i>
+                            {{ strtoupper($trip->fleetType->name) }}
+                        </div>
+                    </div>
+
+                    <div class="header-middle d-flex align-items-center gap-4 text-center mx-auto">
+                        <div class="trip-location">
+                            <span class="d-block fw-bolder text-uppercase text-dark">{{ $trip->startFrom->name }}</span>
+                            <span class="d-block text-muted location-label">ORIGIN</span>
+                        </div>
+
+                        <div class="trip-arrow">
+                            <i class="las la-arrow-right text-muted fs-5"></i>
+                        </div>
+
+                        <div class="trip-location">
+                            <span class="d-block fw-bolder text-uppercase text-dark">{{ $trip->endTo->name }}</span>
+                            <span class="d-block text-muted location-label">DESTINATION</span>
+                        </div>
+                    </div>
+
+                    <div class="header-right text-md-end text-start">
+                        <h3 class="fw-bolder mb-1 trip-time">
+                            {{ showDateTime($trip->schedule->start_from, 'h:i A') }}
+                        </h3>
+                        <div class="text-muted trip-date-duration">
+                            @php
+                                $journeyDate = isset($date_of_journey) ? $date_of_journey : request('date_of_journey');
+                            @endphp
+                            {{ \Carbon\Carbon::parse($journeyDate)->format('D, M d, Y') }}
+                            &middot;
+                            {{ timeDifferenceReadable($trip->schedule->start_from, $trip->schedule->end_at) }}
+                        </div>
+                    </div>
+
+                </div>
+            </div>
             <div class="row gx-xl-5 gy-4 gy-sm-5 justify-content-center">
                 <div class="col-md-6">
-                    <div class="seat-overview-wrapper">
-                        <form action="{{ route('ticket.book', $trip->id) }}" method="POST" id="bookingForm" class="row gy-2">
+                    <div class="seat-overview-wrapper card border-0 shadow-sm rounded-4" style="overflow: hidden;">
+                        <form action="{{ route('ticket.book', $trip->id) }}" method="POST" id="bookingForm">
                             @csrf
-                            <input type="hidden" name="kiosk_id" value="{{ request('kiosk_id') }}" hidden>
-                            <input type="hidden" name="start_from_time" value="{{ $trip->schedule->start_from }}" hidden>
-                            <input type="hidden" name="fleet_type_id" value="{{ $trip->fleetType->id }}" hidden>
+                            <input type="hidden" name="kiosk_id" value="{{ request('kiosk_id') }}">
+                            <input type="hidden" name="start_from_time" value="{{ $trip->schedule->start_from }}">
+                            <input type="hidden" name="fleet_type_id" value="{{ $trip->fleetType->id }}">
 
-                            <input type="text" name="price" hidden>
-                            <div class="col-12 mb-2">
-                                <div class="form-group">
-                                    <label for="date_of_journey" class="form-label">@lang('Journey Date')</label>
-                                    <h5>{{ $date_of_journey_formatted }}</h5>
+                            <input type="hidden" name="price" value="0">
+                            <input type="hidden" name="date_of_journey" value="{{ $date_of_journey }}">
+                            <input type="hidden" name="pickup_point" id="pickup_point" value="{{ $trip->startFrom->id }}">
+                            <input type="hidden" name="seats">
 
-                                    <input type="hidden" value="{{ $date_of_journey }}" name="date_of_journey">
-                                </div>
-                            </div>
-                            <div class="col-12 mb-2">
-                                <div class="form-group">
-                                    <label for="date_of_journey" class="form-label">@lang('Departure Time')</label>
-                                    <h5>{{ date('h:i A', strtotime($trip->schedule->start_from)) }}</h5>
-                                </div>
-                            </div>
-                            <div class="col-12 mb-2">
-                                <div class="form-group">
-                                    <label for="pickup_point" class="form-label">@lang('Pickup Point')</label>
-                                    {{-- <select name="pickup_point" id="pickup_point" class="form--control select2">
-                                        <option value="">@lang('Select One')</option>
-                                        @foreach ($stoppages as $item)
-                                            <option value="{{ $item->id }}"
-                                                @if (request('start_from') == $item->id) selected @endif>
-                                                {{ __($item->name) }}
-                                            </option>
-                                        @endforeach
-                                    </select> --}}
-                                    <input type="hidden" name="pickup_point" id="pickup_point"
-                                        value="{{ $trip->startFrom->id }}">
-
-                                    <h5>{{ $trip->startFrom->name }}</h5>
-                                </div>
-                            </div>
-                            <div class="col-12 mb-2">
-                                <div class="form-group">
-                                    <label for="dropping_point" class="form-label">@lang('Dropping Point')</label>
-                                    {{-- <select name="dropping_point" id="dropping_point" class="form--control select2">
-                                        <option value="">@lang('Select One')</option>
-                                    </select> --}}
-                                    <input type="hidden" name="dropping_point" id="dropping_point"
-                                        value="{{ $trip->endto->id }}">
-                                    <h5>{{ $trip->endto->name }}</h5>
-                                </div>
-                            </div>
-                            {{-- <div class="col-12">
-                                <label class="form-label">@lang('Select Gender')</label>
-                                <div class="d-flex flex-wrap gap-3">
-                                    <div class="form-group custom--radio">
-                                        <input id="male" type="radio" name="gender" value="1">
-                                        <label class="form-label" for="male">@lang('Male')</label>
+                            <div class="card-body p-4">
+                                <div class="d-flex align-items-center mb-4">
+                                    <div class="overview-icon-box me-3">
+                                        <i class="las la-calendar-alt"></i>
                                     </div>
-                                    <div class="form-group custom--radio">
-                                        <input id="female" type="radio" name="gender" value="2">
-                                        <label class="form-label" for="female">@lang('Female')</label>
+                                    <div>
+                                        <span class="d-block text-muted small fw-bold mb-1">@lang('Journey Date')</span>
+                                        <h6 class="mb-0 fw-bold text-dark">
+                                            {{ \Carbon\Carbon::parse($date_of_journey)->format('D, M d, Y') }}</h6>
                                     </div>
                                 </div>
-                            </div> --}}
 
-                            <div class="booked-seat-details my-3 d-none">
-                                <label>@lang('Selected Seats')</label>
-                                <div class="list-group seat-details-animate">
-                                    <span
-                                        class="list-group-item d-flex bg--base text-white justify-content-between">@lang('Seat Details')<span>@lang('Price')</span></span>
-                                    <div class="selected-seat-details">
+                                <div class="d-flex align-items-center mb-4">
+                                    <div class="overview-icon-box me-3">
+                                        <i class="las la-clock"></i>
+                                    </div>
+                                    <div>
+                                        <span class="d-block text-muted small fw-bold mb-1">@lang('Departure Time')</span>
+                                        <h6 class="mb-0 fw-bold text-dark">
+                                            {{ date('g:i A', strtotime($trip->schedule->start_from)) }}</h6>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex align-items-center mb-4">
+                                    <div class="overview-icon-box me-3">
+                                        <i class="las la-map-marker"></i>
+                                    </div>
+                                    <div>
+                                        <span class="d-block text-muted small fw-bold mb-1">@lang('Pickup Point')</span>
+                                        <h6 class="mb-0 fw-bold text-dark text-uppercase">{{ $trip->startFrom->name }}</h6>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex align-items-center">
+                                    <div class="overview-icon-box me-3">
+                                        <i class="las la-map-marker"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <span class="d-block text-muted small fw-bold mb-1">@lang('Dropping Point')</span>
+                                        <select name="dropping_point" id="dropping_point"
+                                            class="form-control select2 custom-select-ui" required>
+                                            <option value="">@lang('Select Dropping Point')</option>
+                                        </select>
                                     </div>
                                 </div>
                             </div>
-                            <input type="text" name="seats" hidden>
-                            <div class="col-12 mt-3">
-                                <button type="submit" class="book-bus-btn">@lang('Continue')</button>
+
+                            <div class="card-footer bg-light border-0 p-4 pt-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="text-muted fw-bold">@lang('Selected Seat')</span>
+                                    <span class="text-muted fw-bold selected-seat-text">None yet</span>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                    <h6 class="mb-0 text-dark fw-bold">@lang('Total Fare')</h6>
+                                    <h4 class="mb-0 fw-bold total-fare-amount" style="color: #e84c88;">₱0.00</h4>
+                                </div>
+
+                                <button type="submit" class="w-100 book-bus-btn" style="font-size: 16px;">
+                                    @lang('Continue')
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -160,7 +201,8 @@
                         <button type="button" class="btn btn--danger w-auto btn--sm px-3" data-bs-dismiss="modal">
                             @lang('Close')
                         </button>
-                        <button type="submit" class="btn btn--base btn--sm w-auto" id="btnBookConfirm">@lang('Confirm')
+                        <button type="submit" class="btn btn--base btn--sm w-auto"
+                            id="btnBookConfirm">@lang('Confirm')
                         </button>
                     </div>
                 </div>
@@ -216,6 +258,33 @@
             .seat.comfort-room {
                 cursor: default;
             }
+
+            .overview-icon-box {
+                width: 38px;
+                height: 38px;
+                background-color: #fce8ef;
+                color: #e84c88;
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                flex-shrink: 0;
+            }
+
+            .custom-select-ui {
+                border-radius: 8px;
+                border: 1px solid #ddd;
+            }
+
+            .btn-continue:hover {
+                background-color: #d87a98 !important;
+            }
+
+            /* Hide the old default details box since it's replaced by the new UI */
+            .booked-seat-details {
+                display: none !important;
+            }
         </style>
     @endpush
 
@@ -230,199 +299,36 @@
             (function($) {
                 "use strict";
 
-                const params = new URLSearchParams(window.location.search);
-
-                const reload_page = params.get('reload');
-                const seat_err = params.get('seat_err');
-                const booked_ticket_id = params.get('booked_ticket_id');
-
-                if (reload_page == 'yes') {
-                    const url = new URL(window.location.href);
-                    url.searchParams.delete('reload');
-                    url.searchParams.append('seat_err', "1");
-                    url.searchParams.append('booked_ticket_id', booked_ticket_id);
-                    
-                    "{{ session()->forget('reload') }}"
-                  
-                        window.location.href = url.toString();
-                }
-
-                if (seat_err) {
-                    notify('error', "@lang('The selected seats are no longer available.')");
-                }
-
-                showBookedSeat()
-
-                var date_of_journey = "{{ Session::get('date_of_journey ') }}";
-                var pickup = "{{ Session::get('pickup ') }}";
-                var destination = "{{ Session::get('destination ') }}";
-
+                // ==========================================
+                // INITIALIZATION
+                // ==========================================
                 $(".select2").select2();
 
-                if (date_of_journey && pickup && destination) {
+                var date_of_journey = $('input[name="date_of_journey"]').val();
+                var pickup = $('input[name="pickup_point"]').val();
+                var routeId = '{{ $trip->route->id }}';
+                var fleetTypeId = '{{ $trip->fleetType->id }}';
+
+                // Map counter IDs to Names safely from Blade's $routeSequence
+                const routeCounters = {};
+                @foreach ($routeSequence as $stop)
+                    routeCounters["{{ $stop->id }}"] = "{{ $stop->name }}";
+                @endforeach
+
+                // 1. Initial Load: Call getPrice just to get stoppages and populate dropdown
+                if (pickup) {
+                    getPrice(routeId, fleetTypeId, pickup, '', date_of_journey, true);
+                }
+
+                // 2. Listen to Dropping Point changes
+                $('select[name="dropping_point"]').on('change', function() {
                     showBookedSeat();
-                }
-
-                $('.date-range').daterangepicker({
-                    autoUpdateInput: true,
-                    singleDatePicker: true,
-                    minDate: new Date(),
-                    maxDate: moment().add(3, 'days')
-                });
-
-                function reset() {
-                    $('.seat-wrapper .seat').removeClass('selected').removeAttr('draggable').removeAttr('title');
-                    $('.seat-wrapper .seat').parent().removeClass(
-                        'seat-condition selected-by-ladies selected-by-gents selected-by-others disabled');
-                    $('.selected-seat-details').html('');
-                }
-
-                // ==========================================
-                // CLICK SEAT LOGIC (Updated for dragging)
-                // ==========================================
-                $('.seat-wrapper .seat').off('click');
-
-                $(document).on('click', '.seat-wrapper .seat', function(e) {
-
-                    // 2. Stop any external theme scripts from double-toggling the seat
-                    e.stopImmediatePropagation();
-
-                    // 3. Ignore clicks on disabled, booked, or comfort room seats
-                    if ($(this).hasClass('disabled-seat') || $(this).hasClass('comfort-room') || $(this).parent()
-                        .hasClass('disabled')) {
-                        $(this).removeClass('selected');
-                        return;
-                    }
-
-                    var pickupPoint = $('input[name="pickup_point"]').val();
-                    var droppingPoint = $('input[name="dropping_point"]').val();
-                    var seat = $(this).attr('data-seat');
-
-                    if (seat) {
-                        if (pickupPoint && droppingPoint) {
-                            // 4. Manually handle the selection toggle
-                            if ($(this).hasClass('selected')) {
-                                console.log('remove selected')
-                                $(this).removeClass('selected');
-                            } else {
-                                $(this).addClass('selected');
-                                console.log('selected')
-                            }
-
-                            // 5. Update the UI and Drag attributes
-                            selectSeat();
-
-                        } else {
-                            $(this).removeClass('selected');
-                            notify('error', "@lang('Please select pickup point and dropping point before select any seat')");
-                        }
-                    }
                 });
 
                 // ==========================================
-                // DRAG AND DROP SEAT LOGIC
+                // API FETCH VIA getTicketPrice
                 // ==========================================
-                $(document).on('dragstart', '.seat.selected', function(e) {
-                    let seatData = $(this).attr('data-seat');
-                    e.originalEvent.dataTransfer.setData('sourceSeat', seatData);
-                });
-
-                $(document).on('dragover', '.seat-wrapper .seat:not(.disabled-seat):not(.comfort-room):not(.selected)',
-                    function(e) {
-                        // Prevent drop if the seat is booked (parent has 'disabled' class)
-                        if ($(this).parent().hasClass('disabled')) return;
-
-                        e.preventDefault(); // Required to allow dropping
-                        $(this).addClass('drag-over');
-                    });
-
-                $(document).on('dragleave', '.seat-wrapper .seat', function(e) {
-                    $(this).removeClass('drag-over');
-                });
-
-                $(document).on('drop', '.seat-wrapper .seat:not(.disabled-seat):not(.comfort-room):not(.selected)',
-                    function(e) {
-                        if ($(this).parent().hasClass('disabled')) return;
-
-                        e.preventDefault();
-                        $(this).removeClass('drag-over');
-
-                        let sourceSeat = e.originalEvent.dataTransfer.getData('sourceSeat');
-                        if (!sourceSeat) return;
-
-                        // 1. Remove selection from the old dragged seat
-                        let oldSeat = $(`.seat-wrapper .seat[data-seat="${sourceSeat}"]`);
-                        oldSeat.removeClass('selected').removeAttr('draggable').removeAttr('title');
-
-                        // 2. Add selection to the new dropped seat
-                        $(this).addClass('selected').attr('draggable', true).attr('title', 'Your Seat (Drag to move)');
-
-                        // 3. Update the UI, pricing, and hidden inputs
-                        selectSeat();
-                    });
-
-
-                // ==========================================
-                // BOOKING & UI LOGIC
-                // ==========================================
-                function selectSeat() {
-                    let selectedSeats = $('.seat.selected');
-                    let seatDetails = ``;
-                    let price = $('input[name=price]').val();
-                    let subtotal = 0;
-                    let currency = '{{ __(gs('cur_text')) }}';
-                    let seats = '';
-
-                    // Sync drag-and-drop attributes across all seats safely
-                    $('.seat-wrapper .seat').not('.selected').removeAttr('draggable').removeAttr('title');
-                    selectedSeats.attr('draggable', true).attr('title', 'Your Seat (Drag to move)');
-
-                    if (selectedSeats.length > 0) {
-                        $('.booked-seat-details').removeClass('d-none');
-                        $.each(selectedSeats, function(i, value) {
-                            seats += $(value).data('seat') + ',';
-                            seatDetails +=
-                                `<span class="list-group-item d-flex justify-content-between">${$(value).data('seat')} <span>${price} ${currency}</span></span>`;
-                            subtotal = subtotal + parseFloat(price);
-                        });
-
-                        // Remove trailing comma
-                        seats = seats.replace(/,+$/, "");
-
-                        $('input[name=seats]').val(seats);
-                        $('.selected-seat-details').html(seatDetails);
-                        $('.selected-seat-details').append(
-                            `<span class="list-group-item d-flex justify-content-between">@lang('Sub total')<span>${subtotal} ${currency}</span></span>`
-                        );
-                    } else {
-                        $('.selected-seat-details').html('');
-                        $('.booked-seat-details').addClass('d-none');
-                        $('input[name=seats]').val('');
-                    }
-                }
-
-                function showBookedSeat() {
-                    reset();
-                    var date = $('input[name="date_of_journey"]').val();
-                    var sourceId = $('input[name="pickup_point"]').val();
-                    var destinationId = $('input[name="dropping_point"]').val();
-
-                    if (sourceId == destinationId && destinationId != '') {
-                        notify('error', "@lang('Source Point and Destination Point Must Not Be Same')");
-                        $('input[name="dropping_point"]').val('').select2();
-                        return false;
-                    } else if (sourceId != destinationId) {
-                        var routeId = '{{ $trip->route->id }}';
-                        var fleetTypeId = '{{ $trip->fleetType->id }}';
-
-                        if (sourceId && destinationId) {
-                            getPrice(routeId, fleetTypeId, sourceId, destinationId, date)
-                        }
-                    }
-                }
-
-                // check price, booked seat etc
-                function getPrice(routeId, fleetTypeId, sourceId, destinationId, date) {
+                function getPrice(routeId, fleetTypeId, sourceId, destinationId, date, isInitialLoad = false) {
                     var data = {
                         "trip_id": "{{ $trip->id }}",
                         "vehicle_route_id": routeId,
@@ -431,141 +337,239 @@
                         "destination_id": destinationId,
                         "date": date,
                         "start_from_time": '{{ $trip->schedule->start_from }}'
-                    }
+                    };
+
                     $.ajax({
-                        type: "get",
+                        type: "GET",
                         url: "{{ route('ticket.get-price') }}",
                         data: data,
                         success: function(response) {
-
                             if (response.error) {
-                                var modal = $('#alertModal');
-                                modal.find('.error-message').text(response.error);
-                                modal.modal('show');
-                                $('input[name="pickup_point"]').val('');
-                                $('input[name="dropping_point"]').val('');
-                            } else {
-                                var stoppages = response.stoppages;
-                                var reqSource = response.reqSource;
-                                var reqDestination = response.reqDestination;
-
-                                reqSource = stoppages.indexOf(reqSource.toString());
-                                reqDestination = stoppages.indexOf(reqDestination.toString());
-
-                                if (response.reverse == true) {
-                                    $.each(response.bookedSeats, function(i, v) {
-                                        var bookedSource = v.pickup_point;
-                                        var bookedDestination = v.dropping_point;
-
-                                        bookedSource = stoppages.indexOf(bookedSource.toString());
-                                        bookedDestination = stoppages.indexOf(bookedDestination
-                                            .toString());
-
-                                        if (reqDestination >= bookedSource || reqSource <=
-                                            bookedDestination) {
-                                            $.each(v.seats, function(index, val) {
-                                                if (v.gender == 1) {
-                                                    $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                        .parent().removeClass(
-                                                            'seat-condition selected-by-gents disabled'
-                                                        );
-                                                }
-                                                if (v.gender == 2) {
-                                                    $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                        .parent().removeClass(
-                                                            'seat-condition selected-by-ladies disabled'
-                                                        );
-                                                }
-                                                if (v.gender == 3) {
-                                                    $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                        .parent().removeClass(
-                                                            'seat-condition selected-by-others disabled'
-                                                        );
-                                                }
-                                            });
-                                        } else {
-                                            $.each(v.seats, function(index, val) {
-                                                if (v.gender == 1) {
-                                                    $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                        .parent().addClass(
-                                                            'seat-condition selected-by-gents disabled'
-                                                        );
-                                                }
-                                                if (v.gender == 2) {
-                                                    $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                        .parent().addClass(
-                                                            'seat-condition selected-by-ladies disabled'
-                                                        );
-                                                }
-                                                if (v.gender == 3) {
-                                                    $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                        .parent().addClass(
-                                                            'seat-condition selected-by-others disabled'
-                                                        );
-                                                }
-                                            });
-                                        }
-                                    });
-                                } else {
-                                    $.each(response.bookedSeats, function(i, v) {
-                                        var bookedSource = v.pickup_point;
-                                        var bookedDestination = v.dropping_point;
-
-                                        bookedSource = stoppages.indexOf(bookedSource.toString());
-                                        bookedDestination = stoppages.indexOf(bookedDestination
-                                            .toString());
-
-                                        $.each(v.seats, function(index, val) {
-                                            if (v.gender == 1) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                    .parent().addClass(
-                                                        'seat-condition selected-by-gents disabled'
-                                                    );
-                                            }
-                                            if (v.gender == 2) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                    .parent().addClass(
-                                                        'seat-condition selected-by-ladies disabled'
-                                                    );
-                                            }
-                                            if (v.gender == 3) {
-                                                $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                                    .parent().addClass(
-                                                        'seat-condition selected-by-others disabled'
-                                                    );
-                                            }
-                                        });
-                                    });
-                                }
-
-                                if (response.price.error) {
-                                    var modal = $('#alertModal');
-                                    modal.find('.error-message').text(response.price.error);
-                                    modal.modal('show');
-                                } else {
-                                    $('input[name=price]').val(response.price);
-                                }
+                                if (!isInitialLoad) notify('error', response.error);
+                                return;
                             }
+
+                            // --- INITIAL LOAD: Build Dropping Points ---
+                            if (isInitialLoad) {
+                                var stoppages = response.stoppages;
+                                var reqSource = stoppages.indexOf(sourceId.toString());
+
+                                let $destination = $('select[name="dropping_point"]');
+                                $destination.empty();
+                                let options = `<option value="">@lang('Select Dropping Point')</option>`;
+
+                                if (reqSource !== -1) {
+                                    if (response.reverse) {
+                                        for (let i = reqSource - 1; i >= 0; i--) {
+                                            let stopId = stoppages[i];
+                                            if (routeCounters[stopId]) {
+                                                options +=
+                                                    `<option value="${stopId}">${routeCounters[stopId]}</option>`;
+                                            }
+                                        }
+                                    } else {
+                                        for (let i = reqSource + 1; i < stoppages.length; i++) {
+                                            let stopId = stoppages[i];
+                                            if (routeCounters[stopId]) {
+                                                options +=
+                                                    `<option value="${stopId}">${routeCounters[stopId]}</option>`;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                $destination.append(options);
+
+                                const urlParams = new URLSearchParams(window.location.search);
+                                let destParam = urlParams.get('dropping_point') || urlParams.get('destination');
+                                if (destParam) {
+                                    setTimeout(() => {
+                                        $destination.val(destParam).trigger("change");
+                                    }, 100);
+                                }
+                                return;
+                            }
+
+                            // --- REGULAR BOOKING FLOW: Price & Seat Locking ---
+                            if (response.price.error) {
+                                notify('error', response.price.error);
+                                $('input[name=price]').val(0); // Reset price if no config exists
+                                $('.book-bus-btn').prop('disabled', true)
+                            } else {
+                                $('input[name=price]').val(response.price); // Set new price dynamically
+                                $('.book-bus-btn').prop('disabled', false)
+                            }
+
+                            // Lock Booked Seats Logic
+                            var stoppages = response.stoppages;
+                            var reqSource = stoppages.indexOf(response.reqSource.toString());
+                            var reqDestination = stoppages.indexOf(response.reqDestination.toString());
+
+                            let disableSeat = function(val, gender) {
+                                let seatNode = $(`.seat-wrapper .seat[data-seat="${val}"]`).parent();
+                                if (gender == 1) seatNode.addClass(
+                                    'seat-condition selected-by-gents disabled');
+                                else if (gender == 2) seatNode.addClass(
+                                    'seat-condition selected-by-ladies disabled');
+                                else seatNode.addClass('seat-condition selected-by-others disabled');
+                            };
+
+                            if (response.reverse == true) {
+                                $.each(response.bookedSeats, function(i, v) {
+                                    var bookedSource = stoppages.indexOf(v.pickup_point.toString());
+                                    var bookedDestination = stoppages.indexOf(v.dropping_point
+                                    .toString());
+                                    if (reqDestination >= bookedSource || reqSource <=
+                                        bookedDestination) {
+                                        $.each(v.seats, function(index, val) {
+                                            disableSeat(val, v.gender);
+                                        });
+                                    }
+                                });
+                            } else {
+                                $.each(response.bookedSeats, function(i, v) {
+                                    var bookedSource = stoppages.indexOf(v.pickup_point.toString());
+                                    var bookedDestination = stoppages.indexOf(v.dropping_point
+                                    .toString());
+                                    if (reqDestination <= bookedSource || reqSource >=
+                                        bookedDestination) {
+                                        // Valid to book
+                                    } else {
+                                        $.each(v.seats, function(index, val) {
+                                            disableSeat(val, v.gender);
+                                        });
+                                    }
+                                });
+                            }
+
+                            // --- CONFLICT CHECK: Validate pre-selected seats against new destination ---
+                            let conflicts = 0;
+                            $('.seat.selected').each(function() {
+                                if ($(this).parent().hasClass('disabled')) {
+                                    $(this).removeClass('selected').removeAttr('draggable').removeAttr(
+                                        'title');
+                                    conflicts++;
+                                }
+                            });
+
+                            if (conflicts > 0) {
+                                notify('error',
+                                    'Some previously selected seats are already booked for this destination and were removed.'
+                                    );
+                            }
+
+                            // Update UI total fare with kept seats and new price
+                            selectSeat();
                         }
                     });
                 }
 
-                //booking form submit
+                // ==========================================
+                // UI HELPERS & SEAT LOGIC
+                // ==========================================
+                function showBookedSeat() {
+                    // ONLY clear the disabled/booked classes. DO NOT remove the `.selected` class.
+                    $('.seat-wrapper .seat').parent().removeClass(
+                        'seat-condition selected-by-ladies selected-by-gents selected-by-others disabled');
+
+                    var destinationId = $('select[name="dropping_point"]').val();
+
+                    if (pickup == destinationId && destinationId != '') {
+                        notify('error', "@lang('Source Point and Destination Point Must Not Be Same')");
+                        $('select[name="dropping_point"]').val('').trigger('change');
+                        return false;
+                    } else if (pickup && destinationId) {
+                        getPrice(routeId, fleetTypeId, pickup, destinationId, date_of_journey, false);
+                    } else {
+                        // If dropping point is cleared, reset price to 0 but keep selected seats intact
+                        $('input[name=price]').val(0);
+                        selectSeat();
+                    }
+                }
+
+                function updateFareUI() {
+                    let price = parseFloat($('input[name=price]').val()) || 0;
+                    let selectedSeats = $('.seat.selected');
+                    let selectedCount = selectedSeats.length;
+                    let total = price * selectedCount;
+
+                    if (selectedCount > 0) {
+                        let seatNames = [];
+                        $.each(selectedSeats, function(i, val) {
+                            seatNames.push($(val).data('seat'));
+                        });
+                        $('.selected-seat-text').text(seatNames.join(', '));
+                    } else {
+                        $('.selected-seat-text').text('None yet');
+                    }
+
+                    $('.total-fare-amount').text('₱' + total.toLocaleString('en-US', {
+                        minimumFractionDigits: 2
+                    }));
+                }
+
+                // Handle Seat Clicks
+                $('.seat-wrapper .seat').off('click');
+                $(document).on('click', '.seat-wrapper .seat', function(e) {
+                    e.stopImmediatePropagation();
+
+                    if ($(this).hasClass('disabled-seat') || $(this).hasClass('comfort-room') || $(this).parent()
+                        .hasClass('disabled')) {
+                        return;
+                    }
+
+                    var droppingPoint = $('select[name="dropping_point"]').val();
+
+                    if (pickup && droppingPoint) {
+                        if ($(this).hasClass('selected')) {
+                            $(this).removeClass('selected');
+                        } else {
+                            $(this).addClass('selected');
+                        }
+                        selectSeat();
+                    } else {
+                        notify('error', "@lang('Please select a Dropping Point before selecting a seat')");
+                    }
+                });
+
+                function selectSeat() {
+                    let selectedSeats = $('.seat.selected');
+                    let seats = '';
+
+                    $('.seat-wrapper .seat').not('.selected').removeAttr('draggable').removeAttr('title');
+                    selectedSeats.attr('draggable', true).attr('title', 'Your Seat (Drag to move)');
+
+                    if (selectedSeats.length > 0) {
+                        $.each(selectedSeats, function(i, value) {
+                            seats += $(value).data('seat') + ',';
+                        });
+                        seats = seats.replace(/,+$/, "");
+                        $('input[name=seats]').val(seats);
+                    } else {
+                        $('input[name=seats]').val('');
+                    }
+
+                    updateFareUI();
+                }
+
+                // ==========================================
+                // SUBMISSION
+                // ==========================================
                 $('#bookingForm').on('submit', function(e) {
                     e.preventDefault();
-                    let selectedSeats = $('.seat.selected');
-                    if (selectedSeats.length > 0) {
-                        var modal = $('#bookConfirm');
-                        modal.modal('show');
+                    if ($('select[name="dropping_point"]').val() == '') {
+                        notify('error', 'Please select a Dropping Point.');
+                        return;
+                    }
+                    if ($('.seat.selected').length > 0) {
+                        $('#bookConfirm').modal('show');
                     } else {
                         notify('error', 'Select at least one seat.');
                     }
                 });
 
-                //confirmation modal
                 $(document).on('click', '#btnBookConfirm', function(e) {
-                    var modal = $('#bookConfirm');
-                    modal.modal('hide');
+                    $('#bookConfirm').modal('hide');
                     document.getElementById("bookingForm").submit();
                 });
 

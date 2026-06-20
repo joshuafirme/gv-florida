@@ -112,14 +112,20 @@
                                                 <div>{{ $deposit->bookedTicket->kiosk->uid }}</div>
                                             @endif
                                         </td>
-                                        <td>{{ $deposit->bookedTicket?->trip?->route?->name }}</td>
+                                        <td>
+                                            <span class="fw-bold text-dark text-end">
+                                                {{ $deposit->bookedTicket->pickup->name }}
+                                                <i class="las la-long-arrow-alt-right mx-1 text-muted"></i>
+                                                {{ $deposit->bookedTicket->drop->name }}
+                                            </span>
+                                        </td>
                                         <td>{{ $deposit->bookedTicket->seats ? implode(',', $deposit->bookedTicket->seats) : '' }}
                                         </td>
                                         <td>
                                             Fare: {{ showAmount($deposit->amount) }}
-                                            <div>Discount: {{ $deposit?->userDiscount?->amount  ?: '-' }}</div>
+                                            <div>Discount: {{ $deposit?->userDiscount?->amount ?: '-' }}</div>
                                             <div>Final Amount:
-                                            {{ showAmount($deposit->final_amount) }}</div>
+                                                {{ showAmount($deposit->final_amount) }}</div>
                                         </td>
                                         <td>{{ getPassengerType($deposit) }}</td>
                                         <td>
