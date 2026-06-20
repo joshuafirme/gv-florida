@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Constants\Status;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 class BookedTicket extends Model
@@ -23,6 +24,39 @@ class BookedTicket extends Model
             $last = self::max('series_number') ?? 99999;
             $model->series_number = $last + 1;
         });
+    }
+
+    /**
+     * Check for conflicting tickets that overlap with this ticket's seats.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getConflicts()
+    {
+        return self::where('trip_id', $this->trip_id)
+            ->where('id', '!=', $this->id)
+            ->whereDate('date_of_journey', Carbon::parse($this->date_of_journey)->format('Y-m-d'))
+            ->where(function ($query) {
+                $query->where('status', Status::BOOKED_APPROVED)
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->where('status', Status::BOOKED_PENDING)
+                            ->whereHas('deposit', function ($depositQuery) {
+                                $depositQuery->where('created_at', '>=', Carbon::now()->subMinutes(15));
+                            });
+                    });
+            })
+            ->where('pickup_point', $this->pickup_point)
+            ->where('dropping_point', $this->dropping_point)
+            ->where(function ($query) {
+                $seats = is_string($this->seats) ? json_decode($this->seats, true) : $this->seats;
+
+                if (!empty($seats) && is_array($seats)) {
+                    foreach ($seats as $seat) {
+                        $query->orWhereJsonContains('seats', $seat);
+                    }
+                }
+            })
+            ->get();
     }
 
     public function deposit()

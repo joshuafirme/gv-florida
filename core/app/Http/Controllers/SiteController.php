@@ -244,20 +244,20 @@ class SiteController extends Controller
 
     public function bookedQuery($request)
     {
-        return BookedTicket::query()
+        return BookedTicket::where('trip_id', $request->trip_id)
+            ->whereDate('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
             ->where(function ($query) {
                 $query->where('status', Status::BOOKED_APPROVED)
-                    ->whereNot('status', Status::BOOKED_EXPIRED)
                     ->orWhere(function ($subQuery) {
                         $subQuery->where('status', Status::BOOKED_PENDING)
                             ->whereHas('deposit', function ($depositQuery) {
-                                $depositQuery->where('created_at', '<=', Carbon::now()->subMinutes(15));
+                                // Fetch tickets where deposit was created within the last 15 mins
+                                $depositQuery->where('created_at', '>=', Carbon::now()->subMinutes(15));
                             });
                     });
             })
-            ->whereDate('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
-            ->where('trip_id', $request->trip_id)
-            ->get();
+            // Select only the columns needed by the frontend to save memory
+            ->get(['pickup_point', 'dropping_point', 'seats', 'gender']);
     }
 
     public function getTicketPrice(Request $request)

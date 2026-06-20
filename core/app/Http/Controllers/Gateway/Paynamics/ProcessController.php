@@ -36,27 +36,7 @@ class ProcessController extends Controller
 
     public function bookedQuery($bookedTicket)
     {
-        return BookedTicket::where('trip_id', $bookedTicket->trip_id)
-            ->whereNot('id', $bookedTicket->id)
-            ->where('date_of_journey', Carbon::parse($bookedTicket->date_of_journey)->format('Y-m-d'))
-            ->where(function ($query) {
-                $query->where('status', Status::BOOKED_APPROVED)
-                    ->whereNot('status', Status::BOOKED_EXPIRED)
-                    ->orWhere(function ($subQuery) {
-                        $subQuery->where('status', Status::BOOKED_PENDING)
-                            ->whereDoesntHave('deposit', function ($depositQuery) {
-                                $depositQuery->where('created_at', '<=', Carbon::now()->subMinutes(15));
-                            });
-                    });
-            })
-            ->where('pickup_point', $bookedTicket->pickup_point)
-            ->where('dropping_point', $bookedTicket->dropping_point)
-            ->where(function ($query) use ($bookedTicket) {
-                foreach ($bookedTicket->seats as $seat) {
-                    $query->orWhereJsonContains('seats', $seat);
-                }
-            })
-            ->get();
+        return $bookedTicket->getConflicts();
     }
 
     public function redirect(Request $request)

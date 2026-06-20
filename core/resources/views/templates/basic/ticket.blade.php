@@ -165,26 +165,21 @@
                                     $end->addDay();
                                 }
 
-                                $tickets = App\Models\BookedTicket::query()
+                                $tickets = App\Models\BookedTicket::where('trip_id', $trip->id)
+                                    ->whereDate('date_of_journey', Carbon::parse($date_of_journey)->format('Y-m-d'))
                                     ->where(function ($query) {
-                                        $query
-                                            ->where('status', Status::BOOKED_APPROVED)
-                                            ->whereNot('status', Status::BOOKED_EXPIRED)
-
-                                            ->orWhere(function ($subQuery) {
-                                                $subQuery
-                                                    ->where('status', Status::BOOKED_PENDING)
-                                                    ->whereDoesntHave('deposit', function ($depositQuery) {
-                                                        $depositQuery->where(
-                                                            'created_at',
-                                                            '<=',
-                                                            Carbon::now()->subMinutes(15),
-                                                        );
-                                                    });
-                                            });
+                                        $query->where('status', Status::BOOKED_APPROVED)->orWhere(function ($subQuery) {
+                                            $subQuery
+                                                ->where('status', Status::BOOKED_PENDING)
+                                                ->whereHas('deposit', function ($depositQuery) {
+                                                    $depositQuery->where(
+                                                        'created_at',
+                                                        '>=',
+                                                        Carbon::now()->subMinutes(15),
+                                                    );
+                                                });
+                                        });
                                     })
-                                    ->where('trip_id', $trip->id)
-                                    ->wheredate('date_of_journey', $date_of_journey)
                                     ->get();
 
                                 $occupied_seats_ctr = 0;
@@ -206,7 +201,7 @@
                                     $available_seats_ctr -= (int) $trip->fleetType->cr_row_covered;
                                 }
                                 if ($available_seats_ctr < 1) {
-                                  //  continue;
+                                    //  continue;
                                 }
                             @endphp
 
