@@ -49,7 +49,7 @@
                     if (destination) {
                         $destination.val(destination).trigger("change");
                     }
-                }, 500); // Shorter timeout for a snappier UI response
+                }, 1000); // Shorter timeout for a snappier UI response
             })
             .catch(error => console.error('Error fetching dropping points:', error));
     }
