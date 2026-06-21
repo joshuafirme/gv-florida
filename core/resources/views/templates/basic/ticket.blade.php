@@ -215,7 +215,6 @@
                                 if ($available_seats_ctr < 1) {
                                     //  continue;
                                 }
-                            @endphp
 
                                 $stoppageArr = $trip->route->stoppages ?? [];
                                 $routeSequence = App\Models\Counter::routeStoppages($stoppageArr);
@@ -276,6 +275,7 @@
                                         @lang('Every day available')
                                     @endif
                                 </div>
+
                                 <a class="btn btn--base"
                                     href="{{ route('ticket.seats', [
                                         $trip->id,
