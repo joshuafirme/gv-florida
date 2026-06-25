@@ -287,24 +287,56 @@
                                     ]) }}">@lang('Select Seat')</a>
 
                                 @if ($routeSequence && $routeSequence->count() > 0)
+                                    @php
+                                        $routeId = uniqid('route_');
+                                        $totalStops = $routeSequence->count();
+                                        // Only collapse if there are 5 or more total stops (Origin + 3 Intermediate + Destination)
+                                        $shouldCollapse = $totalStops >= 5;
+                                    @endphp
+
                                     <div class="w-100 mt-4 pt-3" style="border-top: 1px dashed #e5e5e5; flex-basis: 100%;">
-                                        <span class="d-block text-muted mb-2"
-                                            style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-                                            <i class="las la-map-marked-alt"></i> @lang('Route')
-                                        </span>
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="d-block text-muted"
+                                                style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                                                <i class="las la-map-marked-alt"></i> @lang('Route')
+                                            </span>
+
+                                            @if ($shouldCollapse)
+                                                <a href="javascript:void(0)" class="text-primary text-decoration-none"
+                                                    onclick="toggleRouteStops('{{ $routeId }}')"
+                                                    style="font-size: 11px; font-weight: 600;">
+                                                    <span id="text-{{ $routeId }}">@lang('View Stops')</span>
+                                                </a>
+                                            @endif
+                                        </div>
+
                                         <div class="d-flex align-items-center flex-wrap gap-2 user-select-none"
                                             style="font-size: 11px;">
                                             @foreach ($routeSequence as $stop)
                                                 @if ($loop->first)
                                                     <span class="badge bg-success px-2 py-1">{{ $stop->name }}</span>
+
+                                                    @if ($totalStops > 1)
+                                                        <i class="las la-long-arrow-alt-right text-muted fs-6"></i>
+                                                    @endif
+
+                                                    @if ($shouldCollapse)
+                                                        <span
+                                                            class="badge bg-light text-muted border px-2 py-1 dots-{{ $routeId }}">
+                                                            +{{ $totalStops - 2 }} @lang('Stops')
+                                                        </span>
+                                                        <i
+                                                            class="las la-long-arrow-alt-right text-muted fs-6 dots-{{ $routeId }}"></i>
+                                                    @endif
                                                 @elseif ($loop->last)
                                                     <span class="badge bg-danger px-2 py-1">{{ $stop->name }}</span>
                                                 @else
-                                                    <span class="badge bg-secondary px-2 py-1">{{ $stop->name }}</span>
-                                                @endif
-
-                                                @if (!$loop->last)
-                                                    <i class="las la-long-arrow-alt-right text-muted fs-6"></i>
+                                                    <span
+                                                        class="badge bg-secondary px-2 py-1 stops-{{ $routeId }} {{ $shouldCollapse ? 'd-none' : '' }}">
+                                                        {{ $stop->name }}
+                                                    </span>
+                                                    <i
+                                                        class="las la-long-arrow-alt-right text-muted fs-6 stops-{{ $routeId }} {{ $shouldCollapse ? 'd-none' : '' }}"></i>
                                                 @endif
                                             @endforeach
                                         </div>
@@ -355,6 +387,26 @@
 
 @push('script')
     <script>
+        function toggleRouteStops(id) {
+            const stops = document.querySelectorAll('.stops-' + id);
+            const dots = document.querySelectorAll('.dots-' + id);
+            const textElem = document.getElementById('text-' + id);
+
+            let isHidden = stops[0].classList.contains('d-none');
+
+            if (isHidden) {
+                // Expand
+                stops.forEach(el => el.classList.remove('d-none'));
+                dots.forEach(el => el.classList.add('d-none'));
+                textElem.innerText = "@lang('Hide Stops')";
+            } else {
+                // Collapse
+                stops.forEach(el => el.classList.add('d-none'));
+                dots.forEach(el => el.classList.remove('d-none'));
+                textElem.innerText = "@lang('View Stops')";
+            }
+        }
+
         (function($) {
             "use strict";
 
