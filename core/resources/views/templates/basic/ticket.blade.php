@@ -311,7 +311,7 @@
                                         </div>
 
                                         <div class="d-flex align-items-center flex-wrap gap-2 user-select-none"
-                                            style="font-size: 11px;">
+                                            style="font-size: 12px;">
                                             @foreach ($routeSequence as $stop)
                                                 @if ($loop->first)
                                                     <span class="badge bg-success px-2 py-1">{{ $stop->name }}</span>
