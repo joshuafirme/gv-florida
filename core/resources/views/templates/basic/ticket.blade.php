@@ -282,6 +282,7 @@
                                         slug($trip->title),
                                         'start_from' => $trip->start_from,
                                         'end_to' => $trip->end_to,
+                                        'dropping_point' => request('destination'),
                                         'kiosk_id' => $kiosk_id,
                                         'date_of_journey' => request('date_of_journey'),
                                     ]) }}">@lang('Select Seat')</a>

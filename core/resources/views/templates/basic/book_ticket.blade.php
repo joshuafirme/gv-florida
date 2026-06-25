@@ -135,6 +135,8 @@
                                     <h4 class="mb-0 fw-bold total-fare-amount" style="color: #e84c88;">₱0.00</h4>
                                 </div>
 
+                                <div class="price-error-message text-danger small fw-bold mb-2 text-center d-none"></div>
+
                                 <button type="submit" class="w-100 book-bus-btn" style="font-size: 16px;">
                                     @lang('Continue')
                                 </button>
@@ -285,6 +287,18 @@
             .booked-seat-details {
                 display: none !important;
             }
+
+            .book-bus-btn:disabled,
+            .book-bus-btn[disabled] {
+                background-color: #d1d5db !important;
+                /* Light grey */
+                border-color: #d1d5db !important;
+                color: #6b7280 !important;
+                /* Darker grey text */
+                cursor: not-allowed;
+                opacity: 0.8;
+                box-shadow: none;
+            }
         </style>
     @endpush
 
@@ -391,13 +405,31 @@
                             }
 
                             // --- REGULAR BOOKING FLOW: Price & Seat Locking ---
-                            if (response.price.error) {
-                                notify('error', response.price.error);
-                                $('input[name=price]').val(0); // Reset price if no config exists
-                                $('.book-bus-btn').prop('disabled', true)
+                            let fetchedPrice = parseFloat(response.price) || 0;
+
+                            if (response.price.error || fetchedPrice <= 0) {
+                                let errorMsg = response.price.error ? response.price.error :
+                                    "Ticket price is not configured for this route segment.";
+
+                                // Show notification
+                                notify('error', errorMsg);
+
+                                // Reset inputs and UI
+                                $('input[name=price]').val(0);
+
+                                // Disable button and show error above it
+                                $('.book-bus-btn').prop('disabled', true);
+                                $('.price-error-message')
+                                    .html('<i class="las la-exclamation-circle"></i> ' + errorMsg)
+                                    .removeClass('d-none');
+
                             } else {
-                                $('input[name=price]').val(response.price); // Set new price dynamically
-                                $('.book-bus-btn').prop('disabled', false)
+                                // Valid Price - Set dynamically
+                                $('input[name=price]').val(response.price);
+
+                                // Enable button and hide error
+                                $('.book-bus-btn').prop('disabled', false);
+                                $('.price-error-message').html('').addClass('d-none');
                             }
 
                             // Lock Booked Seats Logic
@@ -418,7 +450,7 @@
                                 $.each(response.bookedSeats, function(i, v) {
                                     var bookedSource = stoppages.indexOf(v.pickup_point.toString());
                                     var bookedDestination = stoppages.indexOf(v.dropping_point
-                                    .toString());
+                                        .toString());
                                     if (reqDestination >= bookedSource || reqSource <=
                                         bookedDestination) {
                                         $.each(v.seats, function(index, val) {
@@ -430,7 +462,7 @@
                                 $.each(response.bookedSeats, function(i, v) {
                                     var bookedSource = stoppages.indexOf(v.pickup_point.toString());
                                     var bookedDestination = stoppages.indexOf(v.dropping_point
-                                    .toString());
+                                        .toString());
                                     if (reqDestination <= bookedSource || reqSource >=
                                         bookedDestination) {
                                         // Valid to book
@@ -455,7 +487,7 @@
                             if (conflicts > 0) {
                                 notify('error',
                                     'Some previously selected seats are already booked for this destination and were removed.'
-                                    );
+                                );
                             }
 
                             // Update UI total fare with kept seats and new price
