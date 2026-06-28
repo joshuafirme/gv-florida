@@ -11,6 +11,7 @@ use App\Models\Deposit;
 use App\Models\DeviceToken;
 use App\Models\NotificationLog;
 use App\Models\Transaction;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -38,23 +39,43 @@ class UserController extends Controller
 
     public function reservationSlip($id = null)
     {
-        $ticket = BookedTicket::findOrFail($id);
+        // Eager load the deposit to avoid extra queries
+        $ticket = BookedTicket::with('deposit')->findOrFail($id);
 
         $admin_request = request('admin_request');
 
         if (!$ticket->kiosk_id || $admin_request) {
-            $this->approve($ticket->deposit->id);
+            $deposit = $ticket->deposit;
+
+            // Only attempt approval if the deposit is actually pending
+            if ($deposit && $deposit->status == Status::PAYMENT_PENDING) {
+
+                // STRICT VALIDATION: Check the 15-minute expiration window
+                if ($deposit->created_at < Carbon::now()->subMinutes(15)) {
+                    // Return a 400 Bad Request to automatically trigger the JavaScript .catch() block
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This transaction has expired (exceeded 15 minutes) and cannot be approved or printed.'
+                    ], 400);
+                }
+
+                // If valid, safely execute the approval logic
+                $this->approve($deposit->id);
+            }
+
             $ticket->refresh();
             $ticket->load('deposit');
         }
 
         $dir = 'assets/admin/contents/';
         $file = "{$dir}reservation-slip-$ticket->pickup_point.json";
+
         if (!file_exists($file)) {
             if (!is_dir($dir)) {
-                mkdir($dir);
+                mkdir($dir, 0755, true);
             }
         }
+
         $fileContent = @file_get_contents($file);
         $content = json_decode($fileContent);
 
@@ -85,6 +106,25 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'file_url' => "$base$path"
+        ]);
+    }
+
+    public function validateDepositAPI($id)
+    {
+        $deposit = Deposit::where('id', $id)
+            ->where('status', Status::PAYMENT_PENDING)
+            ->where('created_at', '>=', Carbon::now()->subMinutes(15))
+            ->first();
+
+        if (!$deposit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This transaction has expired (exceeded 15 minutes) or has already been processed.'
+            ]);
+        }
+
+        return response()->json([
+            'success' => true
         ]);
     }
 

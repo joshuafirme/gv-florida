@@ -167,7 +167,16 @@ class DepositController extends Controller
 
     public function approve($id)
     {
-        $deposit = Deposit::where('id', $id)->where('status', Status::PAYMENT_PENDING)->firstOrFail();
+        $deposit = Deposit::where('id', $id)
+            ->where('status', Status::PAYMENT_PENDING)
+            ->where('created_at', '>=', Carbon::now()->subMinutes(15))
+            ->first();
+
+        if (!$deposit) {
+            $notify[] = ['error', 'This deposit request has expired (exceeded 15 minutes) or is no longer pending.'];
+            return back()->withNotify($notify);
+        }
+
         $admin = auth('admin')->user();
         $deposit->processed_by_name = $admin->name;
         $deposit->processed_by_admin_id = $admin->id;

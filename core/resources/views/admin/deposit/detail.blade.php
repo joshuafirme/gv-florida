@@ -381,7 +381,17 @@
 
                 return fetch(BASE_URL + 'api/ticket/download/reservation-slip/' + id +
                         '?admin_request=true&admin_id={{ auth('admin')->id() }}')
-                    .then(res => res.json())
+                    .then(res => {
+                        // 1. Fetch doesn't throw errors for 400 status codes automatically.
+                        // We must parse the JSON first, then check if it was successful.
+                        return res.json().then(data => {
+                            if (!res.ok || data.success === false) {
+                                // This manually forces the code to jump straight to the .catch() block
+                                throw new Error(data.message || 'Failed to generate reservation slip.');
+                            }
+                            return data;
+                        });
+                    })
                     .then(data => {
                         fileUrl = data.file_url; // Capture the URL
                         console.log('data', data)
@@ -408,6 +418,20 @@
                     })
                     .catch(err => {
                         console.error("Print or Fetch error:", err);
+
+                        // 2. Show the error message to the admin
+                        notify('error', err.message);
+
+                        // 3. Reset the print button so it isn't stuck on "Printing..."
+                        $('#printBtn').html('<i class="fa-solid fa-print"></i> Print [F9]').prop('disabled',
+                            false);
+
+                        // 4. If the error was due to expiration, reload the page after 2 seconds
+                        if (err.message.includes('expired')) {
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2000);
+                        }
                     });
             }
 
@@ -558,15 +582,47 @@
             });
 
             $('#confirmPrint').on('click', function() {
+                let btn = $(this);
+                let originalText = btn.html();
 
-                let id = "{{ $deposit->bookedTicket->id }}";
+                // 1. Lock button and show loading state
+                btn.html('<i class="las la-spinner la-spin"></i> Validating...').prop('disabled', true);
 
-                bootstrap.Modal.getInstance(
-                    document.getElementById('printConfirmModal')
-                ).hide();
+                let ticketId = "{{ $deposit->bookedTicket->id }}";
+                let depositId = "{{ $deposit->id }}"; // Deposit ID for validation
 
-                printPDF(id);
+                // 2. Call the validation API
+                $.ajax({
+                    url: BASE_URL + 'api/ticket/validate-deposit/' +
+                        depositId, // Adjust URL path based on your route config
+                    type: 'GET',
+                    success: function(response) {
+                        if (response.success) {
+                            // 3. Validation Passed -> Hide Modal and Print
+                            bootstrap.Modal.getInstance(document.getElementById(
+                                'printConfirmModal')).hide();
+                            printPDF(ticketId);
 
+                            // Optional: Reset button text in case modal is reopened
+                            btn.html(originalText).prop('disabled', false);
+                        } else {
+                            // 4. Validation Failed -> Show error and reload page
+                            notify('error', response.message);
+                            bootstrap.Modal.getInstance(document.getElementById(
+                                'printConfirmModal')).hide();
+
+                            // Reload page after 2 seconds to reflect the expired/processed status
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2000);
+                        }
+                    },
+                    error: function() {
+                        notify('error',
+                            'Something went wrong during validation. Please try again.');
+                        btn.html(originalText).prop('disabled', false);
+                    }
+                });
             });
 
         });
