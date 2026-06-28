@@ -316,54 +316,44 @@
                             });
                         } else {
                             $.each(response.bookedSeats, function(i, v) {
-                                console.log('response', response)
-                                var bookedSource = v.pickup_point; //Booked
-                                var bookedDestination = v.dropping_point; //Booked
+                                var bookedSource = v.pickup_point;
+                                var bookedDestination = v.dropping_point;
 
                                 bookedSource = stoppages.indexOf(bookedSource.toString());
-                                bookedDestination = stoppages.indexOf(bookedDestination
-                                    .toString());
+                                bookedDestination = stoppages.indexOf(bookedDestination.toString());
 
-
-                                if (reqDestination <= bookedSource || reqSource >=
-                                    bookedDestination) {
-                                    $.each(v.seats, function(index, val) {
-                                        console.log('index', index)
-                                        $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                            .parent().addClass(
-                                                'seat-condition selected-by-gents disabled'
-                                            );
-                                        $(`.seat-wrapper .seat[data-seat="${val}"]`).text(
-                                            `${val}`);
-                                        // if (v.gender == 1) {
-                                        //     $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                        //         .parent().removeClass(
-                                        //             'seat-condition selected-by-gents disabled'
-                                        //         );
-                                        // }
-                                        // if (v.gender == 2) {
-                                        //     $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                        //         .parent().removeClass(
-                                        //             'seat-condition selected-by-ladies disabled'
-                                        //         );
-                                        // }
-                                        // if (v.gender == 3) {
-                                        //     $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                        //         .parent().removeClass(
-                                        //             'seat-condition selected-by-others disabled'
-                                        //         );
-                                        // }
-                                    });
+                                if (reqDestination <= bookedSource || reqSource >= bookedDestination) {
+                                    // Valid to book (no overlap)
                                 } else {
-                                    $.each(v.seats, function(_index, val) {
-                                        $(`.seat-wrapper .seat[data-seat="${val}"]`)
-                                            .parent().addClass(
-                                                'seat-condition selected-by-gents disabled'
-                                            );
-                                        console.log(response.bookedSeats)
-                                        $(`.seat-wrapper .seat[data-seat="${val}"]`).html(
-                                            `<div>${val}</div> <div style="font-size: 10px;">${response.bookedSeats[i].pnr_number}</div>`
-                                        );
+                                    // Conflict exists, disable the seats
+                                    $.each(v.seats, function(index, val) {
+
+                                        let $seatNode = $(
+                                            `.seat-wrapper .seat[data-seat="${val}"]`);
+
+                                        // Add disabled styling based on gender
+                                        if (v.gender == 1) {
+                                            $seatNode.parent().addClass(
+                                                'seat-condition selected-by-gents disabled');
+                                        } else if (v.gender == 2) {
+                                            $seatNode.parent().addClass(
+                                                'seat-condition selected-by-ladies disabled'
+                                                );
+                                        } else if (v.gender == 3) {
+                                            $seatNode.parent().addClass(
+                                                'seat-condition selected-by-others disabled'
+                                                );
+                                        } else {
+                                            $seatNode.parent().addClass(
+                                                'seat-condition disabled'); // Fallback
+                                        }
+
+                                        // If the backend actually returns PNR, use v.pnr_number. 
+                                        // If it doesn't, just render the seat number.
+                                        let pnrHtml = v.pnr_number ?
+                                            `<div style="font-size: 10px;">${v.pnr_number}</div>` :
+                                            '';
+                                        $seatNode.html(`<div>${val}</div> ${pnrHtml}`);
                                     });
                                 }
                             });

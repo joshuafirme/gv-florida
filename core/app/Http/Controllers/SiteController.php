@@ -383,7 +383,7 @@ class SiteController extends Controller
                     });
             })
             // Select only the columns needed by the frontend to save memory
-            ->get(['pickup_point', 'dropping_point', 'seats', 'gender']);
+            ->get(['pickup_point', 'dropping_point', 'seats', 'gender', 'pnr_number']);
     }
 
     public function getTicketPrice(Request $request)
