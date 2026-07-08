@@ -4,12 +4,13 @@ namespace App\Exports;
 
 use App\Models\Deposit;
 use Maatwebsite\Excel\Concerns\FromCollection;
-
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStrictNullComparison;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class PaymentExport implements FromCollection, WithHeadings, WithStrictNullComparison, ShouldAutoSize
+class PaymentExport implements FromCollection, WithHeadings, WithStrictNullComparison, ShouldAutoSize, WithStyles
 {
     protected $results;
 
@@ -26,9 +27,9 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
         $scope = $request->status == 'all' ? 'query' : $request->status;
 
         if ($scope) {
-            $deposits = Deposit::$scope()->with(['user', 'gateway', 'bookedTicket']);
+            $deposits = Deposit::$scope()->with(['user', 'gateway', 'bookedTicket.slipSeriesNumbers']);
         } else {
-            $deposits = Deposit::with(['user', 'gateway', 'bookedTicket']);
+            $deposits = Deposit::with(['user', 'gateway', 'bookedTicket.slipSeriesNumbers']);
         }
         $deposits = $deposits->searchable(['trx', 'user:username', 'bookedTicket:pnr_number'])->dateFilter();
 
@@ -62,7 +63,10 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
                     $deposit->gateway->name,
                     showDateTime($deposit->created_at),
                     $deposit->bookedTicket->pnr_number,
-                    implodeSeriesNo($deposit),
+                    $this->formatReferenceNumbers($deposit),
+                    $deposit->bookedTicket->date_of_journey,
+                    $deposit->bookedTicket->trip?->schedule?->start_from,
+                    $deposit->bookedTicket->trip?->startFrom?->km_post,
                     $user,
                     $deposit->final_amount,
                     $deposit->userDiscount?->description,
@@ -76,6 +80,19 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
         return collect($output);
     }
 
+    private function formatReferenceNumbers(Deposit $deposit): ?string
+    {
+        if (!$deposit->bookedTicket?->slipSeriesNumbers) {
+            return null;
+        }
+
+        return $deposit->bookedTicket->slipSeriesNumbers
+            ->pluck('id')
+            ->chunk(3)
+            ->map(fn ($seriesNumbers) => $seriesNumbers->implode(', '))
+            ->implode("\n");
+    }
+
     public function headings(): array
     {
         return [
@@ -83,6 +100,9 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
             'Initiated',
             'PNR',
             'Reference No.',
+            'Travel Date',
+            'Departure Time',
+            'KM Post',
             'User',
             'Amount',
             'Type',
@@ -90,6 +110,13 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
             'Passenger ID',
             'Status',
         ];
+    }
+
+    public function styles(Worksheet $sheet): array
+    {
+        $sheet->getStyle('D')->getAlignment()->setWrapText(true);
+
+        return [];
     }
 
 
