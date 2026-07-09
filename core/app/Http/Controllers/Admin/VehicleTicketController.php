@@ -14,17 +14,180 @@ use App\Models\Trip;
 use App\Models\VehicleRoute;
 use App\Models\TicketPrice;
 use App\Models\TicketPriceByStoppage;
+use App\Models\TicketRefund;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class VehicleTicketController extends Controller
 {
     public function booked()
     {
         $pageTitle = 'Booked Ticket';
-        $tickets = BookedTicket::booked()->with(['trip', 'pickup', 'drop', 'user'])->paginate(getPaginate());
-        return view('admin.ticket.log', compact('pageTitle', 'tickets'));
+        $tickets = $this->bookedTicketRows()->paginate(getPaginate());
+        $ticketRows = true;
+        return view('admin.ticket.log', compact('pageTitle', 'tickets', 'ticketRows'));
+    }
+
+    public function refunded()
+    {
+        $pageTitle = 'Refunded Tickets';
+        $search = trim((string) request('search'));
+        $refunds = TicketRefund::query()
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($searchQuery) use ($search) {
+                    $searchQuery->where('reason', 'like', "%{$search}%")
+                        ->orWhereHas('slipSeriesNumber', fn ($slip) => $slip->where('id', 'like', "%{$search}%"))
+                        ->orWhereHas('bookedTicket', function ($ticket) use ($search) {
+                            $ticket->where('pnr_number', 'like', "%{$search}%")
+                                ->orWhere('series_number', 'like', "%{$search}%")
+                                ->orWhereHas('deposit.userDiscount', fn ($discount) => $discount->where('passenger_name', 'like', "%{$search}%"));
+                        });
+                });
+            })
+            ->with([
+                'slipSeriesNumber',
+                'bookedTicket.trip.schedule',
+                'bookedTicket.trip.fleetType',
+                'bookedTicket.pickup',
+                'bookedTicket.drop',
+                'bookedTicket.user',
+                'bookedTicket.deposit.userDiscount',
+                'processedBy',
+                'authorizedBy',
+            ])
+            ->latest()
+            ->paginate(getPaginate())
+            ->withQueryString();
+
+        return view('admin.ticket.refunded', compact('pageTitle', 'refunds', 'search'));
+    }
+
+    public function refundOptions($slip)
+    {
+        $slip = $this->refundableSlip($slip);
+        $ticket = $slip->bookedTicket;
+        $fare = $this->ticketFare($ticket);
+
+        return response()->json([
+            'slip_id' => $slip->id,
+            'booking_id' => $ticket->id,
+            'pnr' => $ticket->pnr_number,
+            'reference' => (string) $slip->id,
+            'passenger_name' => $ticket->deposit?->userDiscount?->passenger_name
+                ?: $ticket->user?->fullname
+                ?: 'Guest',
+            'passenger_type' => getPassengerType($ticket->deposit),
+            'seat' => $slip->seat,
+            'fare' => $fare,
+            'default_refund' => round($fare * 0.5, 2),
+            'processed_by' => auth('admin')->user()->name,
+            'reasons' => [
+                'Passenger no-show',
+                'Change of plans',
+                'Duplicate booking',
+                'Wrong trip / seat',
+                'Trip cancelled',
+                'Medical / emergency',
+            ],
+            'confirm_url' => route('admin.vehicle.ticket.refund.confirm', $slip->id),
+        ]);
+    }
+
+    public function confirmRefund(Request $request, $slip)
+    {
+        $validated = $request->validate([
+            'reason' => 'required|in:Passenger no-show,Change of plans,Duplicate booking,Wrong trip / seat,Trip cancelled,Medical / emergency',
+            'refund_amount' => 'required|numeric|min:0.01',
+            'remarks' => 'required|string|max:1000',
+            'authorization_code' => 'required|string|max:100',
+        ]);
+
+        $authorizedBy = Admin::where('status', Status::ENABLE)
+            ->where('passcode', $validated['authorization_code'])
+            ->first();
+
+        if (!$authorizedBy) {
+            throw ValidationException::withMessages([
+                'authorization_code' => 'The authorization code is invalid or belongs to an inactive administrator.',
+            ]);
+        }
+
+        $refund = DB::transaction(function () use ($slip, $validated, $authorizedBy) {
+            $slip = SlipSeriesNumber::whereDoesntHave('refund')
+                ->whereHas('bookedTicket', fn ($ticket) => $ticket->booked())
+                ->with(['bookedTicket.deposit', 'bookedTicket.slipSeriesNumbers.refund'])
+                ->lockForUpdate()
+                ->findOrFail($slip);
+            $ticket = $slip->bookedTicket;
+            $fare = $this->ticketFare($ticket);
+
+            if ((float) $validated['refund_amount'] > $fare) {
+                throw ValidationException::withMessages([
+                    'refund_amount' => 'The refund amount cannot exceed the ticket fare of ' . showAmount($fare) . '.',
+                ]);
+            }
+
+            $refund = TicketRefund::create([
+                'booked_ticket_id' => $ticket->id,
+                'slip_series_number_id' => $slip->id,
+                'processed_by_admin_id' => auth('admin')->id(),
+                'authorized_by_admin_id' => $authorizedBy->id,
+                'original_fare' => $fare,
+                'refund_amount' => $validated['refund_amount'],
+                'reason' => $validated['reason'],
+                'remarks' => $validated['remarks'],
+            ]);
+
+            $remainingSeats = $ticket->slipSeriesNumbers()
+                ->whereDoesntHave('refund')
+                ->pluck('seat')
+                ->values()
+                ->all();
+            $ticket->seats = $remainingSeats;
+            $ticket->ticket_count = count($remainingSeats);
+            if (!$remainingSeats) {
+                $ticket->status = Status::BOOKED_REFUNDED;
+            }
+            $ticket->save();
+
+            return $refund;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Refund confirmed successfully. The seat has been released and the ticket was moved to Refunded Tickets.',
+            'redirect_url' => route('admin.vehicle.ticket.refunded'),
+            'refund_id' => $refund->id,
+        ]);
+    }
+
+    private function refundableSlip($id)
+    {
+        return SlipSeriesNumber::whereDoesntHave('refund')
+            ->whereHas('bookedTicket', fn ($ticket) => $ticket->booked())
+            ->with([
+                'bookedTicket.user',
+                'bookedTicket.deposit.userDiscount',
+                'bookedTicket.slipSeriesNumbers',
+            ])
+            ->findOrFail($id);
+    }
+
+    private function ticketFare(BookedTicket $ticket): float
+    {
+        $ticketCount = max($ticket->slipSeriesNumbers->count(), 1);
+        $total = (float) ($ticket->deposit?->final_amount ?? 0);
+        if ($total <= 0) {
+            $total = (float) $ticket->sub_total;
+        }
+        if ($total <= 0) {
+            $total = (float) $ticket->unit_price * $ticketCount;
+        }
+
+        return round($total / $ticketCount, 2);
     }
 
     public function pending()
@@ -68,10 +231,50 @@ class VehicleTicketController extends Controller
                 $pageTitle .= 'Ticket Booking History Search';
                 break;
         }
-        $tickets = $ticket->with(['trip', 'pickup', 'drop', 'user'])->paginate(getPaginate());
+        if ($scope === 'booked') {
+            $tickets = $this->bookedTicketRows($search)->paginate(getPaginate())->withQueryString();
+            $ticketRows = true;
+        } else {
+            $tickets = $ticket->with(['trip', 'pickup', 'drop', 'user'])->paginate(getPaginate())->withQueryString();
+            $ticketRows = false;
+        }
         $pageTitle .= ' - ' . $search;
 
-        return view('admin.ticket.log', compact('pageTitle', 'search', 'scope', 'tickets'));
+        return view('admin.ticket.log', compact('pageTitle', 'search', 'scope', 'tickets', 'ticketRows'));
+    }
+
+    private function bookedTicketRows(?string $search = null)
+    {
+        return SlipSeriesNumber::query()
+            ->whereDoesntHave('refund')
+            ->whereHas('bookedTicket', function ($query) {
+                $query->booked();
+            })
+            ->when($search !== null && trim($search) !== '', function ($query) use ($search) {
+                $term = trim($search);
+                $query->where(function ($rowQuery) use ($term) {
+                    $rowQuery->where('id', 'like', "%{$term}%")
+                        ->orWhereHas('bookedTicket', function ($ticketQuery) use ($term) {
+                            $ticketQuery->where('pnr_number', 'like', "%{$term}%")
+                                ->orWhere('series_number', 'like', "%{$term}%")
+                                ->orWhereHas('deposit.userDiscount', function ($discountQuery) use ($term) {
+                                    $discountQuery->where('passenger_name', 'like', "%{$term}%");
+                                });
+                        });
+                });
+            })
+            ->with([
+                'bookedTicket.trip.schedule',
+                'bookedTicket.trip.fleetType',
+                'bookedTicket.pickup',
+                'bookedTicket.drop',
+                'bookedTicket.user',
+                'bookedTicket.kiosk',
+                'bookedTicket.deposit.userDiscount',
+                'bookedTicket.slipSeriesNumbers',
+                'bookedTicket.approvedBy',
+            ])
+            ->orderByDesc('id');
     }
 
     public function ticketPriceList()
@@ -371,7 +574,7 @@ class VehicleTicketController extends Controller
         $data->seats = $requestedSeats;
         $data->save();
 
-        $slips = $data->slipSeriesNumbers;
+        $slips = $data->activeSlipSeriesNumbers;
 
         foreach ($slips as $key => $slip) {
             if (isset($requestedSeats[$key])) {
@@ -382,6 +585,307 @@ class VehicleTicketController extends Controller
 
         $notify[] = ['success', "Booking Date and Seats Updated Successfully"];
         return redirect()->back()->withNotify($notify);
+    }
+
+    public function rebookingOptions($id)
+    {
+        $ticket = $this->rebookingTicket($id);
+
+        $trips = Trip::active()
+            ->where('id', '!=', $ticket->trip_id)
+            ->with(['route', 'schedule', 'fleetType'])
+            ->get()
+            ->filter(function ($trip) use ($ticket) {
+                $fare = $this->fareForTrip($trip, $ticket);
+
+                return $this->tripSupportsBooking($trip, $ticket)
+                    && $fare !== null
+                    && abs($fare - (float) $ticket->unit_price) < 0.01;
+            })
+            ->map(fn ($trip) => $this->tripOption($trip, $ticket))
+            ->values();
+
+        return response()->json([
+            'booking' => $this->bookingSummary($ticket),
+            'trips' => $trips,
+            'max_date' => now()->addDays(getAllowedAdvanceBookingDays())->format('Y-m-d'),
+            'availability_url' => route('admin.trip.ticket.rebook.availability', $ticket->id),
+            'confirm_url' => route('admin.trip.ticket.rebook.confirm', $ticket->id),
+        ]);
+    }
+
+    public function rebookingAvailability(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'type' => 'required|in:change_date,new_trip,change_seat',
+            'date' => 'nullable|required_unless:type,change_seat|date|after_or_equal:today',
+            'trip_id' => 'nullable|required_if:type,new_trip|integer',
+        ]);
+
+        $ticket = $this->rebookingTicket($id);
+        [$trip, $date] = $this->resolveRebookingTarget($ticket, $validated);
+        $availability = $this->seatAvailability($ticket, $trip, $date);
+
+        $fleetType = $trip->fleetType;
+        $busLayout = new BusLayout($trip);
+        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'busLayout'))->render();
+
+        return response()->json([
+            'html' => $html,
+            'booked_seats' => $availability['booked'],
+            'disabled_seats' => $availability['disabled'],
+            'required_seats' => $ticket->activeSlipSeriesNumbers->count(),
+            'selected_seats' => $ticket->activeSlipSeriesNumbers->pluck('seat')->values(),
+            'before' => $this->bookingSummary($ticket),
+            'after' => $this->bookingSummary($ticket, $trip, $date),
+        ]);
+    }
+
+    public function confirmRebooking(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'type' => 'required|in:change_date,new_trip,change_seat',
+            'date' => 'nullable|required_unless:type,change_seat|date|after_or_equal:today',
+            'trip_id' => 'nullable|required_if:type,new_trip|integer',
+            'seats' => 'required|array|min:1',
+            'seats.*' => 'required|string|max:30',
+        ]);
+
+        $result = DB::transaction(function () use ($id, $validated) {
+            $ticket = BookedTicket::booked()
+                ->with(['trip.route', 'trip.schedule', 'trip.fleetType', 'pickup', 'drop', 'activeSlipSeriesNumbers'])
+                ->lockForUpdate()
+                ->findOrFail($id);
+            [$trip, $date] = $this->resolveRebookingTarget($ticket, $validated);
+
+            $requestedSeats = array_values(array_unique($validated['seats']));
+            $requiredSeats = $ticket->activeSlipSeriesNumbers->count();
+
+            if (count($requestedSeats) !== $requiredSeats) {
+                throw ValidationException::withMessages([
+                    'seats' => "Select exactly {$requiredSeats} seat(s) for this booking.",
+                ]);
+            }
+
+            $originalSeats = $ticket->activeSlipSeriesNumbers->pluck('seat')->sort()->values()->all();
+            $comparisonSeats = collect($requestedSeats)->sort()->values()->all();
+            if ($validated['type'] === 'change_seat' && $comparisonSeats === $originalSeats) {
+                throw ValidationException::withMessages([
+                    'seats' => 'Select a different seat before confirming the seat change.',
+                ]);
+            }
+
+            if ($validated['type'] === 'change_date'
+                && $date === Carbon::parse($ticket->date_of_journey)->format('Y-m-d')) {
+                throw ValidationException::withMessages([
+                    'date' => 'Select a different travel date before confirming the date change.',
+                ]);
+            }
+
+            $availability = $this->seatAvailability($ticket, $trip, $date, true);
+            $unavailable = array_merge($availability['booked'], $availability['disabled_full']);
+            $conflicts = array_values(array_intersect($requestedSeats, $unavailable));
+
+            if ($conflicts) {
+                throw ValidationException::withMessages([
+                    'seats' => 'These seats are no longer available: ' . implode(', ', $conflicts),
+                ]);
+            }
+
+            $ticket->trip_id = $trip->id;
+            $ticket->date_of_journey = $date;
+            $ticket->seats = $requestedSeats;
+            $ticket->is_rebooked = 1;
+            $ticket->save();
+
+            foreach ($ticket->activeSlipSeriesNumbers->values() as $index => $slip) {
+                $slip->seat = $requestedSeats[$index];
+                $slip->save();
+            }
+
+            return $ticket;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rebooking confirmed. The ticket remains paid, the PNR and reference number are unchanged, and no new voucher is required.',
+            'print_url' => route('admin.trip.reservationSlip', $result->id),
+        ]);
+    }
+
+    private function rebookingTicket($id)
+    {
+        return BookedTicket::booked()
+            ->with([
+                'trip.route',
+                'trip.schedule',
+                'trip.fleetType',
+                'pickup',
+                'drop',
+                'slipSeriesNumbers',
+                'activeSlipSeriesNumbers',
+                'deposit.userDiscount',
+                'user',
+            ])
+            ->findOrFail($id);
+    }
+
+    private function resolveRebookingTarget(BookedTicket $ticket, array $data): array
+    {
+        $type = $data['type'];
+        $date = $type === 'change_seat'
+            ? Carbon::parse($ticket->date_of_journey)->format('Y-m-d')
+            : Carbon::parse($data['date'])->format('Y-m-d');
+        $trip = $ticket->trip;
+
+        if ($type === 'new_trip') {
+            $trip = Trip::active()->with(['route', 'schedule', 'fleetType'])->findOrFail($data['trip_id']);
+            $fare = $this->fareForTrip($trip, $ticket);
+
+            if ($trip->id === $ticket->trip_id) {
+                throw ValidationException::withMessages([
+                    'trip_id' => 'Select a different trip for a New Trip rebooking.',
+                ]);
+            }
+
+            if (!$this->tripSupportsBooking($trip, $ticket)) {
+                throw ValidationException::withMessages([
+                    'trip_id' => 'The selected trip does not contain the original pickup and drop-off stoppages in the correct order.',
+                ]);
+            }
+
+            if ($fare === null || abs($fare - (float) $ticket->unit_price) >= 0.01) {
+                throw ValidationException::withMessages([
+                    'trip_id' => 'The selected trip fare must match the original booking fare.',
+                ]);
+            }
+        }
+
+        if (Carbon::parse($date)->isAfter(now()->addDays(getAllowedAdvanceBookingDays())->endOfDay())) {
+            throw ValidationException::withMessages([
+                'date' => 'The travel date exceeds the allowed advance-booking period.',
+            ]);
+        }
+
+        $dayOff = array_map('intval', $trip->day_off ?? []);
+        if (in_array((int) Carbon::parse($date)->format('w'), $dayOff, true)) {
+            throw ValidationException::withMessages([
+                'date' => 'The selected trip is not available on ' . Carbon::parse($date)->format('l') . '.',
+            ]);
+        }
+
+        return [$trip, $date];
+    }
+
+    private function tripSupportsBooking(Trip $trip, BookedTicket $ticket): bool
+    {
+        $stoppages = array_map('strval', array_values($trip->route->stoppages ?? []));
+        $start = array_search((string) $trip->start_from, $stoppages, true);
+        $end = array_search((string) $trip->end_to, $stoppages, true);
+        $pickup = array_search((string) $ticket->pickup_point, $stoppages, true);
+        $drop = array_search((string) $ticket->dropping_point, $stoppages, true);
+
+        if ($start === false || $end === false || $pickup === false || $drop === false) {
+            return false;
+        }
+
+        if ($start < $end) {
+            return $pickup >= $start && $drop <= $end && $pickup < $drop;
+        }
+
+        return $pickup <= $start && $drop >= $end && $pickup > $drop;
+    }
+
+    private function fareForTrip(Trip $trip, BookedTicket $ticket): ?float
+    {
+        $price = TicketPrice::where('fleet_type_id', $trip->fleet_type_id)
+            ->where('vehicle_route_id', $trip->vehicle_route_id)
+            ->with('prices')
+            ->first();
+
+        if (!$price) {
+            return null;
+        }
+
+        $segment = [(string) $ticket->pickup_point, (string) $ticket->dropping_point];
+
+        foreach ($price->prices as $segmentPrice) {
+            $pricedSegment = array_map('strval', $segmentPrice->source_destination ?? []);
+            if ($pricedSegment === $segment || $pricedSegment === array_reverse($segment)) {
+                return (float) $segmentPrice->price;
+            }
+        }
+
+        return null;
+    }
+
+    private function seatAvailability(BookedTicket $ticket, Trip $trip, string $date, bool $lock = false): array
+    {
+        $query = BookedTicket::whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
+            ->where('id', '!=', $ticket->id)
+            ->where('trip_id', $trip->id)
+            ->whereDate('date_of_journey', $date)
+            ->with('activeSlipSeriesNumbers');
+
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        $booked = $query->get()
+            ->flatMap(fn ($booking) => $booking->activeSlipSeriesNumbers->pluck('seat'))
+            ->unique()
+            ->values()
+            ->all();
+        $disabled = array_values((array) ($trip->fleetType->disabled_seats ?? []));
+        $disabledFull = [];
+
+        foreach ($trip->fleetType->deck_seats ?? [] as $deckIndex => $seatCount) {
+            foreach ($disabled as $seat) {
+                $disabledFull[] = ($deckIndex + 1) . '-' . $seat;
+            }
+        }
+
+        return [
+            'booked' => $booked,
+            'disabled' => $disabled,
+            'disabled_full' => $disabledFull,
+        ];
+    }
+
+    private function bookingSummary(BookedTicket $ticket, ?Trip $trip = null, ?string $date = null): array
+    {
+        $trip ??= $ticket->trip;
+        $date ??= Carbon::parse($ticket->date_of_journey)->format('Y-m-d');
+
+        return [
+            'id' => $ticket->id,
+            'pnr' => $ticket->pnr_number,
+            'reference' => $ticket->activeSlipSeriesNumbers->pluck('id')->implode(', '),
+            'date' => $date,
+            'date_display' => Carbon::parse($date)->format('Y-m-d'),
+            'time' => Carbon::parse($trip->schedule->start_from)->format('g:i A'),
+            'bus_type' => $trip->fleetType->name,
+            'route' => $ticket->pickup->name . ' via ' . $ticket->drop->name,
+            'seats' => $ticket->activeSlipSeriesNumbers->pluck('seat')->values(),
+            'trip_id' => $trip->id,
+            'fare' => (float) $ticket->unit_price,
+            'passenger_name' => $ticket->deposit?->userDiscount?->passenger_name
+                ?: $ticket->user?->fullname
+                ?: 'Guest',
+            'passenger_type' => getPassengerType($ticket->deposit),
+        ];
+    }
+
+    private function tripOption(Trip $trip, BookedTicket $ticket): array
+    {
+        return [
+            'id' => $trip->id,
+            'label' => $trip->fleetType->name . ' - ' . Carbon::parse($trip->schedule->start_from)->format('g:i A'),
+            'route' => $ticket->pickup->name . ' via ' . $ticket->drop->name,
+            'schedule' => Carbon::parse($trip->schedule->start_from)->format('g:i A'),
+            'bus_type' => $trip->fleetType->name,
+            'fare' => (float) $ticket->unit_price,
+        ];
     }
 
     public function cancelBooking($id)
