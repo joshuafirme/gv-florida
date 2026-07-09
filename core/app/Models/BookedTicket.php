@@ -69,6 +69,17 @@ class BookedTicket extends Model
         return $this->hasMany(SlipSeriesNumber::class, 'booked_ticket_id');
     }
 
+    public function activeSlipSeriesNumbers()
+    {
+        return $this->hasMany(SlipSeriesNumber::class, 'booked_ticket_id')
+            ->whereDoesntHave('refund');
+    }
+
+    public function refunds()
+    {
+        return $this->hasMany(TicketRefund::class);
+    }
+
     public function approvedBy()
     {
         return $this->hasOne(Admin::class, 'id', 'approved_by');
@@ -116,5 +127,10 @@ class BookedTicket extends Model
     public function scopeRejected($query)
     {
         $query->where('status', Status::BOOKED_REJECTED);
+    }
+
+    public function scopeRefunded($query)
+    {
+        $query->where('status', Status::BOOKED_REFUNDED);
     }
 }
