@@ -61,9 +61,9 @@
                                             <span class="font-weight-bold">{{ __($item->trip?->fleetType?->name) }}</span>
                                             <br>
                                             <span class="fw-bold text-dark text-end">
-                                                {{ $item->pickup->name }}
+                                                {{ $item?->pickup?->name }}
                                                 <i class="las la-long-arrow-alt-right mx-1 text-muted"></i>
-                                                {{ $item->drop->name }}
+                                                {{ $item?->drop?->name }}
                                             </span>
                                         </td>
                                         <td data-label="@lang('Fare')">
@@ -74,20 +74,20 @@
                                             @endif
                                         </td>
                                         <td>{{ getPassengerType($item?->deposit) }}</td>
-                                        <td>{{ $item->kiosk_id ? $item->kiosk->name : 'Online' }}</td>
+                                        <td>{{ $item->kiosk_id ? $item?->kiosk?->name : 'Online' }}</td>
                                         <td>
-                                            @if ($item->deposit && $item->deposit->pchannel)
+                                            @if ($item?->deposit && $item?->deposit?->pchannel)
                                                 {{ readPaymentChannel($item->deposit->pchannel) }}
                                             @elseif($item->deposit)
                                                 {{ $item->deposit->gatewayCurrency()->name }}
                                             @endif
                                         </td>
                                         <td>
-                                            @if ($item->approved_by)
+                                            @if ($item?->approved_by)
                                                 {{ $item->approvedBy->name }}
                                             @elseif ($item->kiosk_id)
                                                 {{ $item->kiosk->name }}
-                                            @elseif ($item->deposit && $item->deposit->pchannel)
+                                            @elseif ($item?->deposit && $item->deposit?->pchannel)
                                                 Paynamics
                                             @endif
                                         </td>
