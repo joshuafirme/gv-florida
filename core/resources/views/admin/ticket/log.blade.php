@@ -55,10 +55,10 @@
                                         </td>
                                         <td data-label="@lang('Journey Date')">
                                             {{ __(showDateTime($item->date_of_journey, 'd M, Y')) }}
-                                            <div>{{ date('h:i A', strtotime($item->trip->schedule->start_from)) }}</div>
+                                            <div>{{ date('h:i A', strtotime($item->trip?->schedule?->start_from)) }}</div>
                                         </td>
                                         <td data-label="@lang('Trip')">
-                                            <span class="font-weight-bold">{{ __($item->trip->fleetType->name) }}</span>
+                                            <span class="font-weight-bold">{{ __($item->trip?->fleetType?->name) }}</span>
                                             <br>
                                             <span class="fw-bold text-dark text-end">
                                                 {{ $item->pickup->name }}
