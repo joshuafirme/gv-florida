@@ -509,18 +509,83 @@ class ManageTripController extends Controller
         ]);
     }
 
-    public function manifestSeatLayout($trip_id)
+    public function manifestSeatLayout(Request $request, $trip_id)
     {
+        $request->validate([
+            'date_of_journey' => 'nullable|date',
+            'search' => 'nullable|string|max:100',
+        ]);
+        $date = $request->date_of_journey
+            ? Carbon::parse($request->date_of_journey)->format('Y-m-d')
+            : now()->format('Y-m-d');
+        $search = trim((string) $request->search);
 
-        $trip = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo', 'assignedVehicle.vehicle', 'bookedTickets'])
+        $trip = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo', 'assignedVehicle.vehicle'])
             ->where('status', Status::ENABLE)->where('id', $trip_id)
             ->firstOrFail();
 
-        $busLayout = new BusLayout($trip);
+        $bookings = BookedTicket::where('trip_id', $trip->id)
+            ->whereDate('date_of_journey', $date)
+            ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
+            ->with([
+                'activeSlipSeriesNumbers',
+                'deposit.userDiscount',
+                'user',
+                'pickup',
+                'drop',
+            ])
+            ->get();
+        $seatManifest = collect();
+
+        foreach ($bookings as $booking) {
+            $passengerName = $booking->deposit?->userDiscount?->passenger_name
+                ?: $booking->user?->fullname
+                ?: 'Guest';
+            $passengerType = getPassengerType($booking->deposit);
+
+            foreach ($booking->activeSlipSeriesNumbers as $slip) {
+                $haystack = strtolower(implode(' ', [
+                    $slip->seat,
+                    $slip->id,
+                    $booking->pnr_number,
+                    $passengerName,
+                    $passengerType,
+                ]));
+                $seatManifest->put($slip->seat, [
+                    'seat' => $slip->seat,
+                    'passenger_name' => $passengerName,
+                    'passenger_type' => $passengerType,
+                    'reference' => $slip->id,
+                    'pnr' => $booking->pnr_number,
+                    'destination' => $booking->drop?->name,
+                    'km_post' => $booking->drop?->km_post,
+                    'blocked' => $booking->status === Status::BOOKED_PENDING,
+                    'matches' => $search === '' || str_contains($haystack, strtolower($search)),
+                ]);
+            }
+        }
+
+        $capacity = collect((array) $trip->fleetType->deck_seats)->sum(fn ($seats) => (int) $seats);
+        $disabled = array_values((array) ($trip->fleetType->disabled_seats ?? []));
+        $bookedCount = $seatManifest->where('blocked', false)->count();
+        $blockedCount = $seatManifest->where('blocked', true)->count();
+        $stats = [
+            'capacity' => $capacity,
+            'booked' => $bookedCount,
+            'blocked' => $blockedCount,
+            'vacant' => max($capacity - $bookedCount - $blockedCount - count($disabled), 0),
+            'discounted' => $seatManifest->filter(fn ($seat) => str_contains(strtolower($seat['passenger_type']), 'senior')
+                || str_contains(strtolower($seat['passenger_type']), 'pwd'))->count(),
+            'matches' => $seatManifest->where('matches', true)->count(),
+        ];
 
         return view('admin.pdf.manifest-seat-layout', [
-            "trip" => $trip,
-            "busLayout" => $busLayout
+            'trip' => $trip,
+            'date' => $date,
+            'search' => $search,
+            'seatManifest' => $seatManifest,
+            'disabledSeats' => $disabled,
+            'stats' => $stats,
         ]);
     }
 

@@ -165,10 +165,10 @@
                                                         <i class="la la-pencil"></i>@lang('Edit')
                                                     </button>
 
-                                                    <a href="{{ url("/admin/manage/trip/manifest-seat-layout/$item->id") }}"
-                                                        target="_blank" class="btn btn-sm btn-outline--info">
+                                                    <button type="button" class="btn btn-sm btn-outline--info manifestDateBtn"
+                                                        data-manifest-url="{{ route('admin.trip.manifestSeatLayout', $item->id) }}">
                                                         <i class="las la-clipboard-list"></i> Manifest
-                                                    </a>
+                                                    </button>
 
                                                     @if (!$item->status)
                                                         <button type="button"
@@ -209,6 +209,27 @@
         </div>
 
         <x-confirmation-modal />
+
+        <div id="manifestDateModal" class="modal fade" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-sm">
+                <div class="modal-content shadow">
+                    <div class="modal-header">
+                        <h6 class="modal-title"><i class="las la-calendar me-1"></i> Manifest Date</h6>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label for="tripManifestDate" class="form-label small text-uppercase">Departure date</label>
+                        <input type="date" id="tripManifestDate" class="form-control" value="{{ now()->format('Y-m-d') }}">
+                    </div>
+                    <div class="modal-footer justify-content-between">
+                        <button type="button" class="btn btn-light" id="manifestTodayBtn">Today</button>
+                        <button type="button" class="btn btn--primary" id="openManifestBtn">
+                            <i class="las la-external-link-alt me-1"></i> Open
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Create/Update Modal (Light Theme) -->
         <div id="cuModal" class="modal fade" tabindex="-1" role="dialog">
@@ -461,6 +482,27 @@
                     $('.select2-basic').select2({
                         dropdownParent: $('#cuModal')
                     });
+                });
+
+                const manifestDateModal = new bootstrap.Modal(document.getElementById('manifestDateModal'));
+                let manifestUrl = '';
+
+                $('.manifestDateBtn').on('click', function() {
+                    manifestUrl = $(this).data('manifest-url');
+                    $('#tripManifestDate').val('{{ now()->format('Y-m-d') }}');
+                    manifestDateModal.show();
+                });
+
+                $('#manifestTodayBtn').on('click', function() {
+                    $('#tripManifestDate').val('{{ now()->format('Y-m-d') }}');
+                });
+
+                $('#openManifestBtn').on('click', function() {
+                    const date = $('#tripManifestDate').val();
+                    if (!manifestUrl || !date) return;
+
+                    window.open(`${manifestUrl}?date_of_journey=${encodeURIComponent(date)}`, '_blank');
+                    manifestDateModal.hide();
                 });
 
             })(jQuery);
