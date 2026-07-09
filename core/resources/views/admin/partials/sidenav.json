@@ -269,6 +269,21 @@
             },
             {
                 "keyword": [
+                    "Refund",
+                    "Refunded Ticket",
+                    "Ticket refund",
+                    "Booking refund"
+                ],
+                "title": "Refunded Tickets",
+                "route_name": "admin.vehicle.ticket.refunded",
+                "menu_active": "admin.vehicle.ticket.refunded",
+                "permission": "admin.vehicle.ticket.booked",
+                "params": {
+                    "user_id": ""
+                }
+            },
+            {
+                "keyword": [
                     "Rejected Ticket",
                     "Tickets",
                     "Ticket management",

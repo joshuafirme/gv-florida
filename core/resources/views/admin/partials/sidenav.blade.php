@@ -41,7 +41,7 @@
                                                 ? $menu->menu_active[0]
                                                 : $menu->menu_active;
                                         @endphp
-                                        @if (in_array($_menu_active, $permissions))
+                                        @if (in_array($menu->permission ?? $_menu_active, $permissions))
                                             @php
                                                 $submenuParams = null;
                                                 if (@$menu->params) {
