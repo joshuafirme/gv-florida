@@ -105,7 +105,8 @@ class UserController extends Controller
 
         return response()->json([
             'success' => true,
-            'file_url' => "$base$path"
+            'file_url' => "$base$path",
+            'reservation_slip_url' => route('admin.trip.reservationSlip', $ticket->id),
         ]);
     }
 

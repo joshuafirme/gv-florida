@@ -38,8 +38,9 @@
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Seats')
-                            <span
-                                class="fw-bold">{{ $deposit->bookedTicket->seats ? implode(',', $deposit->bookedTicket->seats) : '' }}</span>
+                            <span class="fw-bold">
+                                {{ $deposit->bookedTicket->slipSeriesNumbers->pluck('seat')->implode(', ') }}
+                            </span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Passenger Type')
@@ -135,7 +136,7 @@
                                 </div>
 
                                 <div class="mb-3">
-                                    <label class="form-label">Cash Received</label>
+                                    <label class="form-label">Amount Tendered</label>
                                     <input type="text" id="cash" class="form-control money" placeholder="0.00">
                                     <small id="cashError" class="text-danger"></small>
 
@@ -161,7 +162,7 @@
                             <div class="col-6">
                                 <button disabled data-id="{{ $deposit->bookedTicket->id }}"
                                     class="btn btn-outline--primary w-auto" id="printBtn"><i class="fa-solid fa-print"></i>
-                                    Print [F9]</button>
+                                    Review Payment [F9]</button>
                             </div>
                         </div>
                         @if ($details != null)
@@ -224,13 +225,40 @@
             <div class="modal-content">
 
                 <div class="modal-header">
-                    <h5 class="modal-title">Confirm Transaction</h5>
+                    <h5 class="modal-title">Confirm Payment — {{ $deposit->bookedTicket->pnr_number }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
 
                 <div class="modal-body">
 
                     <table class="table table-sm">
+                        <tr>
+                            <th>Trip / Route</th>
+                            <td>{{ $deposit->bookedTicket->pickup->name }} → {{ $deposit->bookedTicket->drop->name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Departure</th>
+                            <td>
+                                {{ showDateTime($deposit->bookedTicket->date_of_journey, 'M d, Y') }}
+                                {{ date('h:i A', strtotime($deposit->bookedTicket->trip->schedule->start_from)) }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Bus Type</th>
+                            <td>{{ $deposit->bookedTicket->trip->fleetType->name }}</td>
+                        </tr>
+                        <tr>
+                            <th>PNR</th>
+                            <td>{{ $deposit->bookedTicket->pnr_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>Seat(s)</th>
+                            <td>{{ $deposit->bookedTicket->slipSeriesNumbers->pluck('seat')->implode(', ') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Ticket No.(s)</th>
+                            <td>{{ $deposit->bookedTicket->slipSeriesNumbers->pluck('id')->implode(', ') }}</td>
+                        </tr>
                         <tr>
                             <th>Transaction ID</th>
                             <td id="m_transaction"></td>
@@ -244,7 +272,7 @@
                             <td id="m_amount"></td>
                         </tr>
                         <tr>
-                            <th>Amount Received</th>
+                            <th>Amount Tendered</th>
                             <td id="m_cash"></td>
                         </tr>
                         <tr>
@@ -393,7 +421,7 @@
                         });
                     })
                     .then(data => {
-                        fileUrl = data.file_url; // Capture the URL
+                        fileUrl = data.reservation_slip_url || data.file_url; // Capture the URL
                         console.log('data', data)
                         // Start the print process
                         return qz.print(config, [{
@@ -423,7 +451,7 @@
                         notify('error', err.message);
 
                         // 3. Reset the print button so it isn't stuck on "Printing..."
-                        $('#printBtn').html('<i class="fa-solid fa-print"></i> Print [F9]').prop('disabled',
+                        $('#printBtn').html('<i class="fa-solid fa-print"></i> Review Payment [F9]').prop('disabled',
                             false);
 
                         // 4. If the error was due to expiration, reload the page after 2 seconds

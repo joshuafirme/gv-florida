@@ -41,6 +41,7 @@ class Status{
     const BOOKED_APPROVED = 1;
     const BOOKED_PENDING = 2;
     const BOOKED_EXPIRED = 3;
+    const BOOKED_REFUNDED = 4;
 
     const TRIP_ON_TIME = 'on_time';
     const TRIP_BOARDING = 'boarding';

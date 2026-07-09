@@ -24,6 +24,89 @@ class DepositController extends Controller
         return view('admin.deposit.log', compact('pageTitle', 'deposits', 'status'));
     }
 
+    public function scanPending(Request $request)
+    {
+        $request->validate([
+            'scan' => 'required|string|max:2048',
+        ]);
+
+        $scannedValue = trim($request->scan);
+        $lookup = $scannedValue;
+
+        // Ticket QR codes contain a search URL. Hardware scanners may also be
+        // configured to send the PNR, reference number, or ticket number only.
+        if (filter_var($scannedValue, FILTER_VALIDATE_URL)) {
+            parse_str((string) parse_url($scannedValue, PHP_URL_QUERY), $query);
+            $lookup = trim((string) ($query['search'] ?? $query['pnr'] ?? $scannedValue));
+        }
+
+        $deposit = Deposit::pending()
+            ->with([
+                'user',
+                'userDiscount',
+                'bookedTicket.pickup',
+                'bookedTicket.drop',
+                'bookedTicket.trip.schedule',
+                'bookedTicket.trip.fleetType',
+                'bookedTicket.slipSeriesNumbers',
+            ])
+            ->where(function ($query) use ($lookup) {
+                $query->where('trx', $lookup)
+                    ->orWhereHas('bookedTicket', function ($ticketQuery) use ($lookup) {
+                        $ticketQuery->where('pnr_number', $lookup)
+                            ->orWhere('series_number', $lookup)
+                            ->orWhereHas('slipSeriesNumbers', fn ($slipQuery) => $slipQuery->where('id', $lookup));
+                    });
+            })
+            ->latest('id')
+            ->first();
+
+        if (!$deposit) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'No pending payment was found for the scanned QR code.',
+                ], 404);
+            }
+
+            $notify[] = ['error', 'No pending payment was found for the scanned QR code.'];
+            return to_route('admin.deposit.pending')->withInput()->withNotify($notify);
+        }
+
+        if ($request->expectsJson()) {
+            $ticket = $deposit->bookedTicket;
+            $slips = $ticket->slipSeriesNumbers;
+            $ticketFare = (float) $deposit->final_amount / max($slips->count(), 1);
+
+            return response()->json([
+                'deposit_id' => $deposit->id,
+                'ticket_id' => $ticket->id,
+                'pnr' => $ticket->pnr_number,
+                'trip' => $ticket->pickup->name . ' via ' . $ticket->drop->name,
+                'route' => $ticket->pickup->name . ' via ' . $ticket->drop->name,
+                'bus_type' => $ticket->trip->fleetType->name,
+                'departure_time' => Carbon::parse($ticket->trip->schedule->start_from)->format('g:i A'),
+                'travel_date' => Carbon::parse($ticket->date_of_journey)->format('D, M d, Y'),
+                'amount' => (float) $deposit->final_amount,
+                'passenger_name' => $deposit->userDiscount?->passenger_name
+                    ?: $deposit->user?->fullname
+                    ?: 'Guest',
+                'passenger_type' => getPassengerType($deposit),
+                'processed_by' => auth('admin')->user()->name,
+                'tickets' => $slips->map(fn ($slip) => [
+                    'number' => $slip->id,
+                    'seat' => $slip->seat,
+                    'fare' => $ticketFare,
+                ])->values(),
+                'reject_url' => route('admin.deposit.reject'),
+                'validate_url' => url("api/ticket/validate-deposit/{$deposit->id}"),
+                'print_url' => url("api/ticket/download/reservation-slip/{$ticket->id}"),
+                'reservation_slip_url' => route('admin.trip.reservationSlip', $ticket->id),
+            ]);
+        }
+
+        return to_route('admin.deposit.details', ['id' => $deposit->id, 'from_scan' => 1]);
+    }
+
 
     public function approved($userId = null)
     {
@@ -153,7 +236,16 @@ class DepositController extends Controller
 
     public function details($id)
     {
-        $deposit = Deposit::where('id', $id)->with(['user', 'gateway', 'bookedTicket'])->firstOrFail();
+        $deposit = Deposit::where('id', $id)->with([
+            'user',
+            'gateway',
+            'userDiscount',
+            'bookedTicket.pickup',
+            'bookedTicket.drop',
+            'bookedTicket.trip.schedule',
+            'bookedTicket.trip.fleetType',
+            'bookedTicket.slipSeriesNumbers',
+        ])->firstOrFail();
 
         if (!$deposit->user) {
             $pageTitle = "Requested payment from {$deposit->bookedTicket->kiosk->name}";

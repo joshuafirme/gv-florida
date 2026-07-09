@@ -181,10 +181,16 @@ Route::middleware('admin')->group(function () {
         Route::post('cancel-booking/{id}', 'cancelBooking')->name('cancel.booking');
         Route::post('update-booking-date/{id}', 'updateBookingDate')->name('update.booking.date');
         Route::get('get-seat-layout', 'getSeatLayout')->name('get-seat-layout');
+        Route::get('rebook/{id}/options', 'rebookingOptions')->name('rebook.options');
+        Route::get('rebook/{id}/availability', 'rebookingAvailability')->name('rebook.availability');
+        Route::post('rebook/{id}/confirm', 'confirmRebooking')->name('rebook.confirm');
     });
 
     Route::controller('VehicleTicketController')->prefix('tickets')->name('vehicle.ticket.')->group(function () {
         Route::get('booked', 'booked')->name('booked');
+        Route::get('refunded', 'refunded')->name('refunded');
+        Route::get('refund/{slip}/options', 'refundOptions')->name('refund.options');
+        Route::post('refund/{slip}/confirm', 'confirmRefund')->name('refund.confirm');
         Route::get('pending', 'pending')->name('pending');
         Route::get('rejected', 'rejected')->name('rejected');
         Route::get('all', 'list')->name('list');
@@ -249,6 +255,7 @@ Route::middleware('admin')->group(function () {
     Route::controller('DepositController')->prefix('deposit')->name('deposit.')->group(function () {
         Route::get('all/{user_id?}', 'deposit')->name('list');
         Route::get('export', 'export');
+        Route::get('pending/scan', 'scanPending')->name('pending.scan');
         Route::get('pending/{user_id?}', 'pending')->name('pending');
         Route::get('rejected/{user_id?}', 'rejected')->name('rejected');
         Route::get('approved/{user_id?}', 'approved')->name('approved');
