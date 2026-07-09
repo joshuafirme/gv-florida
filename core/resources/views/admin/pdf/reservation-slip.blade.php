@@ -109,9 +109,9 @@
 
 <body>
     @php
-        $fare = $ticket->deposit->final_amount / count($ticket->seats);
+        $fare = $ticket->deposit->final_amount / max($ticket->slipSeriesNumbers->count(), 1);
     @endphp
-    @foreach ($ticket->slipSeriesNumbers as $slip_series)
+    @foreach ($ticket->activeSlipSeriesNumbers as $slip_series)
         <div class="slip-container">
 
             <div class="slip-title">{{ isset($content->heading) ? $content->heading : '' }}</div>
