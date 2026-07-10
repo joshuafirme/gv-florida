@@ -274,7 +274,8 @@ class VehicleTicketController extends Controller
                 'bookedTicket.slipSeriesNumbers',
                 'bookedTicket.approvedBy',
             ])
-            ->orderByDesc('id');
+            ->orderByDesc('booked_ticket_id')
+            ->orderBy('id');
     }
 
     public function ticketPriceList()

@@ -12,20 +12,22 @@
                             <thead>
                                 <tr>
                                     <th>@lang('User')</th>
-                                    <th>@lang('PNR Number')</th>
+                                    <th>@lang('PNR')</th>
                                     @if (!empty($ticketRows))
                                         <th>@lang('Reference No.')</th>
-                                        <th>@lang('Ticket No.')</th>
-                                        <th>@lang('Passenger Name')</th>
                                     @endif
-                                    <th>@lang('Journey Date')</th>
+                                    <th>@lang('Journey')</th>
                                     <th>@lang('Trip')</th>
+                                    @if (!empty($ticketRows))
+                                        <th>@lang('Seat No.')</th>
+                                    @endif
                                     <th>@lang('Fare')</th>
-                                    <th>@lang('Passenger Type')</th>
+                                    <th>@lang('Passenger')</th>
                                     <th>@lang('Booking Source')</th>
                                     <th>@lang('Payment Method')</th>
                                     <th>@lang('Processed By')</th>
-                                    <th>@lang('Is Rebooked')</th>
+                                    <th>@lang('Authorized By')</th>
+                                    <th>@lang('Status')</th>
                                     <th>@lang('Action')</th>
                                 </tr>
                             </thead>
@@ -34,9 +36,18 @@
                                     @php
                                         $ticketSlip = !empty($ticketRows) ? $item : null;
                                         $item = $ticketSlip ? $ticketSlip->bookedTicket : $item;
+                                        $slipCount = max($item->slipSeriesNumbers->count(), 1);
                                         $ticketFare = $ticketSlip
-                                            ? ($item->deposit?->final_amount ?? $item->sub_total) / max($item->slipSeriesNumbers->count(), 1)
+                                            ? ($item->deposit?->final_amount ?? $item->sub_total) / $slipCount
                                             : $item->sub_total;
+                                        $ticketOriginalFare = $ticketSlip && $item->deposit
+                                            ? $item->deposit->amount / $slipCount
+                                            : $ticketFare;
+                                        $ticketDiscount = $ticketSlip && $item->deposit?->userDiscount
+                                            ? $item->deposit->userDiscount->amount / $slipCount
+                                            : 0;
+                                        $passengerName = $item->deposit?->userDiscount?->passenger_name ?: ($item->user?->fullname ?: 'Guest');
+                                        $passengerIdNumber = $item->deposit?->userDiscount?->id_number;
                                     @endphp
                                     <tr>
                                         <td data-label="@lang('User')">
@@ -51,31 +62,14 @@
                                                 </span>
                                             @endif
                                         </td>
-                                        <td data-label="@lang('PNR Number')">
-                                            <div><span class="text-muted">{{ __($item->pnr_number) }}</span></div>
-                                            @if ($item->status == 1)
-                                                <span
-                                                    class="badge badge--success font-weight-normal text--samll">@lang('Booked')</span>
-                                            @elseif($item->status == 2)
-                                                <span
-                                                    class="badge badge--warning font-weight-normal text--samll">@lang('Pending')</span>
-                                            @elseif($item->status == Status::BOOKED_REFUNDED)
-                                                <span
-                                                    class="badge badge--danger font-weight-normal text--samll">@lang('Refunded')</span>
-                                            @else
-                                                <span
-                                                    class="badge badge--danger font-weight-normal text--samll">@lang('Rejected')</span>
-                                            @endif
+                                        <td data-label="@lang('PNR')">
+                                            <span class="fw-bold text--primary">{{ __($item->pnr_number) }}</span>
                                         </td>
                                         @if ($ticketSlip)
-                                            <td data-label="@lang('Reference No.')">{{ $item->series_number ?: '-' }}</td>
-                                            <td data-label="@lang('Ticket No.')">{{ $ticketSlip->id }}</td>
-                                            <td data-label="@lang('Passenger Name')">
-                                                {{ $item->deposit?->userDiscount?->passenger_name ?: ($item->user?->fullname ?: '-') }}
-                                            </td>
+                                            <td data-label="@lang('Reference No.')">{{ $ticketSlip->id }}</td>
                                         @endif
-                                        <td data-label="@lang('Journey Date')">
-                                            {{ __(showDateTime($item->date_of_journey, 'd M, Y')) }}
+                                        <td data-label="@lang('Journey')">
+                                            {{ __(showDateTime($item->date_of_journey, 'M d, Y')) }}
                                             <div>{{ date('h:i A', strtotime($item->trip?->schedule?->start_from)) }}</div>
                                         </td>
                                         <td data-label="@lang('Trip')">
@@ -87,18 +81,29 @@
                                                 {{ $item?->drop?->name }}
                                             </span>
                                         </td>
+                                        @if ($ticketSlip)
+                                            <td data-label="@lang('Seat No.')"><strong>{{ $ticketSlip->seat }}</strong></td>
+                                        @endif
                                         <td data-label="@lang('Fare')">
-                                            {{ __(showAmount($ticketFare)) }}
-                                            @if ($ticketSlip)
-                                                <div>@lang('Seat'): {{ $ticketSlip->seat }}</div>
-                                            @else
+                                            @if ($ticketDiscount > 0)
+                                                <div class="text-muted">Fare: {{ showAmount($ticketOriginalFare) }}</div>
+                                                <div class="text--warning">Discount: -{{ showAmount($ticketDiscount) }}</div>
+                                            @endif
+                                            <strong>{{ __(showAmount($ticketFare)) }}</strong>
+                                            @if (!$ticketSlip)
                                                 <div>Ticket Count: {{ $item->seats ? __(sizeof($item->seats)) : '' }}</div>
                                             @endif
                                             @if (!$ticketSlip && $item->seats && is_array($item->seats))
                                                 <div>{{ implode(', ', $item->seats) }}</div>
                                             @endif
                                         </td>
-                                        <td>{{ getPassengerType($item?->deposit) }}</td>
+                                        <td data-label="@lang('Passenger')">
+                                            <strong>{{ $passengerName }}</strong>
+                                            <div class="text-muted">{{ getPassengerType($item?->deposit) }}</div>
+                                            @if ($passengerIdNumber)
+                                                <small class="text-muted">ID: {{ $passengerIdNumber }}</small>
+                                            @endif
+                                        </td>
                                         <td>{{ $item->kiosk_id ? $item?->kiosk?->name : 'Online' }}</td>
                                         <td>
                                             @if ($item?->deposit && $item?->deposit?->pchannel)
@@ -116,11 +121,20 @@
                                                 Paynamics
                                             @endif
                                         </td>
+                                        <td>&mdash;</td>
                                         <td>
-                                            @if ($item->is_rebooked)
-                                                <span class="badge badge--info">@lang('Yes')</span>
+                                            @if ($item->status == 1)
+                                                <span
+                                                    class="badge badge--success font-weight-normal text--samll">@lang('Booked')</span>
+                                            @elseif($item->status == 2)
+                                                <span
+                                                    class="badge badge--warning font-weight-normal text--samll">@lang('Pending')</span>
+                                            @elseif($item->status == Status::BOOKED_REFUNDED)
+                                                <span
+                                                    class="badge badge--danger font-weight-normal text--samll">@lang('Refunded')</span>
                                             @else
-                                                <span class="badge badge--dark">@lang('No')</span>
+                                                <span
+                                                    class="badge badge--danger font-weight-normal text--samll">@lang('Rejected')</span>
                                             @endif
                                         </td>
                                         <td>
@@ -461,8 +475,8 @@
         action="{{ route('admin.vehicle.ticket.search', $scope ?? str_replace('admin.vehicle.ticket.', '', request()->route()->getName())) }}"
         method="GET" class="form-inline float-sm-right bg--white">
         <div class="input-group">
-            <input type="text" name="search" class="form-control" placeholder="@lang('PNR, reference, passenger, or ticket no.')"
-                aria-label="@lang('Search PNR, reference no., passenger name, or ticket no.')"
+            <input type="text" name="search" class="form-control" placeholder="@lang('PNR, reference no., or passenger')"
+                aria-label="@lang('Search PNR, reference no., or passenger name')"
                 value="{{ $search ?? '' }}">
             <button class="btn btn--primary" type="submit"><i class="fa fa-search"></i></button>
         </div>
