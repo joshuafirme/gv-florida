@@ -157,10 +157,17 @@
                                             </td>
                                         @endif
                                         <td>
-                                            <a href="{{ route('admin.deposit.details', $deposit->id) }}"
-                                                class="btn btn-sm btn-outline--primary ms-1">
-                                                <i class="la la-desktop"></i> @lang('Details')
-                                            </a>
+                                            @if ($status == 'pending')
+                                                <button type="button" class="btn btn-sm btn-outline--primary ms-1 open-pos-btn"
+                                                    data-scan="{{ $deposit->trx }}">
+                                                    <i class="la la-desktop"></i> @lang('Process')
+                                                </button>
+                                            @else
+                                                <a href="{{ route('admin.deposit.details', $deposit->id) }}"
+                                                    class="btn btn-sm btn-outline--primary ms-1">
+                                                    <i class="la la-desktop"></i> @lang('Details')
+                                                </a>
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty
@@ -589,18 +596,25 @@
                     $('#confirmTicketRows').html(ticketRowsHtml(activePayment));
                 }
 
-                $('#qrScanForm').on('submit', function(event) {
-                    event.preventDefault();
-                    const form = this;
-                    const submitButton = $(form).find('[type="submit"]');
-                    const originalLabel = submitButton.html();
+                function openPendingPayment(scanValue, trigger, afterOpen = null) {
+                    const button = $(trigger);
+                    const originalLabel = button.length ? button.html() : '';
 
-                    submitButton.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Loading');
+                    if (!String(scanValue || '').trim()) {
+                        notify('error', 'Enter or scan a PNR, reference no., transaction no., or ticket no.');
+                        return;
+                    }
+
+                    if (button.length) {
+                        button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Loading');
+                    }
 
                     $.ajax({
-                        url: form.action,
+                        url: @json(route('admin.deposit.pending.scan')),
                         method: 'GET',
-                        data: $(form).serialize(),
+                        data: {
+                            scan: scanValue
+                        },
                         dataType: 'json',
                         headers: {
                             Accept: 'application/json'
@@ -608,13 +622,34 @@
                     }).done(function(payment) {
                         activePayment = payment;
                         fillProcessModal(payment);
-                        $('#qrScanInput').val('');
+
+                        if (typeof afterOpen === 'function') {
+                            afterOpen(payment);
+                        }
+
                         processPaymentModal.show();
                     }).fail(function(xhr) {
                         notify('error', xhr.responseJSON?.message || 'Unable to find this pending payment.');
                     }).always(function() {
-                        submitButton.prop('disabled', false).html(originalLabel);
+                        if (button.length) {
+                            button.prop('disabled', false).html(originalLabel);
+                        }
                     });
+                }
+
+                $('#qrScanForm').on('submit', function(event) {
+                    event.preventDefault();
+                    const form = this;
+                    const scanInput = $('#qrScanInput');
+                    const submitButton = $(form).find('[type="submit"]');
+
+                    openPendingPayment(scanInput.val(), submitButton, function() {
+                        $('#qrScanInput').val('');
+                    });
+                });
+
+                $('.open-pos-btn').on('click', function() {
+                    openPendingPayment($(this).data('scan'), this);
                 });
 
                 $('#qrScanForm').on('change', '#qrScanInput', function() {

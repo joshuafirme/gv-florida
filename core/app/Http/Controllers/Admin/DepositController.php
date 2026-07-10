@@ -6,7 +6,6 @@ use App\Constants\Status;
 use App\Models\Deposit;
 use App\Models\Gateway;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Gateway\PaymentController;
 use App\Models\BookedTicket;
 use Carbon\Carbon;
 use DB;
@@ -104,7 +103,8 @@ class DepositController extends Controller
             ]);
         }
 
-        return to_route('admin.deposit.details', ['id' => $deposit->id, 'from_scan' => 1]);
+        $notify[] = ['info', 'Pending payments must be processed through the new POS modal on the Pending Payments page.'];
+        return to_route('admin.deposit.pending')->withNotify($notify);
     }
 
 
@@ -247,6 +247,11 @@ class DepositController extends Controller
             'bookedTicket.slipSeriesNumbers',
         ])->firstOrFail();
 
+        if ($deposit->status == Status::PAYMENT_PENDING) {
+            $notify[] = ['info', 'Pending payments must be processed through the new POS modal on the Pending Payments page.'];
+            return to_route('admin.deposit.pending')->withNotify($notify);
+        }
+
         if (!$deposit->user) {
             $pageTitle = "Requested payment from {$deposit->bookedTicket->kiosk->name}";
         } else {
@@ -259,27 +264,7 @@ class DepositController extends Controller
 
     public function approve($id)
     {
-        $deposit = Deposit::where('id', $id)
-            ->where('status', Status::PAYMENT_PENDING)
-            ->where('created_at', '>=', Carbon::now()->subMinutes(15))
-            ->first();
-
-        if (!$deposit) {
-            $notify[] = ['error', 'This deposit request has expired (exceeded 15 minutes) or is no longer pending.'];
-            return back()->withNotify($notify);
-        }
-
-        $admin = auth('admin')->user();
-        $deposit->processed_by_name = $admin->name;
-        $deposit->processed_by_admin_id = $admin->id;
-        $deposit->save();
-
-        $deposit->bookedTicket->approved_by = $admin->id;
-        $deposit->bookedTicket->save();
-        PaymentController::userDataUpdate($deposit, true);
-
-        $notify[] = ['success', 'Deposit request approved successfully'];
-
+        $notify[] = ['error', 'Legacy POS approval is disabled. Please process pending payments through the new POS modal.'];
         return to_route('admin.deposit.pending')->withNotify($notify);
     }
 
