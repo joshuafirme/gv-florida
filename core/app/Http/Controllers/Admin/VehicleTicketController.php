@@ -14,7 +14,9 @@ use App\Models\Trip;
 use App\Models\VehicleRoute;
 use App\Models\TicketPrice;
 use App\Models\TicketPriceByStoppage;
+use App\Models\TicketCancellation;
 use App\Models\TicketRefund;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -54,6 +56,7 @@ class VehicleTicketController extends Controller
                 'bookedTicket.pickup',
                 'bookedTicket.drop',
                 'bookedTicket.user',
+                'bookedTicket.kiosk',
                 'bookedTicket.deposit.userDiscount',
                 'processedBy',
                 'authorizedBy',
@@ -63,6 +66,42 @@ class VehicleTicketController extends Controller
             ->withQueryString();
 
         return view('admin.ticket.refunded', compact('pageTitle', 'refunds', 'search'));
+    }
+
+    public function cancelled()
+    {
+        $pageTitle = 'Cancelled Ticket';
+        $search = trim((string) request('search'));
+        $cancellations = TicketCancellation::query()
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($searchQuery) use ($search) {
+                    $searchQuery->where('reason', 'like', "%{$search}%")
+                        ->orWhere('remarks', 'like', "%{$search}%")
+                        ->orWhereHas('slipSeriesNumber', fn ($slip) => $slip->where('id', 'like', "%{$search}%"))
+                        ->orWhereHas('bookedTicket', function ($ticket) use ($search) {
+                            $ticket->where('pnr_number', 'like', "%{$search}%")
+                                ->orWhere('series_number', 'like', "%{$search}%")
+                                ->orWhereHas('deposit.userDiscount', fn ($discount) => $discount->where('passenger_name', 'like', "%{$search}%"));
+                        });
+                });
+            })
+            ->with([
+                'slipSeriesNumber',
+                'bookedTicket.trip.schedule',
+                'bookedTicket.trip.fleetType',
+                'bookedTicket.pickup',
+                'bookedTicket.drop',
+                'bookedTicket.user',
+                'bookedTicket.kiosk',
+                'bookedTicket.deposit.userDiscount',
+                'processedBy',
+                'authorizedBy',
+            ])
+            ->latest()
+            ->paginate(getPaginate())
+            ->withQueryString();
+
+        return view('admin.ticket.cancelled', compact('pageTitle', 'cancellations', 'search'));
     }
 
     public function refundOptions($slip)
@@ -143,6 +182,7 @@ class VehicleTicketController extends Controller
 
             $remainingSeats = $ticket->slipSeriesNumbers()
                 ->whereDoesntHave('refund')
+                ->whereDoesntHave('cancellation')
                 ->pluck('seat')
                 ->values()
                 ->all();
@@ -164,9 +204,116 @@ class VehicleTicketController extends Controller
         ]);
     }
 
+    public function cancelOptions($slip)
+    {
+        $slip = $this->cancellableSlip($slip);
+        $ticket = $slip->bookedTicket;
+        $fare = $this->ticketFare($ticket);
+
+        return response()->json([
+            'slip_id' => $slip->id,
+            'booking_id' => $ticket->id,
+            'pnr' => $ticket->pnr_number,
+            'reference' => (string) $slip->id,
+            'passenger_name' => $ticket->deposit?->userDiscount?->passenger_name
+                ?: $ticket->user?->fullname
+                ?: 'Guest',
+            'passenger_type' => getPassengerType($ticket->deposit),
+            'seat' => $slip->seat,
+            'fare' => $fare,
+            'processed_by' => auth('admin')->user()->name,
+            'reasons' => [
+                'Passenger no-show',
+                'Change of plans',
+                'Duplicate booking',
+                'Wrong trip / seat',
+                'Trip cancelled',
+                'Medical / emergency',
+            ],
+            'confirm_url' => route('admin.vehicle.ticket.cancel.confirm', $slip->id),
+        ]);
+    }
+
+    public function confirmCancellation(Request $request, $slip)
+    {
+        $validated = $request->validate([
+            'reason' => 'required|in:Passenger no-show,Change of plans,Duplicate booking,Wrong trip / seat,Trip cancelled,Medical / emergency',
+            'remarks' => 'required|string|max:1000',
+            'authorization_code' => 'required|string|max:100',
+        ]);
+
+        $authorizedBy = Admin::where('status', Status::ENABLE)
+            ->where('passcode', $validated['authorization_code'])
+            ->first();
+
+        if (!$authorizedBy) {
+            throw ValidationException::withMessages([
+                'authorization_code' => 'The authorization code is invalid or belongs to an inactive administrator.',
+            ]);
+        }
+
+        $cancellation = DB::transaction(function () use ($slip, $validated, $authorizedBy) {
+            $slip = SlipSeriesNumber::whereDoesntHave('refund')
+                ->whereDoesntHave('cancellation')
+                ->whereHas('bookedTicket', fn ($ticket) => $ticket->booked())
+                ->with(['bookedTicket.deposit', 'bookedTicket.slipSeriesNumbers.refund', 'bookedTicket.slipSeriesNumbers.cancellation'])
+                ->lockForUpdate()
+                ->findOrFail($slip);
+            $ticket = $slip->bookedTicket;
+            $fare = $this->ticketFare($ticket);
+
+            $cancellation = TicketCancellation::create([
+                'booked_ticket_id' => $ticket->id,
+                'slip_series_number_id' => $slip->id,
+                'processed_by_admin_id' => auth('admin')->id(),
+                'authorized_by_admin_id' => $authorizedBy->id,
+                'original_fare' => $fare,
+                'reason' => $validated['reason'],
+                'remarks' => $validated['remarks'],
+            ]);
+
+            $remainingSeats = $ticket->slipSeriesNumbers()
+                ->whereDoesntHave('refund')
+                ->whereDoesntHave('cancellation')
+                ->pluck('seat')
+                ->values()
+                ->all();
+            $ticket->seats = $remainingSeats;
+            $ticket->ticket_count = count($remainingSeats);
+            if (!$remainingSeats) {
+                $ticket->status = Status::BOOKED_CANCELLED;
+            }
+            $ticket->save();
+
+            return $cancellation;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cancellation confirmed successfully. The seat has been released and the ticket was moved to Cancelled Tickets.',
+            'redirect_url' => route('admin.vehicle.ticket.cancelled'),
+            'acknowledgment_url' => route('admin.vehicle.ticket.cancel.acknowledgment', $cancellation->id),
+            'cancellation_id' => $cancellation->id,
+        ]);
+    }
+
     private function refundableSlip($id)
     {
         return SlipSeriesNumber::whereDoesntHave('refund')
+            ->whereDoesntHave('cancellation')
+            ->whereHas('bookedTicket', fn ($ticket) => $ticket->booked())
+            ->with([
+                'bookedTicket.user',
+                'bookedTicket.deposit.userDiscount',
+                'bookedTicket.slipSeriesNumbers',
+            ])
+            ->findOrFail($id);
+    }
+
+    private function cancellableSlip($id)
+    {
+        return SlipSeriesNumber::whereDoesntHave('refund')
+            ->whereDoesntHave('cancellation')
             ->whereHas('bookedTicket', fn ($ticket) => $ticket->booked())
             ->with([
                 'bookedTicket.user',
@@ -247,6 +394,7 @@ class VehicleTicketController extends Controller
     {
         return SlipSeriesNumber::query()
             ->whereDoesntHave('refund')
+            ->whereDoesntHave('cancellation')
             ->whereHas('bookedTicket', function ($query) {
                 $query->booked();
             })
@@ -888,14 +1036,45 @@ class VehicleTicketController extends Controller
         ];
     }
 
+    public function cancellationAcknowledgment($id)
+    {
+        $cancellation = TicketCancellation::with([
+            'slipSeriesNumber',
+            'bookedTicket.trip.schedule',
+            'bookedTicket.trip.fleetType',
+            'bookedTicket.pickup',
+            'bookedTicket.drop',
+            'bookedTicket.user',
+            'bookedTicket.deposit.userDiscount',
+            'processedBy',
+            'authorizedBy',
+        ])->findOrFail($id);
+
+        $pdf = Pdf::setOptions([
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'DejaVu Sans',
+            'isHtml5ParserEnabled' => true,
+            'isPhpEnabled' => true,
+        ])->loadView('admin.pdf.cancellation-acknowledgment', [
+            'cancellation' => $cancellation,
+            'pageTitle' => 'Cancellation Acknowledgment',
+        ]);
+
+        $pdf->setPaper([0, 0, 144, 500], 'portrait');
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="Cancellation Acknowledgment.pdf"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
+    }
+
     public function cancelBooking($id)
     {
-        $data = BookedTicket::findOrFail($id);
-        $data->status = Status::BOOKED_REJECTED;
-        $data->save();
-
-        $notify[] = ['success', "Booking Cancelled Successfully"];
-        return redirect()->back()->withNotify($notify);
+        $notify[] = ['error', 'Legacy cancellation is disabled. Please cancel tickets through the authorized cancellation modal.'];
+        return to_route('admin.vehicle.ticket.booked')->withNotify($notify);
     }
 
     public function getSeatLayout(Request $request)

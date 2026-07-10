@@ -284,6 +284,21 @@
             },
             {
                 "keyword": [
+                    "Cancel",
+                    "Cancelled Ticket",
+                    "Ticket cancellation",
+                    "Booking cancellation"
+                ],
+                "title": "Cancelled Tickets",
+                "route_name": "admin.vehicle.ticket.cancelled",
+                "menu_active": "admin.vehicle.ticket.cancelled",
+                "permission": "admin.vehicle.ticket.booked",
+                "params": {
+                    "user_id": ""
+                }
+            },
+            {
+                "keyword": [
                     "Rejected Ticket",
                     "Tickets",
                     "Ticket management",
