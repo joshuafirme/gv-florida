@@ -6,6 +6,8 @@
 
     $seats = $bookedTicket->seats ? $bookedTicket->seats : session('seats');
     $seats = is_array($seats) ? array_values($seats) : [];
+    $seatCount = count($seats);
+    $seatWord = $seatCount === 1 ? 'seat' : 'seats';
     $unitPrice = getAmount($bookedTicket->unit_price);
     $discountOptions = $discounts
         ->map(function ($discount) {
@@ -49,7 +51,7 @@
                         <div class="flow-title-icon"><i class="las la-users"></i></div>
                         <div>
                             <h4>Passenger Details</h4>
-                            <p>{{ count($seats) }} seats &middot; {{ $bookedTicket->pickup->name ?? $bookedTicket->trip->startFrom->name }} &rarr; {{ $bookedTicket->drop->name ?? $bookedTicket->trip->endTo->name }} &middot; {{ showDateTime($bookedTicket->trip->schedule->start_from, 'h:i A') }}</p>
+                            <p>{{ $seatCount }} {{ $seatWord }} &middot; {{ $bookedTicket->pickup->name ?? $bookedTicket->trip->startFrom->name }} &rarr; {{ $bookedTicket->drop->name ?? $bookedTicket->trip->endTo->name }} &middot; {{ showDateTime($bookedTicket->trip->schedule->start_from, 'h:i A') }}</p>
                         </div>
                     </div>
 
@@ -104,14 +106,11 @@
                             <div class="auth-icon"><i class="las la-shield-alt"></i></div>
                             <div>
                                 <h5>Discount Authorization</h5>
-                                <p>Authorization is required before discounted fare can proceed to payment.</p>
+                                <p>Note: discounted transactions require authorization from authorized personnel before payment can proceed.</p>
                             </div>
                         </div>
 
                         <div class="authorization-preview js-auth-preview"></div>
-                        <div class="auth-actions">
-                            <button type="button" class="btn-primary-flow" id="openAuthorizationModal">Authorize Discount</button>
-                        </div>
                         <div class="auth-status js-auth-status"></div>
                     </div>
 
@@ -158,7 +157,7 @@
                         <div class="js-payment-breakdown"></div>
                         <div class="payment-instructions js-payment-instructions"></div>
                         <div class="summary-total">
-                            <span>Total to pay ({{ count($seats) }} seats)</span>
+                            <span>Total to pay ({{ $seatCount }} {{ $seatWord }})</span>
                             <strong class="js-payment-total">{{ showAmount($bookedTicket->sub_total) }}</strong>
                         </div>
                     </div>
@@ -174,37 +173,15 @@
                     <div class="modal-content">
                         <div class="auth-modal-icon"><i class="las la-shield-alt"></i></div>
                         <h5>Discount Authorization</h5>
-                        <p class="auth-modal-copy">Tap an authorized ID or enter the authorization code to approve the discounted fare.</p>
+                        <p class="auth-modal-copy">Enter the authorization code to approve the discounted fare.</p>
 
                         <div class="authorization-preview js-auth-modal-preview"></div>
 
-                        <div class="auth-tabs">
-                            <button type="button" class="auth-tab is-active" data-auth-method="tap_id">Tap ID</button>
-                            <button type="button" class="auth-tab" data-auth-method="code">Enter Code</button>
-                        </div>
+                        <label class="flow-label text-start">Authorization Code</label>
+                        <input type="password" class="flow-input" id="authPasscode" placeholder="Enter authorization code" autocomplete="new-password">
 
-                        <div class="auth-pane" data-auth-pane="tap_id">
-                            <div class="tap-target"><i class="las la-wifi"></i></div>
-                            <label class="flow-label">Authorized Personnel ID</label>
-                            <input type="text" class="flow-input" id="authorizedId" placeholder="Waiting for reader... tap a card on the device">
-                        </div>
-
-                        <div class="auth-pane d-none" data-auth-pane="code">
-                            <div class="row gy-3">
-                                <div class="col-md-6">
-                                    <label class="flow-label">Username</label>
-                                    <input type="text" class="flow-input" id="authUsername" autocomplete="new-password">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="flow-label">Authorization Code</label>
-                                    <input type="password" class="flow-input" id="authPasscode" autocomplete="new-password">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="auth-actions">
+                        <div class="auth-actions auth-actions--single">
                             <button type="button" class="btn-light-flow" id="cancelAuthorization">Cancel</button>
-                            <button type="button" class="btn-primary-flow" id="authorizeDiscount">Authorize Discount</button>
                         </div>
                         <div class="auth-status js-auth-modal-status"></div>
                     </div>
@@ -219,7 +196,13 @@
         .passenger-flow-wrap {
             background: #f3f5f7;
             min-height: 100vh;
-            padding: 18px 0 36px;
+            padding: 8px 0 24px;
+        }
+
+        .passenger-flow-wrap input::placeholder,
+        .passenger-flow-wrap textarea::placeholder {
+            font-style: italic;
+            opacity: .58;
         }
 
         .flow-back-btn {
@@ -230,14 +213,15 @@
             gap: 6px;
             font-weight: 700;
             padding: 0;
+            margin-bottom: 8px;
         }
 
         .flow-panel {
             background: #fff;
             border-radius: 8px;
             box-shadow: 0 1px 8px rgba(15, 23, 42, .06);
-            margin-top: 14px;
-            padding: 22px;
+            margin-top: 10px;
+            padding: 18px;
         }
 
         .flow-title-row,
@@ -269,10 +253,10 @@
             color: #df2a82;
             display: flex;
             flex: 0 0 44px;
-            font-size: 22px;
-            height: 44px;
+            font-size: 20px;
+            height: 40px;
             justify-content: center;
-            width: 44px;
+            width: 40px;
         }
 
         .auth-icon {
@@ -283,9 +267,9 @@
         .passenger-card {
             border: 1px solid #edf0f3;
             border-radius: 8px;
-            margin-top: 16px;
+            margin-top: 12px;
             overflow: hidden;
-            padding: 0 20px 20px;
+            padding: 0 16px 16px;
         }
 
         .passenger-card__head {
@@ -293,8 +277,8 @@
             background: #f8fafc;
             display: flex;
             justify-content: space-between;
-            margin: 0 -20px 18px;
-            padding: 12px 20px;
+            margin: 0 -16px 14px;
+            padding: 10px 16px;
         }
 
         .passenger-card__head span,
@@ -316,7 +300,7 @@
             border: 1px solid #dfe3e8;
             border-radius: 8px;
             color: #111827;
-            height: 46px;
+            height: 42px;
             outline: none;
             padding: 0 13px;
             width: 100%;
@@ -328,29 +312,26 @@
         }
 
         .flow-label {
-            margin: 14px 0 7px;
+            margin: 11px 0 6px;
             text-transform: none;
         }
 
-        .passenger-type-grid,
-        .auth-tabs {
+        .passenger-type-grid {
             display: grid;
             gap: 8px;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
         }
 
-        .type-option,
-        .auth-tab {
+        .type-option {
             background: #fff;
             border: 1px solid #dfe3e8;
             border-radius: 8px;
             color: #4b5563;
             font-weight: 800;
-            min-height: 42px;
+            min-height: 38px;
         }
 
-        .type-option.is-active,
-        .auth-tab.is-active {
+        .type-option.is-active {
             background: #df2a82;
             border-color: #df2a82;
             color: #fff;
@@ -367,8 +348,8 @@
         .payment-total-box {
             background: #f8fafc;
             border-radius: 8px;
-            margin-top: 16px;
-            padding: 16px;
+            margin-top: 12px;
+            padding: 14px;
         }
 
         .summary-line,
@@ -401,8 +382,8 @@
         .authorization-panel {
             border: 1px solid #ffe0ef;
             border-radius: 8px;
-            margin-top: 16px;
-            padding: 20px;
+            margin-top: 12px;
+            padding: 14px;
         }
 
         .authorization-preview {
@@ -410,8 +391,8 @@
             border-radius: 8px;
             color: #334155;
             font-weight: 700;
-            margin: 16px 0;
-            padding: 12px;
+            margin: 12px 0 4px;
+            padding: 10px;
         }
 
         .tap-target {
@@ -432,6 +413,11 @@
             gap: 10px;
             grid-template-columns: 1fr 1fr;
             margin-top: 16px;
+        }
+
+        .auth-actions--single,
+        .discount-auth-modal .auth-actions {
+            grid-template-columns: 1fr;
         }
 
         .authorization-panel .auth-actions {
@@ -475,8 +461,8 @@
             border: 0;
             border-radius: 8px;
             font-weight: 800;
-            min-height: 46px;
-            padding: 0 18px;
+            min-height: 42px;
+            padding: 0 16px;
         }
 
         .btn-primary-flow {
@@ -505,13 +491,13 @@
         .payment-passenger-list {
             background: #f8fafc;
             border-radius: 8px;
-            margin-top: 14px;
-            padding: 12px;
+            margin-top: 10px;
+            padding: 10px;
         }
 
         .payment-methods {
             display: grid;
-            gap: 10px;
+            gap: 8px;
         }
 
         .payment-method-card {
@@ -520,8 +506,8 @@
             border-radius: 8px;
             cursor: pointer;
             display: flex;
-            gap: 12px;
-            padding: 14px;
+            gap: 10px;
+            padding: 12px;
         }
 
         .payment-method-card:has(input:checked) {
@@ -587,7 +573,9 @@
                 final: Number(@json(getAmount($bookedTicket->sub_total)))
             };
             let gateway = null;
-            let activeAuthMethod = 'tap_id';
+            let pendingPaymentAfterAuthorization = false;
+            let authorizationTimer = null;
+            let authorizationInFlight = false;
 
             function money(amount) {
                 return '{{ gs('cur_sym') }}' + Number(amount || 0).toLocaleString('en-US', {
@@ -617,12 +605,12 @@
             function setStep(step) {
                 const stepOrder = ['seat', 'details', 'payment', 'done'];
                 const activeIndex = stepOrder.indexOf(step);
-                const progress = activeIndex <= 0 ? 0 : (activeIndex / (stepOrder.length - 1)) * 100;
+                const progress = activeIndex <= 0 ? 0 : activeIndex / (stepOrder.length - 1);
 
                 $('.js-step-panel').addClass('d-none');
                 $(`.js-step-panel[data-panel="${step}"]`).removeClass('d-none');
                 $('.flow-step').removeClass('is-active is-complete');
-                $('.booking-flow-stepper').css('--booking-flow-progress', `${progress}%`);
+                $('.booking-flow-stepper').css('--booking-flow-progress', progress);
 
                 stepOrder.forEach((stepName, index) => {
                     const stepNode = $(`.flow-step[data-step="${stepName}"]`);
@@ -711,8 +699,11 @@
                     let label = `Seat ${item.seat} &middot; ${item.passenger_type === 'discounted' ? item.discount_name : 'Regular'}`;
                     return `<div class="summary-line"><span>${label}</span><strong>${money(item.fare)}</strong></div>`;
                 }).join('');
+                const detailsDiscountLine = totals.discount > 0 ?
+                    `<div class="summary-line"><span>Discount</span><strong>-${money(totals.discount)}</strong></div>` : '';
+                const detailsBreakdown = `${lines}<div class="summary-line"><span>Base Fare</span><strong>${money(totals.subtotal)}</strong></div>${detailsDiscountLine}`;
 
-                $('.js-breakdown').html(lines);
+                $('.js-breakdown').html(detailsBreakdown);
                 $('.js-details-total').text(money(totals.payable));
                 $('.js-payment-passengers').html(lines);
 
@@ -733,6 +724,8 @@
                     $('#authorizationPanel').addClass('d-none');
                     resetAuthorization();
                 }
+
+                $('#continueToPayment').text(state.discounted.length ? 'Authorize & Continue to Payment' : 'Continue to Payment');
             }
 
             function calculateGateway() {
@@ -783,54 +776,38 @@
                 calculateGateway();
             });
 
-            $('.auth-tab').on('click', function() {
-                activeAuthMethod = $(this).data('auth-method');
-                $('.auth-tab').removeClass('is-active');
-                $(this).addClass('is-active');
-                $('.auth-pane').addClass('d-none');
-                $(`.auth-pane[data-auth-pane="${activeAuthMethod}"]`).removeClass('d-none');
-            });
-
             $('#cancelAuthorization').on('click', function() {
+                pendingPaymentAfterAuthorization = false;
+                clearTimeout(authorizationTimer);
                 resetAuthorization();
                 $('.js-auth-status, .js-auth-modal-status').addClass('text-danger').text('Authorization cancelled. Change discounted passengers to Regular or authorize again.');
                 $('#discountAuthorizationModal').modal('hide');
             });
 
-            $('#openAuthorizationModal').on('click', function() {
-                const state = collectPassengers(true);
-                if (!state.valid || !state.discounted.length) return;
-                $('#discountAuthorizationModal').modal('show');
-            });
+            function proceedToPayment() {
+                $('input[name="passengers"]').val(JSON.stringify(passengerManifest));
+                setStep('payment');
+                renderSummary();
+                calculateGateway();
+            }
 
-            $('#authorizeDiscount').on('click', function() {
+            function authorizeAndContinue() {
+                if (authorizationInFlight) return;
+
                 const state = collectPassengers(true);
                 if (!state.valid) return;
                 if (!state.discounted.length) return;
 
                 const formData = new FormData();
-                formData.append('authorization_method', activeAuthMethod);
-
-                if (activeAuthMethod === 'tap_id') {
-                    const authorizedId = $.trim($('#authorizedId').val());
-                    if (!authorizedId) {
-                        showMessage('error', 'Tap or enter an authorized personnel ID.');
-                        return;
-                    }
-                    formData.append('authorized_id', authorizedId);
-                } else {
-                    const username = $.trim($('#authUsername').val());
-                    const passcode = $.trim($('#authPasscode').val());
-                    if (!username || !passcode) {
-                        showMessage('error', 'Enter the authorization username and code.');
-                        return;
-                    }
-                    formData.append('username', username);
-                    formData.append('passcode', passcode);
+                const passcode = $.trim($('#authPasscode').val());
+                if (!passcode) {
+                    return;
                 }
+                formData.append('authorization_method', 'code');
+                formData.append('passcode', passcode);
 
-                const button = $(this);
-                button.prop('disabled', true).text('Authorizing...');
+                authorizationInFlight = true;
+                $('.js-auth-modal-status').removeClass('text-success text-danger').text('Checking authorization code...');
 
                 fetch("{{ url('api/auth-admin-passcode') }}", {
                         method: 'POST',
@@ -841,17 +818,21 @@
                         if (response.is_authorized) {
                             const admin = response.admin || {};
                             $('input[name="discount_authorized"]').val('1');
-                            $('input[name="authorization_method"]').val(activeAuthMethod);
+                            $('input[name="authorization_method"]').val('code');
                             $('input[name="authorized_by_admin_id"]').val(admin.id || '');
                             $('input[name="authorized_by_name"]').val(admin.name || admin.username || '');
-                            $('input[name="authorization_reference"]').val(`${activeAuthMethod}:${admin.username || admin.id || 'authorized'}`);
+                            $('input[name="authorization_reference"]').val(`code:${admin.username || admin.id || 'authorized'}`);
                             $('.js-auth-status, .js-auth-modal-status').removeClass('text-danger').addClass('text-success').text(`Authorized by ${admin.name || admin.username || 'authorized personnel'}.`);
                             showMessage('success', response.message);
                             $('#discountAuthorizationModal').modal('hide');
+                            $('#authPasscode').val('');
+                            if (pendingPaymentAfterAuthorization) {
+                                pendingPaymentAfterAuthorization = false;
+                                proceedToPayment();
+                            }
                         } else {
                             resetAuthorization();
                             $('.js-auth-status, .js-auth-modal-status').removeClass('text-success').addClass('text-danger').text(response.message);
-                            showMessage('error', response.message);
                         }
                     })
                     .catch(() => {
@@ -859,8 +840,30 @@
                         showMessage('error', 'Authorization failed. Please try again.');
                     })
                     .finally(() => {
-                        button.prop('disabled', false).text('Authorize Discount');
+                        authorizationInFlight = false;
                     });
+            }
+
+            $('#authPasscode').on('input', function() {
+                clearTimeout(authorizationTimer);
+                resetAuthorization();
+                const code = $.trim($(this).val());
+                $('.js-auth-modal-status').removeClass('text-success text-danger').text(code ? 'Enter the complete authorization code.' : '');
+
+                if (code.length < 3) return;
+
+                authorizationTimer = setTimeout(authorizeAndContinue, 650);
+            });
+
+            $('#authPasscode').on('keydown', function(event) {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                clearTimeout(authorizationTimer);
+                authorizeAndContinue();
+            });
+
+            $('#discountAuthorizationModal').on('shown.bs.modal', function() {
+                $('#authPasscode').trigger('focus');
             });
 
             $('#continueToPayment').on('click', function() {
@@ -868,15 +871,14 @@
                 if (!state.valid) return;
 
                 if (state.discounted.length && $('input[name="discount_authorized"]').val() !== '1') {
-                    showMessage('error', 'Discount authorization is required before payment.');
+                    pendingPaymentAfterAuthorization = true;
+                    $('.js-auth-modal-status').removeClass('text-success text-danger').text('Enter the authorization code to continue.');
+                    $('#authPasscode').val('');
                     $('#discountAuthorizationModal').modal('show');
                     return;
                 }
 
-                $('input[name="passengers"]').val(JSON.stringify(passengerManifest));
-                setStep('payment');
-                renderSummary();
-                calculateGateway();
+                proceedToPayment();
             });
 
             $('#backToDetails').on('click', function() {
@@ -898,7 +900,9 @@
                 if (state.discounted.length && $('input[name="discount_authorized"]').val() !== '1') {
                     e.preventDefault();
                     setStep('details');
-                    showMessage('error', 'Discount authorization is required before payment.');
+                    pendingPaymentAfterAuthorization = true;
+                    $('.js-auth-modal-status').removeClass('text-success text-danger').text('Enter the authorization code to continue.');
+                    $('#authPasscode').val('');
                     $('#discountAuthorizationModal').modal('show');
                     return;
                 }

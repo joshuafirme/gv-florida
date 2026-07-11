@@ -685,6 +685,13 @@ i {
     }
 }
 
+@media (max-width: 1400px) {
+
+    .passenger-flow-wrap .container {
+        max-width: 100% !important;
+    }
+}
+
 @media (max-width: 1199px) {
     h2 {
         font-size: 36px;
