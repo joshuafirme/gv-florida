@@ -56,22 +56,28 @@ class PaymentController extends Controller
         } else {
             $layout = 'layouts.frontend';
         }
+        $discounts = Discount::where('status', Status::ENABLE)->get();
         $pageTitle = 'Payment Methods';
-        return view('Template::user.payment.deposit', compact('gatewayCurrency', 'pageTitle', 'bookedTicket', 'layout'));
+        return view('Template::user.payment.deposit', compact('gatewayCurrency', 'pageTitle', 'bookedTicket', 'layout', 'discounts'));
     }
 
     public function depositInsert(Request $request)
     {
-        $discount_id = $request->discount_id;
         $request->validate([
             'amount' => 'required|numeric|gt:0',
             'gateway' => 'required',
             'currency' => 'required',
+            'passengers' => 'required|string',
         ]);
         $booked_ticket_id = session()->get('booked_ticket_id');
         $bookedTicket = BookedTicket::find($booked_ticket_id);
+        if (!$bookedTicket) {
+            $notify[] = ['error', 'Invalid booking session. Please select your seats again.'];
+            return to_route('ticket')->withNotify($notify);
+        }
         $bookedTicket->seats = session()->has('seats') ? session('seats') : $bookedTicket->seats;
-        $bookedTicket->save();
+        $seats = is_array($bookedTicket->seats) ? $bookedTicket->seats : json_decode($bookedTicket->seats, true);
+        $seats = array_values(array_filter($seats ?? []));
 
         $user = auth()->user();
         $gate = GatewayCurrency::whereHas('method', function ($gate) {
@@ -82,8 +88,89 @@ class PaymentController extends Controller
             return back()->withNotify($notify);
         }
 
-        $booked_ticket = new BookedTicket();
-        $booked_tickets = $booked_ticket->getConflicts();
+        $passengers = json_decode($request->passengers, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($passengers)) {
+            $notify[] = ['error', 'Passenger details are invalid. Please review each selected seat.'];
+            return back()->withNotify($notify);
+        }
+
+        $discounts = Discount::where('status', Status::ENABLE)->get()->keyBy('id');
+        $manifest = [];
+        $discountedPassengers = [];
+        $discountAmount = 0;
+        $unitPrice = getAmount($bookedTicket->unit_price);
+
+        foreach ($seats as $seat) {
+            $passenger = collect($passengers)->firstWhere('seat', $seat);
+
+            if (!$passenger) {
+                $notify[] = ['error', "Please assign passenger details for seat {$seat}."];
+                return back()->withNotify($notify);
+            }
+
+            $passengerType = $passenger['passenger_type'] ?? 'regular';
+            $name = trim($passenger['name'] ?? '');
+            $idNumber = trim($passenger['id_number'] ?? '');
+            $discountId = isset($passenger['discount_id']) ? (int) $passenger['discount_id'] : null;
+            $discount = null;
+            $seatDiscount = 0;
+
+            if ($passengerType === 'discounted') {
+                $discount = $discounts->get($discountId);
+
+                if (!$discount) {
+                    $notify[] = ['error', "Please select a valid discount type for seat {$seat}."];
+                    return back()->withNotify($notify);
+                }
+
+                if ($name === '' || $idNumber === '') {
+                    $notify[] = ['error', "Discounted passengers must provide a name and ID number for seat {$seat}."];
+                    return back()->withNotify($notify);
+                }
+
+                $seatDiscount = $unitPrice * ($discount->percentage / 100);
+                $discountAmount += $seatDiscount;
+            }
+
+            $entry = [
+                'seat' => $seat,
+                'name' => $name,
+                'passenger_type' => $passengerType,
+                'discount_id' => $discount?->id,
+                'discount_name' => $discount?->name,
+                'discount_percentage' => $discount ? getAmount($discount->percentage) : 0,
+                'id_number' => $passengerType === 'discounted' ? $idNumber : null,
+                'base_fare' => getAmount($unitPrice),
+                'discount_amount' => getAmount($seatDiscount),
+                'fare' => getAmount($unitPrice - $seatDiscount),
+            ];
+
+            $manifest[] = $entry;
+
+            if ($passengerType === 'discounted') {
+                $discountedPassengers[] = $entry;
+            }
+        }
+
+        if (count($manifest) !== count($seats)) {
+            $notify[] = ['error', 'Each selected seat must have one passenger assignment.'];
+            return back()->withNotify($notify);
+        }
+
+        if (count($discountedPassengers) > 0 && !$request->boolean('discount_authorized')) {
+            $notify[] = ['error', 'Discount authorization is required before proceeding to payment.'];
+            return back()->withNotify($notify);
+        }
+
+        if (count($discountedPassengers) > 0 && !$request->authorization_reference) {
+            $notify[] = ['error', 'Discount authorization details are incomplete.'];
+            return back()->withNotify($notify);
+        }
+
+        $bookedTicket->passenger_manifest = $manifest;
+        $bookedTicket->save();
+
+        $booked_tickets = $bookedTicket->getConflicts();
 
         // return $booked_tickets;
         if ($booked_tickets->count() > 0) {
@@ -96,8 +183,9 @@ class PaymentController extends Controller
         //     return back()->withNotify($notify);
         // }
 
-        $charge = $gate->fixed_charge + ($bookedTicket->sub_total * $gate->percent_charge / 100);
-        $payable = $bookedTicket->sub_total + $charge;
+        $discountedSubtotal = max($bookedTicket->sub_total - $discountAmount, 0);
+        $charge = $gate->fixed_charge + ($discountedSubtotal * $gate->percent_charge / 100);
+        $payable = $discountedSubtotal + $charge;
         $finalAmount = $payable * $gate->rate;
 
 
@@ -118,28 +206,65 @@ class PaymentController extends Controller
         $deposit->btc_wallet = "";
         $deposit->status = Status::PAYMENT_INITIATE;
         $deposit->expiry_limit = date('Y-m-d H:i:s', strtotime(date('Y-m-d H:i:s') . ' + 1 hour'));
-        $deposit->success_url = urlPath('user.ticket.history');
+        $deposit->success_url = route('user.deposit.done');
         $deposit->failed_url = urlPath('ticket');
         $deposit->final_amount = $finalAmount;
         $deposit->save();
 
-        if ($discount_id) {
-            $discount = Discount::find($discount_id);
+        if (count($discountedPassengers) > 0) {
             $user_discount = UserDiscount::where('deposit_id', $deposit->id)->firstOrNew();
             $user_discount->deposit_id = $deposit->id;
-            $user_discount->percentage = $discount->percentage;
-            $user_discount->amount = $finalAmount * ($discount->percentage / 100);
-            $user_discount->description = $discount->name;
-            $user_discount->id_number = $request->id_number;
-            $user_discount->passenger_name = $request->passenger_name;
+            $user_discount->percentage = collect($discountedPassengers)->avg('discount_percentage') ?: 0;
+            $user_discount->amount = getAmount($discountAmount);
+            $user_discount->description = collect($discountedPassengers)->pluck('discount_name')->filter()->unique()->implode(', ');
+            $user_discount->id_number = collect($discountedPassengers)->pluck('id_number')->filter()->implode(', ');
+            $user_discount->passenger_name = collect($discountedPassengers)->pluck('name')->filter()->implode(', ');
+            $user_discount->passenger_manifest = $discountedPassengers;
+            $user_discount->authorization_method = $request->authorization_method;
+            $user_discount->authorized_by_admin_id = $request->authorized_by_admin_id;
+            $user_discount->authorized_by_name = $request->authorized_by_name;
+            $user_discount->authorization_reference = $deposit->trx . ' | ' . $request->authorization_reference;
+            $user_discount->authorized_at = now();
             $user_discount->save();
-            $deposit->final_amount = $finalAmount - $user_discount->amount;
-            $deposit->save();
+        } else {
+            UserDiscount::where('deposit_id', $deposit->id)->delete();
         }
 
         session()->put('Track', $deposit->trx);
 
+        if (strtolower($gate->name) === 'cash') {
+            $deposit->status = Status::PAYMENT_PENDING;
+            $deposit->save();
+
+            return to_route('user.deposit.done');
+        }
+
         return to_route('user.deposit.confirm');
+    }
+
+    public function done()
+    {
+        $track = session()->get('Track');
+        $deposit = Deposit::where('trx', $track)->with(['bookedTicket.trip.fleetType', 'bookedTicket.pickup', 'bookedTicket.drop', 'userDiscount'])->firstOrFail();
+
+        if (!in_array($deposit->status, [Status::PAYMENT_PENDING, Status::PAYMENT_SUCCESS])) {
+            return to_route('user.deposit.confirm');
+        }
+
+        if (auth()->user()) {
+            $layout = 'layouts.master';
+        } else {
+            $layout = 'layouts.frontend';
+        }
+
+        if (session('kiosk_id')) {
+            $layout = 'layouts.kiosk';
+        }
+
+        $ticket = $deposit->bookedTicket;
+        $pageTitle = 'Booking Voucher';
+
+        return view('Template::user.payment.done', compact('deposit', 'ticket', 'pageTitle', 'layout'));
     }
 
 

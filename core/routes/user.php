@@ -102,6 +102,7 @@ Route::middleware('auth')->name('user.')->group(function () {
 Route::get('payment/deposit', 'Gateway\PaymentController@deposit')->name('user.deposit.index');
 Route::post('payment/insert', 'Gateway\PaymentController@depositInsert')->name('user.deposit.insert');
 Route::get('payment/confirm', 'Gateway\PaymentController@depositConfirm')->name('user.deposit.confirm');
+Route::get('payment/done', 'Gateway\PaymentController@done')->name('user.deposit.done');
 
 Route::get('payment/manual', 'Gateway\PaymentController@manualDepositConfirm')->name('user.deposit.manual.confirm');
 Route::post('payment/manual', 'Gateway\PaymentController@manualDepositUpdate')->name('user.deposit.manual.update');

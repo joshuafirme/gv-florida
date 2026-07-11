@@ -1,526 +1,925 @@
+@php
+    $kiosk_id = request()->kiosk_id;
+    if ($kiosk_id) {
+        $layout = 'layouts.kiosk';
+    }
+
+    $seats = $bookedTicket->seats ? $bookedTicket->seats : session('seats');
+    $seats = is_array($seats) ? array_values($seats) : [];
+    $unitPrice = getAmount($bookedTicket->unit_price);
+    $discountOptions = $discounts
+        ->map(function ($discount) {
+            return [
+                'id' => $discount->id,
+                'name' => $discount->name,
+                'percentage' => getAmount($discount->percentage),
+            ];
+        })
+        ->values();
+@endphp
+
+@extends($activeTemplate . $layout)
+
 @section('content')
-    @php
-        $kiosk_id = request()->kiosk_id;
-    @endphp
     @if ($kiosk_id)
-        @php
-            $layout = 'layouts.kiosk';
-        @endphp
         @include('templates.basic.partials.kiosk_nav')
     @endif
-    @extends($activeTemplate . $layout)
-    @php
-        $counters = App\Models\Counter::get();
-        $seats = $bookedTicket->seats ? $bookedTicket->seats : session('seats');
 
-    @endphp
-    <div class="container padding-top padding-bottom">
-        <div class="row justify-content-center">
-            <div class="col-lg-9">
-                <div class="col-12">
-                    <button class="btn btn-outline-dark w-auto" onclick="window.history.back();">
-                        <i class="fa-solid fa-arrow-left"></i> Go Back
-                    </button>
-                </div>
-                <form action="{{ route('user.deposit.insert') }}" method="post" class="deposit-form">
-                    @csrf
-                    <input type="hidden" name="currency">
-                    <input type="hidden" name="id_number">
-                    <input type="hidden" name="passenger_name">
-                    <div class="gateway-card">
-                        <div class="row justify-content-center gy-sm-4 gy-3">
-                            <div class="col-12">
-                                <h5 class="payment-card-title">@lang('Payment')</h5>
-                            </div>
-                            <div class="col-lg-6">
-                                <div class="payment-system-list is-scrollable gateway-option-list">
-                                    @foreach ($gatewayCurrency as $data)
-                                        @php
-                                            $description = '';
-                                            $select_paynamics = '';
-                                            if (!$kiosk_id && $data->name == 'Paynamics') {
-                                                $select_paynamics = 'checked';
-                                            }
-                                            if ($kiosk_id && $data->name == 'Paynamics') {
-                                                continue;
-                                            }
-                                            if (!$kiosk_id && $data->name == 'Cash') {
-                                                continue;
-                                            }
-                                            if ($data->name == 'Paynamics') {
-                                                $description = $data->instruction;
-                                            }
-                                        @endphp
-                                        <label for="{{ titleToKey($data->name) }}"
-                                            class="payment-item @if ($loop->index > 4) d-none @endif gateway-option">
-                                            <div class="payment-item__info">
-                                                <span class="payment-item__check"></span>
-                                                <div class="payment-item__name">
-                                                    <b>{{ __($data->name) }}</b>
-                                                    <div class="small">
-                                                        {{ $description }}</div>
-                                                </div>
-                                            </div>
-                                            <div class="payment-item__thumb">
-                                                <img class="payment-item__thumb-img"
-                                                    src="{{ getImage(getFilePath('gateway') . '/' . $data->method->image) }}"
-                                                    alt="@lang('payment-thumb')">
-                                            </div>
-                                            <input class="payment-item__radio gateway-input"
-                                                id="{{ titleToKey($data->name) }}" hidden
-                                                data-gateway='@json($data)' type="radio" name="gateway"
-                                                {{ $select_paynamics }} value="{{ $data->method_code }}"
-                                                @if (old('gateway')) @checked(old('gateway') == $data->method_code) @else @checked($loop->first) @endif
-                                                data-min-amount="{{ showAmount($data->min_amount) }}"
-                                                data-max-amount="{{ showAmount($data->max_amount) }}">
-                                        </label>
-                                    @endforeach
-                                    @if ($gatewayCurrency->count() > 4)
-                                        <button type="button" class="payment-item__btn more-gateway-option">
-                                            <p class="payment-item__btn-text">@lang('Show All Payment Options')</p>
-                                            <span class="payment-item__btn__icon"><i class="fas fa-chevron-down"></i></span>
-                                        </button>
-                                    @endif
-                                </div>
-                                @if ($kiosk_id)
-                                    <div>
-                                        <h4 class="mb-3">Discount</h4>
-                                        <div class="d-flex gap-3">
-                                            @php
-                                                $discounts = App\Models\Discount::where('status', 1)->get();
-                                            @endphp
-                                            @foreach ($discounts as $discount)
-                                                <div class="form-check">
-                                                    <input name="discount_id" class="form-check-input chk-discount"
-                                                        type="radio" data-percentage="{{ $discount->percentage }}"
-                                                        data-name="{{ $discount->name }}" value="{{ $discount->id }}">
-                                                    <label class="form-check-label" for="flexCheckDefault">
-                                                        {{ $discount->name }}
-                                                        ({{ number_format($discount->percentage, 0) }}%)
-                                                    </label>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                @endif
-                            </div>
-                            <div class="col-lg-6">
-                                <div class="payment-system-list p-3">
-                                    <div class="deposit-info">
-                                        <div class="deposit-info__title">
-                                            Description
-                                        </div>
-                                        <div class="deposit-info__input">
+    <div class="passenger-flow-wrap">
+        <div class="container">
+            @include('templates.basic.partials.booking_stepper', ['currentStep' => 'details'])
 
-                                            <span class="font-weight-bold"> {{ __($bookedTicket->trip->startFrom->name) }}
-                                                -
-                                                {{ __($bookedTicket->trip->endTo->name) }}</span>
-                                            <span
-                                                class="badge bg-success">{{ __($bookedTicket->trip->fleetType->name) }}</span>
-                                            <span>{{ 'Seats: ' . implode(', ', $seats) }}</span>
-                                            <span>{{ "PNR: $bookedTicket->pnr_number " }}</span>
-                                        </div>
-                                    </div>
-                                    <hr>
-                                    <div class="deposit-info">
-                                        <div class="deposit-info__title">
-                                            <p class="text mb-0">@lang('Amount')</p>
-                                        </div>
-                                        <div class="deposit-info__input">
-                                            <div class="deposit-info__input-group input-group">
-                                                <span class="deposit-info__input-group-text">{{ gs('cur_sym') }}</span>
-                                                <input type="text" class="form-control form--control amount"
-                                                    name="amount" placeholder="@lang('00.00')"
-                                                    value="{{ getAmount($bookedTicket->sub_total) }}" readonly
-                                                    autocomplete="off">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <hr>
-                                    {{-- <div class="deposit-info">
-                                        <div class="deposit-info__title">
-                                            <p class="text has-icon"> @lang('Limit')
-                                                <span></span>
-                                            </p>
-                                        </div>
-                                        <div class="deposit-info__input">
-                                            <p class="text"><span class="gateway-limit">@lang('0.00')</span>
-                                            </p>
-                                        </div>
-                                    </div> --}}
-                                    <div class="deposit-info">
-                                        <div class="deposit-info__title">
-                                            <p class="text has-icon">@lang('Processing Charge')
-                                                <span data-bs-toggle="tooltip" title="@lang('Processing charge for payment gateways')"
-                                                    class="proccessing-fee-info"><i class="las la-info-circle"></i>
-                                                </span>
-                                            </p>
-                                        </div>
-                                        <div class="deposit-info__input">
-                                            <p class="text"><span class="processing-fee">@lang('0.00')</span>
-                                                {{ __(gs('cur_text')) }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="deposit-info">
-                                        <div class="deposit-info__title">
-                                            <p class="text has-icon discount-label">@lang('Discount')
-                                            </p>
-                                        </div>
-                                        <div class="deposit-info__input">
-                                            <p class="text"><span class="discount-fee">@lang('0.00')</span>
-                                                {{ __(gs('cur_text')) }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="deposit-info total-amount pt-3">
-                                        <div class="deposit-info__title">
-                                            <p class="text">@lang('Total')</p>
-                                        </div>
-                                        <div class="deposit-info__input">
-                                            <p class="text"><span class="final-amount">@lang('0.00')</span>
-                                                {{ __(gs('cur_text')) }}</p>
-                                        </div>
-                                    </div>
-                                    {{-- 
-                                    <div class="deposit-info gateway-conversion d-none total-amount pt-2">
-                                        <div class="deposit-info__title">
-                                            <p class="text">@lang('Conversion')
-                                            </p>
-                                        </div>
-                                        <div class="deposit-info__input">
-                                            <p class="text"></p>
-                                        </div>
-                                    </div>
-                                    <div class="deposit-info conversion-currency d-none total-amount pt-2">
-                                        <div class="deposit-info__title">
-                                            <p class="text">
-                                                @lang('In') <span class="gateway-currency"></span>
-                                            </p>
-                                        </div>
-                                        <div class="deposit-info__input">
-                                            <p class="text">
-                                                <span class="in-currency"></span>
-                                            </p>
+            <button type="button" class="flow-back-btn" onclick="window.history.back();">
+                <i class="las la-arrow-left"></i> Back to seat selection
+            </button>
 
-                                        </div>
-                                    </div>
-                                    <div class="d-none crypto-message mb-3">
-                                        @lang('Conversion with') <span class="gateway-currency"></span> @lang('and final value will Show on next step')
-                                    </div> --}}
-                                    <button type="submit" class="btn btn--base w-100">
-                                        @lang('Confirm Payment')
-                                    </button>
-                                    <div class="info-text pt-3">
-                                        <p class="text">@lang('Ensuring your funds grow safely through our secure payment process with world-class payment options.')</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+            <form action="{{ route('user.deposit.insert') }}" method="post" class="deposit-form" id="passengerFlowForm">
+                @csrf
+                <input type="hidden" name="currency">
+                <input type="hidden" name="amount" value="{{ getAmount($bookedTicket->sub_total) }}">
+                <input type="hidden" name="passengers">
+                <input type="hidden" name="discount_authorized" value="0">
+                <input type="hidden" name="authorization_method">
+                <input type="hidden" name="authorized_by_admin_id">
+                <input type="hidden" name="authorized_by_name">
+                <input type="hidden" name="authorization_reference">
 
-    <div class="modal fade" id="depositModal">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title method-name" id="depositModalLabel"></h5>
-                    <a href="javascript:void(0)" class="close" data-bs-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </a>
-                </div>
-                <form action="{{ route('user.deposit.insert') }}" method="post">
-                    @csrf
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <input type="hidden" name="currency" class="edit-currency">
-                            <input type="hidden" name="method_code" class="edit-method-code">
-                        </div>
-                        <span>@lang('Are you sure, you want to payment via') <strong class="method-name font-weight-bold"></strong> ?</span>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn--danger w-auto btn--sm"
-                            data-bs-dismiss="modal">@lang('Close')</button>
-                        <div class="prevent-double-click">
-                            <button type="submit"
-                                class="btn btn--success confirm-btn btn--sm">@lang('Confirm')</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="authAdminModal">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title method-name">Authorize Admin Passcode</h5>
-                    <a href="javascript:void(0)" class="close" data-bs-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </a>
-                </div>
-                <form method="post" id="authAdminForm" autocomplete="off">
-                    @csrf
-                    <div class="modal-body">
-
-                        <div class="row gy-3">
-                            <div class="form-group col-12">
-                                <label class="form-label">@lang('Passenger Name')</label>
-                                <input type="text" class="form-control form--control" id="mdl_passenger_name" required
-                                    autocomplete="new-password">
-                            </div>
-                            <div class="form-group col-12">
-                                <label class="form-label">@lang('ID Number')</label>
-                                <input type="text" class="form-control form--control" id="mdl_id_number" required
-                                    autocomplete="new-password">
-                            </div>
-                            <div class="form-group col-12">
-                                <label class="form-label">@lang('Username')</label>
-                                <input type="text" class="form-control form--control" name="username" required
-                                    autocomplete="new-password">
-                            </div>
-                            <div class="form-group col-12">
-                                <label class="form-label">@lang('Password code')</label>
-                                <input type="password"
-                                    class="form-control form--control @if (gs('secure_password')) secure-password @endif"
-                                    name="passcode" required autocomplete="new-password">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn--danger w-auto btn--sm"
-                            data-bs-dismiss="modal">@lang('Close')</button>
+                <section class="flow-panel js-step-panel" data-panel="details">
+                    <div class="flow-title-row">
+                        <div class="flow-title-icon"><i class="las la-users"></i></div>
                         <div>
-                            <button type="submit" id="btn-autorize"
-                                class="btn btn--success confirm-btn btn--sm">@lang('Authorize')</button>
+                            <h4>Passenger Details</h4>
+                            <p>{{ count($seats) }} seats &middot; {{ $bookedTicket->pickup->name ?? $bookedTicket->trip->startFrom->name }} &rarr; {{ $bookedTicket->drop->name ?? $bookedTicket->trip->endTo->name }} &middot; {{ showDateTime($bookedTicket->trip->schedule->start_from, 'h:i A') }}</p>
                         </div>
                     </div>
-                </form>
+
+                    @foreach ($seats as $index => $seat)
+                        <div class="passenger-card" data-seat="{{ $seat }}">
+                            <div class="passenger-card__head">
+                                <div>
+                                    <span>Passenger {{ $index + 1 }}</span>
+                                    <strong>{{ $seat }}</strong>
+                                </div>
+                                <div class="seat-price">
+                                    <small class="js-original-price d-none">{{ showAmount($unitPrice) }}</small>
+                                    <strong class="js-seat-price">{{ showAmount($unitPrice) }}</strong>
+                                </div>
+                            </div>
+
+                            <label class="flow-label">Full Name <span class="js-name-note">(optional)</span></label>
+                            <input type="text" class="flow-input js-passenger-name" placeholder="Guest">
+
+                            <label class="flow-label">Passenger Type</label>
+                            <div class="passenger-type-grid">
+                                <button type="button" class="type-option is-active" data-type="regular" data-discount-id="">
+                                    Regular
+                                </button>
+                                @foreach ($discountOptions as $discount)
+                                    <button type="button" class="type-option" data-type="discounted"
+                                        data-discount-id="{{ $discount['id'] }}" data-discount-name="{{ $discount['name'] }}"
+                                        data-percentage="{{ $discount['percentage'] }}">
+                                        {{ $discount['name'] }}
+                                    </button>
+                                @endforeach
+                            </div>
+
+                            <div class="discount-fields d-none">
+                                <div class="discount-note js-discount-note"></div>
+                                <label class="flow-label">ID Number</label>
+                                <input type="text" class="flow-input js-id-number" placeholder="Required for discounted passenger">
+                            </div>
+                        </div>
+                    @endforeach
+
+                    <div class="flow-summary">
+                        <div class="js-breakdown"></div>
+                        <div class="summary-total">
+                            <span>Total Fare</span>
+                            <strong class="js-details-total">{{ showAmount($bookedTicket->sub_total) }}</strong>
+                        </div>
+                    </div>
+
+                    <div class="authorization-panel d-none" id="authorizationPanel">
+                        <div class="authorization-heading">
+                            <div class="auth-icon"><i class="las la-shield-alt"></i></div>
+                            <div>
+                                <h5>Discount Authorization</h5>
+                                <p>Authorization is required before discounted fare can proceed to payment.</p>
+                            </div>
+                        </div>
+
+                        <div class="authorization-preview js-auth-preview"></div>
+                        <div class="auth-actions">
+                            <button type="button" class="btn-primary-flow" id="openAuthorizationModal">Authorize Discount</button>
+                        </div>
+                        <div class="auth-status js-auth-status"></div>
+                    </div>
+
+                    <button type="button" class="btn-primary-flow w-100 mt-3" id="continueToPayment">
+                        Continue to Payment
+                    </button>
+                </section>
+
+                <section class="flow-panel js-step-panel d-none" data-panel="payment">
+                    <button type="button" class="flow-back-btn mb-3" id="backToDetails">
+                        <i class="las la-arrow-left"></i> Back to details
+                    </button>
+
+                    <h4 class="payment-title">Payment</h4>
+                    <div class="payment-passenger-list js-payment-passengers"></div>
+
+                    <label class="flow-label mt-3">Payment Method</label>
+                    <div class="payment-methods">
+                        @foreach ($gatewayCurrency as $data)
+                            @php
+                                if ($kiosk_id && $data->name == 'Paynamics') {
+                                    continue;
+                                }
+                                if (!$kiosk_id && $data->name == 'Cash') {
+                                    continue;
+                                }
+                                $description = $data->instruction ?: ($data->name == 'Cash' ? 'Pay at the cashier with the printed voucher' : 'Follow the payment instructions on the next screen');
+                            @endphp
+                            <label class="payment-method-card">
+                                <input class="gateway-input" data-gateway='@json($data)' type="radio" name="gateway"
+                                    value="{{ $data->method_code }}" data-min-amount="{{ showAmount($data->min_amount) }}"
+                                    data-max-amount="{{ showAmount($data->max_amount) }}" @checked($loop->first)>
+                                <span class="method-icon"><i class="las {{ $data->name == 'Cash' ? 'la-money-bill' : 'la-credit-card' }}"></i></span>
+                                <span class="method-copy">
+                                    <strong>{{ __($data->name) }}</strong>
+                                    <small>{{ __($description) }}</small>
+                                </span>
+                                <span class="method-check"><i class="las la-check"></i></span>
+                            </label>
+                        @endforeach
+                    </div>
+
+                    <div class="payment-total-box">
+                        <div class="js-payment-breakdown"></div>
+                        <div class="payment-instructions js-payment-instructions"></div>
+                        <div class="summary-total">
+                            <span>Total to pay ({{ count($seats) }} seats)</span>
+                            <strong class="js-payment-total">{{ showAmount($bookedTicket->sub_total) }}</strong>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary-flow w-100 mt-3" id="confirmPayment">
+                        Confirm & Print Voucher
+                    </button>
+                </section>
+            </form>
+
+            <div class="modal fade discount-auth-modal" id="discountAuthorizationModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="auth-modal-icon"><i class="las la-shield-alt"></i></div>
+                        <h5>Discount Authorization</h5>
+                        <p class="auth-modal-copy">Tap an authorized ID or enter the authorization code to approve the discounted fare.</p>
+
+                        <div class="authorization-preview js-auth-modal-preview"></div>
+
+                        <div class="auth-tabs">
+                            <button type="button" class="auth-tab is-active" data-auth-method="tap_id">Tap ID</button>
+                            <button type="button" class="auth-tab" data-auth-method="code">Enter Code</button>
+                        </div>
+
+                        <div class="auth-pane" data-auth-pane="tap_id">
+                            <div class="tap-target"><i class="las la-wifi"></i></div>
+                            <label class="flow-label">Authorized Personnel ID</label>
+                            <input type="text" class="flow-input" id="authorizedId" placeholder="Waiting for reader... tap a card on the device">
+                        </div>
+
+                        <div class="auth-pane d-none" data-auth-pane="code">
+                            <div class="row gy-3">
+                                <div class="col-md-6">
+                                    <label class="flow-label">Username</label>
+                                    <input type="text" class="flow-input" id="authUsername" autocomplete="new-password">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="flow-label">Authorization Code</label>
+                                    <input type="password" class="flow-input" id="authPasscode" autocomplete="new-password">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="auth-actions">
+                            <button type="button" class="btn-light-flow" id="cancelAuthorization">Cancel</button>
+                            <button type="button" class="btn-primary-flow" id="authorizeDiscount">Authorize Discount</button>
+                        </div>
+                        <div class="auth-status js-auth-modal-status"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 @endsection
 
-
 @push('style')
     <style>
-        .form--control[readonly] {
-            background-color: #fff;
+        .passenger-flow-wrap {
+            background: #f3f5f7;
+            min-height: 100vh;
+            padding: 18px 0 36px;
         }
 
-        .deposit-info__title .text {
-            margin-bottom: 8px;
+        .flow-back-btn {
+            background: transparent;
+            border: 0;
+            color: #7b8490;
+            display: inline-flex;
+            gap: 6px;
+            font-weight: 700;
+            padding: 0;
         }
 
-        .deposit-info__input-group .form--control {
-            box-shadow: none;
+        .flow-panel {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 8px rgba(15, 23, 42, .06);
+            margin-top: 14px;
+            padding: 22px;
         }
 
-        .deposit-info__input-group .form--control:focus {
-            border: none !important;
-            background-color: #fff;
-            outline: none !important;
+        .flow-title-row,
+        .authorization-heading {
+            align-items: center;
+            display: flex;
+            gap: 14px;
+        }
+
+        .flow-title-row h4,
+        .authorization-heading h5,
+        .payment-title {
+            color: #111827;
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .flow-title-row p,
+        .authorization-heading p {
+            color: #7b8490;
+            margin: 3px 0 0;
+        }
+
+        .flow-title-icon,
+        .auth-icon {
+            align-items: center;
+            background: #ffe7f3;
+            border-radius: 8px;
+            color: #df2a82;
+            display: flex;
+            flex: 0 0 44px;
+            font-size: 22px;
+            height: 44px;
+            justify-content: center;
+            width: 44px;
+        }
+
+        .auth-icon {
+            background: #fff1c7;
+            color: #d97706;
+        }
+
+        .passenger-card {
+            border: 1px solid #edf0f3;
+            border-radius: 8px;
+            margin-top: 16px;
+            overflow: hidden;
+            padding: 0 20px 20px;
+        }
+
+        .passenger-card__head {
+            align-items: center;
+            background: #f8fafc;
+            display: flex;
+            justify-content: space-between;
+            margin: 0 -20px 18px;
+            padding: 12px 20px;
+        }
+
+        .passenger-card__head span,
+        .flow-label {
+            color: #7b8490;
+            display: block;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .passenger-card__head strong,
+        .seat-price strong {
+            color: #df2a82;
+            font-weight: 800;
+        }
+
+        .flow-input {
+            border: 1px solid #dfe3e8;
+            border-radius: 8px;
+            color: #111827;
+            height: 46px;
+            outline: none;
+            padding: 0 13px;
+            width: 100%;
+        }
+
+        .flow-input:focus {
+            border-color: #df2a82;
+            box-shadow: 0 0 0 3px rgba(223, 42, 130, .12);
+        }
+
+        .flow-label {
+            margin: 14px 0 7px;
+            text-transform: none;
+        }
+
+        .passenger-type-grid,
+        .auth-tabs {
+            display: grid;
+            gap: 8px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        }
+
+        .type-option,
+        .auth-tab {
+            background: #fff;
+            border: 1px solid #dfe3e8;
+            border-radius: 8px;
+            color: #4b5563;
+            font-weight: 800;
+            min-height: 42px;
+        }
+
+        .type-option.is-active,
+        .auth-tab.is-active {
+            background: #df2a82;
+            border-color: #df2a82;
+            color: #fff;
+        }
+
+        .discount-note {
+            color: #059669;
+            font-size: 12px;
+            font-weight: 800;
+            margin-top: 10px;
+        }
+
+        .flow-summary,
+        .payment-total-box {
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-top: 16px;
+            padding: 16px;
+        }
+
+        .summary-line,
+        .summary-total {
+            align-items: center;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 6px 0;
+        }
+
+        .summary-line {
+            color: #5f6b7a;
+            font-weight: 700;
+        }
+
+        .summary-total {
+            border-top: 1px solid #e5e7eb;
+            color: #111827;
+            font-weight: 800;
+            margin-top: 8px;
+            padding-top: 14px;
+        }
+
+        .summary-total strong {
+            color: #df2a82;
+            font-size: 24px;
+        }
+
+        .authorization-panel {
+            border: 1px solid #ffe0ef;
+            border-radius: 8px;
+            margin-top: 16px;
+            padding: 20px;
+        }
+
+        .authorization-preview {
+            background: #f8fafc;
+            border-radius: 8px;
+            color: #334155;
+            font-weight: 700;
+            margin: 16px 0;
+            padding: 12px;
+        }
+
+        .tap-target {
+            align-items: center;
+            border: 4px solid #e5e7eb;
+            border-radius: 999px;
+            color: #cbd5e1;
+            display: flex;
+            font-size: 50px;
+            height: 104px;
+            justify-content: center;
+            margin: 18px auto 10px;
+            width: 104px;
+        }
+
+        .auth-actions {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: 1fr 1fr;
+            margin-top: 16px;
+        }
+
+        .authorization-panel .auth-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .discount-auth-modal .modal-content {
+            border: 0;
+            border-radius: 14px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .discount-auth-modal h5 {
+            color: #111827;
+            font-weight: 900;
+            margin: 0 0 6px;
+        }
+
+        .auth-modal-icon {
+            align-items: center;
+            background: #fff1c7;
+            border-radius: 14px;
+            color: #d97706;
+            display: inline-flex;
+            font-size: 28px;
+            height: 52px;
+            justify-content: center;
+            margin: 0 auto 14px;
+            width: 52px;
+        }
+
+        .auth-modal-copy {
+            color: #64748b;
+            margin: 0 auto 14px;
+            max-width: 360px;
+        }
+
+        .btn-primary-flow,
+        .btn-light-flow {
+            border: 0;
+            border-radius: 8px;
+            font-weight: 800;
+            min-height: 46px;
+            padding: 0 18px;
+        }
+
+        .btn-primary-flow {
+            background: #df2a82;
+            color: #fff;
+        }
+
+        .btn-light-flow {
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        .btn-primary-flow:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+        }
+
+        .auth-status {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .payment-passenger-list {
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-top: 14px;
+            padding: 12px;
+        }
+
+        .payment-methods {
+            display: grid;
+            gap: 10px;
+        }
+
+        .payment-method-card {
+            align-items: center;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            gap: 12px;
+            padding: 14px;
+        }
+
+        .payment-method-card:has(input:checked) {
+            background: #fff5fa;
+            border-color: #df2a82;
+        }
+
+        .payment-method-card input {
+            display: none;
+        }
+
+        .method-icon,
+        .method-check {
+            color: #df2a82;
+            font-size: 20px;
+        }
+
+        .method-copy {
+            flex: 1;
+        }
+
+        .method-copy strong,
+        .method-copy small {
+            display: block;
+        }
+
+        .method-copy small {
+            color: #7b8490;
+            margin-top: 2px;
+        }
+
+        .payment-instructions {
+            color: #64748b;
+            font-weight: 700;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 575px) {
+            .flow-panel {
+                padding: 16px;
+            }
+
+            .auth-actions {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 @endpush
+
 @push('script')
     <script>
         (function($) {
             "use strict";
 
-            @if (session('reload'))
-                window.location.href =
-                    '{!! url("/ticket/{$bookedTicket->trip->id}/sampaloc-tuguegarao") !!}?{!! http_build_query([
-                        'start_from' => $bookedTicket->trip->start_from,
-                        'end_to' => $bookedTicket->trip->end_to,
-                        'kiosk_id' => $bookedTicket->kiosk_id,
-                        'date_of_journey' => $bookedTicket->date_of_journey,
-                        'reload' => 'yes',
-                        'booked_ticket_id' => $bookedTicket->id
-                    ]) !!}';
-            @endif
-            var amount = parseFloat($('.amount').val() || 0);
-            var gateway, minAmount, maxAmount, isPasscodeValid;
+            const seats = @json($seats);
+            const unitPrice = Number(@json($unitPrice));
+            let passengerManifest = [];
+            let totals = {
+                subtotal: Number(@json(getAmount($bookedTicket->sub_total))),
+                discount: 0,
+                charge: 0,
+                payable: Number(@json(getAmount($bookedTicket->sub_total))),
+                final: Number(@json(getAmount($bookedTicket->sub_total)))
+            };
+            let gateway = null;
+            let activeAuthMethod = 'tap_id';
 
-
-            $('.amount').on('input', function(e) {
-                amount = parseFloat($(this).val());
-                if (!amount) {
-                    amount = 0;
-                }
-                calculation();
-            });
-
-            $('.gateway-input').on('change', function(e) {
-                gatewayChange();
-            });
-
-            function gatewayChange() {
-                let gatewayElement = $('.gateway-input:checked');
-                let methodCode = gatewayElement.val();
-
-                gateway = gatewayElement.data('gateway');
-                minAmount = gatewayElement.data('min-amount');
-                maxAmount = gatewayElement.data('max-amount');
-
-                let processingFeeInfo =
-                    `${parseFloat(gateway.percent_charge).toFixed(2)}% with ${parseFloat(gateway.fixed_charge).toFixed(2)} {{ __(gs('cur_text')) }} charge for payment gateway processing fees`
-                $(".proccessing-fee-info").attr("data-bs-original-title", processingFeeInfo);
-                calculation();
-                calculateWithDiscount()
+            function money(amount) {
+                return '{{ gs('cur_sym') }}' + Number(amount || 0).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
             }
 
-            gatewayChange();
+            function showMessage(type, message) {
+                if (typeof notify === 'function') {
+                    notify(type, message);
+                    return;
+                }
+                if (typeof triggerToaster === 'function') {
+                    triggerToaster(type, message);
+                    return;
+                }
+                alert(message);
+            }
 
+            function selectedGateway() {
+                const gatewayElement = $('.gateway-input:checked');
+                if (!gatewayElement.length) return null;
+                return gatewayElement.data('gateway');
+            }
 
+            function setStep(step) {
+                const stepOrder = ['seat', 'details', 'payment', 'done'];
+                const activeIndex = stepOrder.indexOf(step);
+                const progress = activeIndex <= 0 ? 0 : (activeIndex / (stepOrder.length - 1)) * 100;
 
-            $("#authAdminForm").on("submit", function(e) {
-                e.preventDefault()
-                let authBtn = $('#btn-authorize');
-                authBtn.prop('disabled', true);
-                authBtn.text('Please wait...');
-                if (!isPasscodeValid) {
-                    const form = document.querySelector('#authAdminForm');
-                    const data = new FormData(form);
-                    console.log(data)
-                    fetch("{{ env('APP_URL') }}api/auth-admin-passcode", {
-                            method: 'POST',
-                            body: data
-                        })
-                        .then(response => response.json())
-                        .then(response => {
-                            console.log(response);
+                $('.js-step-panel').addClass('d-none');
+                $(`.js-step-panel[data-panel="${step}"]`).removeClass('d-none');
+                $('.flow-step').removeClass('is-active is-complete');
+                $('.booking-flow-stepper').css('--booking-flow-progress', `${progress}%`);
 
-                            if (response.is_authorized) {
-                                isPasscodeValid = true;
-                                triggerToaster('success', response.message);
-                                $('#authAdminModal').modal('hide')
-                                // alert(selected_discount)
-                                if (selected_discount) {
-                                    $(`input[type="radio"][value="${selected_discount}"]`)
-                                        .prop('checked', true)
+                stepOrder.forEach((stepName, index) => {
+                    const stepNode = $(`.flow-step[data-step="${stepName}"]`);
+                    const marker = stepNode.find('.booking-flow-step__marker');
 
-                                    calculation()
-                                    calculateWithDiscount()
-                                }
+                    if (index < activeIndex) {
+                        stepNode.addClass('is-complete');
+                        marker.html('<i class="las la-check"></i>');
+                    } else if (index === activeIndex) {
+                        stepNode.addClass('is-active');
+                        marker.text(index + 1);
+                    } else {
+                        marker.text(index + 1);
+                    }
+                });
+            }
 
-                                $('input[name="passenger_name"]').val($('#mdl_passenger_name').val());
-                                $('input[name="id_number"]').val($('#mdl_id_number').val());
-                            } else {
-                                isPasscodeValid = false;
-                                triggerToaster('error', response.message);
-                            }
+            function resetAuthorization() {
+                $('input[name="discount_authorized"]').val('0');
+                $('input[name="authorization_method"]').val('');
+                $('input[name="authorized_by_admin_id"]').val('');
+                $('input[name="authorized_by_name"]').val('');
+                $('input[name="authorization_reference"]').val('');
+                $('.js-auth-status, .js-auth-modal-status').removeClass('text-success text-danger').text('');
+            }
 
-                            authBtn.prop('disabled', false);
-                            authBtn.text('Autorize');
-                        })
-                        .catch(error => {
-                            console.error('Fetch error:', error);
-                            triggerToaster('error', 'Something went wrong!');
-                        });
+            function collectPassengers(showErrors = false) {
+                const manifest = [];
+                let errors = [];
+                let discount = 0;
 
+                $('.passenger-card').each(function() {
+                    const card = $(this);
+                    const typeButton = card.find('.type-option.is-active');
+                    const passengerType = typeButton.data('type') || 'regular';
+                    const discountId = typeButton.data('discount-id') || null;
+                    const discountName = typeButton.data('discount-name') || null;
+                    const percentage = Number(typeButton.data('percentage') || 0);
+                    const seat = String(card.data('seat'));
+                    const name = $.trim(card.find('.js-passenger-name').val());
+                    const idNumber = $.trim(card.find('.js-id-number').val());
+                    const seatDiscount = passengerType === 'discounted' ? unitPrice * (percentage / 100) : 0;
+
+                    if (passengerType === 'discounted') {
+                        if (!name) errors.push(`Passenger name is required for seat ${seat}.`);
+                        if (!idNumber) errors.push(`ID number is required for seat ${seat}.`);
+                    }
+
+                    discount += seatDiscount;
+                    manifest.push({
+                        seat: seat,
+                        name: name,
+                        passenger_type: passengerType,
+                        discount_id: discountId,
+                        discount_name: discountName,
+                        discount_percentage: percentage,
+                        id_number: passengerType === 'discounted' ? idNumber : '',
+                        base_fare: unitPrice,
+                        discount_amount: seatDiscount,
+                        fare: unitPrice - seatDiscount
+                    });
+                });
+
+                if (manifest.length !== seats.length) {
+                    errors.push('Each selected seat must have a passenger type.');
                 }
 
-                return false;
-            });
+                passengerManifest = manifest;
+                totals.discount = discount;
+                totals.payable = Math.max(totals.subtotal - totals.discount, 0);
 
-            $(".more-gateway-option").on("click", function(e) {
-                let paymentList = $(".gateway-option-list");
-                paymentList.find(".gateway-option").removeClass("d-none");
-                $(this).addClass('d-none');
-                paymentList.animate({
-                    scrollTop: (paymentList.height() - 60)
-                }, 'slow');
-            });
-
-            var selected_discount = null;
-
-            $(".chk-discount").on("click", function(e) {
-                selected_discount = $(this).val();
-                if (!isPasscodeValid) {
-                    $('#authAdminModal').modal('show')
-                    $(this).prop('checked', false)
-                    return
+                if (showErrors && errors.length) {
+                    showMessage('error', errors[0]);
                 }
-                calculation()
-                calculateWithDiscount()
-            });
 
-            function calculateWithDiscount() {
-                if ($('input[name="discount_id"]:checked').length > 0) {
-                    let total = parseFloat($(".final-amount").text());
-                    var selectedRadio = $('input[name="discount_id"]:checked');
-                    let percentage = parseFloat(selectedRadio.attr('data-percentage'));
-                    let discount_percentage = percentage / 100;
-                    let discount = total * discount_percentage;
-                    let final_amount = total - discount;
+                return {
+                    valid: errors.length === 0,
+                    errors,
+                    discounted: manifest.filter((item) => item.passenger_type === 'discounted')
+                };
+            }
 
-                    let discount_name = selectedRadio.attr('data-name');
+            function renderSummary() {
+                const state = collectPassengers();
+                const lines = passengerManifest.map((item) => {
+                    let label = `Seat ${item.seat} &middot; ${item.passenger_type === 'discounted' ? item.discount_name : 'Regular'}`;
+                    return `<div class="summary-line"><span>${label}</span><strong>${money(item.fare)}</strong></div>`;
+                }).join('');
 
-                    $(".discount-fee").text('-' + discount.toFixed(2));
-                    $(".final-amount").text(final_amount.toFixed(2));
-                    $(".discount-label").text(`${discount_name} Discount (${percentage.toFixed(0)}%)`);
+                $('.js-breakdown').html(lines);
+                $('.js-details-total').text(money(totals.payable));
+                $('.js-payment-passengers').html(lines);
+
+                const discountLine = totals.discount > 0 ?
+                    `<div class="summary-line"><span>Discount</span><strong>-${money(totals.discount)}</strong></div>` : '';
+                $('.js-payment-breakdown').html(
+                    `<div class="summary-line"><span>Regular fare x ${seats.length}</span><strong>${money(totals.subtotal)}</strong></div>${discountLine}<div class="summary-line"><span>Processing charge</span><strong class="js-processing-charge">${money(totals.charge)}</strong></div>`
+                );
+                $('.js-payment-total').text(money(totals.final));
+
+                if (state.discounted.length) {
+                    $('#authorizationPanel').removeClass('d-none');
+                    const authorizationPreview = state.discounted.map((item) => {
+                        return `<div class="summary-line"><span>${item.name} &middot; Seat ${item.seat}<br><small>${item.discount_name} &middot; ID ${item.id_number}</small></span><strong>-${money(item.discount_amount)}</strong></div>`;
+                    }).join('');
+                    $('.js-auth-preview, .js-auth-modal-preview').html(authorizationPreview);
+                } else {
+                    $('#authorizationPanel').addClass('d-none');
+                    resetAuthorization();
                 }
             }
 
-            function calculation() {
+            function calculateGateway() {
+                gateway = selectedGateway();
                 if (!gateway) return;
-                //$(".gateway-limit").text(minAmount + " - " + maxAmount);
 
-                let percentCharge = 0;
-                let fixedCharge = 0;
-                let totalPercentCharge = 0;
+                const percentCharge = Number(gateway.percent_charge || 0);
+                const fixedCharge = Number(gateway.fixed_charge || 0);
+                totals.charge = (totals.payable / 100 * percentCharge) + fixedCharge;
+                totals.final = (totals.payable + totals.charge) * Number(gateway.rate || 1);
 
-                if (amount) {
-                    percentCharge = parseFloat(gateway.percent_charge);
-                    fixedCharge = parseFloat(gateway.fixed_charge);
-                    totalPercentCharge = parseFloat(amount / 100 * percentCharge);
-                }
-
-                let totalCharge = parseFloat(totalPercentCharge + fixedCharge);
-                let totalAmount = parseFloat((amount || 0) + totalPercentCharge + fixedCharge);
-
-                $(".final-amount").text(totalAmount.toFixed(2));
-                $(".processing-fee").text(totalCharge.toFixed(2));
-                $("input[name=currency]").val(gateway.currency);
-                $(".gateway-currency").text(gateway.currency);
-
-                // if (amount < Number(gateway.min_amount) || amount > Number(gateway.max_amount)) {
-                //     $(".deposit-form button[type=submit]").attr('disabled', true);
-                // } else {
-                //     $(".deposit-form button[type=submit]").removeAttr('disabled');
-                // }
-
-                if (gateway.currency != "{{ gs('cur_text') }}" && gateway.method.crypto != 1) {
-                    $('.deposit-form').addClass('adjust-height')
-
-                    $(".gateway-conversion, .conversion-currency").removeClass('d-none');
-                    $(".gateway-conversion").find('.deposit-info__input .text').html(
-                        `1 {{ __(gs('cur_text')) }} = <span class="rate">${parseFloat(gateway.rate).toFixed(2)}</span>  <span class="method_currency">${gateway.currency}</span>`
-                    );
-                    $('.in-currency').text(parseFloat(totalAmount * gateway.rate).toFixed(gateway.method.crypto == 1 ?
-                        8 : 2))
-                } else {
-                    $(".gateway-conversion, .conversion-currency").addClass('d-none');
-                    $('.deposit-form').removeClass('adjust-height')
-                }
-
-                if (gateway.method.crypto == 1) {
-                    $('.crypto-message').removeClass('d-none');
-                } else {
-                    $('.crypto-message').addClass('d-none');
-                }
+                $('input[name="currency"]').val(gateway.currency);
+                $('.js-processing-charge').text(money(totals.charge));
+                $('.js-payment-total').text(money(totals.final));
+                $('.js-payment-instructions').text(gateway.instruction || (gateway.name === 'Cash' ? 'Present the voucher at the Cashier Window for payment and ticket issuance.' : 'Follow the next screen to complete payment validation.'));
             }
 
-            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-            var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-            })
-            $('.gateway-input').change();
+            $(document).on('click', '.type-option', function() {
+                const button = $(this);
+                const card = button.closest('.passenger-card');
+                card.find('.type-option').removeClass('is-active');
+                button.addClass('is-active');
+
+                if (button.data('type') === 'discounted') {
+                    const percentage = Number(button.data('percentage') || 0);
+                    const fare = unitPrice - (unitPrice * (percentage / 100));
+                    card.find('.discount-fields').removeClass('d-none');
+                    card.find('.js-name-note').text('(required)');
+                    card.find('.js-discount-note').text(`${button.data('discount-name')} discount - ${percentage.toFixed(0)}% off`);
+                    card.find('.js-original-price').removeClass('d-none');
+                    card.find('.js-seat-price').text(money(fare));
+                } else {
+                    card.find('.discount-fields').addClass('d-none');
+                    card.find('.js-name-note').text('(optional)');
+                    card.find('.js-id-number').val('');
+                    card.find('.js-original-price').addClass('d-none');
+                    card.find('.js-seat-price').text(money(unitPrice));
+                }
+
+                resetAuthorization();
+                renderSummary();
+                calculateGateway();
+            });
+
+            $(document).on('input', '.js-passenger-name, .js-id-number', function() {
+                resetAuthorization();
+                renderSummary();
+                calculateGateway();
+            });
+
+            $('.auth-tab').on('click', function() {
+                activeAuthMethod = $(this).data('auth-method');
+                $('.auth-tab').removeClass('is-active');
+                $(this).addClass('is-active');
+                $('.auth-pane').addClass('d-none');
+                $(`.auth-pane[data-auth-pane="${activeAuthMethod}"]`).removeClass('d-none');
+            });
+
+            $('#cancelAuthorization').on('click', function() {
+                resetAuthorization();
+                $('.js-auth-status, .js-auth-modal-status').addClass('text-danger').text('Authorization cancelled. Change discounted passengers to Regular or authorize again.');
+                $('#discountAuthorizationModal').modal('hide');
+            });
+
+            $('#openAuthorizationModal').on('click', function() {
+                const state = collectPassengers(true);
+                if (!state.valid || !state.discounted.length) return;
+                $('#discountAuthorizationModal').modal('show');
+            });
+
+            $('#authorizeDiscount').on('click', function() {
+                const state = collectPassengers(true);
+                if (!state.valid) return;
+                if (!state.discounted.length) return;
+
+                const formData = new FormData();
+                formData.append('authorization_method', activeAuthMethod);
+
+                if (activeAuthMethod === 'tap_id') {
+                    const authorizedId = $.trim($('#authorizedId').val());
+                    if (!authorizedId) {
+                        showMessage('error', 'Tap or enter an authorized personnel ID.');
+                        return;
+                    }
+                    formData.append('authorized_id', authorizedId);
+                } else {
+                    const username = $.trim($('#authUsername').val());
+                    const passcode = $.trim($('#authPasscode').val());
+                    if (!username || !passcode) {
+                        showMessage('error', 'Enter the authorization username and code.');
+                        return;
+                    }
+                    formData.append('username', username);
+                    formData.append('passcode', passcode);
+                }
+
+                const button = $(this);
+                button.prop('disabled', true).text('Authorizing...');
+
+                fetch("{{ url('api/auth-admin-passcode') }}", {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(response => {
+                        if (response.is_authorized) {
+                            const admin = response.admin || {};
+                            $('input[name="discount_authorized"]').val('1');
+                            $('input[name="authorization_method"]').val(activeAuthMethod);
+                            $('input[name="authorized_by_admin_id"]').val(admin.id || '');
+                            $('input[name="authorized_by_name"]').val(admin.name || admin.username || '');
+                            $('input[name="authorization_reference"]').val(`${activeAuthMethod}:${admin.username || admin.id || 'authorized'}`);
+                            $('.js-auth-status, .js-auth-modal-status').removeClass('text-danger').addClass('text-success').text(`Authorized by ${admin.name || admin.username || 'authorized personnel'}.`);
+                            showMessage('success', response.message);
+                            $('#discountAuthorizationModal').modal('hide');
+                        } else {
+                            resetAuthorization();
+                            $('.js-auth-status, .js-auth-modal-status').removeClass('text-success').addClass('text-danger').text(response.message);
+                            showMessage('error', response.message);
+                        }
+                    })
+                    .catch(() => {
+                        resetAuthorization();
+                        showMessage('error', 'Authorization failed. Please try again.');
+                    })
+                    .finally(() => {
+                        button.prop('disabled', false).text('Authorize Discount');
+                    });
+            });
+
+            $('#continueToPayment').on('click', function() {
+                const state = collectPassengers(true);
+                if (!state.valid) return;
+
+                if (state.discounted.length && $('input[name="discount_authorized"]').val() !== '1') {
+                    showMessage('error', 'Discount authorization is required before payment.');
+                    $('#discountAuthorizationModal').modal('show');
+                    return;
+                }
+
+                $('input[name="passengers"]').val(JSON.stringify(passengerManifest));
+                setStep('payment');
+                renderSummary();
+                calculateGateway();
+            });
+
+            $('#backToDetails').on('click', function() {
+                setStep('details');
+            });
+
+            $('.gateway-input').on('change', function() {
+                calculateGateway();
+            });
+
+            $('#passengerFlowForm').on('submit', function(e) {
+                const state = collectPassengers(true);
+                if (!state.valid) {
+                    e.preventDefault();
+                    setStep('details');
+                    return;
+                }
+
+                if (state.discounted.length && $('input[name="discount_authorized"]').val() !== '1') {
+                    e.preventDefault();
+                    setStep('details');
+                    showMessage('error', 'Discount authorization is required before payment.');
+                    $('#discountAuthorizationModal').modal('show');
+                    return;
+                }
+
+                if (!$('.gateway-input:checked').length) {
+                    e.preventDefault();
+                    showMessage('error', 'Please select a payment method.');
+                    return;
+                }
+
+                $('input[name="passengers"]').val(JSON.stringify(passengerManifest));
+                calculateGateway();
+                $('#confirmPayment').prop('disabled', true).text('Validating payment...');
+            });
+
+            if (!$('.gateway-input:checked').length) {
+                $('.gateway-input:first').prop('checked', true);
+            }
+
+            renderSummary();
+            calculateGateway();
         })(jQuery);
     </script>
 @endpush

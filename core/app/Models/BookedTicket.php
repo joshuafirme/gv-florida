@@ -11,7 +11,8 @@ class BookedTicket extends Model
 
     protected $casts = [
         'source_destination' => 'array',
-        'seats' => 'array'
+        'seats' => 'array',
+        'passenger_manifest' => 'array',
     ];
 
     protected $appends = ['photo'];
