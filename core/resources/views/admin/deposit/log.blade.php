@@ -535,9 +535,29 @@
                 const confirmPaymentModal = new bootstrap.Modal(document.getElementById('confirmPaymentModal'));
                 const rejectPaymentModal = new bootstrap.Modal(document.getElementById('posRejectModal'));
                 let activePayment = null;
+                const appBaseUrl = @json(url('/'));
+                const params = new URLSearchParams(window.location.search);
+
+                if (params.get('newly_approved')) {
+                    const ticketUrl = localStorage.getItem('to_print_ticket');
+                    if (ticketUrl) {
+                        setTimeout(() => {
+                            window.open(ticketUrl, '_blank');
+                            localStorage.removeItem('to_print_ticket');
+                        }, 1000);
+                    }
+                    params.delete('newly_approved');
+                    const cleanUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+                    window.history.replaceState({}, document.title, cleanUrl);
+                }
 
                 const formatCurrency = value => currencyFormatter.format(Number(value) || 0);
                 const escapeHtml = value => $('<div>').text(value ?? '').html();
+                const absoluteUrl = value => {
+                    if (!value) return value;
+                    if (/^https?:\/\//i.test(value)) return value;
+                    return `${appBaseUrl.replace(/\/$/, '')}/${String(value).replace(/^\/+/, '')}`;
+                };
 
                 function ticketRowsHtml(payment) {
                     return payment.tickets.map(ticket => `
@@ -693,35 +713,25 @@
                 });
 
                 async function printReservation(fileUrl) {
-                    if (typeof qz !== 'undefined' && typeof connectQZ === 'function' && typeof getPrinter === 'function') {
-                        try {
-                            await connectQZ();
-                            const printer = await getPrinter();
-                            const config = qz.configs.create(printer, {
-                                scaleContent: true,
-                                colorType: 'color'
-                            });
-                            await qz.print(config, [{
-                                type: 'pdf',
-                                format: 'file',
-                                data: fileUrl,
-                                options: {
-                                    autoRotate: true
-                                }
-                            }]);
-                            return;
-                        } catch (error) {
-                            console.warn('Direct printing unavailable; opening the reservation slip.', error);
-                        }
+                    if (typeof qz === 'undefined' || typeof connectQZ !== 'function' || typeof getPrinter !== 'function') {
+                        throw new Error('QZ Tray is not available. Please start QZ Tray and try again.');
                     }
 
-                    const printLink = document.createElement('a');
-                    printLink.href = fileUrl;
-                    printLink.target = '_blank';
-                    printLink.rel = 'noopener';
-                    document.body.appendChild(printLink);
-                    printLink.click();
-                    printLink.remove();
+                    await connectQZ();
+                    const printer = await getPrinter();
+                    const config = qz.configs.create(printer, {
+                        scaleContent: true,
+                        colorType: 'color'
+                    });
+
+                    return qz.print(config, [{
+                        type: 'pdf',
+                        format: 'file',
+                        data: fileUrl,
+                        options: {
+                            autoRotate: true
+                        }
+                    }]);
                 }
 
                 $('#posConfirmPrintBtn').on('click', function() {
@@ -747,10 +757,18 @@
                             throw new Error(result.message || 'Unable to create the reservation slip.');
                         }
 
-                        await printReservation(activePayment.reservation_slip_url || result.reservation_slip_url || result.file_url);
+                        const printUrl = absoluteUrl(result.file_url);
+                        const openUrl = absoluteUrl(result.reservation_slip_url || result.file_url);
+
+                        await printReservation(printUrl);
+                        localStorage.setItem('to_print_ticket', openUrl);
                         notify('success', 'Payment confirmed and reservation slip prepared.');
                         confirmPaymentModal.hide();
-                        setTimeout(() => window.location.reload(), 900);
+                        const reloadParams = new URLSearchParams(window.location.search);
+                        reloadParams.set('newly_approved', true);
+                        setTimeout(() => {
+                            window.location.search = reloadParams.toString();
+                        }, 900);
                     }).catch(function(error) {
                         const message = error.responseJSON?.message || error.message ||
                             'Unable to confirm this payment.';
