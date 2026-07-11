@@ -563,8 +563,8 @@
                     return payment.tickets.map(ticket => `
                         <div class="payment-ticket-row">
                             <div>
-                                <span class="payment-ticket-name">${escapeHtml(payment.passenger_name)}</span>
-                                <span class="payment-ticket-meta">${escapeHtml(payment.passenger_type)} · Seat ${escapeHtml(ticket.seat)}</span>
+                                <span class="payment-ticket-name">${escapeHtml(ticket.passenger_name || payment.passenger_name)}</span>
+                                <span class="payment-ticket-meta">${escapeHtml(ticket.passenger_type || payment.passenger_type)} · Seat ${escapeHtml(ticket.seat)}</span>
                             </div>
                             <strong class="payment-ticket-fare">${formatCurrency(ticket.fare)}</strong>
                         </div>

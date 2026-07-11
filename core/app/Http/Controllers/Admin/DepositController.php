@@ -48,6 +48,7 @@ class DepositController extends Controller
                 'bookedTicket.trip.schedule',
                 'bookedTicket.trip.fleetType',
                 'bookedTicket.slipSeriesNumbers',
+                'bookedTicket.activeSlipSeriesNumbers',
             ])
             ->where(function ($query) use ($lookup) {
                 $query->where('trx', $lookup)
@@ -73,8 +74,16 @@ class DepositController extends Controller
 
         if ($request->expectsJson()) {
             $ticket = $deposit->bookedTicket;
-            $slips = $ticket->slipSeriesNumbers;
-            $ticketFare = (float) $deposit->final_amount / max($slips->count(), 1);
+            $slips = $ticket->activeSlipSeriesNumbers->isNotEmpty()
+                ? $ticket->activeSlipSeriesNumbers
+                : $ticket->slipSeriesNumbers;
+            $fallbackTicketFare = (float) $deposit->final_amount / max($slips->count(), 1);
+            $manifest = collect($ticket->passenger_manifest ?: ($deposit->userDiscount?->passenger_manifest ?: []))
+                ->keyBy(fn ($passenger) => (string) ($passenger['seat'] ?? ''));
+            $fallbackPassengerName = $deposit->userDiscount?->passenger_name
+                ?: $deposit->user?->fullname
+                ?: 'Guest';
+            $fallbackPassengerType = getPassengerType($deposit);
 
             return response()->json([
                 'deposit_id' => $deposit->id,
@@ -86,16 +95,25 @@ class DepositController extends Controller
                 'departure_time' => Carbon::parse($ticket->trip->schedule->start_from)->format('g:i A'),
                 'travel_date' => Carbon::parse($ticket->date_of_journey)->format('D, M d, Y'),
                 'amount' => (float) $deposit->final_amount,
-                'passenger_name' => $deposit->userDiscount?->passenger_name
-                    ?: $deposit->user?->fullname
-                    ?: 'Guest',
-                'passenger_type' => getPassengerType($deposit),
+                'passenger_name' => $fallbackPassengerName,
+                'passenger_type' => $fallbackPassengerType,
                 'processed_by' => auth('admin')->user()->name,
-                'tickets' => $slips->map(fn ($slip) => [
-                    'number' => $slip->id,
-                    'seat' => $slip->seat,
-                    'fare' => $ticketFare,
-                ])->values(),
+                'tickets' => $slips->map(function ($slip) use ($manifest, $fallbackPassengerName, $fallbackPassengerType, $fallbackTicketFare) {
+                    $passenger = $manifest->get((string) $slip->seat, []);
+                    $isDiscounted = ($passenger['passenger_type'] ?? 'regular') === 'discounted';
+
+                    return [
+                        'number' => $slip->id,
+                        'seat' => $slip->seat,
+                        'fare' => (float) ($passenger['fare'] ?? $fallbackTicketFare),
+                        'base_fare' => (float) ($passenger['base_fare'] ?? $fallbackTicketFare),
+                        'discount_amount' => (float) ($passenger['discount_amount'] ?? 0),
+                        'passenger_name' => ($passenger['name'] ?? null) ?: $fallbackPassengerName,
+                        'passenger_type' => $passenger
+                            ? ($isDiscounted ? ($passenger['discount_name'] ?? 'Discounted') : 'Regular')
+                            : $fallbackPassengerType,
+                    ];
+                })->values(),
                 'reject_url' => route('admin.deposit.reject'),
                 'validate_url' => url("api/ticket/validate-deposit/{$deposit->id}"),
                 'print_url' => url("api/ticket/download/reservation-slip/{$ticket->id}"),

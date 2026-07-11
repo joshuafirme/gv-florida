@@ -109,9 +109,21 @@
 
 <body>
     @php
-        $fare = $ticket->deposit->final_amount / max($ticket->slipSeriesNumbers->count(), 1);
+        $slipCount = max($ticket->activeSlipSeriesNumbers->count(), $ticket->slipSeriesNumbers->count(), 1);
+        $fallbackFare = $ticket->deposit->final_amount / $slipCount;
+        $manifest = collect($ticket->passenger_manifest ?: ($ticket->deposit?->userDiscount?->passenger_manifest ?: []))
+            ->keyBy(fn ($passenger) => (string) ($passenger['seat'] ?? ''));
     @endphp
     @foreach ($ticket->activeSlipSeriesNumbers as $slip_series)
+        @php
+            $passenger = $manifest->get((string) $slip_series->seat, []);
+            $fare = (float) ($passenger['fare'] ?? $fallbackFare);
+            $passengerType = $passenger
+                ? (($passenger['passenger_type'] ?? 'regular') === 'discounted'
+                    ? ($passenger['discount_name'] ?? 'Discounted')
+                    : 'Regular')
+                : ($ticket->deposit?->userDiscount?->description ?: 'Regular');
+        @endphp
         <div class="slip-container">
 
             <div class="slip-title">{{ isset($content->heading) ? $content->heading : '' }}</div>
@@ -171,7 +183,7 @@
                     <tr class="section-gap">
                         <td class="label">Type of Passenger:</td>
                         <td class="value">
-                            {{ $ticket->deposit?->userDiscount?->description ?: 'Regular' }}
+                            {{ $passengerType }}
                         </td>
                     </tr>
 
