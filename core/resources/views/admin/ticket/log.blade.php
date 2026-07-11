@@ -62,8 +62,24 @@
                                                 </span>
                                             @endif
                                         </td>
-                                        <td data-label="@lang('PNR')">
-                                            <span class="fw-bold text--primary">{{ __($item->pnr_number) }}</span>
+                                        <td data-label="@lang('PNR Number')">
+                                            <div><span class="text-muted">{{ __($item->pnr_number) }}</span></div>
+                                            @if ($item->status == 1)
+                                                <span
+                                                    class="badge badge--success font-weight-normal text--samll">@lang('Booked')</span>
+                                            @elseif($item->status == 2)
+                                                <span
+                                                    class="badge badge--warning font-weight-normal text--samll">@lang('Pending')</span>
+                                            @elseif($item->status == Status::BOOKED_REFUNDED)
+                                                <span
+                                                    class="badge badge--danger font-weight-normal text--samll">@lang('Refunded')</span>
+                                            @elseif($item->status == Status::BOOKED_CANCELLED)
+                                                <span
+                                                    class="badge badge--danger font-weight-normal text--samll">@lang('Cancelled')</span>
+                                            @else
+                                                <span
+                                                    class="badge badge--danger font-weight-normal text--samll">@lang('Rejected')</span>
+                                            @endif
                                         </td>
                                         @if ($ticketSlip)
                                             <td data-label="@lang('Reference No.')">{{ $ticketSlip->id }}</td>
@@ -161,17 +177,14 @@
                                                          data-refund-url="{{ route('admin.vehicle.ticket.refund.options', $ticketSlip->id) }}">
                                                          <i class="las la-undo-alt"></i>
                                                      </button>
+                                                     <button type="button" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                         title="Cancel Ticket"
+                                                         class="btn btn-sm btn-outline--danger ms-1 cancel-ticket-btn"
+                                                         data-cancel-url="{{ route('admin.vehicle.ticket.cancel.options', $ticketSlip->id) }}">
+                                                         <i class="fa-solid fa-circle-xmark"></i>
+                                                     </button>
                                                  @endif
                                                 {{-- @endif --}}
-                                                @if (Carbon::parse($item->date_of_journey)->isFuture() || Carbon::parse($item->date_of_journey)->isToday())
-                                                    <button type="button" data-bs-toggle="tooltip"
-                                                        data-bs-placement="bottom" title="Cancel Booking"
-                                                        class="btn btn-sm btn-outline--danger confirmationBtn"
-                                                        data-question="@lang('Are you sure you want to cancel this booking?')"
-                                                        data-action="{{ route('admin.trip.ticket.cancel.booking', $item->id) }}"><i
-                                                            class="fa-solid fa-circle-xmark"></i>
-                                                    </button>
-                                                @endif
                                             @endif
                                         </td>
                                     </tr>
@@ -390,6 +403,91 @@
         </div>
     </div>
 
+    <div id="cancelTicketModal" class="modal fade" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered cancel-dialog">
+            <div class="modal-content cancel-modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <h5 class="modal-title">Cancel Ticket</h5>
+                        <p class="cancel-subtitle mb-0"><span id="cancelPnr"></span> - select the ticket to cancel. Paid
+                            tickets are forfeited - no money returned. Seats are released immediately.</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body cancel-body">
+                    <div id="cancelLoading" class="text-center py-5">
+                        <div class="spinner-border text-primary"></div>
+                    </div>
+
+                    <div id="cancelFormStage" class="d-none">
+                        <div class="cancel-ticket-card">
+                            <div>
+                                <strong id="cancelPassenger"></strong>
+                                <span id="cancelTicketMeta"></span>
+                            </div>
+                            <strong id="cancelFare"></strong>
+                        </div>
+
+                        <label class="cancel-label mt-3">Reason for Cancellation</label>
+                        <div id="cancelReasonChips" class="cancel-reason-chips"></div>
+
+                        <label class="cancel-label mt-3" for="cancelRemarks">Cancellation remarks / explanation</label>
+                        <textarea id="cancelRemarks" class="form-control cancel-textarea" rows="3"
+                            placeholder="Reason for cancellation..." maxlength="1000"></textarea>
+
+                        <div class="cancel-info-note mt-3">
+                            <i class="las la-info-circle"></i>
+                            <span>1 paid ticket will be cancelled with no money returned. Use Void to return the full fare, or Refund for a partial amount. Seat released.</span>
+                        </div>
+
+                        <div class="cancel-auth-card mt-3">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="las la-shield-alt"></i>
+                                <div>
+                                    <strong>Authorization Required</strong>
+                                    <p>An authorized personnel must enter their code to confirm this cancel.</p>
+                                </div>
+                            </div>
+                            <label class="cancel-label" for="cancelAuthorizationCode">Authorization Code</label>
+                            <div class="cancel-auth-input">
+                                <input type="password" id="cancelAuthorizationCode" class="form-control"
+                                    placeholder="Enter staff code" autocomplete="off">
+                                <button type="button" id="toggleCancelCode" aria-label="Show authorization code">
+                                    <i class="las la-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="cancelReviewStage" class="d-none">
+                        <p class="cancel-review-intro">Review the cancellation details before confirming.</p>
+                        <div class="cancel-review-card">
+                            <div><span>PNR / Ticket</span><strong id="cancelReviewTicket"></strong></div>
+                            <div><span>Passenger / Seat</span><strong id="cancelReviewPassenger"></strong></div>
+                            <div><span>Reason</span><strong id="cancelReviewReason"></strong></div>
+                            <div><span>Remarks</span><strong id="cancelReviewRemarks"></strong></div>
+                            <div class="cancel-review-total"><span>Fare Forfeited</span><strong id="cancelReviewFare"></strong></div>
+                        </div>
+                        <div class="cancel-info-note mt-3">
+                            <i class="las la-exclamation-circle"></i>
+                            <span>Confirming releases the seat immediately and transfers this ticket to Cancelled Tickets.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer cancel-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light" id="cancelKeepBtn" data-bs-dismiss="modal">Keep Booking</button>
+                    <button type="button" class="btn btn--danger" id="cancelReviewBtn" disabled>
+                        <i class="las la-times-circle me-1"></i> Review Cancel
+                    </button>
+                    <button type="button" class="btn btn-light d-none" id="cancelBackBtn">Back</button>
+                    <button type="button" class="btn btn--danger d-none" id="cancelConfirmBtn">
+                        <i class="las la-times-circle me-1"></i> Confirm Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <style>
         .rebook-dialog { max-width: 760px; }
         .rebook-modal-content { border: 0; border-radius: 14px; box-shadow: 0 22px 60px rgba(0, 0, 0, .28); overflow: hidden; }
@@ -465,6 +563,38 @@
         .refund-review-total strong { color: #bd570b; font-size: 20px; }
         .refund-footer { justify-content: space-between; padding: 8px 26px 24px; }
         .refund-footer .btn { border-radius: 8px; font-weight: 600; min-height: 42px; padding-left: 18px; padding-right: 18px; }
+        .cancel-dialog { max-width: 620px; }
+        .cancel-modal-content { border: 0; border-radius: 17px; box-shadow: 0 22px 60px rgba(0, 0, 0, .3); }
+        .cancel-modal-content .modal-header { padding: 28px 30px 8px; }
+        .cancel-modal-content .modal-title { color: #1d2025; font-size: 21px; font-weight: 700; }
+        .cancel-subtitle { color: #5f646e; font-size: 14px; line-height: 1.45; margin-top: 6px; }
+        .cancel-body { padding: 18px 30px; }
+        .cancel-ticket-card { align-items: center; background: #fff2f2; border: 1px solid #f2b6b6; border-radius: 9px; display: flex; justify-content: space-between; padding: 14px 16px; }
+        .cancel-ticket-card strong { color: #1f2228; font-size: 14px; }
+        .cancel-ticket-card span { color: #6d737e; display: block; font-size: 12px; margin-top: 4px; }
+        .cancel-label { color: #565c66; display: block; font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+        .cancel-reason-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .cancel-reason-chip { background: #f1f2f4; border: 1px solid #d2d5da; border-radius: 20px; color: #565b65; font-size: 12px; padding: 7px 13px; }
+        .cancel-reason-chip.active { background: #fff0f0; border-color: #ee8585; color: #d83535; }
+        .cancel-textarea { background: #f1f2f4; border-color: #d7d9de; border-radius: 9px; min-height: 74px; resize: none; }
+        .cancel-info-note { align-items: flex-start; background: #f5f5f6; border: 1px solid #dcdfe4; border-radius: 9px; color: #595f69; display: flex; font-size: 12px; gap: 10px; line-height: 1.45; padding: 14px; }
+        .cancel-info-note i { color: #6d737e; font-size: 18px; }
+        .cancel-auth-card { background: #fafafa; border: 1px solid #dcdfe4; border-radius: 12px; padding: 18px; }
+        .cancel-auth-card i { color: #e3196b; font-size: 18px; }
+        .cancel-auth-card strong { color: #2c3037; display: block; font-size: 15px; margin-bottom: 4px; }
+        .cancel-auth-card p { color: #747984; font-size: 12px; margin-bottom: 14px; }
+        .cancel-auth-input { max-width: 390px; position: relative; }
+        .cancel-auth-input input { background: #f1f2f4; border-color: #d2d5da; border-radius: 8px; height: 45px; padding-right: 42px; }
+        .cancel-auth-input button { background: transparent; border: 0; color: #6f7480; position: absolute; right: 10px; top: 10px; }
+        .cancel-review-intro { color: #686d77; font-size: 13px; }
+        .cancel-review-card { background: #f5f5f7; border: 1px solid #dedfe3; border-radius: 11px; overflow: hidden; }
+        .cancel-review-card > div { align-items: flex-start; display: flex; gap: 18px; justify-content: space-between; padding: 12px 15px; }
+        .cancel-review-card > div + div { border-top: 1px solid #dedfe3; }
+        .cancel-review-card span { color: #747984; font-size: 12px; }
+        .cancel-review-card strong { font-size: 13px; max-width: 65%; text-align: right; }
+        .cancel-review-total strong { color: #d83535; font-size: 20px; }
+        .cancel-footer { justify-content: flex-end; gap: 12px; padding: 8px 30px 28px; }
+        .cancel-footer .btn { border-radius: 9px; font-weight: 600; min-height: 43px; padding-left: 22px; padding-right: 22px; }
         @media (max-width: 575.98px) { .rebook-type-grid { grid-template-columns: 1fr; } .rebook-body { max-height: 68vh; padding: 18px 16px; } .rebook-review-grid { grid-template-columns: 58px 1fr 1fr; } }
     </style>
 
@@ -1137,6 +1267,125 @@
                     notify('error', refundError(xhr));
                     button.prop('disabled', false).html(originalLabel);
                     $('#refundBackBtn').trigger('click');
+                });
+            });
+        })(jQuery);
+
+        (function($) {
+            const cancelModal = new bootstrap.Modal(document.getElementById('cancelTicketModal'));
+            const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
+            let cancelData = null;
+            let cancelReason = '';
+
+            const formatMoney = value => currency.format(Number(value) || 0);
+            const escapeHtml = value => $('<div>').text(value ?? '').html();
+
+            function cancelError(xhr) {
+                const errors = xhr.responseJSON?.errors;
+                return errors ? Object.values(errors).flat()[0] :
+                    (xhr.responseJSON?.message || 'Unable to process this cancellation.');
+            }
+
+            function validateCancelForm() {
+                const valid = cancelData && cancelReason && $('#cancelRemarks').val().trim() &&
+                    $('#cancelAuthorizationCode').val().trim();
+                $('#cancelReviewBtn').prop('disabled', !valid);
+                return Boolean(valid);
+            }
+
+            function showCancelForm() {
+                $('#cancelReviewStage, #cancelBackBtn, #cancelConfirmBtn').addClass('d-none');
+                $('#cancelFormStage, #cancelKeepBtn, #cancelReviewBtn').removeClass('d-none');
+            }
+
+            $(document).on('click', '.cancel-ticket-btn', function(event) {
+                event.preventDefault();
+                cancelData = null;
+                cancelReason = '';
+                $('#cancelLoading').removeClass('d-none');
+                $('#cancelFormStage, #cancelReviewStage').addClass('d-none');
+                $('#cancelKeepBtn, #cancelReviewBtn').removeClass('d-none');
+                $('#cancelBackBtn, #cancelConfirmBtn').addClass('d-none');
+                $('#cancelReviewBtn').prop('disabled', true);
+                $('#cancelAuthorizationCode').attr('type', 'password');
+                cancelModal.show();
+
+                $.getJSON($(this).data('cancel-url')).done(function(data) {
+                    cancelData = data;
+                    $('#cancelPnr').text(data.pnr);
+                    $('#cancelPassenger').text(data.passenger_name);
+                    $('#cancelTicketMeta').text(`${data.passenger_type} - Seat ${data.seat} - Ref. ${data.reference}`);
+                    $('#cancelFare').text(formatMoney(data.fare));
+                    $('#cancelRemarks, #cancelAuthorizationCode').val('');
+                    $('#cancelReasonChips').html(data.reasons.map(reason =>
+                        `<button type="button" class="cancel-reason-chip" data-reason="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`
+                    ).join(''));
+                    $('#cancelLoading').addClass('d-none');
+                    $('#cancelFormStage').removeClass('d-none');
+                }).fail(function(xhr) {
+                    notify('error', cancelError(xhr));
+                    cancelModal.hide();
+                });
+            });
+
+            $(document).on('click', '.cancel-reason-chip', function() {
+                cancelReason = $(this).data('reason');
+                $('.cancel-reason-chip').removeClass('active');
+                $(this).addClass('active');
+                validateCancelForm();
+            });
+
+            $('#cancelRemarks, #cancelAuthorizationCode').on('input', validateCancelForm);
+
+            $('#toggleCancelCode').on('click', function() {
+                const input = $('#cancelAuthorizationCode');
+                input.attr('type', input.attr('type') === 'password' ? 'text' : 'password');
+            });
+
+            $('#cancelReviewBtn').on('click', function() {
+                if (!validateCancelForm()) return;
+                $('#cancelReviewTicket').text(`${cancelData.pnr} / ${cancelData.reference}`);
+                $('#cancelReviewPassenger').text(`${cancelData.passenger_name} / ${cancelData.seat}`);
+                $('#cancelReviewReason').text(cancelReason);
+                $('#cancelReviewRemarks').text($('#cancelRemarks').val().trim());
+                $('#cancelReviewFare').text(formatMoney(cancelData.fare));
+                $('#cancelFormStage, #cancelKeepBtn, #cancelReviewBtn').addClass('d-none');
+                $('#cancelReviewStage, #cancelBackBtn, #cancelConfirmBtn').removeClass('d-none');
+            });
+
+            $('#cancelBackBtn').on('click', showCancelForm);
+
+            $('#cancelConfirmBtn').on('click', function() {
+                if (!cancelData) return;
+                const button = $(this);
+                const originalLabel = button.html();
+                const acknowledgmentWindow = window.open('', '_blank');
+                button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Confirming...');
+
+                $.ajax({
+                    url: cancelData.confirm_url,
+                    method: 'POST',
+                    dataType: 'json',
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        reason: cancelReason,
+                        remarks: $('#cancelRemarks').val().trim(),
+                        authorization_code: $('#cancelAuthorizationCode').val()
+                    }
+                }).done(function(result) {
+                    notify('success', result.message);
+                    if (acknowledgmentWindow) {
+                        acknowledgmentWindow.location = result.acknowledgment_url;
+                    } else {
+                        window.open(result.acknowledgment_url, '_blank');
+                    }
+                    cancelModal.hide();
+                    setTimeout(() => window.location.href = result.redirect_url, 900);
+                }).fail(function(xhr) {
+                    if (acknowledgmentWindow) acknowledgmentWindow.close();
+                    notify('error', cancelError(xhr));
+                    button.prop('disabled', false).html(originalLabel);
+                    showCancelForm();
                 });
             });
         })(jQuery);
