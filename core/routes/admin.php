@@ -191,6 +191,10 @@ Route::middleware('admin')->group(function () {
         Route::get('refunded', 'refunded')->name('refunded');
         Route::get('refund/{slip}/options', 'refundOptions')->name('refund.options');
         Route::post('refund/{slip}/confirm', 'confirmRefund')->name('refund.confirm');
+        Route::get('cancelled', 'cancelled')->name('cancelled');
+        Route::get('cancel/{slip}/options', 'cancelOptions')->name('cancel.options');
+        Route::post('cancel/{slip}/confirm', 'confirmCancellation')->name('cancel.confirm');
+        Route::get('cancel/{id}/acknowledgment', 'cancellationAcknowledgment')->name('cancel.acknowledgment');
         Route::get('pending', 'pending')->name('pending');
         Route::get('rejected', 'rejected')->name('rejected');
         Route::get('all', 'list')->name('list');
