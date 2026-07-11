@@ -20,6 +20,24 @@
                         'pickup' => $ticket->trip->start_from,
                         'date_of_journey' => $ticket->date_of_journey,
                     ]));
+                    $androidReceiptPayload = [
+                        'pnr' => $ticket->pnr_number,
+                        'name' => $ticket->user->first_name ?? ($ticket->user->fullname ?? ''),
+                        'date' => showDateTime($ticket->date_of_journey, 'M d, Y'),
+                        'destination' => $ticket->drop?->name ?? '',
+                        'updated_at' => formatDate($deposit->updated_at, true),
+                        'expired_at' => formatDate($expiresAt, true),
+                        'seats' => implode(',', $ticket->seats ?? []),
+                        'departure_time' => date('h:i A', strtotime($ticket->trip->schedule->start_from)),
+                        'bus_type' => $ticket->trip?->fleetType?->name ?? '',
+                        'amount' => number_format((float) $deposit->amount, 2),
+                        'discount_amount' => number_format((float) ($deposit->userDiscount?->amount ?? 0), 2),
+                        'discount_description' => $deposit->userDiscount?->description ?? '',
+                        'final_amount' => number_format((float) $deposit->final_amount, 2),
+                        'method' => $deposit->gateway?->name ?? $deposit->methodName(),
+                        'status' => strip_tags($deposit->statusString),
+                        'passengers' => $manifest,
+                    ];
                 @endphp
 
                 <div class="qr-card">
@@ -269,6 +287,28 @@
     <script>
         (function() {
             "use strict";
+
+            const androidReceiptPayload = @json($androidReceiptPayload);
+
+            function printViaAndroidBridge() {
+                if (!window.Android || typeof window.Android.printReceipt !== 'function') {
+                    console.log('Android bridge not available');
+                    return;
+                }
+
+                try {
+                    console.log('Android bridge running...');
+                    window.Android.printReceipt(JSON.stringify(androidReceiptPayload));
+                } catch (error) {
+                    console.error('Android silent print failed:', error);
+                }
+            }
+
+            if (document.readyState === 'complete') {
+                printViaAndroidBridge();
+            } else {
+                window.addEventListener('load', printViaAndroidBridge, { once: true });
+            }
 
             const countdown = document.getElementById('payCountdown');
             if (!countdown) return;
