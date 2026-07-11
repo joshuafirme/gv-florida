@@ -37,17 +37,31 @@
                                         $ticketSlip = !empty($ticketRows) ? $item : null;
                                         $item = $ticketSlip ? $ticketSlip->bookedTicket : $item;
                                         $slipCount = max($item->slipSeriesNumbers->count(), 1);
+                                        $manifest = collect($item->passenger_manifest ?: ($item->deposit?->userDiscount?->passenger_manifest ?: []));
+                                        $seatPassenger = $ticketSlip
+                                            ? $manifest->firstWhere('seat', $ticketSlip->seat)
+                                            : null;
+                                        $ticketOriginalFare = $ticketSlip
+                                            ? (float) ($seatPassenger['base_fare'] ?? $item->unit_price ?? (($item->deposit?->amount ?? $item->sub_total) / $slipCount))
+                                            : (float) $item->sub_total;
+                                        $discountPercentage = (float) ($seatPassenger['discount_percentage'] ?? $item->deposit?->userDiscount?->percentage ?? 0);
+                                        $ticketDiscount = $seatPassenger
+                                            ? (float) ($seatPassenger['discount_amount'] ?? ($discountPercentage > 0 ? $ticketOriginalFare * ($discountPercentage / 100) : 0))
+                                            : ($ticketSlip && $item->deposit?->userDiscount
+                                                ? $item->deposit->userDiscount->amount / $slipCount
+                                                : 0);
                                         $ticketFare = $ticketSlip
-                                            ? ($item->deposit?->final_amount ?? $item->sub_total) / $slipCount
-                                            : $item->sub_total;
-                                        $ticketOriginalFare = $ticketSlip && $item->deposit
-                                            ? $item->deposit->amount / $slipCount
-                                            : $ticketFare;
-                                        $ticketDiscount = $ticketSlip && $item->deposit?->userDiscount
-                                            ? $item->deposit->userDiscount->amount / $slipCount
-                                            : 0;
-                                        $passengerName = $item->deposit?->userDiscount?->passenger_name ?: ($item->user?->fullname ?: 'Guest');
-                                        $passengerIdNumber = $item->deposit?->userDiscount?->id_number;
+                                            ? (float) ($seatPassenger['fare'] ?? max($ticketOriginalFare - $ticketDiscount, 0))
+                                            : (float) $item->sub_total;
+                                        $passengerName = $seatPassenger
+                                            ? ($seatPassenger['name'] ?: 'Guest')
+                                            : ($item->deposit?->userDiscount?->passenger_name ?: ($item->user?->fullname ?: 'Guest'));
+                                        $passengerType = $seatPassenger
+                                            ? (($seatPassenger['passenger_type'] ?? 'regular') === 'discounted'
+                                                ? ($seatPassenger['discount_name'] ?: 'Discounted')
+                                                : 'Regular')
+                                            : getPassengerType($item?->deposit);
+                                        $passengerIdNumber = $seatPassenger['id_number'] ?? $item->deposit?->userDiscount?->id_number;
                                     @endphp
                                     <tr>
                                         <td data-label="@lang('User')">
@@ -115,7 +129,7 @@
                                         </td>
                                         <td data-label="@lang('Passenger')">
                                             <strong>{{ $passengerName }}</strong>
-                                            <div class="text-muted">{{ getPassengerType($item?->deposit) }}</div>
+                                            <div class="text-muted">{{ $passengerType }}</div>
                                             @if ($passengerIdNumber)
                                                 <small class="text-muted">ID: {{ $passengerIdNumber }}</small>
                                             @endif
