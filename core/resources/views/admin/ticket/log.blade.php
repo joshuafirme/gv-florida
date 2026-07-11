@@ -37,17 +37,27 @@
                                         $ticketSlip = !empty($ticketRows) ? $item : null;
                                         $item = $ticketSlip ? $ticketSlip->bookedTicket : $item;
                                         $slipCount = max($item->slipSeriesNumbers->count(), 1);
+                                        $seatPassenger = $ticketSlip
+                                            ? collect($item->passenger_manifest ?? [])->firstWhere('seat', $ticketSlip->seat)
+                                            : null;
                                         $ticketFare = $ticketSlip
-                                            ? ($item->deposit?->final_amount ?? $item->sub_total) / $slipCount
+                                            ? ($seatPassenger['fare'] ?? (($item->deposit?->final_amount ?? $item->sub_total) / $slipCount))
                                             : $item->sub_total;
-                                        $ticketOriginalFare = $ticketSlip && $item->deposit
-                                            ? $item->deposit->amount / $slipCount
+                                        $ticketOriginalFare = $ticketSlip
+                                            ? ($seatPassenger['base_fare'] ?? ($item->deposit ? $item->deposit->amount / $slipCount : $ticketFare))
                                             : $ticketFare;
-                                        $ticketDiscount = $ticketSlip && $item->deposit?->userDiscount
-                                            ? $item->deposit->userDiscount->amount / $slipCount
+                                        $ticketDiscount = $ticketSlip
+                                            ? ($seatPassenger['discount_amount'] ?? ($item->deposit?->userDiscount ? $item->deposit->userDiscount->amount / $slipCount : 0))
                                             : 0;
-                                        $passengerName = $item->deposit?->userDiscount?->passenger_name ?: ($item->user?->fullname ?: 'Guest');
-                                        $passengerIdNumber = $item->deposit?->userDiscount?->id_number;
+                                        $passengerName = $seatPassenger
+                                            ? ($seatPassenger['name'] ?: 'Guest')
+                                            : ($item->deposit?->userDiscount?->passenger_name ?: ($item->user?->fullname ?: 'Guest'));
+                                        $passengerType = $seatPassenger
+                                            ? (($seatPassenger['passenger_type'] ?? 'regular') === 'discounted'
+                                                ? ($seatPassenger['discount_name'] ?: 'Discounted')
+                                                : 'Regular')
+                                            : getPassengerType($item?->deposit);
+                                        $passengerIdNumber = $seatPassenger['id_number'] ?? $item->deposit?->userDiscount?->id_number;
                                     @endphp
                                     <tr>
                                         <td data-label="@lang('User')">
@@ -115,7 +125,7 @@
                                         </td>
                                         <td data-label="@lang('Passenger')">
                                             <strong>{{ $passengerName }}</strong>
-                                            <div class="text-muted">{{ getPassengerType($item?->deposit) }}</div>
+                                            <div class="text-muted">{{ $passengerType }}</div>
                                             @if ($passengerIdNumber)
                                                 <small class="text-muted">ID: {{ $passengerIdNumber }}</small>
                                             @endif
@@ -163,11 +173,16 @@
                                                 </a>
 
                                                 {{-- @if (Carbon::parse($item->date_of_journey)->greaterThan(now()) && !$item->is_rebooked) --}}
+                                                @php
+                                                    $rebookOptionsUrl = $ticketSlip
+                                                        ? route('admin.trip.ticket.rebook.options', [$item->id, 'slip_id' => $ticketSlip->id])
+                                                        : route('admin.trip.ticket.rebook.options', $item->id);
+                                                @endphp
                                                  <button data-bs-toggle="tooltip" data-bs-placement="bottom"
                                                     title="Change Schedule" target="_blank"
                                                     class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"
-                                                    data-id="{{ $item->id }}"
-                                                    data-options-url="{{ route('admin.trip.ticket.rebook.options', $item->id) }}">
+                                                    data-id="{{ $ticketSlip?->id ?? $item->id }}"
+                                                    data-options-url="{{ $rebookOptionsUrl }}">
                                                      <i class="fa-solid fa-calendar-day"></i>
                                                  </button>
                                                  @if ($ticketSlip)
