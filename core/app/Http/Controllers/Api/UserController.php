@@ -30,6 +30,8 @@ class UserController extends Controller
             $admin = Admin::where('username', $request->authorized_id)
                 ->orWhere('passcode', $request->authorized_id)
                 ->first();
+        } elseif ($request->passcode && !$request->username) {
+            $admin = Admin::where('passcode', $request->passcode)->first();
         } else {
             $admin = Admin::where('username', $request->username)
                 ->where('passcode', $request->passcode)
@@ -37,7 +39,7 @@ class UserController extends Controller
         }
 
         $is_authorized = isset($admin->id) ? true : false;
-        $message = $is_authorized ? 'Authorization success!' : 'Invalid username or passcode!';
+        $message = $is_authorized ? 'Authorization success!' : 'Invalid authorization code!';
 
         return response()->json([
             'is_authorized' => $is_authorized,

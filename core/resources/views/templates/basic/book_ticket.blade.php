@@ -2,6 +2,7 @@
     @php
         $kiosk_id = request()->kiosk_id;
         $date_of_journey = request('date_of_journey') ? request('date_of_journey') : date('m/d/Y');
+        $dateOfJourneyQuery = \Carbon\Carbon::parse($date_of_journey)->format('m/d/Y');
         $date_of_journey_formatted = formatDate($date_of_journey);
     @endphp
     @if ($kiosk_id)
@@ -12,11 +13,17 @@
     @endif
     @extends($activeTemplate . $layout)
 
-    <div class="padding-top padding-bottom">
+    <div class="padding-top padding-bottom booking-seat-flow">
         <div class="container">
             @include('templates.basic.partials.booking_stepper', ['currentStep' => 'seat'])
             <a class="btn btn-outline-dark w-auto mb-3"
-                href="{{ url("/tickets?kiosk_id=$kiosk_id&counter_id={$trip->startFrom->id}&pickup={$trip->startFrom->id}&destination={$trip->endTo->id}&date_of_journey=$date_of_journey") }}">
+                href="{{ url('/tickets?' . urldecode(http_build_query([
+                    'kiosk_id' => $kiosk_id,
+                    'counter_id' => $trip->startFrom->id,
+                    'pickup' => $trip->startFrom->id,
+                    'destination' => $trip->endTo->id,
+                    'date_of_journey' => $dateOfJourneyQuery,
+                ]))) }}">
                 <i class="fa-solid fa-arrow-left"></i> Go Back
             </a>
             <div class="card border-0 shadow-sm rounded-4 mb-4 trip-header-banner">
@@ -74,7 +81,7 @@
                             <input type="hidden" name="fleet_type_id" value="{{ $trip->fleetType->id }}">
 
                             <input type="hidden" name="price" value="0">
-                            <input type="hidden" name="date_of_journey" value="{{ $date_of_journey }}">
+                            <input type="hidden" name="date_of_journey" value="{{ $dateOfJourneyQuery }}">
                             <input type="hidden" name="pickup_point" id="pickup_point" value="{{ $trip->startFrom->id }}">
                             <input type="hidden" name="seats">
 
@@ -193,10 +200,10 @@
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="seat-confirm-icon"><i class="las la-check"></i></div>
-                    <h5 class="seat-confirm-title">Confirm <span class="js-confirm-count">0</span> seats?</h5>
+                    <h5 class="seat-confirm-title">Confirm <span class="js-confirm-count">0</span> <span class="js-confirm-seat-word">seats</span>?</h5>
                     <p class="seat-confirm-copy">
-                        You've selected <strong><span class="js-confirm-count">0</span> seats</strong>. They will be
-                        reserved while you finish booking.
+                        You've selected <strong><span class="js-confirm-count">0</span> <span class="js-confirm-seat-word">seats</span></strong>.
+                        Your selection will be reserved while you finish booking.
                     </p>
                     <div class="seat-confirm-tags js-confirm-tags"></div>
                     <div class="seat-confirm-total">
@@ -209,7 +216,7 @@
                             Choose again
                         </button>
                         <button type="submit" class="seat-confirm-primary" id="btnBookConfirm">
-                            Confirm seats
+                            Confirm <span class="js-confirm-seat-word">seats</span>
                         </button>
                     </div>
                 </div>
@@ -246,6 +253,48 @@
         <link rel="stylesheet" type="text/css" href="{{ asset('assets/global/css/daterangepicker.css') }}">
 
         <style>
+            .booking-seat-flow {
+                padding-bottom: 24px !important;
+                padding-top: 8px !important;
+            }
+
+            .booking-seat-flow input::placeholder,
+            .booking-seat-flow textarea::placeholder,
+            .booking-seat-flow .select2-selection__placeholder {
+                font-style: italic;
+                opacity: .58;
+            }
+
+            .booking-seat-flow .container {
+                max-width: 1240px;
+            }
+
+            .booking-seat-flow .btn-outline-dark {
+                margin-bottom: 10px !important;
+                padding: 7px 12px;
+            }
+
+            .trip-header-banner {
+                margin-bottom: 14px !important;
+            }
+
+            .trip-header-banner .card-body,
+            .booking-seat-flow .seat-overview-wrapper .card-body {
+                padding: 16px !important;
+            }
+
+            .booking-seat-flow .seat-overview-wrapper .card-footer {
+                padding: 14px 16px !important;
+            }
+
+            .booking-seat-flow .row {
+                --bs-gutter-y: 1rem;
+            }
+
+            .booking-seat-flow h6.title {
+                margin-bottom: 8px;
+            }
+
             /* Selected by Admin for Rebooking (Green) */
             .seat.selected {
                 cursor: grab;
@@ -267,15 +316,15 @@
             }
 
             .overview-icon-box {
-                width: 38px;
-                height: 38px;
+                width: 34px;
+                height: 34px;
                 background-color: #fce8ef;
                 color: #e84c88;
-                border-radius: 10px;
+                border-radius: 8px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 20px;
+                font-size: 18px;
                 flex-shrink: 0;
             }
 
@@ -308,7 +357,7 @@
             .seat-confirm-modal .modal-content {
                 border: 0;
                 border-radius: 14px;
-                padding: 22px;
+                padding: 20px;
                 text-align: center;
             }
 
@@ -664,6 +713,8 @@
                 function updateConfirmModal() {
                     let price = parseFloat($('input[name=price]').val()) || 0;
                     let selectedSeats = $('.seat.selected');
+                    let selectedCount = selectedSeats.length;
+                    let seatWord = selectedCount === 1 ? 'seat' : 'seats';
                     let total = price * selectedSeats.length;
                     let tags = [];
 
@@ -671,12 +722,14 @@
                         tags.push(`<span>${$(this).data('seat')} &middot; ${deckLabel(this)}</span>`);
                     });
 
-                    $('.js-confirm-count').text(selectedSeats.length);
+                    $('.js-confirm-count').text(selectedCount);
+                    $('.js-confirm-seat-word').text(seatWord);
                     $('.js-confirm-tags').html(tags.join(''));
                     $('.js-confirm-total').text('{{ gs('cur_sym') }}' + total.toLocaleString('en-US', {
                         minimumFractionDigits: 2
                     }));
-                    $('.js-confirm-unit').text(`${selectedSeats.length} x {{ gs('cur_sym') }}${price.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+                    $('.js-confirm-unit').text(`${selectedCount} ${seatWord} x {{ gs('cur_sym') }}${price.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
+                    $('#btnBookConfirm').text(`Confirm ${seatWord}`);
                 }
 
                 // Handle Seat Clicks
