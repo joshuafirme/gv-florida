@@ -17,6 +17,9 @@
         $date_of_journey = request('date_of_journey')
             ? date('Y-m-d', strtotime(request('date_of_journey')))
             : date('Y-m-d');
+        $dateOfJourneyQuery = request('date_of_journey')
+            ? Carbon::parse(request('date_of_journey'))->format('m/d/Y')
+            : date('m/d/Y');
     @endphp
     @extends($activeTemplate . $layout)
 
@@ -119,7 +122,7 @@
                         <div class="form--group">
                             <i class="las la-calendar-check"></i>
                             <input type="text" name="date_of_journey" class="form--control date-range"
-                                placeholder="@lang('Date of Journey')" autocomplete="off" value="{{ request()->date_of_journey }}">
+                                placeholder="@lang('Date of Journey')" autocomplete="off" value="{{ $dateOfJourneyQuery }}">
                         </div>
                     </div>
 
@@ -284,7 +287,7 @@
                                         'end_to' => $trip->end_to,
                                         'dropping_point' => request('destination'),
                                         'kiosk_id' => $kiosk_id,
-                                        'date_of_journey' => request('date_of_journey'),
+                                        'date_of_journey' => $dateOfJourneyQuery,
                                     ]) }}">@lang('Select Seat')</a>
 
                                 @if ($routeSequence && $routeSequence->count() > 0)

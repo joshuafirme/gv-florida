@@ -160,6 +160,21 @@ class SiteController extends Controller
 
     public function ticket(Request $request)
     {
+        if ($request->filled('date_of_journey')) {
+            try {
+                $formattedDate = Carbon::parse($request->date_of_journey)->format('m/d/Y');
+            } catch (\Exception $exception) {
+                $formattedDate = null;
+            }
+
+            if ($formattedDate && $request->date_of_journey !== $formattedDate) {
+                $query = $request->query();
+                $query['date_of_journey'] = $formattedDate;
+
+                return redirect()->to($request->url() . '?' . urldecode(http_build_query($query)));
+            }
+        }
+
         // -------------------------------
         // 1. VALIDATIONS (If searching)
         // -------------------------------
