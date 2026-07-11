@@ -24,16 +24,29 @@ class UserController extends Controller
 {
     public function authAdminPasscode(Request $request)
     {
-        $admin = Admin::where('username', $request->username)
-            ->where('passcode', $request->passcode)
-            ->first();
+        $admin = null;
+
+        if ($request->authorization_method === 'tap_id' && $request->authorized_id) {
+            $admin = Admin::where('username', $request->authorized_id)
+                ->orWhere('passcode', $request->authorized_id)
+                ->first();
+        } else {
+            $admin = Admin::where('username', $request->username)
+                ->where('passcode', $request->passcode)
+                ->first();
+        }
 
         $is_authorized = isset($admin->id) ? true : false;
         $message = $is_authorized ? 'Authorization success!' : 'Invalid username or passcode!';
 
         return response()->json([
             'is_authorized' => $is_authorized,
-            'message' => $message
+            'message' => $message,
+            'admin' => $admin ? [
+                'id' => $admin->id,
+                'name' => $admin->name,
+                'username' => $admin->username,
+            ] : null,
         ]);
     }
 

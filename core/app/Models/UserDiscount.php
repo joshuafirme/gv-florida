@@ -13,6 +13,17 @@ class UserDiscount extends Model
         'deposit_id',
         'percentage',
         'amount',
-        'description'
+        'description',
+        'passenger_manifest',
+        'authorization_method',
+        'authorized_by_admin_id',
+        'authorized_by_name',
+        'authorization_reference',
+        'authorized_at',
+    ];
+
+    protected $casts = [
+        'passenger_manifest' => 'array',
+        'authorized_at' => 'datetime',
     ];
 }

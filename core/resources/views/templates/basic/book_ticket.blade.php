@@ -14,6 +14,7 @@
 
     <div class="padding-top padding-bottom">
         <div class="container">
+            @include('templates.basic.partials.booking_stepper', ['currentStep' => 'seat'])
             <a class="btn btn-outline-dark w-auto mb-3"
                 href="{{ url("/tickets?kiosk_id=$kiosk_id&counter_id={$trip->startFrom->id}&pickup={$trip->startFrom->id}&destination={$trip->endTo->id}&date_of_journey=$date_of_journey") }}">
                 <i class="fa-solid fa-arrow-left"></i> Go Back
@@ -132,7 +133,7 @@
 
                                 <div class="d-flex justify-content-between align-items-center mb-4">
                                     <h6 class="mb-0 text-dark fw-bold">@lang('Total Fare')</h6>
-                                    <h4 class="mb-0 fw-bold total-fare-amount" style="color: #e84c88;">₱0.00</h4>
+                                    <h4 class="mb-0 fw-bold total-fare-amount" style="color: #e84c88;">{{ gs('cur_sym') }}0.00</h4>
                                 </div>
 
                                 <div class="price-error-message text-danger small fw-bold mb-2 text-center d-none"></div>
@@ -187,24 +188,28 @@
         </div>
 
         {{-- confirmation modal --}}
-        <div class="modal fade" id="bookConfirm" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
-            aria-hidden="true">
-            <div class="modal-dialog">
+        <div class="modal fade seat-confirm-modal" id="bookConfirm" tabindex="-1" role="dialog"
+            aria-labelledby="myModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title"> @lang('Confirm Booking')</h5>
-                        <button type="button" class="w-auto btn--close" data-bs-dismiss="modal"><i
-                                class="las la-times"></i></button>
+                    <div class="seat-confirm-icon"><i class="las la-check"></i></div>
+                    <h5 class="seat-confirm-title">Confirm <span class="js-confirm-count">0</span> seats?</h5>
+                    <p class="seat-confirm-copy">
+                        You've selected <strong><span class="js-confirm-count">0</span> seats</strong>. They will be
+                        reserved while you finish booking.
+                    </p>
+                    <div class="seat-confirm-tags js-confirm-tags"></div>
+                    <div class="seat-confirm-total">
+                        <span>Total Fare</span>
+                        <strong class="js-confirm-total">{{ gs('cur_sym') }}0.00</strong>
                     </div>
-                    <div class="modal-body">
-                        <strong class="text-dark">@lang('Are you sure you want to book the selected seat(s)?')</strong>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn--danger w-auto btn--sm px-3" data-bs-dismiss="modal">
-                            @lang('Close')
+                    <div class="seat-confirm-unit js-confirm-unit"></div>
+                    <div class="seat-confirm-actions">
+                        <button type="button" class="seat-confirm-secondary" data-bs-dismiss="modal">
+                            Choose again
                         </button>
-                        <button type="submit" class="btn btn--base btn--sm w-auto"
-                            id="btnBookConfirm">@lang('Confirm')
+                        <button type="submit" class="seat-confirm-primary" id="btnBookConfirm">
+                            Confirm seats
                         </button>
                     </div>
                 </div>
@@ -298,6 +303,109 @@
                 cursor: not-allowed;
                 opacity: 0.8;
                 box-shadow: none;
+            }
+
+            .seat-confirm-modal .modal-content {
+                border: 0;
+                border-radius: 14px;
+                padding: 22px;
+                text-align: center;
+            }
+
+            .seat-confirm-icon {
+                align-items: center;
+                background: #ffe7f3;
+                border-radius: 14px;
+                color: #df2a82;
+                display: inline-flex;
+                font-size: 30px;
+                height: 52px;
+                justify-content: center;
+                margin: 0 auto 14px;
+                width: 52px;
+            }
+
+            .seat-confirm-title {
+                color: #111827;
+                font-weight: 900;
+                margin-bottom: 6px;
+            }
+
+            .seat-confirm-copy {
+                color: #6b7280;
+                margin: 0 auto 12px;
+                max-width: 320px;
+            }
+
+            .seat-confirm-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                justify-content: center;
+                margin-bottom: 14px;
+            }
+
+            .seat-confirm-tags span {
+                background: #ffe7f3;
+                border-radius: 999px;
+                color: #c21870;
+                font-size: 12px;
+                font-weight: 900;
+                padding: 6px 10px;
+            }
+
+            .seat-confirm-total {
+                align-items: center;
+                background: #f8fafc;
+                border-radius: 8px;
+                color: #64748b;
+                display: flex;
+                font-weight: 700;
+                justify-content: space-between;
+                padding: 12px 14px;
+            }
+
+            .seat-confirm-total strong {
+                color: #df2a82;
+                font-size: 17px;
+                font-weight: 900;
+            }
+
+            .seat-confirm-unit {
+                color: #98a1ad;
+                font-size: 12px;
+                font-weight: 700;
+                margin: 8px 0 18px;
+            }
+
+            .seat-confirm-actions {
+                display: grid;
+                gap: 10px;
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .seat-confirm-primary,
+            .seat-confirm-secondary {
+                border: 0;
+                border-radius: 8px;
+                font-weight: 900;
+                min-height: 44px;
+            }
+
+            .seat-confirm-primary {
+                background: #df2a82;
+                color: #fff;
+            }
+
+            .seat-confirm-secondary {
+                background: #f1f5f9;
+                color: #334155;
+            }
+
+            @media (max-width: 575px) {
+                .seat-confirm-actions {
+                    grid-template-columns: 1fr;
+                }
             }
         </style>
     @endpush
@@ -396,9 +504,15 @@
 
                                 const urlParams = new URLSearchParams(window.location.search);
                                 let destParam = urlParams.get('dropping_point') || urlParams.get('destination');
+                                let end_to = urlParams.get('end_to')
                                 if (destParam) {
                                     setTimeout(() => {
                                         $destination.val(destParam).trigger("change");
+                                    }, 100);
+                                }
+                                else if (end_to) {
+                                    setTimeout(() => {
+                                        $destination.val(end_to).trigger("change");
                                     }, 100);
                                 }
                                 return;
@@ -535,9 +649,34 @@
                         $('.selected-seat-text').text('None yet');
                     }
 
-                    $('.total-fare-amount').text('₱' + total.toLocaleString('en-US', {
+                    $('.total-fare-amount').text('{{ gs('cur_sym') }}' + total.toLocaleString('en-US', {
                         minimumFractionDigits: 2
                     }));
+                }
+
+                function deckLabel(seat) {
+                    let deck = $(seat).closest('.seat-plan-inner').data('deck');
+                    if (deck == 1) return 'Lower Deck';
+                    if (deck == 2) return 'Upper Deck';
+                    return `Deck ${deck}`;
+                }
+
+                function updateConfirmModal() {
+                    let price = parseFloat($('input[name=price]').val()) || 0;
+                    let selectedSeats = $('.seat.selected');
+                    let total = price * selectedSeats.length;
+                    let tags = [];
+
+                    selectedSeats.each(function() {
+                        tags.push(`<span>${$(this).data('seat')} &middot; ${deckLabel(this)}</span>`);
+                    });
+
+                    $('.js-confirm-count').text(selectedSeats.length);
+                    $('.js-confirm-tags').html(tags.join(''));
+                    $('.js-confirm-total').text('{{ gs('cur_sym') }}' + total.toLocaleString('en-US', {
+                        minimumFractionDigits: 2
+                    }));
+                    $('.js-confirm-unit').text(`${selectedSeats.length} x {{ gs('cur_sym') }}${price.toLocaleString('en-US', { minimumFractionDigits: 2 })}`);
                 }
 
                 // Handle Seat Clicks
@@ -594,6 +733,7 @@
                         return;
                     }
                     if ($('.seat.selected').length > 0) {
+                        updateConfirmModal();
                         $('#bookConfirm').modal('show');
                     } else {
                         notify('error', 'Select at least one seat.');
