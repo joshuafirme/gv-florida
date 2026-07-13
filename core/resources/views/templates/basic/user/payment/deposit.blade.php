@@ -71,6 +71,11 @@
                             <label class="flow-label">Full Name <span class="js-name-note">(optional)</span></label>
                             <input type="text" class="flow-input js-passenger-name" placeholder="Guest">
 
+                            <div class="discount-fields d-none">
+                                <div class="discount-note js-discount-note"></div>
+                                <label class="flow-label">ID Number</label>
+                                <input type="text" class="flow-input js-id-number" placeholder="Required for discounted passenger">
+                            </div>
                             <label class="flow-label">Passenger Type</label>
                             <div class="passenger-type-grid">
                                 <button type="button" class="type-option is-active" data-type="regular" data-discount-id="">
@@ -83,12 +88,6 @@
                                         {{ $discount['name'] }}
                                     </button>
                                 @endforeach
-                            </div>
-
-                            <div class="discount-fields d-none">
-                                <div class="discount-note js-discount-note"></div>
-                                <label class="flow-label">ID Number</label>
-                                <input type="text" class="flow-input js-id-number" placeholder="Required for discounted passenger">
                             </div>
                         </div>
                     @endforeach
