@@ -103,7 +103,7 @@ class CounterController extends Controller
             $occupied_seats_ctr = 0;
 
             foreach ($tickets as $key => $ticket) {
-                $occupied_seats_ctr += count($ticket->seats);
+                $occupied_seats_ctr += $ticket?->seats ? count($ticket->seats) : 0;
             }
 
             $deck_seats = $trip->fleetType->deck_seats;
