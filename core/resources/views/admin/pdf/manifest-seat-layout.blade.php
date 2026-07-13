@@ -42,9 +42,9 @@
         .manifest-seat.blocked { background: #fafbfc; }
         .manifest-seat.disabled { background: #f2f3f5; color: #9ba2ad; }
         .manifest-passenger { display: grid; gap: 3px 12px; grid-template-columns: 1fr auto; margin-top: 6px; }
-        .manifest-reference { color: var(--pink); font-size: 12px; font-weight: 700; }
+        .manifest-reference { color: var(--pink); font-size: 18px; font-weight: 700; }
         .manifest-passenger-name { font-size: 12px; font-weight: 700; }
-        .manifest-passenger-route { color: #7a8290; font-size: 10px; }
+        .manifest-passenger-route { color: #7a8290; font-size: 14px; }
         .manifest-type { align-self: start; background: #fff7df; border: 1px solid #efc75a; border-radius: 5px; color: #9a6500; font-size: 9px; font-weight: 700; grid-column: 2; grid-row: 2 / span 2; padding: 3px 6px; text-transform: uppercase; }
         .manifest-seat.filtered { opacity: .18; }
         @media (max-width: 700px) { .manifest-toolbar { align-items: flex-start; flex-direction: column; } .manifest-page { border-radius: 0; margin: 0; padding: 22px 14px; } .manifest-info { grid-template-columns: repeat(2, 1fr); } .manifest-seat-grid { grid-template-columns: 1fr; } .manifest-seat:nth-child(odd) { border-right: 0; } }
