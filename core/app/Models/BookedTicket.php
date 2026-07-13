@@ -25,6 +25,49 @@ class BookedTicket extends Model
             $last = self::max('series_number') ?? 99999;
             $model->series_number = $last + 1;
         });
+
+        static::saved(function ($model) {
+            $model->broadcastScheduleBoardUpdate();
+        });
+
+        static::deleted(function ($model) {
+            $model->broadcastScheduleBoardUpdate();
+        });
+    }
+
+    public function broadcastScheduleBoardUpdate(): void
+    {
+        $dateOfJourney = null;
+
+        if ($this->date_of_journey) {
+            try {
+                $dateOfJourney = Carbon::parse($this->date_of_journey)->format('Y-m-d');
+            } catch (\Throwable $exception) {
+                $dateOfJourney = null;
+            }
+        }
+
+        $callback = function () use ($dateOfJourney) {
+            app(\App\Services\ScheduleBoardBroadcaster::class)->passengerTransaction([
+                'ticket_id' => $this->id,
+                'trip_id' => $this->trip_id,
+                'counter_id' => $this->pickup_point,
+                'date_of_journey' => $dateOfJourney,
+                'status' => $this->status,
+                'seat_count' => count($this->seats ?? []),
+            ]);
+        };
+
+        try {
+            if (\DB::transactionLevel() > 0) {
+                \DB::afterCommit($callback);
+                return;
+            }
+
+            $callback();
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
     }
 
     /**

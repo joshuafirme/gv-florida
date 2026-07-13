@@ -6,7 +6,6 @@ use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Models\BookedTicket;
 use App\Models\Trip;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\Counter;
 
@@ -83,9 +82,10 @@ class CounterController extends Controller
 
     public function scheduleBoard(Request $request, $counter_id)
     {
-
-        // return $data;
-        return view('admin.counter.board');
+        return view('admin.counter.board', [
+            'pusherKey' => config('services.pusher.key'),
+            'pusherCluster' => config('services.pusher.cluster', 'ap1'),
+        ]);
     }
 
     public function scheduleBoardJSON($counter_id)
@@ -119,29 +119,27 @@ class CounterController extends Controller
             if ($trip->fleetType->cr_position) {
                 $available_seats_ctr -= (int) $trip->fleetType->cr_row_covered;
             }
-            if ($available_seats_ctr < 1) {
-                continue;
-            }
+            $available_seats_ctr = max($available_seats_ctr, 0);
 
             $trip['deck_seats'] = $deck_seats;
             $trip['occupied_seats'] = $occupied_seats_ctr;
             $trip['available_seats'] = $available_seats_ctr;
+            $trip['is_fully_booked'] = $available_seats_ctr < 1;
 
             $data[] = $trip;
         }
 
         return response()->json([
             'res' => $data,
-            'last_updated' => Trip::max('updated_at')
+            'last_updated' => max(
+                (string) Trip::max('updated_at'),
+                (string) BookedTicket::whereDate('date_of_journey', date('Y-m-d'))->max('updated_at')
+            )
         ]);
     }
 
     public function getTripQuery($counter_id)
     {
-        $now = Carbon::now();
-        $request = request();
-        $mins_value = 15;
-
         return Trip::with([
             'route' => function ($query) {
                 $query->with(['startFrom', 'endTo']);
@@ -153,17 +151,6 @@ class CounterController extends Controller
             },
         ])
             ->withMin('schedule as earliest_start', 'start_from')
-            ->whereHas('schedule', function ($q) use ($now) {
-                $q->whereRaw("
-                      DATE_SUB(
-                          STR_TO_DATE(CONCAT(?, ' ', start_from), '%Y-%m-%d %H:%i:%s'),
-                          INTERVAL 15 MINUTE
-                      ) > ?
-                  ", [
-                    Carbon::parse($now)->format('Y-m-d'),
-                    $now->format('Y-m-d H:i:s')
-                ]);
-            })
             ->where('start_from', $counter_id)
             ->orderBy('earliest_start')
             ->active();

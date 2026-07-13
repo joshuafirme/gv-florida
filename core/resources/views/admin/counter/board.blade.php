@@ -153,6 +153,31 @@
             font-weight: 600;
         }
 
+        .status-text--departed {
+            color: #f59e0b;
+        }
+
+        .seat-badge {
+            border-radius: 999px;
+            display: inline-flex;
+            font-size: 0.95rem;
+            font-weight: 700;
+            justify-content: center;
+            min-width: 88px;
+            padding: 0.35rem 0.75rem;
+        }
+
+        .seat-badge--available {
+            background: rgba(34, 197, 94, 0.14);
+            color: #22c55e;
+        }
+
+        .seat-badge--full {
+            background: rgba(239, 68, 68, 0.16);
+            color: #f87171;
+            text-transform: uppercase;
+        }
+
         /* Pagination Dark/Light Theme Support */
         .pagination-container {
             padding: 1rem;
@@ -217,6 +242,14 @@
         .last-updated-text {
             color: var(--text-muted);
         }
+
+        .connection-status {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 0.35rem;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 
@@ -234,6 +267,7 @@
             <button id="themeToggle" class="theme-toggle-btn">☀️ Light Mode</button>
             <div id="clock-time" class="clock-time">--:-- --</div>
             <div id="clock-date" class="clock-date">--</div>
+            <div id="connectionStatus" class="connection-status">Connecting live updates</div>
         </div>
     </header>
 
@@ -273,6 +307,7 @@
     </main>
 
     <script src="{{ asset('assets/global/js/jquery-3.7.1.min.js') }}"></script>
+    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
 
     <script>
         // --- Theme Toggle Logic ---
@@ -299,11 +334,14 @@
         const itemsPerPage = 10;
         let tableData = []; 
         let last_updated = null;
+        let refreshTimer = null;
+        const counterId = window.location.pathname.split('/').filter(Boolean).pop();
+        const scheduleBoardUrl = @json(route('admin.counter.scheduleBoardJSON', '__COUNTER_ID__')).replace('__COUNTER_ID__', counterId);
+        const pusherKey = @json($pusherKey);
+        const pusherCluster = @json($pusherCluster);
 
         scheduleBoard();
-        setInterval(() => {
-            scheduleBoard();
-        }, 5000);
+        connectScheduleBoardUpdates();
 
         function tickLastUpdate() {
             document.getElementById('lastUpdated').textContent =
@@ -320,19 +358,15 @@
             if (!last_updated) {
                 tickLastUpdate();
             }
-            
-            const id = window.location.pathname.split('/').filter(Boolean).pop();
-            
+
             $.ajax({
-                url: "{{ env('APP_URL') }}" + 'admin/counter/schedule-board/json/' + id,
+                url: scheduleBoardUrl,
                 type: 'GET',
                 data: {
                     '_token': "{{ csrf_token() }}"
                 },
                 success: function (data) {
-                    if (last_updated && last_updated != data.last_updated) {
-                        tickLastUpdate();
-                    }
+                    tickLastUpdate();
                     last_updated = data.last_updated;
                     
                     tableData = data.res; 
@@ -357,13 +391,25 @@
             const endIndex = startIndex + itemsPerPage;
             const paginatedItems = tableData.slice(startIndex, endIndex);
 
+            if (!paginatedItems.length) {
+                $('#scheduleTable tbody').append(`
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-uppercase">No departures available</td>
+                    </tr>
+                `);
+                renderPaginationControls(tableData.length);
+                return;
+            }
+
             for (const item of paginatedItems) {
-                if (isAfterNow(item.schedule.start_from) &&
-                    item.trip_status == '{{ Status::TRIP_ON_TIME }}') {
-                    item.trip_status = '{{ Status::TRIP_DELAYED }}';
-                }
+                const displayStatus = isDeparted(item.schedule.start_from)
+                    ? '{{ Status::TRIP_DEPARTED }}'
+                    : item.trip_status;
 
                 let bus_no = item.assigned_vehicle && item.assigned_vehicle.vehicle ? item.assigned_vehicle.vehicle.bus_no : 'N/A';
+                let seatLabel = item.is_fully_booked
+                    ? '<span class="seat-badge seat-badge--full">Fully Booked</span>'
+                    : `<span class="seat-badge seat-badge--available">${item.available_seats}</span>`;
 
                 html += `
                 <tr>
@@ -371,8 +417,8 @@
                     <td class="text-center text-uppercase">${item.route.end_to.city}</td>
                     <td class="text-center">${bus_no}</td>
                     <td class="text-center text-uppercase">${item.fleet_type.name}</td>
-                    <td class="text-center">${item.available_seats > 0 ? item.available_seats : 'Full'}</td>
-                    <td class="text-center">${generateTripStatusHTML(item.trip_status)}</td>
+                    <td class="text-center">${seatLabel}</td>
+                    <td class="text-center">${generateTripStatusHTML(displayStatus)}</td>
                 </tr>`;
             }
 
@@ -420,7 +466,7 @@
             }
         }
 
-        function isAfterNow(hhmm) {
+        function isDeparted(hhmm) {
             const [h, m] = hhmm.split(':').map(Number);
             const target = h * 60 + m;
             const now = new Date();
@@ -429,7 +475,11 @@
         }
 
         function generateTripStatusHTML(status) {
-            return `<span class="status-text">${reverseSlug(status)}</span>`;
+            const className = status === '{{ Status::TRIP_DEPARTED }}'
+                ? 'status-text status-text--departed'
+                : 'status-text';
+
+            return `<span class="${className}">${reverseSlug(status)}</span>`;
         }
 
         function reverseSlug(slug) {
@@ -447,6 +497,47 @@
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: true
+            });
+        }
+
+        function queueScheduleRefresh() {
+            clearTimeout(refreshTimer);
+            refreshTimer = setTimeout(scheduleBoard, 350);
+        }
+
+        function setConnectionStatus(message) {
+            const status = document.getElementById('connectionStatus');
+            if (status) {
+                status.textContent = message;
+            }
+        }
+
+        function connectScheduleBoardUpdates() {
+            if (!pusherKey || typeof Pusher === 'undefined') {
+                setConnectionStatus('Live updates unavailable');
+                return;
+            }
+
+            Pusher.logToConsole = false;
+
+            const pusher = new Pusher(pusherKey, {
+                cluster: pusherCluster || 'ap1'
+            });
+
+            pusher.connection.bind('connected', function() {
+                setConnectionStatus('Live updates connected');
+            });
+
+            pusher.connection.bind('unavailable', function() {
+                setConnectionStatus('Live updates reconnecting');
+            });
+
+            pusher.connection.bind('failed', function() {
+                setConnectionStatus('Live updates disconnected');
+            });
+
+            pusher.subscribe('schedule-board').bind('passenger-transaction', function() {
+                queueScheduleRefresh();
             });
         }
 
