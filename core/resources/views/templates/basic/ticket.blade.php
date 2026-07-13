@@ -63,11 +63,250 @@
 
         /* Trip card layout improvement */
         .ticket-item {
-            display: flex;
+            background: #fff;
+            border: 1px solid #edf0f3;
+            border-radius: 16px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .07);
+            cursor: pointer;
+            display: block;
+            margin-bottom: 16px !important;
+            padding: 20px;
+            position: relative;
+            transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+        }
+
+        .ticket-item:hover {
+            border-color: rgba(223, 42, 130, .35);
+            box-shadow: 0 16px 32px rgba(15, 23, 42, .12);
+            transform: translateY(-1px);
+        }
+
+        .ticket-item.is-disabled {
+            cursor: not-allowed;
+            opacity: .72;
+        }
+
+        .ticket-item.is-disabled:hover {
+            border-color: #edf0f3;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .07);
+            transform: none;
+        }
+
+        .trip-card-top,
+        .trip-card-route,
+        .trip-card-meta,
+        .trip-card-actions,
+        .trip-card-footer {
+            position: relative;
+            z-index: 2;
+        }
+
+        .trip-card-top {
+            align-items: flex-start;
+            display: grid;
+            gap: 16px;
+            grid-template-columns: 1fr auto;
+        }
+
+        .trip-route-title {
+            color: #07162f;
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: .01em;
+            line-height: 1.2;
+            margin: 0 0 18px;
+            text-transform: uppercase;
+        }
+
+        .trip-time-main {
+            color: #07162f;
+            font-size: 36px;
+            font-weight: 900;
+            line-height: 1;
+            margin: 0;
+        }
+
+        .trip-duration {
+            color: #718096;
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: 8px;
+        }
+
+        .trip-card-price {
+            text-align: right;
+        }
+
+        .fleet-pill {
             align-items: center;
-            justify-content: space-between;
+            background: #fff8e5;
+            border: 1px solid #f6c852;
+            border-radius: 999px;
+            color: #b45309;
+            display: inline-flex;
+            font-size: 12px;
+            font-weight: 900;
+            gap: 6px;
+            margin-bottom: 20px;
+            padding: 6px 12px;
+            text-transform: uppercase;
+        }
+
+        .trip-price {
+            color: #df2a82;
+            font-size: 32px;
+            font-weight: 900;
+            line-height: 1;
+            margin: 0;
+        }
+
+        .trip-price-range {
+            color: #8b95a1;
+            font-size: 12px;
+            font-weight: 800;
+            margin-top: 8px;
+        }
+
+        .trip-card-route {
+            align-items: center;
+            background: #f8fafc;
+            border-radius: 12px;
+            display: grid;
+            gap: 14px;
+            grid-template-columns: 1fr auto 1fr;
+            margin-top: 18px;
+            padding: 14px 16px;
+        }
+
+        .trip-point {
+            min-width: 0;
+        }
+
+        .trip-point--end {
+            text-align: right;
+        }
+
+        .trip-point small {
+            color: #94a3b8;
+            display: block;
+            font-size: 11px;
+            font-weight: 900;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .trip-point strong {
+            color: #07162f;
+            display: block;
+            font-size: 15px;
+            font-weight: 900;
+            text-transform: uppercase;
+            word-break: break-word;
+        }
+
+        .trip-route-arrow {
+            color: #94a3b8;
+            font-size: 26px;
+        }
+
+        .trip-card-meta {
+            align-items: center;
+            color: #718096;
+            display: flex;
             flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .trip-card-meta span {
+            align-items: center;
+            display: inline-flex;
+            font-size: 13px;
+            font-weight: 700;
+            gap: 5px;
+        }
+
+        .trip-card-actions {
+            display: grid;
             gap: 10px;
+            margin-top: 16px;
+        }
+
+        .trip-availability {
+            align-items: center;
+            border-radius: 999px;
+            display: flex;
+            font-weight: 900;
+            gap: 8px;
+            justify-content: center;
+            min-height: 38px;
+            padding: 8px 14px;
+            text-transform: uppercase;
+        }
+
+        .trip-availability.is-available {
+            background: #ecfdf5;
+            border: 1px solid #86efac;
+            color: #047857;
+        }
+
+        .trip-availability.is-full {
+            background: #fff1f2;
+            border: 1px solid #fecdd3;
+            color: #ef4444;
+        }
+
+        .trip-select-btn {
+            align-items: center;
+            background: #df2a82;
+            border: 0;
+            border-radius: 10px;
+            color: #fff;
+            display: flex;
+            font-weight: 900;
+            justify-content: center;
+            min-height: 50px;
+            text-decoration: none;
+        }
+
+        .trip-select-btn:hover {
+            color: #fff;
+        }
+
+        .trip-select-btn.is-disabled {
+            background: #f1f5f9;
+            color: #a0a9b5;
+            pointer-events: none;
+        }
+
+        .trip-card-footer {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        .route-details {
+            border-top: 1px dashed #e5e7eb;
+            margin-top: 14px;
+            padding-top: 12px;
+        }
+
+        .route-details__toggle {
+            color: #df2a82;
+            font-size: 12px;
+            font-weight: 900;
+            text-decoration: none;
+            text-transform: uppercase;
+        }
+
+        .route-details__toggle:hover {
+            color: #df2a82;
+        }
+
+        .trip-item-empty {
+            cursor: default;
         }
 
         /* Seats badge */
@@ -78,6 +317,42 @@
             color: #0d6efd;
             padding: 4px 10px;
             border-radius: 20px;
+        }
+
+        @media screen and (max-width: 767px) {
+            .ticket-item {
+                padding: 16px;
+            }
+
+            .trip-card-top {
+                grid-template-columns: 1fr;
+            }
+
+            .trip-card-price {
+                text-align: left;
+            }
+
+            .fleet-pill {
+                margin-bottom: 10px;
+            }
+
+            .trip-time-main,
+            .trip-price {
+                font-size: 30px;
+            }
+
+            .trip-card-route {
+                grid-template-columns: 1fr;
+                text-align: left;
+            }
+
+            .trip-point--end {
+                text-align: left;
+            }
+
+            .trip-route-arrow {
+                transform: rotate(90deg);
+            }
         }
     </style>
 
@@ -215,90 +490,105 @@
                                 if ($trip->fleetType->cr_position) {
                                     $available_seats_ctr -= (int) $trip->fleetType->cr_row_covered;
                                 }
-                                if ($available_seats_ctr < 1) {
-                                    //  continue;
-                                }
+                                $available_seats_ctr = max($available_seats_ctr, 0);
 
                                 $stoppageArr = $trip->route->stoppages ?? [];
                                 $routeSequence = App\Models\Counter::routeStoppages($stoppageArr);
+                                $isFullyBooked = $available_seats_ctr < 1;
+                                $selectSeatUrl = route('ticket.seats', [
+                                    $trip->id,
+                                    slug($trip->title),
+                                    'start_from' => $trip->start_from,
+                                    'end_to' => $trip->end_to,
+                                    'dropping_point' => request('destination'),
+                                    'kiosk_id' => $kiosk_id,
+                                    'date_of_journey' => $dateOfJourneyQuery,
+                                ]);
+                                $ticket_price = $trip->ticketPrice;
+                                $prices = $ticket_price?->prices ?? collect();
+                                $minPrice = $prices->where('price', '>', 0)->min('price') ?? 0;
+                                $maxPrice = $prices->max('price') ?? $minPrice;
+                                $routeId = uniqid('route_');
+                                $totalStops = $routeSequence?->count() ?? 0;
+                                $shouldCollapse = $totalStops >= 5;
+                                $availableSeatLabel = $available_seats_ctr === 1 ? 'Seat Available' : 'Seats Available';
                             @endphp
 
-                            <div class="ticket-item mb-2">
-                                <div class="ticket-item-inner">
-                                    <h5 class="bus-name">{{ __($trip->route->name) }}</h5>
-                                    <span class="bus-info">@lang('Seat Layout - ') {{ __($trip->fleetType->seat_layout) }}</span>
-                                    <span class="ratting"><i class="las la-bus"></i>{{ __($trip->fleetType->name) }}</span>
-                                </div>
-
-                                <div class="ticket-item-inner travel-time">
-                                    <div class="bus-time">
-                                        <p class="time">{{ showDateTime($trip->schedule->start_from, 'h:i A') }}</p>
-                                        <p class="place">{{ __($trip->startFrom->name) }}</p>
-                                    </div>
-                                    <div class=" bus-time">
-                                        <i class="las la-arrow-right"></i>
-                                        <p>{{ timeDifferenceReadable($trip->schedule->start_from, $trip->schedule->end_at) }}
-                                        </p>
-                                    </div>
-                                    <div class=" bus-time">
-                                        <p class="time">{{ showDateTime($trip->schedule->end_at, 'h:i A') }}</p>
-                                        <p class="place">{{ __($trip->endTo->name) }}</p>
-                                    </div>
-                                </div>
-
-                                <div class="ticket-item-inner book-ticket">
-                                    @php
-                                        $ticket_price = $trip->ticketPrice;
-                                        // Filter out the 0 values (Origin to Origin) to get the true minimum price
-                                        $minPrice = $ticket_price->prices->where('price', '>', 0)->min('price') ?? 0;
-                                        $maxPrice = $ticket_price->prices->max('price') ?? $item->price;
-                                    @endphp
-
-                                    <p class="rent mb-0">
-                                        @if ($minPrice > 0 && $minPrice != $maxPrice)
-                                            {{ showAmount($minPrice) }} - {{ showAmount($maxPrice) }}
-                                        @else
-                                            {{ showAmount($maxPrice) }}
-                                        @endif
-                                    </p>
-
-                                    <div class="seat-count mt-2">
-                                        Available Seats: {{ $available_seats_ctr }}
-                                    </div>
-
-                                    @if ($trip->day_off)
-                                        <div class="seats-left mt-2 mb-3 fs--14px">
-                                            @lang('Off Days'): <div class="d-inline-flex flex-wrap" style="gap:5px">
-                                                @foreach ($trip->day_off as $item)
-                                                    <span class="badge badge--primary">{{ __(showDayOff($item)) }}</span>
-                                                @endforeach
-                                            </div>
+                            <div class="ticket-item js-trip-card {{ $isFullyBooked ? 'is-disabled' : '' }}"
+                                @unless ($isFullyBooked) data-href="{{ $selectSeatUrl }}" tabindex="0" role="link" @endunless
+                                aria-disabled="{{ $isFullyBooked ? 'true' : 'false' }}">
+                                <div class="trip-card-top">
+                                    <div>
+                                        <h5 class="trip-route-title">{{ __($trip->route->name) }}</h5>
+                                        <p class="trip-time-main">{{ showDateTime($trip->schedule->start_from, 'h:i A') }}</p>
+                                        <div class="trip-duration">
+                                            {{ timeDifferenceReadable($trip->schedule->start_from, $trip->schedule->end_at) }}
+                                            &middot; arrives ~ {{ showDateTime($trip->schedule->end_at, 'h:i A') }}
                                         </div>
-                                    @else
-                                        @lang('Every day available')
+                                    </div>
+                                    <div class="trip-card-price">
+                                        <span class="fleet-pill">
+                                            <i class="las la-bus"></i> {{ __($trip->fleetType->name) }}
+                                        </span>
+                                        <p class="trip-price">
+                                            @if ($minPrice > 0 && $minPrice != $maxPrice)
+                                                {{ showAmount($maxPrice) }}
+                                            @else
+                                                {{ showAmount($maxPrice) }}
+                                            @endif
+                                        </p>
+                                        @if ($minPrice > 0 && $minPrice != $maxPrice)
+                                            <div class="trip-price-range">{{ showAmount($minPrice) }} - {{ showAmount($maxPrice) }}</div>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <div class="trip-card-route">
+                                    <div class="trip-point">
+                                        <small>@lang('Pickup')</small>
+                                        <strong>{{ __($trip->startFrom->name) }}</strong>
+                                    </div>
+                                    <div class="trip-route-arrow">
+                                        <i class="las la-arrow-right"></i>
+                                    </div>
+                                    <div class="trip-point trip-point--end">
+                                        <small>@lang('Drop-off')</small>
+                                        <strong>{{ __($trip->endTo->name) }}</strong>
+                                    </div>
+                                </div>
+
+                                <div class="trip-card-meta">
+                                    <span><i class="las la-chair"></i>{{ __($trip->fleetType->seat_layout) }}</span>
+                                    @if ($trip->fleetType->facilities)
+                                        @foreach (collect($trip->fleetType->facilities)->take(5) as $facility)
+                                            <span><i class="las la-check-circle"></i>{{ __($facility) }}</span>
+                                        @endforeach
                                     @endif
                                 </div>
 
-                                <a class="btn btn--base"
-                                    href="{{ route('ticket.seats', [
-                                        $trip->id,
-                                        slug($trip->title),
-                                        'start_from' => $trip->start_from,
-                                        'end_to' => $trip->end_to,
-                                        'dropping_point' => request('destination'),
-                                        'kiosk_id' => $kiosk_id,
-                                        'date_of_journey' => $dateOfJourneyQuery,
-                                    ]) }}">@lang('Select Seat')</a>
+                                <div class="trip-card-actions">
+                                    <div class="trip-availability {{ $isFullyBooked ? 'is-full' : 'is-available' }}">
+                                        <i class="las {{ $isFullyBooked ? 'la-times-circle' : 'la-couch' }}"></i>
+                                        @if ($isFullyBooked)
+                                            @lang('Fully Booked')
+                                        @else
+                                            {{ $available_seats_ctr }} {{ __($availableSeatLabel) }}
+                                        @endif
+                                    </div>
+
+                                    @if ($isFullyBooked)
+                                        <span class="trip-select-btn is-disabled">@lang('Unavailable')</span>
+                                    @else
+                                        <a class="trip-select-btn" href="{{ $selectSeatUrl }}">@lang('Select Seat')</a>
+                                    @endif
+                                </div>
+
+                                <div class="trip-card-footer">
+                                    @lang('Travel date') &middot; {{ Carbon::parse($date_of_journey)->format('D, M d, Y') }}
+                                </div>
 
                                 @if ($routeSequence && $routeSequence->count() > 0)
-                                    @php
-                                        $routeId = uniqid('route_');
-                                        $totalStops = $routeSequence->count();
-                                        // Only collapse if there are 5 or more total stops (Origin + 3 Intermediate + Destination)
-                                        $shouldCollapse = $totalStops >= 5;
-                                    @endphp
-
-                                    <div class="w-100 mt-4 pt-3" style="border-top: 1px dashed #e5e5e5; flex-basis: 100%;">
+                                    <div class="route-details">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <span class="d-block text-muted"
                                                 style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
@@ -306,9 +596,9 @@
                                             </span>
 
                                             @if ($shouldCollapse)
-                                                <a href="javascript:void(0)" class="text-primary text-decoration-none"
+                                                <a href="javascript:void(0)" class="route-details__toggle"
                                                     onclick="toggleRouteStops('{{ $routeId }}')"
-                                                    style="font-size: 11px; font-weight: 600;">
+                                                    data-trip-card-ignore>
                                                     <span id="text-{{ $routeId }}">@lang('View Stops')</span>
                                                 </a>
                                             @endif
@@ -346,21 +636,9 @@
                                         </div>
                                     </div>
                                 @endif
-                                @if ($trip->fleetType->facilities)
-                                    <div class="ticket-item-footer mt-3 w-100" style="flex-basis: 100%;">
-                                        <div class="d-flex content-justify-center">
-                                            <span>
-                                                <strong>@lang('Amenities - ')</strong>
-                                                @foreach ($trip->fleetType->facilities as $item)
-                                                    <span class="facilities">{{ __($item) }}</span>
-                                                @endforeach
-                                            </span>
-                                        </div>
-                                    </div>
-                                @endif
                             </div>
                         @empty
-                            <div class="ticket-item">
+                            <div class="ticket-item trip-item-empty">
                                 <h5>{{ __($emptyMessage) }}</h5>
                             </div>
                         @endforelse
@@ -446,6 +724,29 @@
 
             $('.search-multiple').select2({
                 placeholder: "Select an option"
+            });
+
+            $('.js-trip-card').on('click', function(event) {
+                if ($(event.target).closest('a, button, [data-trip-card-ignore]').length) {
+                    return;
+                }
+
+                const url = $(this).data('href');
+                if (url) {
+                    window.location.href = url;
+                }
+            });
+
+            $('.js-trip-card').on('keydown', function(event) {
+                if (!['Enter', ' '].includes(event.key)) {
+                    return;
+                }
+
+                const url = $(this).data('href');
+                if (url) {
+                    event.preventDefault();
+                    window.location.href = url;
+                }
             });
 
             const datePicker = $('.date-range').daterangepicker({
