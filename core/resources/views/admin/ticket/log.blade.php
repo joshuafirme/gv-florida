@@ -39,7 +39,7 @@
                                         $slipCount = max($item->slipSeriesNumbers->count(), 1);
                                         $manifest = collect($item->passenger_manifest ?: ($item->deposit?->userDiscount?->passenger_manifest ?: []));
                                         $seatPassenger = $ticketSlip
-                                            ? $manifest->firstWhere('seat', $ticketSlip->seat)
+                                            ? $manifest->first(fn ($passenger) => (string) ($passenger['seat'] ?? '') === (string) $ticketSlip->seat)
                                             : null;
                                         $ticketOriginalFare = $ticketSlip
                                             ? (float) ($seatPassenger['base_fare'] ?? $item->unit_price ?? (($item->deposit?->amount ?? $item->sub_total) / $slipCount))
@@ -177,11 +177,16 @@
                                                 </a>
 
                                                 {{-- @if (Carbon::parse($item->date_of_journey)->greaterThan(now()) && !$item->is_rebooked) --}}
+                                                @php
+                                                    $rebookOptionsUrl = $ticketSlip
+                                                        ? route('admin.trip.ticket.rebook.options', [$item->id, 'slip_id' => $ticketSlip->id])
+                                                        : route('admin.trip.ticket.rebook.options', $item->id);
+                                                @endphp
                                                  <button data-bs-toggle="tooltip" data-bs-placement="bottom"
                                                     title="Change Schedule" target="_blank"
                                                     class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"
-                                                    data-id="{{ $item->id }}"
-                                                    data-options-url="{{ route('admin.trip.ticket.rebook.options', $item->id) }}">
+                                                    data-id="{{ $ticketSlip?->id ?? $item->id }}"
+                                                    data-options-url="{{ $rebookOptionsUrl }}">
                                                      <i class="fa-solid fa-calendar-day"></i>
                                                  </button>
                                                  @if ($ticketSlip)
