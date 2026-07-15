@@ -147,7 +147,7 @@ class DepositController extends Controller
     public function rejected($userId = null)
     {
         $pageTitle = 'Rejected Deposits';
-        $status = 'approved';
+        $status = 'rejected';
         $deposits = $this->depositData($status, userId: $userId);
         return view('admin.deposit.log', compact('pageTitle', 'deposits', 'status'));
     }
@@ -184,23 +184,26 @@ class DepositController extends Controller
     protected function depositData($scope = null, $summary = false, $userId = null)
     {
         $request = request();
+        $relations = [
+            'user',
+            'gateway',
+            'userDiscount',
+            'processedBy',
+            'bookedTicket.kiosk',
+            'bookedTicket.pickup',
+            'bookedTicket.drop',
+            'bookedTicket.trip.schedule',
+            'bookedTicket.trip.fleetType',
+            'bookedTicket.slipSeriesNumbers',
+        ];
+
         if ($scope) {
-            $deposits = Deposit::$scope()->with([
-                'user',
-                'gateway',
-                'userDiscount',
-                'processedBy',
-                'bookedTicket.kiosk',
-                'bookedTicket.pickup',
-                'bookedTicket.drop',
-                'bookedTicket.trip.schedule',
-                'bookedTicket.trip.fleetType',
-            ]);
+            $deposits = Deposit::$scope()->with($relations);
             if ($scope == 'approved' || $scope == 'rejected') {
                 $deposits = $deposits->where('processed_by_admin_id', auth('admin')->id());
             }
         } else {
-            $deposits = Deposit::with(['user', 'gateway', 'bookedTicket']);
+            $deposits = Deposit::with($relations);
         }
 
         if ($userId) {

@@ -5,6 +5,7 @@
         $date = request('date');
         $status = isset($status) ? $status : 'all';
         $method_code = request('method_code') ?: 'all';
+        $enhancedPaymentTable = in_array($status, ['approved', 'successful', 'rejected', 'all']);
     @endphp
     <div class="row justify-content-center">
         @if (request()->routeIs('admin.deposit.list') || request()->routeIs('admin.deposit.method'))
@@ -70,42 +71,67 @@
             <div class="card">
                 <div class="card-body p-0">
                     <div class="table-responsive--sm table-responsive">
-                        <table class="table table--light style--two {{ $status == 'pending' ? 'pending-payments-table' : '' }}">
+                        <table class="table table--light style--two {{ $status == 'pending' || $enhancedPaymentTable ? 'pending-payments-table' : '' }} {{ $enhancedPaymentTable ? 'approved-payments-table ' . $status . '-payments-table' : '' }}">
                             <thead>
                                 <tr>
-                                    <th>{{ $status == 'pending' ? __('Gateway') : __('Gateway | Transaction') }}</th>
-                                    <th>@lang('Initiated')</th>
-                                    <th>@lang('PNR')</th>
-                                    @if ($status == 'pending')
-                                        <th>@lang('Source')</th>
-                                    @else
-                                        <th>Reference #</th>
-                                        <th>@lang('User')</th>
-                                    @endif
-                                    <th>Trip</th>
-                                    <th>Seats</th>
-                                    @if ($status == 'pending')
-                                        <th>@lang('Passenger')</th>
-                                    @endif
-                                    <th>
-                                        @lang('Amount')
-                                        @if ($status == 'pending')
-                                            <i class="las la-sort-amount-down-alt"></i>
+                                    @if ($enhancedPaymentTable)
+                                        <th>@lang('Gateway')</th>
+                                        <th>
+                                            @if ($status == 'approved')
+                                                @lang('Approved')
+                                            @elseif ($status == 'successful')
+                                                @lang('Completed')
+                                            @elseif ($status == 'rejected')
+                                                @lang('Rejected')
+                                            @else
+                                                @lang('Date')
+                                            @endif
+                                        </th>
+                                        <th>@lang('PNR')</th>
+                                        @if ($status != 'rejected')
+                                            <th>@lang('Reference No.')</th>
                                         @endif
-                                    </th>
-                                    @if ($status == 'pending')
+                                        <th>@lang('Source')</th>
+                                        <th>@lang('Trip')</th>
+                                        <th>@lang('Seats')</th>
+                                        <th>@lang('Passenger')</th>
+                                        <th>@lang('Amount')</th>
                                         <th>@lang('Payment Method')</th>
+                                        <th>{{ $status == 'rejected' ? __('Reason') : ($status == 'approved' ? __('Approved By') : __('Processed By')) }}</th>
+                                        <th>@lang('Status')</th>
+                                        <th>@lang('Action')</th>
                                     @else
-                                        <th>@lang('Passenger type')</th>
+                                        <th>{{ $status == 'pending' ? __('Gateway') : __('Gateway | Transaction') }}</th>
+                                        <th>@lang('Initiated')</th>
+                                        <th>@lang('PNR')</th>
+                                        @if ($status == 'pending')
+                                            <th>@lang('Source')</th>
+                                        @else
+                                            <th>Reference #</th>
+                                            <th>@lang('User')</th>
+                                        @endif
+                                        <th>Trip</th>
+                                        <th>Seats</th>
+                                        @if ($status == 'pending')
+                                            <th>@lang('Passenger')</th>
+                                        @endif
+                                        <th>
+                                            @lang('Amount')
+                                            @if ($status == 'pending')
+                                                <i class="las la-sort-amount-down-alt"></i>
+                                            @endif
+                                        </th>
+                                        @if ($status == 'pending')
+                                            <th>@lang('Payment Method')</th>
+                                        @else
+                                            <th>@lang('Passenger type')</th>
+                                        @endif
+                                        <th>@lang('Status')</th>
+                                        @if ($status == 'pending')
+                                            <th>@lang('Expires On')</th>
+                                        @endif
+                                        <th>@lang('Action')</th>
                                     @endif
-                                    <th>@lang('Status')</th>
-                                    @if ($status == 'pending')
-                                        <th>@lang('Expires On')</th>
-                                    @endif
-                                    @if ($status == 'approved')
-                                        <th>@lang('Processed By')</th>
-                                    @endif
-                                    <th>@lang('Action')</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -124,7 +150,113 @@
                                                 : __(@$deposit->gateway->name));
                                         $bookingSource = $ticket?->kiosk_id ? __('Kiosk') : ($deposit->user_id ? __('Online') : __('Counter'));
                                         $expiresAt = $deposit->created_at->copy()->addMinutes(15);
+                                        $eventDate = $status == 'all' ? $deposit->created_at : $deposit->updated_at;
+                                        $processedByName = $deposit->processedBy?->name
+                                            ?: ($deposit->processed_by_name ?: ($deposit->status == Status::PAYMENT_SUCCESS ? ($gatewayName ?: __('System')) : __('System')));
+                                        $paymentStatusLabel = match ((int) $deposit->status) {
+                                            Status::PAYMENT_SUCCESS => __('Successful'),
+                                            Status::PAYMENT_PENDING => __('Pending'),
+                                            Status::PAYMENT_REJECT => __('Rejected'),
+                                            Status::PAYMENT_EXPIRED => __('Expired'),
+                                            default => __('Initiated'),
+                                        };
+                                        $paymentStatusClass = match ((int) $deposit->status) {
+                                            Status::PAYMENT_SUCCESS => 'is-successful',
+                                            Status::PAYMENT_PENDING => 'is-pending',
+                                            Status::PAYMENT_REJECT => 'is-rejected',
+                                            Status::PAYMENT_EXPIRED => 'is-expired',
+                                            default => 'is-initiated',
+                                        };
                                     @endphp
+                                    @if ($enhancedPaymentTable)
+                                        <tr>
+                                            <td>
+                                                <span class="pending-cell-title">{{ $gatewayName ?: __('Payment') }}</span>
+                                                <span class="pending-cell-meta">{{ $deposit->trx }}</span>
+                                            </td>
+                                            <td><span class="pending-cell-title">{{ showDateTime($eventDate, 'M j, Y, g:i A') }}</span></td>
+                                            <td>
+                                                <span class="pending-pnr">{{ $ticket?->pnr_number }}</span>
+                                                <span class="pending-seat-count" title="{{ trans_choice(':count ticket|:count tickets', $seatCount, ['count' => $seatCount]) }}">
+                                                    <i class="las la-users"></i>{{ $seatCount }}
+                                                </span>
+                                            </td>
+                                            @if ($status != 'rejected')
+                                                <td>
+                                                    <div class="approved-references">
+                                                        @if ($deposit->status == Status::PAYMENT_SUCCESS)
+                                                            @forelse ($ticket?->slipSeriesNumbers ?: [] as $slip)
+                                                                <span>{{ $slip->id }}</span>
+                                                            @empty
+                                                                <span>&mdash;</span>
+                                                            @endforelse
+                                                        @else
+                                                            <span>&mdash;</span>
+                                                        @endif
+                                                    </div>
+                                                </td>
+                                            @endif
+                                            <td><span class="pending-cell-title">{{ $bookingSource }}</span></td>
+                                            <td>
+                                                <span class="pending-cell-title">{{ $ticket?->trip?->fleetType?->name ?: __('Trip') }}</span>
+                                                <span class="pending-cell-meta pending-route">
+                                                    {{ $ticket?->pickup?->name }}
+                                                    <i class="las la-long-arrow-alt-right"></i>
+                                                    {{ $ticket?->drop?->name }}
+                                                </span>
+                                                <span class="pending-cell-meta">
+                                                    {{ showDateTime($ticket?->date_of_journey, 'M j, Y') }}
+                                                    &middot;
+                                                    {{ $ticket?->trip?->schedule?->start_from ? date('g:i A', strtotime($ticket->trip->schedule->start_from)) : '-' }}
+                                                </span>
+                                            </td>
+                                            <td><span class="pending-seats">{{ $seats->implode(', ') }}</span></td>
+                                            <td>
+                                                <div class="pending-passengers">
+                                                    @forelse ($manifest as $passenger)
+                                                        <span>
+                                                            <strong>{{ ($passenger['name'] ?? null) ?: __('Guest') }}</strong>
+                                                            &middot; {{ ($passenger['passenger_type'] ?? 'regular') === 'discounted' ? ($passenger['discount_name'] ?? __('Discounted')) : __('Regular') }}
+                                                            @if (!empty($passenger['id_number']))
+                                                                &middot; ID {{ $passenger['id_number'] }}
+                                                            @endif
+                                                        </span>
+                                                    @empty
+                                                        <span><strong>{{ $deposit->user?->fullname ?: __('Guest') }}</strong> &middot; {{ getPassengerType($deposit) }}</span>
+                                                    @endforelse
+                                                </div>
+                                            </td>
+                                            <td class="pending-amount-cell">
+                                                <span class="pending-fare-line">@lang('Base Fare'): {{ showAmount($deposit->amount) }}</span>
+                                                <span class="pending-discount-line">@lang('Discount'): -{{ showAmount($discountAmount) }}</span>
+                                                <strong class="pending-final-fare">@lang('Final Fare'): {{ showAmount($deposit->final_amount) }}</strong>
+                                                <span class="pending-cell-meta">{{ trans_choice(':count ticket|:count tickets', $seatCount, ['count' => $seatCount]) }}</span>
+                                            </td>
+                                            <td><span class="pending-cell-title">{{ $gatewayName ?: __('Payment') }}</span></td>
+                                            <td>
+                                                @if ($status == 'rejected')
+                                                    <span class="rejection-reason">
+                                                        @if ($deposit->admin_feedback)
+                                                            {{ $deposit->admin_feedback }}
+                                                        @else
+                                                            &mdash;
+                                                        @endif
+                                                    </span>
+                                                @else
+                                                    <span class="pending-cell-title">{{ $processedByName }}</span>
+                                                @endif
+                                            </td>
+                                            <td><span class="payment-report-status {{ $paymentStatusClass }}">{{ $paymentStatusLabel }}</span></td>
+                                            <td>
+                                                <div class="pending-actions approved-actions">
+                                                    <a href="{{ route('admin.deposit.details', $deposit->id) }}"
+                                                        class="pending-action-btn pending-voucher-btn" title="@lang('View payment')">
+                                                        <i class="las la-eye"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @else
                                     <tr>
                                         <td>
                                             @if ($status == 'pending')
@@ -278,6 +410,7 @@
                                             @endif
                                         </td>
                                     </tr>
+                                    @endif
                                 @empty
                                     <tr>
                                         <td class="text-muted text-center" colspan="100%">{{ __($emptyMessage) }}</td>
@@ -596,6 +729,82 @@
         .pending-payments-table .pending-action-btn:hover {
             color: inherit;
             filter: brightness(.96);
+        }
+
+        .approved-payments-table {
+            min-width: 1580px;
+        }
+
+        .approved-payments-table th:nth-child(8) {
+            text-align: left;
+        }
+
+        .approved-payments-table th:nth-child(9),
+        .approved-payments-table .pending-amount-cell {
+            text-align: right;
+        }
+
+        .approved-payments-table .approved-references span {
+            color: #3f4652;
+            display: block;
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        .approved-payments-table .payment-report-status {
+            border-radius: 999px;
+            display: inline-flex;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 10px;
+        }
+
+        .approved-payments-table .payment-report-status.is-successful {
+            background: #eafaf0;
+            border: 1px solid #8ed7aa;
+            color: #178443;
+        }
+
+        .approved-payments-table .payment-report-status.is-rejected {
+            background: #fff2e8;
+            border: 1px solid #f1b078;
+            color: #bc5b14;
+        }
+
+        .approved-payments-table .payment-report-status.is-pending {
+            background: #fff4df;
+            border: 1px solid #f8bd59;
+            color: #b8660b;
+        }
+
+        .approved-payments-table .payment-report-status.is-expired,
+        .approved-payments-table .payment-report-status.is-initiated {
+            background: #f1f2f4;
+            border: 1px solid #c9cdd4;
+            color: #626975;
+        }
+
+        .rejected-payments-table th:nth-child(8) {
+            text-align: right;
+        }
+
+        .rejected-payments-table th:nth-child(9) {
+            text-align: left;
+        }
+
+        .approved-payments-table .rejection-reason {
+            color: #4d5561;
+            display: block;
+            max-width: 180px;
+        }
+
+        .approved-payments-table .approved-actions {
+            min-width: 34px;
+        }
+
+        .approved-payments-table .approved-actions .pending-action-btn {
+            min-width: 32px;
+            padding: 0 8px;
         }
 
         .payment-flow-modal .modal-dialog {
