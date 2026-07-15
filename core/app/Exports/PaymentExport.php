@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Constants\Status;
 use App\Models\Deposit;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -26,10 +27,21 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
         $request = request();
         $scope = $request->status == 'all' ? 'query' : $request->status;
 
+        $relations = [
+            'user',
+            'gateway',
+            'userDiscount',
+            'bookedTicket.kiosk',
+            'bookedTicket.pickup:id,name,km_post',
+            'bookedTicket.drop:id,name,km_post',
+            'bookedTicket.trip.schedule',
+            'bookedTicket.slipSeriesNumbers',
+        ];
+
         if ($scope) {
-            $deposits = Deposit::$scope()->with(['user', 'gateway', 'bookedTicket.slipSeriesNumbers']);
+            $deposits = Deposit::$scope()->with($relations);
         } else {
-            $deposits = Deposit::with(['user', 'gateway', 'bookedTicket.slipSeriesNumbers']);
+            $deposits = Deposit::with($relations);
         }
         $deposits = $deposits->searchable(['trx', 'user:username', 'bookedTicket:pnr_number'])->dateFilter();
 
@@ -66,7 +78,7 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
                     $this->formatReferenceNumbers($deposit),
                     formatDate($deposit->bookedTicket->date_of_journey, false, 'd-M-y'),
                     date('h:i A', strtotime($deposit->bookedTicket->trip?->schedule?->start_from)),
-                    $deposit->bookedTicket->trip?->startFrom?->km_post,
+                    $deposit->bookedTicket?->drop?->km_post,
                     $user,
                     $deposit->final_amount,
                     $deposit->userDiscount?->description,
@@ -82,6 +94,10 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
 
     private function formatReferenceNumbers(Deposit $deposit): ?string
     {
+        if ($deposit->status != Status::PAYMENT_SUCCESS) {
+            return null;
+        }
+
         if (!$deposit->bookedTicket?->slipSeriesNumbers) {
             return null;
         }
