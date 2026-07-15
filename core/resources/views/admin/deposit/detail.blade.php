@@ -39,7 +39,7 @@
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Seats')
                             <span class="fw-bold">
-                                {{ $deposit->bookedTicket->slipSeriesNumbers->pluck('seat')->implode(', ') }}
+                                {{ collect($deposit->bookedTicket->seats ?: [])->implode(', ') }}
                             </span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -253,11 +253,15 @@
                         </tr>
                         <tr>
                             <th>Seat(s)</th>
-                            <td>{{ $deposit->bookedTicket->slipSeriesNumbers->pluck('seat')->implode(', ') }}</td>
+                            <td>{{ collect($deposit->bookedTicket->seats ?: [])->implode(', ') }}</td>
                         </tr>
                         <tr>
                             <th>Ticket No.(s)</th>
-                            <td>{{ $deposit->bookedTicket->slipSeriesNumbers->pluck('id')->implode(', ') }}</td>
+                            <td>
+                                @if ($deposit->status == Status::PAYMENT_SUCCESS)
+                                    {{ $deposit->bookedTicket->slipSeriesNumbers->pluck('id')->implode(', ') }}
+                                @endif
+                            </td>
                         </tr>
                         <tr>
                             <th>Transaction ID</th>

@@ -9,7 +9,6 @@ use App\Models\FleetType;
 use App\Models\Frontend;
 use App\Models\Kiosk;
 use App\Models\Schedule;
-use App\Models\SlipSeriesNumber;
 use App\Models\Trip;
 use App\Models\TicketPrice;
 use App\Models\BookedTicket;
@@ -589,7 +588,7 @@ class SiteController extends Controller
             $bookedTicket->source_destination = [$request->pickup_point, $request->dropping_point];
             $bookedTicket->pickup_point = $request->pickup_point;
             $bookedTicket->dropping_point = $request->dropping_point;
-            // $bookedTicket->seats = $seats;
+            $bookedTicket->seats = array_values($seats);
             $bookedTicket->ticket_count = sizeof($seats);
             $bookedTicket->unit_price = $unitPrice;
             $bookedTicket->sub_total = sizeof($seats) * $unitPrice;
@@ -598,14 +597,6 @@ class SiteController extends Controller
             $bookedTicket->status = Status::BOOKED_PENDING;
             $bookedTicket->kiosk_id = $request->kiosk_id;
             $bookedTicket->save();
-
-            foreach ($seats as $seat) {
-                SlipSeriesNumber::create([
-                    'seat' => $seat,
-                    'booked_ticket_id' => $bookedTicket->id,
-                ]);
-            }
-
 
             session()->put('pnr_number', $pnr_number);
             session()->put('booked_ticket_id', $bookedTicket->id);

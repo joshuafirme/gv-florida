@@ -109,12 +109,16 @@
 
 <body>
     @php
-        $slipCount = max($ticket->activeSlipSeriesNumbers->count(), $ticket->slipSeriesNumbers->count(), 1);
+        $isPendingPayment = $ticket->deposit?->status == \App\Constants\Status::PAYMENT_PENDING;
+        $displaySlips = $isPendingPayment
+            ? collect($ticket->seats ?: [])->map(fn ($seat) => (object) ['seat' => $seat, 'id' => null])
+            : $ticket->activeSlipSeriesNumbers;
+        $slipCount = max($displaySlips->count(), $ticket->slipSeriesNumbers->count(), 1);
         $fallbackFare = $ticket->deposit->final_amount / $slipCount;
         $manifest = collect($ticket->passenger_manifest ?: ($ticket->deposit?->userDiscount?->passenger_manifest ?: []))
             ->keyBy(fn ($passenger) => (string) ($passenger['seat'] ?? ''));
     @endphp
-    @foreach ($ticket->activeSlipSeriesNumbers as $slip_series)
+    @foreach ($displaySlips as $slip_series)
         @php
             $passenger = $manifest->get((string) $slip_series->seat, []);
             $fare = (float) ($passenger['fare'] ?? $fallbackFare);
@@ -197,12 +201,14 @@
                     </tr>
                     <tr>
                         <td class="label">Mode of Payment</td>
-                        <td class="value">{{ strtoupper(decodeSlug($ticket->deposit?->pchannel)) ?: 'CASH' }}</td>
+                        <td class="value">{{ strtoupper(decodeSlug($ticket->deposit?->pchannel ?: 'cash')) }}</td>
                     </tr>
 
                     <tr>
                         <td colspan="2">
-                            <div style="text-align: center; margin-top: 10px;">{{ $ticket->deposit?->processed_by_name ?: auth('admin')->user()?->name }}</div>
+                            <div style="text-align: center; margin-top: 10px;">
+                                {{ $isPendingPayment ? '' : ($ticket->deposit?->processed_by_name ?: auth('admin')->user()?->name) }}
+                            </div>
                             <div class="divider">
                                 <span>Authorized Signature</span>
                             </div>
@@ -211,7 +217,7 @@
 
                     <tr>
                         <td colspan="2" class="ticket-no">
-                            <strong>No.: {{ $slip_series->id }}</strong>
+                            <strong>No.: {{ $isPendingPayment ? '' : $slip_series->id }}</strong>
                         </td>
                     </tr>
                 </table>

@@ -74,12 +74,14 @@ class DepositController extends Controller
 
         if ($request->expectsJson()) {
             $ticket = $deposit->bookedTicket;
-            $slips = $ticket->activeSlipSeriesNumbers->isNotEmpty()
-                ? $ticket->activeSlipSeriesNumbers
-                : $ticket->slipSeriesNumbers;
-            $fallbackTicketFare = (float) $deposit->final_amount / max($slips->count(), 1);
             $manifest = collect($ticket->passenger_manifest ?: ($deposit->userDiscount?->passenger_manifest ?: []))
                 ->keyBy(fn ($passenger) => (string) ($passenger['seat'] ?? ''));
+            $seats = collect($ticket->seats ?: $manifest->keys())
+                ->map(fn ($seat) => trim((string) $seat))
+                ->filter()
+                ->unique()
+                ->values();
+            $fallbackTicketFare = (float) $deposit->final_amount / max($seats->count(), 1);
             $fallbackPassengerName = $deposit->userDiscount?->passenger_name
                 ?: $deposit->user?->fullname
                 ?: 'Guest';
@@ -98,13 +100,13 @@ class DepositController extends Controller
                 'passenger_name' => $fallbackPassengerName,
                 'passenger_type' => $fallbackPassengerType,
                 'processed_by' => auth('admin')->user()->name,
-                'tickets' => $slips->map(function ($slip) use ($manifest, $fallbackPassengerName, $fallbackPassengerType, $fallbackTicketFare) {
-                    $passenger = $manifest->get((string) $slip->seat, []);
+                'tickets' => $seats->map(function ($seat) use ($manifest, $fallbackPassengerName, $fallbackPassengerType, $fallbackTicketFare) {
+                    $passenger = $manifest->get((string) $seat, []);
                     $isDiscounted = ($passenger['passenger_type'] ?? 'regular') === 'discounted';
 
                     return [
-                        'number' => $slip->id,
-                        'seat' => $slip->seat,
+                        'number' => null,
+                        'seat' => $seat,
                         'fare' => (float) ($passenger['fare'] ?? $fallbackTicketFare),
                         'base_fare' => (float) ($passenger['base_fare'] ?? $fallbackTicketFare),
                         'discount_amount' => (float) ($passenger['discount_amount'] ?? 0),
@@ -183,7 +185,17 @@ class DepositController extends Controller
     {
         $request = request();
         if ($scope) {
-            $deposits = Deposit::$scope()->with(['user', 'gateway', 'bookedTicket', 'processedBy']);
+            $deposits = Deposit::$scope()->with([
+                'user',
+                'gateway',
+                'userDiscount',
+                'processedBy',
+                'bookedTicket.kiosk',
+                'bookedTicket.pickup',
+                'bookedTicket.drop',
+                'bookedTicket.trip.schedule',
+                'bookedTicket.trip.fleetType',
+            ]);
             if ($scope == 'approved' || $scope == 'rejected') {
                 $deposits = $deposits->where('processed_by_admin_id', auth('admin')->id());
             }

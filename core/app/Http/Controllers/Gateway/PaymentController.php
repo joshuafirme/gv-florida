@@ -16,6 +16,7 @@ use App\Models\UserDiscount;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
@@ -333,46 +334,64 @@ class PaymentController extends Controller
 
     public static function userDataUpdate($deposit, $isManual = null)
     {
-        if ($deposit->status == Status::PAYMENT_INITIATE || $deposit->status == Status::PAYMENT_PENDING) {
+        if (!in_array($deposit->status, [Status::PAYMENT_INITIATE, Status::PAYMENT_PENDING])) {
+            return;
+        }
+
+        $payment = DB::transaction(function () use ($deposit) {
+            $deposit = Deposit::whereKey($deposit->id)->lockForUpdate()->firstOrFail();
+
+            if (!in_array($deposit->status, [Status::PAYMENT_INITIATE, Status::PAYMENT_PENDING])) {
+                return null;
+            }
+
+            $bookedTicket = BookedTicket::whereKey($deposit->booked_ticket_id)->lockForUpdate()->firstOrFail();
 
             $deposit->status = Status::PAYMENT_SUCCESS;
             $deposit->save();
-            $user = User::find($deposit->user_id);
-
-            $bookedTicket = BookedTicket::where('id', $deposit->booked_ticket_id)->first();
             $bookedTicket->status = 1;
             $bookedTicket->save();
+            $bookedTicket->ensureSlipSeriesNumbers();
 
-            if (!$isManual && !$bookedTicket->kiosk_id) {
-                $adminNotification = new AdminNotification();
-                $adminNotification->user_id = isset($user->id) ? $user->id : null;
-                $adminNotification->title = 'Payment successful via ' . $deposit->gatewayCurrency()->name;
-                $adminNotification->click_url = urlPath('admin.vehicle.ticket.booked');
-                $adminNotification->save();
-            }
+            return [$deposit, $bookedTicket];
+        });
+
+        if (!$payment) {
+            return;
+        }
+
+        [$deposit, $bookedTicket] = $payment;
+        $user = User::find($deposit->user_id);
+
+        if (!$isManual && !$bookedTicket->kiosk_id) {
+            $adminNotification = new AdminNotification();
+            $adminNotification->user_id = isset($user->id) ? $user->id : null;
+            $adminNotification->title = 'Payment successful via ' . $deposit->gatewayCurrency()->name;
+            $adminNotification->click_url = urlPath('admin.vehicle.ticket.booked');
+            $adminNotification->save();
+        }
 
 
-            $general = GeneralSetting::first();
+        $general = GeneralSetting::first();
 
-            if ($user) {
-                notify($user, $isManual ? 'PAYMENT_APPROVE' : 'PAYMENT_COMPLETE', [
-                    'method_name' => $deposit->gatewayCurrency()->name,
-                    'method_currency' => $deposit->method_currency,
-                    'method_amount' => showAmount($deposit->final_amount, currencyFormat: false),
-                    'amount' => showAmount($deposit->amount, currencyFormat: false),
-                    'charge' => showAmount($deposit->charge, currencyFormat: false),
-                    'currency' => $general->cur_text,
-                    'rate' => showAmount($deposit->rate, currencyFormat: false),
-                    'trx' => $deposit->trx,
-                    'journey_date' => showDateTime($bookedTicket->date_of_journey, 'd m, Y'),
-                    'seats' => implode(',', $bookedTicket->seats),
-                    'total_seats' => sizeof($bookedTicket->seats),
-                    'source' => $bookedTicket->pickup->name,
-                    'destination' => $bookedTicket->drop->name,
-                    'ticket' => $bookedTicket,
-                    'has_file' => true
-                ]);
-            }
+        if ($user) {
+            notify($user, $isManual ? 'PAYMENT_APPROVE' : 'PAYMENT_COMPLETE', [
+                'method_name' => $deposit->gatewayCurrency()->name,
+                'method_currency' => $deposit->method_currency,
+                'method_amount' => showAmount($deposit->final_amount, currencyFormat: false),
+                'amount' => showAmount($deposit->amount, currencyFormat: false),
+                'charge' => showAmount($deposit->charge, currencyFormat: false),
+                'currency' => $general->cur_text,
+                'rate' => showAmount($deposit->rate, currencyFormat: false),
+                'trx' => $deposit->trx,
+                'journey_date' => showDateTime($bookedTicket->date_of_journey, 'd m, Y'),
+                'seats' => implode(',', $bookedTicket->seats),
+                'total_seats' => sizeof($bookedTicket->seats),
+                'source' => $bookedTicket->pickup->name,
+                'destination' => $bookedTicket->drop->name,
+                'ticket' => $bookedTicket,
+                'has_file' => true
+            ]);
         }
     }
 

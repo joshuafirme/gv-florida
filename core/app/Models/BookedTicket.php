@@ -120,6 +120,34 @@ class BookedTicket extends Model
             ->whereDoesntHave('cancellation');
     }
 
+    public function ensureSlipSeriesNumbers()
+    {
+        $seats = collect($this->seats ?: []);
+
+        if ($seats->isEmpty()) {
+            $seats = collect($this->passenger_manifest ?: [])->pluck('seat');
+        }
+
+        $seats = $seats
+            ->map(fn ($seat) => trim((string) $seat))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $existingSeats = $this->slipSeriesNumbers()
+            ->pluck('seat')
+            ->map(fn ($seat) => (string) $seat);
+
+        foreach ($seats->diff($existingSeats) as $seat) {
+            $this->slipSeriesNumbers()->create(['seat' => $seat]);
+        }
+
+        $this->unsetRelation('slipSeriesNumbers');
+        $this->unsetRelation('activeSlipSeriesNumbers');
+
+        return $this->slipSeriesNumbers()->orderBy('id')->get();
+    }
+
     public function refunds()
     {
         return $this->hasMany(TicketRefund::class);

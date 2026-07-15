@@ -61,9 +61,15 @@ if (!function_exists('getIntermediateStoppages')) {
 if (!function_exists('implodeSeriesNo')) {
     function implodeSeriesNo($deposit)
     {
-        if ($deposit->bookedTicket?->slipSeriesNumbers)
-            return implode(', ', $deposit->bookedTicket->slipSeriesNumbers->pluck('id')->toArray());
+        if ($deposit->status != \App\Constants\Status::PAYMENT_SUCCESS) {
+            return '';
+        }
 
+        if ($deposit->bookedTicket?->slipSeriesNumbers) {
+            return implode(', ', $deposit->bookedTicket->slipSeriesNumbers->pluck('id')->toArray());
+        }
+
+        return '';
     }
 }
 
