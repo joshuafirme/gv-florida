@@ -132,4 +132,35 @@ class Deposit extends Model
     {
         return $query->where('created_at', '>=', Carbon::now()->subMinutes(15));
     }
+
+    public function scopePaymentSearch($query, ?string $search = null, bool $includeReference = true)
+    {
+        $search = trim((string) $search);
+
+        if ($search === '') {
+            return $query;
+        }
+
+        $like = '%' . addcslashes($search, '\\%_') . '%';
+
+        return $query->where(function ($paymentQuery) use ($like, $includeReference) {
+            $paymentQuery->whereHas('bookedTicket', function ($ticketQuery) use ($like) {
+                $ticketQuery->where('pnr_number', 'like', $like)
+                    ->orWhere('passenger_manifest', 'like', $like);
+            })->orWhereHas('userDiscount', function ($discountQuery) use ($like) {
+                $discountQuery->where('passenger_name', 'like', $like)
+                    ->orWhere('passenger_manifest', 'like', $like);
+            })->orWhereHas('user', function ($userQuery) use ($like) {
+                $userQuery->where('firstname', 'like', $like)
+                    ->orWhere('lastname', 'like', $like)
+                    ->orWhereRaw("CONCAT_WS(' ', firstname, lastname) LIKE ?", [$like]);
+            });
+
+            if ($includeReference) {
+                $paymentQuery->orWhereHas('bookedTicket.slipSeriesNumbers', function ($slipQuery) use ($like) {
+                    $slipQuery->where('id', 'like', $like);
+                });
+            }
+        });
+    }
 }

@@ -43,7 +43,7 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
         } else {
             $deposits = Deposit::with($relations);
         }
-        $deposits = $deposits->searchable(['trx', 'user:username', 'bookedTicket:pnr_number'])->dateFilter();
+        $deposits->paymentSearch($request->search, $scope !== 'pending')->dateFilter();
 
         $user = $request->user('admin');
 

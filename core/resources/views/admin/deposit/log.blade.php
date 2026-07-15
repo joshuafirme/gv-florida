@@ -556,13 +556,73 @@
 @endsection
 
 @push('breadcrumb-plugins')
-    <x-search-form placeholder='PNR / Username / TRX' />
+    <form class="payment-search-form" method="GET">
+        @if (request()->filled('date'))
+            <input type="hidden" name="date" value="{{ request('date') }}">
+        @endif
+        @if (request()->filled('method_code'))
+            <input type="hidden" name="method_code" value="{{ request('method_code') }}">
+        @endif
+        <label class="payment-search-control" for="paymentSearchInput">
+            <i class="las la-search" aria-hidden="true"></i>
+            <input id="paymentSearchInput" type="search" name="search"
+                value="{{ request('search') }}"
+                placeholder="{{ $status == 'pending' ? __('Search PNR or passenger name') : __('Search PNR, passenger, or ref. no.') }}"
+                aria-label="{{ $status == 'pending' ? __('Search by PNR or passenger name') : __('Search by PNR, passenger name, or reference number') }}">
+        </label>
+    </form>
 @endpush
 @push('style-lib')
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/global/css/daterangepicker.css') }}">
 @endpush
 @push('style')
     <style>
+        .payment-search-form {
+            max-width: 360px;
+            width: min(360px, 100%);
+        }
+
+        .payment-search-control {
+            display: block;
+            margin: 0;
+            position: relative;
+            width: 100%;
+        }
+
+        .payment-search-control > i {
+            color: #8a909b;
+            font-size: 17px;
+            left: 13px;
+            pointer-events: none;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+
+        .payment-search-control > input {
+            background: #f7f8fa;
+            border: 1px solid #d6d9df;
+            border-radius: 7px;
+            color: #323843;
+            font-size: 13px;
+            height: 42px;
+            outline: 0;
+            padding: 0 14px 0 39px;
+            width: 100%;
+        }
+
+        .payment-search-control > input:focus {
+            background: #fff;
+            border-color: #df257b;
+            box-shadow: 0 0 0 3px rgba(223, 37, 123, .1);
+        }
+
+        .payment-search-control > input::placeholder {
+            color: #858b96;
+            opacity: 1;
+        }
+
         .pending-payments-table {
             margin-bottom: 0;
             min-width: 1520px;

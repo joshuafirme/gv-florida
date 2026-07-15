@@ -214,11 +214,7 @@ class DepositController extends Controller
             $deposits->where('method_code', request('method_code'));
         }
 
-        $deposits = $deposits->searchable([
-            'trx',
-            'user:username',
-            'bookedTicket:pnr_number'
-        ]);
+        $deposits->paymentSearch($request->search, $scope !== 'pending');
 
         if (request()->filled('date')) {
             [$from, $to] = explode(' - ', $request->date);
