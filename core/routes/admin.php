@@ -158,7 +158,6 @@ Route::middleware('admin')->group(function () {
         Route::prefix('assigned-vehicle')->name('vehicle.assign.')->group(function () {
             Route::get('/', 'assignedVehicleLists')->name('index');
             Route::post('store/{id?}', 'assignVehicle')->name('store');
-            Route::post('status/{id}', 'assignedVehicleStatus')->name('status');
 
         });
     });

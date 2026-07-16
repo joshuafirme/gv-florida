@@ -402,7 +402,7 @@
             }
 
             for (const item of paginatedItems) {
-                const displayStatus = isDeparted(item.schedule.start_from)
+                const displayStatus = isDeparted(item.schedule.start_from) && item.trip_status === '{{ Status::TRIP_ON_TIME }}'
                     ? '{{ Status::TRIP_DEPARTED }}'
                     : item.trip_status;
 

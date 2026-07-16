@@ -587,7 +587,7 @@
                     "Vehicle",
                     "Assign"
                 ],
-                "title": "Vehicle Assign",
+                "title": "Vehicle Assignment",
                 "route_name": "admin.trip.vehicle.assign.index",
                 "menu_active": "admin.trip.vehicle.assign.index"
             }

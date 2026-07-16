@@ -13,8 +13,12 @@ use App\Models\Counter;
 use App\Models\FleetType;
 use App\Models\Schedule;
 use App\Models\Trip;
+use App\Models\Vehicle;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ManageTripController extends Controller
 {
@@ -398,84 +402,117 @@ class ManageTripController extends Controller
         return Trip::changeStatus($id);
     }
 
-    public function assignedVehicleLists()
+    public function assignedVehicleLists(Request $request)
     {
-        $pageTitle = "All Assigned Vehicles";
-        $trips = Trip::with('fleetType.activeVehicles')->where('status', 1)->get();
-        $assignedVehicles = AssignedVehicle::with(['trip', 'vehicle'])->searchable(['trip:title', 'vehicle:nick_name'])->orderBy('id', 'desc')->paginate(getPaginate());
+        $pageTitle = 'Vehicle Assignment';
+        $search = trim((string) $request->search);
+        $dispatchStatuses = $this->vehicleDispatchStatuses();
+        $trips = Trip::query()
+            ->with([
+                'route.startFrom',
+                'route.endTo',
+                'schedule',
+                'fleetType.activeVehicles',
+                'assignedVehicle.vehicle',
+            ])
+            ->withMin('schedule as earliest_start', 'start_from')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($tripQuery) use ($search) {
+                    $tripQuery->where('title', 'like', "%{$search}%")
+                        ->orWhereHas('route', fn ($route) => $route->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('fleetType', fn ($fleet) => $fleet->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('assignedVehicle.vehicle', function ($vehicle) use ($search) {
+                            $vehicle->where('nick_name', 'like', "%{$search}%")
+                                ->orWhere('register_no', 'like', "%{$search}%")
+                                ->orWhere('bus_no', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->orderBy('earliest_start')
+            ->orderBy('title')
+            ->paginate(getPaginate())
+            ->withQueryString();
 
-        return view('admin.trip.assigned_vehicle', compact('pageTitle', 'trips', 'assignedVehicles'));
+        return view('admin.trip.assigned_vehicle', compact('pageTitle', 'trips', 'search', 'dispatchStatuses'));
     }
 
     public function assignVehicle(Request $request, $id = 0)
     {
-        $request->validate([
-            'trip_id' => 'required|integer|gt:0',
-            'vehicle_id' => 'required|integer|gt:0'
+        $tripId = (int) ($id ?: $request->trip_id);
+        $trip = Trip::with(['schedule', 'fleetType'])->findOrFail($tripId);
+        $validated = $request->validate([
+            'vehicle_id' => 'required|integer|gt:0',
+            'dispatch_status' => ['required', Rule::in(array_keys($this->vehicleDispatchStatuses()))],
+            'remarks' => 'nullable|string|max:1000',
         ]);
 
-        //Check if the trip has already a assigned vehicle;
-        $trip_check = AssignedVehicle::where('trip_id', $request->trip_id);
-
-        if ($id) {
-            $trip_check->whereNot('id', $id);
-        }
-        $trip_check = $trip_check->first();
-
-        if ($trip_check) {
-            $notify[] = ['error', 'A vehicle had already been assigned to this trip'];
-            return back()->withNotify($notify);
+        if ($trip->trip_status === Status::TRIP_CANCELLED) {
+            throw ValidationException::withMessages([
+                'dispatch_status' => 'A cancelled trip must be managed from Trip Management.',
+            ]);
         }
 
-        $trip = Trip::where('id', $request->trip_id)->with('schedule')->firstOrFail();
+        $vehicle = Vehicle::where('id', $validated['vehicle_id'])
+            ->where('fleet_type_id', $trip->fleet_type_id)
+            ->where('status', Status::ENABLE)
+            ->first();
+
+        if (!$vehicle) {
+            throw ValidationException::withMessages([
+                'vehicle_id' => 'Select an active vehicle that matches the trip bus type.',
+            ]);
+        }
+
+        $assignedVehicle = AssignedVehicle::firstOrNew(['trip_id' => $trip->id]);
 
         $start_time = Carbon::parse($trip->schedule->start_from)->format('H:i:s');
         $end_time = Carbon::parse($trip->schedule->end_at)->format('H:i:s');
 
-        //Check if the vehicle assigned to another vehicle on this time
-        $vehicle_check = AssignedVehicle::where(function ($q) use ($start_time, $end_time, $request) {
-            $q->where('start_from', '>=', $start_time)
-                ->where('start_from', '<=', $end_time)
-                ->where('vehicle_id', $request->vehicle_id);
-        })
-            ->orWhere(function ($q) use ($start_time, $end_time, $request) {
-                $q->where('end_at', '>=', $start_time)
-                    ->where('end_at', '<=', $end_time)
-                    ->where('vehicle_id', $request->vehicle_id);
-            });
-
-        if ($id) {
-            $vehicle_check->whereNot('id', $id);
-        }
-
-        $vehicle_check = $vehicle_check->first();
+        $vehicle_check = AssignedVehicle::where('vehicle_id', $vehicle->id)
+            ->when($assignedVehicle->exists, fn ($query) => $query->where('id', '!=', $assignedVehicle->id))
+            ->where(function ($query) use ($start_time, $end_time) {
+                $query->whereBetween('start_from', [$start_time, $end_time])
+                    ->orWhereBetween('end_at', [$start_time, $end_time])
+                    ->orWhere(function ($overlap) use ($start_time, $end_time) {
+                        $overlap->where('start_from', '<=', $start_time)
+                            ->where('end_at', '>=', $end_time);
+                    });
+            })
+            ->first();
 
         if ($vehicle_check) {
-            $notify[] = ['error', 'This vehicle had already been assigned to another trip on this time'];
+            $notify[] = ['error', 'This vehicle is already assigned to another trip during this schedule.'];
             return back()->withNotify($notify);
         }
 
-        if ($id) {
-            $assignedVehicle = AssignedVehicle::findOrFail($id);
-        } else {
-            $assignedVehicle = new AssignedVehicle();
-        }
+        DB::transaction(function () use ($assignedVehicle, $trip, $vehicle, $validated) {
+            $assignedVehicle->trip_id = $trip->id;
+            $assignedVehicle->vehicle_id = $vehicle->id;
+            $assignedVehicle->start_from = $trip->schedule->start_from;
+            $assignedVehicle->end_at = $trip->schedule->end_at;
+            $assignedVehicle->remarks = $validated['remarks'] ?? null;
+            $assignedVehicle->status = Status::ENABLE;
+            $assignedVehicle->save();
 
-        $assignedVehicle->trip_id = $request->trip_id;
-        $assignedVehicle->vehicle_id = $request->vehicle_id;
-        $assignedVehicle->start_from = $trip->schedule->start_from;
-        $assignedVehicle->end_at = $trip->schedule->end_at;
-        $assignedVehicle->save();
+            $trip->trip_status = $validated['dispatch_status'];
+            $trip->save();
+        });
 
-        $notify[] = ['success', 'Vehicle assigned successfully.'];
+        $notify[] = ['success', 'Vehicle assignment and dispatch status saved successfully.'];
         return back()->withNotify($notify);
     }
 
-
-    public function assignedVehicleStatus($id)
+    private function vehicleDispatchStatuses(): array
     {
-        return AssignedVehicle::changeStatus($id);
+        return [
+            Status::TRIP_ON_TIME => 'Scheduled',
+            Status::TRIP_BOARDING => 'Boarding',
+            Status::TRIP_DEPARTED => 'Departed',
+            Status::TRIP_DELAYED => 'Delayed',
+            Status::TRIP_ARRIVED => 'Arrived',
+        ];
     }
+
 
     public function reservationSlip($id = null)
     {
