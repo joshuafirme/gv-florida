@@ -605,10 +605,11 @@
     },
     "advance_booking": {
         "keyword": [
+            "booking settings",
             "advance booking",
-            "Manage Advance Booking"
+            "booking cutoff"
         ],
-        "title": "Advance Booking",
+        "title": "Booking Settings",
         "icon": "las la-calendar-check",
         "route_name": "admin.advance.booking.settings",
         "menu_active": "admin.advance.booking.settings"

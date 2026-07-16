@@ -4,38 +4,30 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Storage;
+use Illuminate\Support\Facades\Storage;
 
 class AdvanceBookingController extends Controller
 {
     public function advanceBookingDaysSettings()
     {
-        $pageTitle = 'Advance Booking';
+        $pageTitle = 'Booking Settings';
+        $data = getBookingSettings();
 
-        $message = 'Allowed advance booking days updated successfully';
-
-        $allowedDays = request()->input('allowed_days');
-        $data = Storage::exists("settings/advance_booking.json") ? json_decode(Storage::get("settings/advance_booking.json"), true) : ['allowed_days' => 3];
-
-        $notify[] = ['success', $message];
         return view('admin.advance-booking.settings', compact('pageTitle', 'data'));
     }
 
-    public function updateAllowedAdvanceBookingDays()
+    public function updateAllowedAdvanceBookingDays(Request $request)
     {
-        $pageTitle = 'Advance Booking';
+        $data = $request->validate([
+            'online_advance_booking_days' => 'required|integer|min:0|max:365',
+            'kiosk_advance_booking_days' => 'required|integer|min:0|max:365',
+            'online_booking_cutoff_minutes' => 'required|integer|min:0|max:1440',
+            'kiosk_booking_cutoff_minutes' => 'required|integer|min:0|max:1440',
+        ]);
 
-        $message = 'Allowed advance booking days updated successfully';
+        Storage::put('settings/advance_booking.json', json_encode($data, JSON_PRETTY_PRINT));
 
-        $allowedDays = request()->input('allowed_days');
-        $data = [
-            'allowed_days' => $allowedDays,
-        ];
-        $jsonPayload = json_encode($data);
-        $path = "settings/advance_booking.json";
-        Storage::put($path, $jsonPayload);
-
-        $notify[] = ['success', $message];
+        $notify[] = ['success', 'Booking settings updated successfully.'];
         return back()->withNotify($notify);
     }
 }

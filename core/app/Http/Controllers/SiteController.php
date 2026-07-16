@@ -188,6 +188,11 @@ class SiteController extends Controller
                 $notify[] = ['error', 'Date of journey can\'t be less than today.'];
                 return redirect()->back()->withNotify($notify);
             }
+
+            if ($request->date_of_journey && ($message = $this->advanceBookingDateError($request->date_of_journey, $request->kiosk_id))) {
+                $notify[] = ['error', $message];
+                return redirect()->back()->withNotify($notify);
+            }
         }
 
         // Set dynamic title
@@ -346,6 +351,14 @@ class SiteController extends Controller
             'bookedTickets'
         ])->where('status', Status::ENABLE)->where('id', $id)->firstOrFail();
 
+        $journeyDate = $request->date_of_journey ?: now()->format('m/d/Y');
+        if ($message = $this->bookingWindowError($trip, $journeyDate, $request->kiosk_id)) {
+            $notify[] = ['error', $message];
+            $query = array_filter($request->only('pickup', 'destination', 'date_of_journey', 'kiosk_id', 'counter_id'));
+
+            return redirect()->route('ticket', $query)->withNotify($notify);
+        }
+
         $pageTitle = $trip->route->name;
         $route = $trip->route;
 
@@ -474,7 +487,13 @@ class SiteController extends Controller
             'seats.required' => 'Please select at least one seat.',
         ]);
 
-        $trip = Trip::with('route')->where('status', Status::ENABLE)->findOrFail($id);
+        $trip = Trip::with(['route', 'schedule'])->where('status', Status::ENABLE)->findOrFail($id);
+        if ($message = $this->bookingWindowError($trip, $request->date_of_journey, $request->kiosk_id)) {
+            return response()->json([
+                'available' => false,
+                'message' => $message,
+            ], 422);
+        }
         $seatConflicts = app(SeatConflictService::class);
         $submittedSeats = collect(explode(',', $request->seats))
             ->map(fn ($seat) => trim((string) $seat))
@@ -527,24 +546,10 @@ class SiteController extends Controller
                 return redirect()->back()->withNotify($notify);
             }
 
-            $trip = Trip::with('schedule')->find($id);
-
-            $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey) : Carbon::now();
-
-            if ($date->isToday()) {
-                if (strtotime($trip->schedule->start_from) <= strtotime('+15 minutes')) {
-                    $notify[] = ['error', 'Invalid request: The trip is within 15 minutes of its scheduled departure time.'];
-                    return redirect()->back()->withNotify($notify);
-                }
-            }
-
-            $allowed_advance_booking_days = getAllowedAdvanceBookingDays();
-            if ($allowed_advance_booking_days) {
-                $maxDate = Carbon::now()->addDays($allowed_advance_booking_days)->format('Y-m-d');
-                if (Carbon::parse($request->date_of_journey)->format('Y-m-d') > $maxDate) {
-                    $notify[] = ['error', 'You can\'t book ticket for more than ' . $allowed_advance_booking_days . ' days in advance.'];
-                    return redirect()->back()->withNotify($notify);
-                }
+            $trip = Trip::with('schedule')->findOrFail($id);
+            if ($message = $this->bookingWindowError($trip, $request->date_of_journey, $request->kiosk_id)) {
+                $notify[] = ['error', $message];
+                return redirect()->back()->withNotify($notify);
             }
 
             $request->validate([
@@ -671,21 +676,18 @@ class SiteController extends Controller
     {
         $now = Carbon::now();
         $request = request();
-        $mins_value = $request->kiosk_id ? 15 : 30;
+        $cutoffMinutes = getBookingCutoffMinutes($request->kiosk_id);
 
         return Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])
             ->withMin('schedule as earliest_start', 'start_from')
-            ->whereHas('schedule', function ($q) use ($now, $request, $mins_value) {
+            ->whereHas('schedule', function ($q) use ($now, $request, $cutoffMinutes) {
                 $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey) : Carbon::now();
                 if ($date->isToday()) {
                     $q->whereRaw("
-                      DATE_SUB(
-                          STR_TO_DATE(CONCAT(?, ' ', start_from), '%Y-%m-%d %H:%i:%s'),
-                          INTERVAL 15 MINUTE
-                      ) > ?
+                      STR_TO_DATE(CONCAT(?, ' ', start_from), '%Y-%m-%d %H:%i:%s') > ?
                   ", [
                         Carbon::parse($date)->format('Y-m-d'),
-                        $now->format('Y-m-d H:i:s')
+                        $now->copy()->addMinutes($cutoffMinutes)->format('Y-m-d H:i:s')
                     ]);
                 }
             })
@@ -715,6 +717,59 @@ class SiteController extends Controller
         }
 
         return $trips->with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->where('status', Status::ENABLE);
+    }
+
+    private function advanceBookingDateError($journeyDate, $kioskId = null): ?string
+    {
+        try {
+            $date = Carbon::parse($journeyDate)->startOfDay();
+        } catch (\Throwable $exception) {
+            return 'Enter a valid date of journey.';
+        }
+
+        $today = Carbon::today();
+        if ($date->lt($today)) {
+            return 'Date of journey can\'t be less than today.';
+        }
+
+        $allowedDays = getAllowedAdvanceBookingDays($kioskId);
+        if ($date->gt($today->copy()->addDays($allowedDays))) {
+            $channel = $kioskId ? 'Kiosk' : 'Online';
+            $unit = $allowedDays === 1 ? 'day' : 'days';
+
+            return "{$channel} bookings can only be made up to {$allowedDays} {$unit} in advance.";
+        }
+
+        return null;
+    }
+
+    private function bookingWindowError(Trip $trip, $journeyDate, $kioskId = null): ?string
+    {
+        if ($message = $this->advanceBookingDateError($journeyDate, $kioskId)) {
+            return $message;
+        }
+
+        if (!$trip->schedule?->start_from) {
+            return 'The selected trip does not have a valid departure schedule.';
+        }
+
+        $departure = Carbon::parse(
+            Carbon::parse($journeyDate)->format('Y-m-d') . ' ' . $trip->schedule->start_from
+        );
+        $cutoffMinutes = getBookingCutoffMinutes($kioskId);
+
+        if (now()->gte($departure->copy()->subMinutes($cutoffMinutes))) {
+            $channel = $kioskId ? 'Kiosk' : 'Online';
+            if ($cutoffMinutes === 0) {
+                return "{$channel} booking closes at departure time.";
+            }
+
+            $unit = $cutoffMinutes === 1 ? 'minute' : 'minutes';
+
+            return "{$channel} booking closes {$cutoffMinutes} {$unit} before departure.";
+        }
+
+        return null;
     }
 
     public function getDroppingPoints($counter_id)

@@ -1043,7 +1043,7 @@ class VehicleTicketController extends Controller
         return response()->json([
             'booking' => $this->bookingSummary($ticket, null, null, $targetSlips),
             'trips' => $trips,
-            'max_date' => now()->addDays(getAllowedAdvanceBookingDays())->format('Y-m-d'),
+            'max_date' => now()->addDays(getAllowedAdvanceBookingDays(true))->format('Y-m-d'),
             'availability_url' => route('admin.trip.ticket.rebook.availability', $routeParams),
             'confirm_url' => route('admin.trip.ticket.rebook.confirm', $routeParams),
         ]);
@@ -1207,9 +1207,19 @@ class VehicleTicketController extends Controller
             }
         }
 
-        if (Carbon::parse($date)->isAfter(now()->addDays(getAllowedAdvanceBookingDays())->endOfDay())) {
+        if (Carbon::parse($date)->isAfter(now()->addDays(getAllowedAdvanceBookingDays(true))->endOfDay())) {
             throw ValidationException::withMessages([
                 'date' => 'The travel date exceeds the allowed advance-booking period.',
+            ]);
+        }
+
+        $departure = Carbon::parse($date . ' ' . $trip->schedule->start_from);
+        $cutoffMinutes = getBookingCutoffMinutes(true);
+        if (now()->gte($departure->copy()->subMinutes($cutoffMinutes))) {
+            throw ValidationException::withMessages([
+                'date' => $cutoffMinutes === 0
+                    ? 'Counter booking closes at departure time.'
+                    : "Counter booking closes {$cutoffMinutes} minute(s) before departure.",
             ]);
         }
 

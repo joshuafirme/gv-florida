@@ -3,7 +3,7 @@
     @php
         use Carbon\Carbon;
         $kiosk_id = request()->kiosk_id;
-        $allowed_advance_booking_days = getAllowedAdvanceBookingDays();
+        $allowed_advance_booking_days = getAllowedAdvanceBookingDays($kiosk_id);
     @endphp
     @if ($kiosk_id)
         @php

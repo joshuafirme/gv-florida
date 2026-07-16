@@ -121,10 +121,51 @@ if (!function_exists('extract_from_keyword')) {
     }
 }
 
-function getAllowedAdvanceBookingDays()
+function getBookingSettings(): array
 {
-    $data = Storage::exists("settings/advance_booking.json") ? json_decode(Storage::get("settings/advance_booking.json"), true) : ['allowed_days' => 3];
-    return (int) $data['allowed_days'];
+    $defaults = [
+        'online_advance_booking_days' => 30,
+        'kiosk_advance_booking_days' => 2,
+        'online_booking_cutoff_minutes' => 30,
+        'kiosk_booking_cutoff_minutes' => 0,
+    ];
+
+    if (!Storage::exists('settings/advance_booking.json')) {
+        return $defaults;
+    }
+
+    $stored = json_decode(Storage::get('settings/advance_booking.json'), true);
+    if (!is_array($stored)) {
+        return $defaults;
+    }
+
+    if (array_key_exists('allowed_days', $stored)) {
+        $legacyDays = max((int) $stored['allowed_days'], 0);
+        $defaults['online_advance_booking_days'] = $legacyDays;
+        $defaults['kiosk_advance_booking_days'] = $legacyDays;
+    }
+
+    foreach ($defaults as $key => $default) {
+        $defaults[$key] = max((int) ($stored[$key] ?? $default), 0);
+    }
+
+    return $defaults;
+}
+
+function getAllowedAdvanceBookingDays($kioskId = null): int
+{
+    $settings = getBookingSettings();
+    $key = $kioskId ? 'kiosk_advance_booking_days' : 'online_advance_booking_days';
+
+    return $settings[$key];
+}
+
+function getBookingCutoffMinutes($kioskId = null): int
+{
+    $settings = getBookingSettings();
+    $key = $kioskId ? 'kiosk_booking_cutoff_minutes' : 'online_booking_cutoff_minutes';
+
+    return $settings[$key];
 }
 
 
