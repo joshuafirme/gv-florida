@@ -195,6 +195,10 @@ Route::middleware('admin')->group(function () {
         Route::get('cancel/{slip}/options', 'cancelOptions')->name('cancel.options');
         Route::post('cancel/{slip}/confirm', 'confirmCancellation')->name('cancel.confirm');
         Route::get('cancel/{id}/acknowledgment', 'cancellationAcknowledgment')->name('cancel.acknowledgment');
+        Route::get('voided', 'voided')->name('voided');
+        Route::get('void/{slip}/options', 'voidOptions')->name('void.options');
+        Route::post('void/{slip}/confirm', 'confirmVoid')->name('void.confirm');
+        Route::get('void/{id}/details', 'voidDetails')->name('void.details');
         Route::get('pending', 'pending')->name('pending');
         Route::get('rejected', 'rejected')->name('rejected');
         Route::get('all', 'list')->name('list');

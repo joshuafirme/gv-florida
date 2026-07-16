@@ -103,7 +103,8 @@ class BookedTicket extends Model
     {
         return $this->hasMany(SlipSeriesNumber::class, 'booked_ticket_id')
             ->whereDoesntHave('refund')
-            ->whereDoesntHave('cancellation');
+            ->whereDoesntHave('cancellation')
+            ->whereDoesntHave('voidRecord');
     }
 
     public function ensureSlipSeriesNumbers()
@@ -142,6 +143,11 @@ class BookedTicket extends Model
     public function cancellations()
     {
         return $this->hasMany(TicketCancellation::class);
+    }
+
+    public function voids()
+    {
+        return $this->hasMany(TicketVoid::class);
     }
 
     public function approvedBy()

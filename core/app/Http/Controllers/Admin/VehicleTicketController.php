@@ -16,6 +16,7 @@ use App\Models\TicketPrice;
 use App\Models\TicketPriceByStoppage;
 use App\Models\TicketCancellation;
 use App\Models\TicketRefund;
+use App\Models\TicketVoid;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -77,6 +78,7 @@ class VehicleTicketController extends Controller
                 $query->where(function ($searchQuery) use ($search) {
                     $searchQuery->where('reason', 'like', "%{$search}%")
                         ->orWhere('remarks', 'like', "%{$search}%")
+                        ->orWhere('transaction_snapshot', 'like', "%{$search}%")
                         ->orWhereHas('slipSeriesNumber', fn ($slip) => $slip->where('id', 'like', "%{$search}%"))
                         ->orWhereHas('bookedTicket', function ($ticket) use ($search) {
                             $ticket->where('pnr_number', 'like', "%{$search}%")
@@ -102,6 +104,44 @@ class VehicleTicketController extends Controller
             ->withQueryString();
 
         return view('admin.ticket.cancelled', compact('pageTitle', 'cancellations', 'search'));
+    }
+
+    public function voided()
+    {
+        $pageTitle = 'Voided Tickets';
+        $search = trim((string) request('search'));
+        $voids = TicketVoid::query()
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($searchQuery) use ($search) {
+                    $searchQuery->where('reason', 'like', "%{$search}%")
+                        ->orWhere('remarks', 'like', "%{$search}%")
+                        ->orWhere('transaction_snapshot', 'like', "%{$search}%")
+                        ->orWhereHas('slipSeriesNumber', fn ($slip) => $slip->where('id', 'like', "%{$search}%"))
+                        ->orWhereHas('bookedTicket', function ($ticket) use ($search) {
+                            $ticket->where('pnr_number', 'like', "%{$search}%")
+                                ->orWhere('passenger_manifest', 'like', "%{$search}%")
+                                ->orWhereHas('deposit.userDiscount', fn ($discount) => $discount->where('passenger_name', 'like', "%{$search}%"));
+                        });
+                });
+            })
+            ->with([
+                'slipSeriesNumber',
+                'bookedTicket.trip.route',
+                'bookedTicket.trip.schedule',
+                'bookedTicket.trip.fleetType',
+                'bookedTicket.pickup',
+                'bookedTicket.drop',
+                'bookedTicket.user',
+                'bookedTicket.kiosk',
+                'bookedTicket.deposit.userDiscount',
+                'processedBy',
+                'authorizedBy',
+            ])
+            ->latest()
+            ->paginate(getPaginate())
+            ->withQueryString();
+
+        return view('admin.ticket.voided', compact('pageTitle', 'voids', 'search'));
     }
 
     public function refundOptions($slip)
@@ -156,6 +196,8 @@ class VehicleTicketController extends Controller
 
         $refund = DB::transaction(function () use ($slip, $validated, $authorizedBy) {
             $slip = SlipSeriesNumber::whereDoesntHave('refund')
+                ->whereDoesntHave('cancellation')
+                ->whereDoesntHave('voidRecord')
                 ->whereHas('bookedTicket', fn ($ticket) => $ticket->booked())
                 ->with(['bookedTicket.deposit', 'bookedTicket.slipSeriesNumbers.refund'])
                 ->lockForUpdate()
@@ -183,6 +225,7 @@ class VehicleTicketController extends Controller
             $remainingSeats = $ticket->slipSeriesNumbers()
                 ->whereDoesntHave('refund')
                 ->whereDoesntHave('cancellation')
+                ->whereDoesntHave('voidRecord')
                 ->pluck('seat')
                 ->values()
                 ->all();
@@ -255,6 +298,7 @@ class VehicleTicketController extends Controller
         $cancellation = DB::transaction(function () use ($slip, $validated, $authorizedBy) {
             $slip = SlipSeriesNumber::whereDoesntHave('refund')
                 ->whereDoesntHave('cancellation')
+                ->whereDoesntHave('voidRecord')
                 ->whereHas('bookedTicket', fn ($ticket) => $ticket->booked())
                 ->with(['bookedTicket.deposit', 'bookedTicket.slipSeriesNumbers.refund', 'bookedTicket.slipSeriesNumbers.cancellation'])
                 ->lockForUpdate()
@@ -275,6 +319,7 @@ class VehicleTicketController extends Controller
             $remainingSeats = $ticket->slipSeriesNumbers()
                 ->whereDoesntHave('refund')
                 ->whereDoesntHave('cancellation')
+                ->whereDoesntHave('voidRecord')
                 ->pluck('seat')
                 ->values()
                 ->all();
@@ -297,10 +342,154 @@ class VehicleTicketController extends Controller
         ]);
     }
 
+    public function voidOptions($slip)
+    {
+        $slip = $this->voidableSlip($slip);
+        $ticket = $slip->bookedTicket;
+        $passenger = $this->ticketPassenger($ticket, $slip);
+
+        return response()->json([
+            'slip_id' => $slip->id,
+            'booking_id' => $ticket->id,
+            'pnr' => $ticket->pnr_number,
+            'reference' => (string) $slip->id,
+            'passenger_name' => $passenger['name'],
+            'passenger_type' => $passenger['type'],
+            'passenger_id' => $passenger['id_number'],
+            'seat' => $slip->seat,
+            'fare' => $passenger['fare'],
+            'processed_by' => auth('admin')->user()->name,
+            'reasons' => $this->voidReasons(),
+            'confirm_url' => route('admin.vehicle.ticket.void.confirm', $slip->id),
+        ]);
+    }
+
+    public function confirmVoid(Request $request, $slip)
+    {
+        $validated = $request->validate([
+            'reason' => 'required|in:' . implode(',', $this->voidReasons()),
+            'remarks' => 'required|string|max:1000',
+            'authorization_code' => 'required|string|max:100',
+        ]);
+
+        $authorizedBy = Admin::where('status', Status::ENABLE)
+            ->where('passcode', $validated['authorization_code'])
+            ->first();
+
+        if (!$authorizedBy) {
+            throw ValidationException::withMessages([
+                'authorization_code' => 'The authorization code is invalid or belongs to an inactive administrator.',
+            ]);
+        }
+
+        $ticketVoid = DB::transaction(function () use ($slip, $validated, $authorizedBy) {
+            $slip = SlipSeriesNumber::whereDoesntHave('refund')
+                ->whereDoesntHave('cancellation')
+                ->whereDoesntHave('voidRecord')
+                ->whereHas('bookedTicket', fn ($ticket) => $ticket->booked())
+                ->with([
+                    'bookedTicket.deposit.userDiscount',
+                    'bookedTicket.user',
+                    'bookedTicket.slipSeriesNumbers.refund',
+                    'bookedTicket.slipSeriesNumbers.cancellation',
+                    'bookedTicket.slipSeriesNumbers.voidRecord',
+                ])
+                ->lockForUpdate()
+                ->findOrFail($slip);
+            $ticket = $slip->bookedTicket;
+            $passenger = $this->ticketPassenger($ticket, $slip);
+
+            $ticketVoid = TicketVoid::create([
+                'booked_ticket_id' => $ticket->id,
+                'slip_series_number_id' => $slip->id,
+                'processed_by_admin_id' => auth('admin')->id(),
+                'authorized_by_admin_id' => $authorizedBy->id,
+                'original_fare' => $passenger['fare'],
+                'returned_amount' => $passenger['fare'],
+                'reason' => $validated['reason'],
+                'remarks' => $validated['remarks'],
+                'transaction_snapshot' => $this->voidSnapshot($ticket, $slip, $passenger, $authorizedBy),
+            ]);
+
+            $remainingSeats = $ticket->slipSeriesNumbers()
+                ->whereDoesntHave('refund')
+                ->whereDoesntHave('cancellation')
+                ->whereDoesntHave('voidRecord')
+                ->pluck('seat')
+                ->values()
+                ->all();
+            $ticket->seats = $remainingSeats;
+            $ticket->ticket_count = count($remainingSeats);
+            if (!$remainingSeats) {
+                $ticket->status = Status::BOOKED_VOIDED;
+            }
+            $ticket->save();
+
+            return $ticketVoid;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ticket voided successfully. The full fare was recorded as returned and the seat was released.',
+            'redirect_url' => route('admin.vehicle.ticket.voided'),
+            'void_id' => $ticketVoid->id,
+        ]);
+    }
+
+    public function voidDetails($id)
+    {
+        $ticketVoid = TicketVoid::with([
+            'slipSeriesNumber',
+            'bookedTicket.trip.route',
+            'bookedTicket.trip.schedule',
+            'bookedTicket.trip.fleetType',
+            'bookedTicket.pickup',
+            'bookedTicket.drop',
+            'bookedTicket.user',
+            'bookedTicket.kiosk',
+            'bookedTicket.deposit.userDiscount',
+            'processedBy',
+            'authorizedBy',
+        ])->findOrFail($id);
+        $ticket = $ticketVoid->bookedTicket;
+        $passenger = $this->ticketPassenger($ticket, $ticketVoid->slipSeriesNumber);
+        $snapshot = $ticketVoid->transaction_snapshot ?: [];
+
+        return response()->json([
+            'pnr' => $snapshot['pnr'] ?? $ticket->pnr_number,
+            'reference' => (string) ($snapshot['reference'] ?? $ticketVoid->slip_series_number_id),
+            'transaction' => $snapshot['transaction'] ?? ($ticket->deposit?->trx ?: '-'),
+            'trip_route' => $snapshot['trip_route'] ?? ($ticket->pickup?->name . ' - ' . $ticket->drop?->name),
+            'route_name' => $snapshot['route_name'] ?? ($ticket->trip?->route?->name ?: '-'),
+            'bus_type' => $snapshot['bus_type'] ?? ($ticket->trip?->fleetType?->name ?: '-'),
+            'date_of_journey' => $snapshot['date_of_journey'] ?? showDateTime($ticket->date_of_journey, 'M d, Y'),
+            'departure_time' => $snapshot['departure_time'] ?? ($ticket->trip?->schedule?->start_from
+                ? date('g:i A', strtotime($ticket->trip->schedule->start_from))
+                : '-'),
+            'seat' => $snapshot['seat'] ?? ($ticketVoid->slipSeriesNumber?->seat ?: '-'),
+            'passenger_name' => $snapshot['passenger_name'] ?? $passenger['name'],
+            'passenger_type' => $snapshot['passenger_type'] ?? $passenger['type'],
+            'passenger_id' => $snapshot['passenger_id'] ?? ($passenger['id_number'] ?: '-'),
+            'booking_source' => $snapshot['booking_source'] ?? ($ticket->kiosk_id ? ($ticket->kiosk?->name ?: 'Kiosk') : 'Online'),
+            'payment_method' => $snapshot['payment_method'] ?? $this->paymentMethod($ticket),
+            'fare' => (float) $ticketVoid->original_fare,
+            'returned_amount' => (float) $ticketVoid->returned_amount,
+            'ticket_count' => 1,
+            'processed_by' => $snapshot['processed_by'] ?? ($ticketVoid->processedBy?->name ?: '-'),
+            'authorized_by' => $snapshot['authorized_by'] ?? ($ticketVoid->authorizedBy?->name ?: '-'),
+            'reason' => $ticketVoid->reason,
+            'remarks' => $ticketVoid->remarks,
+            'voided_at' => showDateTime($ticketVoid->created_at),
+            'voided_ago' => diffForHumans($ticketVoid->created_at),
+            'status' => 'Voided',
+        ]);
+    }
+
     private function refundableSlip($id)
     {
         return SlipSeriesNumber::whereDoesntHave('refund')
             ->whereDoesntHave('cancellation')
+            ->whereDoesntHave('voidRecord')
             ->whereHas('bookedTicket', fn ($ticket) => $ticket->booked())
             ->with([
                 'bookedTicket.user',
@@ -314,6 +503,7 @@ class VehicleTicketController extends Controller
     {
         return SlipSeriesNumber::whereDoesntHave('refund')
             ->whereDoesntHave('cancellation')
+            ->whereDoesntHave('voidRecord')
             ->whereHas('bookedTicket', fn ($ticket) => $ticket->booked())
             ->with([
                 'bookedTicket.user',
@@ -321,6 +511,98 @@ class VehicleTicketController extends Controller
                 'bookedTicket.slipSeriesNumbers',
             ])
             ->findOrFail($id);
+    }
+
+    private function voidableSlip($id)
+    {
+        return SlipSeriesNumber::whereDoesntHave('refund')
+            ->whereDoesntHave('cancellation')
+            ->whereDoesntHave('voidRecord')
+            ->whereHas('bookedTicket', fn ($ticket) => $ticket->booked())
+            ->with([
+                'bookedTicket.user',
+                'bookedTicket.deposit.userDiscount',
+                'bookedTicket.slipSeriesNumbers',
+            ])
+            ->findOrFail($id);
+    }
+
+    private function voidReasons(): array
+    {
+        return [
+            'Passenger no-show',
+            'Change of plans',
+            'Duplicate booking',
+            'Wrong trip / seat',
+            'Trip cancelled',
+            'Medical / emergency',
+        ];
+    }
+
+    private function ticketPassenger(BookedTicket $ticket, SlipSeriesNumber $slip): array
+    {
+        $manifest = collect($ticket->passenger_manifest ?: ($ticket->deposit?->userDiscount?->passenger_manifest ?: []));
+        $passenger = $manifest->first(fn ($item) => (string) ($item['seat'] ?? '') === (string) $slip->seat) ?: [];
+        $discounted = ($passenger['passenger_type'] ?? 'regular') === 'discounted';
+
+        return [
+            'name' => ($passenger['name'] ?? null) ?: ($ticket->user?->fullname ?: 'Guest'),
+            'type' => $passenger
+                ? ($discounted ? ($passenger['discount_name'] ?? 'Discounted') : 'Regular')
+                : getPassengerType($ticket->deposit),
+            'id_number' => $passenger['id_number'] ?? null,
+            'fare' => round((float) ($passenger['fare'] ?? $this->ticketFare($ticket)), 2),
+        ];
+    }
+
+    private function paymentMethod(BookedTicket $ticket): string
+    {
+        if (!$ticket->deposit) {
+            return '-';
+        }
+
+        if ($ticket->deposit->pchannel) {
+            return readPaymentChannel($ticket->deposit->pchannel);
+        }
+
+        return $ticket->deposit->gatewayCurrency()?->name ?: '-';
+    }
+
+    private function voidSnapshot(BookedTicket $ticket, SlipSeriesNumber $slip, array $passenger, Admin $authorizedBy): array
+    {
+        $ticket->loadMissing(['trip.route', 'trip.schedule', 'trip.fleetType', 'pickup', 'drop', 'kiosk', 'deposit']);
+
+        return [
+            'booked_ticket_id' => $ticket->id,
+            'slip_series_number_id' => $slip->id,
+            'trip_id' => $ticket->trip_id,
+            'pickup_point_id' => $ticket->pickup_point,
+            'dropping_point_id' => $ticket->dropping_point,
+            'user_id' => $ticket->user_id,
+            'kiosk_id' => $ticket->kiosk_id,
+            'deposit_id' => $ticket->deposit?->id,
+            'pnr' => $ticket->pnr_number,
+            'reference' => (string) $slip->id,
+            'transaction' => $ticket->deposit?->trx ?: '-',
+            'route_name' => $ticket->trip?->route?->name ?: '-',
+            'trip_route' => $ticket->pickup?->name . ' - ' . $ticket->drop?->name,
+            'bus_type' => $ticket->trip?->fleetType?->name ?: '-',
+            'date_of_journey' => showDateTime($ticket->date_of_journey, 'M d, Y'),
+            'date_of_journey_raw' => Carbon::parse($ticket->date_of_journey)->format('Y-m-d'),
+            'departure_time' => $ticket->trip?->schedule?->start_from
+                ? date('g:i A', strtotime($ticket->trip->schedule->start_from))
+                : '-',
+            'seat' => $slip->seat,
+            'passenger_name' => $passenger['name'],
+            'passenger_type' => $passenger['type'],
+            'passenger_id' => $passenger['id_number'] ?: '-',
+            'booking_source' => $ticket->kiosk_id ? ($ticket->kiosk?->name ?: 'Kiosk') : 'Online',
+            'booking_source_reference' => $ticket->kiosk_id ? $ticket->kiosk?->uid : $ticket->user?->username,
+            'payment_method' => $this->paymentMethod($ticket),
+            'fare' => $passenger['fare'],
+            'processed_by' => auth('admin')->user()->name,
+            'authorized_by' => $authorizedBy->name,
+        ];
     }
 
     private function ticketFare(BookedTicket $ticket): float
@@ -395,6 +677,7 @@ class VehicleTicketController extends Controller
         return SlipSeriesNumber::query()
             ->whereDoesntHave('refund')
             ->whereDoesntHave('cancellation')
+            ->whereDoesntHave('voidRecord')
             ->whereHas('bookedTicket', function ($query) {
                 $query->booked();
             })
@@ -1036,6 +1319,7 @@ class VehicleTicketController extends Controller
         $seats = $ticket->slipSeriesNumbers()
             ->whereDoesntHave('refund')
             ->whereDoesntHave('cancellation')
+            ->whereDoesntHave('voidRecord')
             ->pluck('seat')
             ->values()
             ->all();

@@ -25,4 +25,9 @@ class SlipSeriesNumber extends Model
     {
         return $this->hasOne(TicketCancellation::class);
     }
+
+    public function voidRecord()
+    {
+        return $this->hasOne(TicketVoid::class);
+    }
 }

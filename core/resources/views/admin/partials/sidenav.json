@@ -299,6 +299,21 @@
             },
             {
                 "keyword": [
+                    "Void",
+                    "Voided Ticket",
+                    "Ticket void",
+                    "Booking void"
+                ],
+                "title": "Voided Tickets",
+                "route_name": "admin.vehicle.ticket.voided",
+                "menu_active": "admin.vehicle.ticket.voided",
+                "permission": "admin.vehicle.ticket.booked",
+                "params": {
+                    "user_id": ""
+                }
+            },
+            {
+                "keyword": [
                     "Rejected Ticket",
                     "Tickets",
                     "Ticket management",

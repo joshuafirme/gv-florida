@@ -202,6 +202,12 @@
                                                          data-cancel-url="{{ route('admin.vehicle.ticket.cancel.options', $ticketSlip->id) }}">
                                                          <i class="fa-solid fa-circle-xmark"></i>
                                                      </button>
+                                                     <button type="button" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                         title="Void Ticket"
+                                                         class="btn btn-sm btn-outline--danger ms-1 void-ticket-btn"
+                                                         data-void-url="{{ route('admin.vehicle.ticket.void.options', $ticketSlip->id) }}">
+                                                         <i class="las la-ban"></i>
+                                                     </button>
                                                  @endif
                                                 {{-- @endif --}}
                                             @endif
@@ -507,6 +513,71 @@
         </div>
     </div>
 
+    <div id="voidTicketModal" class="modal fade" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered cancel-dialog">
+            <div class="modal-content cancel-modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <h5 class="modal-title">Void Ticket</h5>
+                        <p class="cancel-subtitle mb-0"><span id="voidPnr"></span> - select the ticket to void. The full fare is returned and the seat is released immediately.</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body cancel-body">
+                    <div id="voidLoading" class="text-center py-5">
+                        <div class="spinner-border text-primary"></div>
+                    </div>
+
+                    <div id="voidFormStage" class="d-none">
+                        <div class="cancel-ticket-card">
+                            <div>
+                                <strong id="voidPassenger"></strong>
+                                <span id="voidTicketMeta"></span>
+                            </div>
+                            <strong id="voidFare"></strong>
+                        </div>
+
+                        <label class="cancel-label mt-3">Reason for Voiding</label>
+                        <div id="voidReasonChips" class="cancel-reason-chips"></div>
+
+                        <label class="cancel-label mt-3" for="voidRemarks">Void remarks / explanation</label>
+                        <textarea id="voidRemarks" class="form-control cancel-textarea" rows="3"
+                            placeholder="Reason for voiding..." maxlength="1000"></textarea>
+
+                        <div class="void-info-note mt-3">
+                            <i class="las la-exclamation-circle"></i>
+                            <span>1 paid ticket (<strong id="voidReturnAmount"></strong>) will be voided and the full fare recorded as returned. Seat released.</span>
+                        </div>
+
+                        <div class="cancel-auth-card mt-3">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="las la-shield-alt"></i>
+                                <div>
+                                    <strong>Authorization Required</strong>
+                                    <p>An authorized personnel must enter their code to confirm this void.</p>
+                                </div>
+                            </div>
+                            <label class="cancel-label" for="voidAuthorizationCode">Authorization Code</label>
+                            <div class="cancel-auth-input">
+                                <input type="password" id="voidAuthorizationCode" class="form-control"
+                                    placeholder="Enter staff code" autocomplete="off">
+                                <button type="button" id="toggleVoidCode" aria-label="Show authorization code">
+                                    <i class="las la-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer cancel-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Keep Booking</button>
+                    <button type="button" class="btn btn--danger" id="voidConfirmBtn" disabled>
+                        <i class="las la-ban me-1"></i> Void (1)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <style>
         .rebook-dialog { max-width: 760px; }
         .rebook-modal-content { border: 0; border-radius: 14px; box-shadow: 0 22px 60px rgba(0, 0, 0, .28); overflow: hidden; }
@@ -605,6 +676,8 @@
         .cancel-auth-input { max-width: 390px; position: relative; }
         .cancel-auth-input input { background: #f1f2f4; border-color: #d2d5da; border-radius: 8px; height: 45px; padding-right: 42px; }
         .cancel-auth-input button { background: transparent; border: 0; color: #6f7480; position: absolute; right: 10px; top: 10px; }
+        .void-info-note { align-items: flex-start; background: #fff9e8; border: 1px solid #f3cf74; border-radius: 9px; color: #b65c0d; display: flex; font-size: 12px; gap: 9px; line-height: 1.45; padding: 12px 14px; }
+        .void-info-note i { flex: 0 0 auto; font-size: 17px; margin-top: 1px; }
         .cancel-review-intro { color: #686d77; font-size: 13px; }
         .cancel-review-card { background: #f5f5f7; border: 1px solid #dedfe3; border-radius: 11px; overflow: hidden; }
         .cancel-review-card > div { align-items: flex-start; display: flex; gap: 18px; justify-content: space-between; padding: 12px 15px; }
@@ -1405,6 +1478,97 @@
                     notify('error', cancelError(xhr));
                     button.prop('disabled', false).html(originalLabel);
                     showCancelForm();
+                });
+            });
+        })(jQuery);
+
+        (function($) {
+            const voidModal = new bootstrap.Modal(document.getElementById('voidTicketModal'));
+            const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
+            let voidData = null;
+            let voidReason = '';
+
+            const formatMoney = value => currency.format(Number(value) || 0);
+            const escapeHtml = value => $('<div>').text(value ?? '').html();
+
+            function voidError(xhr) {
+                const errors = xhr.responseJSON?.errors;
+                return errors ? Object.values(errors).flat()[0] :
+                    (xhr.responseJSON?.message || 'Unable to void this ticket.');
+            }
+
+            function validateVoidForm() {
+                const valid = voidData && voidReason && $('#voidRemarks').val().trim() &&
+                    $('#voidAuthorizationCode').val().trim();
+                $('#voidConfirmBtn').prop('disabled', !valid);
+                return Boolean(valid);
+            }
+
+            $(document).on('click', '.void-ticket-btn', function(event) {
+                event.preventDefault();
+                voidData = null;
+                voidReason = '';
+                $('#voidLoading').removeClass('d-none');
+                $('#voidFormStage').addClass('d-none');
+                $('#voidConfirmBtn').prop('disabled', true).html('<i class="las la-ban me-1"></i> Void (1)');
+                $('#voidAuthorizationCode').attr('type', 'password');
+                voidModal.show();
+
+                $.getJSON($(this).data('void-url')).done(function(data) {
+                    voidData = data;
+                    $('#voidPnr').text(data.pnr);
+                    $('#voidPassenger').text(data.passenger_name);
+                    $('#voidTicketMeta').text(`${data.passenger_type} - Seat ${data.seat} - Ref. ${data.reference}`);
+                    $('#voidFare, #voidReturnAmount').text(formatMoney(data.fare));
+                    $('#voidRemarks, #voidAuthorizationCode').val('');
+                    $('#voidReasonChips').html(data.reasons.map(reason =>
+                        `<button type="button" class="cancel-reason-chip void-reason-chip" data-reason="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`
+                    ).join(''));
+                    $('#voidLoading').addClass('d-none');
+                    $('#voidFormStage').removeClass('d-none');
+                }).fail(function(xhr) {
+                    notify('error', voidError(xhr));
+                    voidModal.hide();
+                });
+            });
+
+            $(document).on('click', '.void-reason-chip', function() {
+                voidReason = $(this).data('reason');
+                $('.void-reason-chip').removeClass('active');
+                $(this).addClass('active');
+                validateVoidForm();
+            });
+
+            $('#voidRemarks, #voidAuthorizationCode').on('input', validateVoidForm);
+
+            $('#toggleVoidCode').on('click', function() {
+                const input = $('#voidAuthorizationCode');
+                input.attr('type', input.attr('type') === 'password' ? 'text' : 'password');
+            });
+
+            $('#voidConfirmBtn').on('click', function() {
+                if (!validateVoidForm()) return;
+                const button = $(this);
+                const originalLabel = button.html();
+                button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Voiding...');
+
+                $.ajax({
+                    url: voidData.confirm_url,
+                    method: 'POST',
+                    dataType: 'json',
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        reason: voidReason,
+                        remarks: $('#voidRemarks').val().trim(),
+                        authorization_code: $('#voidAuthorizationCode').val()
+                    }
+                }).done(function(result) {
+                    notify('success', result.message);
+                    voidModal.hide();
+                    setTimeout(() => window.location.href = result.redirect_url, 700);
+                }).fail(function(xhr) {
+                    notify('error', voidError(xhr));
+                    button.prop('disabled', false).html(originalLabel);
                 });
             });
         })(jQuery);
