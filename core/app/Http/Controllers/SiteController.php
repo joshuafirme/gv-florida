@@ -18,6 +18,7 @@ use App\Models\Language;
 use App\Models\Page;
 use App\Models\SupportMessage;
 use App\Models\SupportTicket;
+use App\Services\SeatConflictService;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -363,15 +364,6 @@ class SiteController extends Controller
             $layout = 'layouts.frontend';
         }
 
-        if ($request->seat_err && $request->booked_ticket_id) {
-            $bookedTicket = BookedTicket::find($request->booked_ticket_id);
-            if ($bookedTicket) {
-                $bookedTicket->slipSeriesNumbers()->delete();
-                $bookedTicket->deposit()->delete();
-                $bookedTicket->delete();
-            }
-        }
-
         return view("Template::book_ticket", compact(
             'pageTitle',
             'trip',
@@ -384,15 +376,19 @@ class SiteController extends Controller
 
     public function bookedQuery($request)
     {
+        $dateOfJourney = $request->date ?: $request->date_of_journey;
+
         return BookedTicket::where('trip_id', $request->trip_id)
-            ->whereDate('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
+            ->whereDate('date_of_journey', Carbon::parse($dateOfJourney)->format('Y-m-d'))
             ->where(function ($query) {
                 $query->where('status', Status::BOOKED_APPROVED)
                     ->orWhere(function ($subQuery) {
                         $subQuery->where('status', Status::BOOKED_PENDING)
-                            ->whereHas('deposit', function ($depositQuery) {
-                                // Fetch tickets where deposit was created within the last 15 mins
-                                $depositQuery->where('created_at', '>=', Carbon::now()->subMinutes(15));
+                            ->where(function ($activeQuery) {
+                                $activeQuery->where('created_at', '>=', Carbon::now()->subMinutes(15))
+                                    ->orWhereHas('deposit', function ($depositQuery) {
+                                        $depositQuery->where('created_at', '>=', Carbon::now()->subMinutes(15));
+                                    });
                             });
                     });
             })
@@ -467,6 +463,62 @@ class SiteController extends Controller
         ]);
     }
 
+    public function validateSeats(Request $request, $id)
+    {
+        $request->validate([
+            'pickup_point' => 'required|integer|gt:0',
+            'dropping_point' => 'required|integer|gt:0',
+            'date_of_journey' => 'required|date',
+            'seats' => 'required|string',
+        ], [
+            'seats.required' => 'Please select at least one seat.',
+        ]);
+
+        $trip = Trip::with('route')->where('status', Status::ENABLE)->findOrFail($id);
+        $seatConflicts = app(SeatConflictService::class);
+        $submittedSeats = collect(explode(',', $request->seats))
+            ->map(fn ($seat) => trim((string) $seat))
+            ->filter()
+            ->values();
+        $seats = $seatConflicts->normalizeSeats($submittedSeats->all());
+
+        if ($submittedSeats->count() !== count($seats)) {
+            return response()->json([
+                'available' => false,
+                'message' => 'A seat cannot be assigned more than once in the same booking.',
+            ], 422);
+        }
+
+        if (!$seatConflicts->isValidSegment($trip, $request->pickup_point, $request->dropping_point)) {
+            return response()->json([
+                'available' => false,
+                'message' => 'Select the pickup and dropping points in the correct trip order.',
+            ], 422);
+        }
+
+        $conflicts = $seatConflicts->conflicts(
+            $trip,
+            $request->date_of_journey,
+            $request->pickup_point,
+            $request->dropping_point,
+            $seats
+        );
+        $unavailableSeats = $seatConflicts->conflictingSeats($conflicts, $seats);
+
+        if ($unavailableSeats) {
+            return response()->json([
+                'available' => false,
+                'conflicting_seats' => $unavailableSeats,
+                'message' => 'Seat(s) ' . implode(', ', $unavailableSeats) . ' are already assigned on an overlapping trip segment.',
+            ], 409);
+        }
+
+        return response()->json([
+            'available' => true,
+            'seats' => $seats,
+        ]);
+    }
+
     public function bookTicket(Request $request, $id)
     {
         try {
@@ -525,9 +577,6 @@ class SiteController extends Controller
             $dayOff = $date_of_journey->format('w');
             $trip = Trip::findOrFail($id);
             $route = $trip->route;
-            $stoppages = $trip->route->stoppages;
-            $source_pos = array_search($request->pickup_point, $stoppages);
-            $destination_pos = array_search($request->dropping_point, $stoppages);
 
             if (!empty($trip->day_off)) {
                 if (in_array($dayOff, $trip->day_off)) {
@@ -536,30 +585,19 @@ class SiteController extends Controller
                 }
             }
 
-            $seats = array_filter((explode(',', $request->seats)));
+            $seatConflicts = app(SeatConflictService::class);
+            $submittedSeats = collect(explode(',', $request->seats))
+                ->map(fn ($seat) => trim((string) $seat))
+                ->filter()
+                ->values();
+            $seats = $seatConflicts->normalizeSeats($submittedSeats->all());
 
-            $booked_ticket = $this->bookedQuery($request);
-
-            if ($booked_ticket->count() > 0) {
-                $notify[] = ['error', 'Those seats are already booked'];
+            if ($submittedSeats->count() !== count($seats)) {
+                $notify[] = ['error', 'A seat cannot be assigned more than once in the same booking.'];
                 return redirect()->back()->withNotify($notify);
             }
 
-            $startPoint = array_search($trip->start_from, array_values($trip->route->stoppages));
-            $endPoint = array_search($trip->end_to, array_values($trip->route->stoppages));
-            if ($startPoint < $endPoint) {
-                $reverse = false;
-            } else {
-                $reverse = true;
-            }
-
-            if (!$reverse) {
-                $can_go = ($source_pos < $destination_pos) ? true : false;
-            } else {
-                $can_go = ($source_pos > $destination_pos) ? true : false;
-            }
-
-            if (!$can_go) {
+            if (!$seatConflicts->isValidSegment($trip, $request->pickup_point, $request->dropping_point)) {
                 $notify[] = ['error', 'Select Pickup Point & Dropping Point Properly'];
                 return redirect()->back()->withNotify($notify);
             }
@@ -578,6 +616,23 @@ class SiteController extends Controller
             }
 
             DB::beginTransaction();
+
+            $lockedTrip = Trip::with('route')->whereKey($id)->lockForUpdate()->firstOrFail();
+            $conflicts = $seatConflicts->conflicts(
+                $lockedTrip,
+                $request->date_of_journey,
+                $request->pickup_point,
+                $request->dropping_point,
+                $seats,
+                lockForUpdate: true
+            );
+            $unavailableSeats = $seatConflicts->conflictingSeats($conflicts, $seats);
+
+            if ($unavailableSeats) {
+                DB::rollBack();
+                $notify[] = ['error', 'Seat(s) ' . implode(', ', $unavailableSeats) . ' were just assigned on an overlapping trip segment. Please choose another seat.'];
+                return redirect()->back()->withInput()->withNotify($notify);
+            }
 
             $unitPrice = getAmount($getPrice->price);
             $pnr_number = getTrx(10);

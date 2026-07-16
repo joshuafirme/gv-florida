@@ -31,9 +31,13 @@
         <div class="container">
             @include('templates.basic.partials.booking_stepper', ['currentStep' => 'details'])
 
-            <button type="button" class="flow-back-btn" onclick="window.history.back();">
-                <i class="las la-arrow-left"></i> Back to seat selection
-            </button>
+            <form action="{{ route('user.deposit.release-seats') }}" method="POST" class="seat-release-form">
+                @csrf
+                <input type="hidden" name="booked_ticket_id" value="{{ $bookedTicket->id }}">
+                <button type="submit" class="flow-back-btn">
+                    <i class="las la-arrow-left"></i> Back to seat selection
+                </button>
+            </form>
 
             <form action="{{ route('user.deposit.insert') }}" method="post" class="deposit-form" id="passengerFlowForm">
                 @csrf

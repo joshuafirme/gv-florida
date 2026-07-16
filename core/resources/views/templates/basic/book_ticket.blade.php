@@ -609,33 +609,28 @@
                                 else seatNode.addClass('seat-condition selected-by-others disabled');
                             };
 
-                            if (response.reverse == true) {
-                                $.each(response.bookedSeats, function(i, v) {
-                                    var bookedSource = stoppages.indexOf(v.pickup_point.toString());
-                                    var bookedDestination = stoppages.indexOf(v.dropping_point
-                                        .toString());
-                                    if (reqDestination >= bookedSource || reqSource <=
-                                        bookedDestination) {
-                                        $.each(v.seats, function(index, val) {
-                                            disableSeat(val, v.gender);
-                                        });
-                                    }
-                                });
-                            } else {
-                                $.each(response.bookedSeats, function(i, v) {
-                                    var bookedSource = stoppages.indexOf(v.pickup_point.toString());
-                                    var bookedDestination = stoppages.indexOf(v.dropping_point
-                                        .toString());
-                                    if (reqDestination <= bookedSource || reqSource >=
-                                        bookedDestination) {
-                                        // Valid to book
-                                    } else {
-                                        $.each(v.seats, function(index, val) {
-                                            disableSeat(val, v.gender);
-                                        });
-                                    }
-                                });
-                            }
+                            let requestedBounds = [Math.min(reqSource, reqDestination), Math.max(reqSource,
+                                reqDestination)];
+
+                            $.each(response.bookedSeats, function(i, v) {
+                                let bookedSource = stoppages.indexOf(v.pickup_point.toString());
+                                let bookedDestination = stoppages.indexOf(v.dropping_point.toString());
+
+                                if (bookedSource === -1 || bookedDestination === -1) {
+                                    return;
+                                }
+
+                                let bookedBounds = [Math.min(bookedSource, bookedDestination), Math.max(
+                                    bookedSource, bookedDestination)];
+                                let overlaps = Math.max(requestedBounds[0], bookedBounds[0]) < Math.min(
+                                    requestedBounds[1], bookedBounds[1]);
+
+                                if (overlaps) {
+                                    $.each(v.seats || [], function(index, val) {
+                                        disableSeat(val, v.gender);
+                                    });
+                                }
+                            });
 
                             // --- CONFLICT CHECK: Validate pre-selected seats against new destination ---
                             let conflicts = 0;
@@ -779,18 +774,70 @@
                 // ==========================================
                 // SUBMISSION
                 // ==========================================
+                let seatValidationInProgress = false;
+
+                function markConflictingSeats(seats) {
+                    (seats || []).forEach(function(seat) {
+                        let seatElement = $(`.seat-wrapper .seat[data-seat="${seat}"]`);
+                        seatElement.removeClass('selected').removeAttr('draggable').removeAttr('title');
+                        seatElement.parent().addClass('seat-condition selected-by-gents disabled');
+                    });
+
+                    selectSeat();
+                }
+
                 $('#bookingForm').on('submit', function(e) {
                     e.preventDefault();
+
+                    if (seatValidationInProgress) {
+                        return;
+                    }
+
                     if ($('select[name="dropping_point"]').val() == '') {
                         notify('error', 'Please select a Dropping Point.');
                         return;
                     }
-                    if ($('.seat.selected').length > 0) {
+
+                    if ($('.seat.selected').length === 0) {
+                        notify('error', 'Select at least one seat.');
+                        return;
+                    }
+
+                    const form = this;
+                    const continueButton = $(form).find('.book-bus-btn');
+                    const originalLabel = continueButton.html();
+                    seatValidationInProgress = true;
+                    continueButton.prop('disabled', true)
+                        .html('<i class="las la-spinner la-spin"></i> Validating seats...');
+
+                    $.ajax({
+                        type: 'POST',
+                        url: "{{ route('ticket.validate-seats', $trip->id) }}",
+                        data: $(form).serialize(),
+                        dataType: 'json',
+                        headers: {
+                            Accept: 'application/json'
+                        }
+                    }).done(function(response) {
+                        if (!response.available) {
+                            notify('error', response.message || 'One or more seats are no longer available.');
+                            return;
+                        }
+
+                        $('input[name="seats"]').val((response.seats || []).join(','));
                         updateConfirmModal();
                         $('#bookConfirm').modal('show');
-                    } else {
-                        notify('error', 'Select at least one seat.');
-                    }
+                    }).fail(function(xhr) {
+                        const response = xhr.responseJSON || {};
+                        const validationError = response.errors ? Object.values(response.errors).flat()[0] : null;
+
+                        markConflictingSeats(response.conflicting_seats || []);
+                        notify('error', response.message || validationError || 'Unable to validate the selected seats.');
+                    }).always(function() {
+                        seatValidationInProgress = false;
+                        const hasValidPrice = (parseFloat($('input[name="price"]').val()) || 0) > 0;
+                        continueButton.prop('disabled', !hasValidPrice).html(originalLabel);
+                    });
                 });
 
                 $(document).on('click', '#btnBookConfirm', function(e) {

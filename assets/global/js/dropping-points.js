@@ -6,7 +6,9 @@
         if(counter_id) {
             getDroppingPoints(counter_id);
         } else {
-            $('select[name=destination]').html('<option value="">--Dropping point--</option>');
+            let $destination = $('select[name=destination]');
+            let defaultOption = $destination.data('default-option') || '--Dropping point--';
+            $destination.html(`<option value="">${defaultOption}</option>`).val('').trigger('change');
         }
     });
 
@@ -31,7 +33,8 @@
                 let $destination = $('select[name=destination]');
                 $destination.empty();
 
-                let options = ``;
+                let defaultOption = $destination.data('default-option') || '--Dropping point--';
+                let options = `<option value="">${defaultOption}</option>`;
 
                 // The backend now strictly returns an array of valid {id, name}
                 data.forEach(v => {
@@ -48,6 +51,8 @@
                     let destination = urlParams.get('destination') || urlParams.get('selected_destination');
                     if (destination) {
                         $destination.val(destination).trigger("change");
+                    } else {
+                        $destination.val('').trigger('change');
                     }
                 }, 1000); // Shorter timeout for a snappier UI response
             })

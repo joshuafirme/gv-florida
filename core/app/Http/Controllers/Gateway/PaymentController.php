@@ -62,6 +62,66 @@ class PaymentController extends Controller
         return view('Template::user.payment.deposit', compact('gatewayCurrency', 'pageTitle', 'bookedTicket', 'layout', 'discounts'));
     }
 
+    public function releaseSeats(Request $request)
+    {
+        $request->validate([
+            'booked_ticket_id' => 'required|integer',
+        ]);
+
+        $sessionTicketId = (int) session('booked_ticket_id');
+
+        abort_unless($sessionTicketId && $sessionTicketId === (int) $request->booked_ticket_id, 403);
+
+        $redirectUrl = route('ticket', ['kiosk_id' => session('kiosk_id')]);
+        $released = DB::transaction(function () use ($sessionTicketId, &$redirectUrl) {
+            $ticket = BookedTicket::with(['deposit', 'trip'])
+                ->whereKey($sessionTicketId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$ticket) {
+                return true;
+            }
+
+            if ($ticket->user_id && (int) $ticket->user_id !== (int) auth()->id()) {
+                abort(403);
+            }
+
+            if ($ticket->kiosk_id && (int) $ticket->kiosk_id !== (int) session('kiosk_id')) {
+                abort(403);
+            }
+
+            if ((int) $ticket->status !== Status::BOOKED_PENDING || $ticket->deposit) {
+                return false;
+            }
+
+            $redirectUrl = route('ticket.seats', [
+                $ticket->trip_id,
+                slug($ticket->trip?->title ?: 'trip'),
+                'start_from' => $ticket->trip?->start_from,
+                'end_to' => $ticket->trip?->end_to,
+                'dropping_point' => $ticket->dropping_point,
+                'kiosk_id' => $ticket->kiosk_id,
+                'date_of_journey' => Carbon::parse($ticket->date_of_journey)->format('m/d/Y'),
+            ]);
+
+            $ticket->slipSeriesNumbers()->delete();
+            $ticket->delete();
+
+            return true;
+        });
+
+        if (!$released) {
+            $notify[] = ['error', 'Seats with an existing payment transaction can no longer be released from this page.'];
+            return back()->withNotify($notify);
+        }
+
+        session()->forget(['pnr_number', 'booked_ticket_id', 'seats', 'Track']);
+
+        $notify[] = ['success', 'Your previous seat selection has been released.'];
+        return redirect($redirectUrl)->withNotify($notify);
+    }
+
     public function depositInsert(Request $request)
     {
         $request->validate([

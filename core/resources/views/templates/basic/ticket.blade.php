@@ -387,8 +387,9 @@
                     <div class="col-md-4 col-lg-3">
                         <div class="form--group">
                             <i class="las la-map-marker"></i>
-                            <select name="destination" class="form--control select2">
-                                <option value="">@lang('Dropping Point')</option>
+                            <select name="destination" class="form--control select2"
+                                data-default-option="@lang('All Destination')">
+                                <option value="">@lang('All Destination')</option>
                             </select>
                         </div>
                     </div>

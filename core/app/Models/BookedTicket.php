@@ -77,30 +77,16 @@ class BookedTicket extends Model
      */
     public function getConflicts()
     {
-        return self::where('trip_id', $this->trip_id)
-            ->where('id', '!=', $this->id)
-            ->whereDate('date_of_journey', Carbon::parse($this->date_of_journey)->format('Y-m-d'))
-            ->where(function ($query) {
-                $query->where('status', Status::BOOKED_APPROVED)
-                    ->orWhere(function ($subQuery) {
-                        $subQuery->where('status', Status::BOOKED_PENDING)
-                            ->whereHas('deposit', function ($depositQuery) {
-                                $depositQuery->where('created_at', '>=', Carbon::now()->subMinutes(15));
-                            });
-                    });
-            })
-            ->where('pickup_point', $this->pickup_point)
-            ->where('dropping_point', $this->dropping_point)
-            ->where(function ($query) {
-                $seats = is_string($this->seats) ? json_decode($this->seats, true) : $this->seats;
+        $trip = $this->trip()->with('route')->firstOrFail();
 
-                if (!empty($seats) && is_array($seats)) {
-                    foreach ($seats as $seat) {
-                        $query->orWhereJsonContains('seats', $seat);
-                    }
-                }
-            })
-            ->get();
+        return app(\App\Services\SeatConflictService::class)->conflicts(
+            $trip,
+            $this->date_of_journey,
+            $this->pickup_point,
+            $this->dropping_point,
+            $this->seats ?: [],
+            $this->id
+        );
     }
 
     public function deposit()
