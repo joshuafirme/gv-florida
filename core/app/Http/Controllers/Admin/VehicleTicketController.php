@@ -17,11 +17,13 @@ use App\Models\TicketPriceByStoppage;
 use App\Models\TicketCancellation;
 use App\Models\TicketRefund;
 use App\Models\TicketVoid;
+use App\Services\CashierTransactionRecorder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class VehicleTicketController extends Controller
@@ -221,6 +223,7 @@ class VehicleTicketController extends Controller
                 'reason' => $validated['reason'],
                 'remarks' => $validated['remarks'],
             ]);
+            app(CashierTransactionRecorder::class)->recordRefund($refund);
 
             $remainingSeats = $ticket->slipSeriesNumbers()
                 ->whereDoesntHave('refund')
@@ -315,6 +318,7 @@ class VehicleTicketController extends Controller
                 'reason' => $validated['reason'],
                 'remarks' => $validated['remarks'],
             ]);
+            app(CashierTransactionRecorder::class)->recordCancellation($cancellation);
 
             $remainingSeats = $ticket->slipSeriesNumbers()
                 ->whereDoesntHave('refund')
@@ -410,6 +414,7 @@ class VehicleTicketController extends Controller
                 'remarks' => $validated['remarks'],
                 'transaction_snapshot' => $this->voidSnapshot($ticket, $slip, $passenger, $authorizedBy),
             ]);
+            app(CashierTransactionRecorder::class)->recordVoid($ticketVoid);
 
             $remainingSeats = $ticket->slipSeriesNumbers()
                 ->whereDoesntHave('refund')
@@ -946,6 +951,8 @@ class VehicleTicketController extends Controller
         ])->findOrFail($id);
 
         $requestedSeats = explode(',', $request->seats);
+        $originalDate = Carbon::parse($data->date_of_journey)->format('Y-m-d');
+        $originalSeats = collect($data->seats ?: [])->map(fn ($seat) => (string) $seat)->values()->all();
 
         $originalSeatCount = is_array($data->seats) ? count($data->seats) : 1;
 
@@ -1014,6 +1021,34 @@ class VehicleTicketController extends Controller
                 $slip->save();
             }
         }
+
+        $data = $data->fresh([
+            'trip.route',
+            'trip.schedule',
+            'trip.fleetType',
+            'pickup',
+            'drop',
+            'user',
+            'kiosk',
+            'deposit.userDiscount',
+            'slipSeriesNumbers',
+        ]);
+        $newDate = Carbon::parse($data->date_of_journey)->format('Y-m-d');
+        $reasonParts = [];
+        if ($originalDate !== $newDate) {
+            $reasonParts[] = "Travel date changed from {$originalDate} to {$newDate}";
+        }
+        if ($originalSeats !== $requestedSeats) {
+            $reasonParts[] = 'Seat changed from ' . implode(', ', $originalSeats) . ' to ' . implode(', ', $requestedSeats);
+        }
+
+        app(CashierTransactionRecorder::class)->recordRebooking(
+            $data,
+            $data->slipSeriesNumbers,
+            (int) auth('admin')->id(),
+            implode('; ', $reasonParts) ?: 'Booking schedule updated',
+            Str::uuid()->toString()
+        );
 
         $notify[] = ['success', "Booking Date and Seats Updated Successfully"];
         return redirect()->back()->withNotify($notify);
@@ -1130,7 +1165,26 @@ class VehicleTicketController extends Controller
                 ]);
             }
 
-            return $this->applyRebooking($ticket, $targetSlips, $trip, $date, $requestedSeats);
+            $targetSlipIds = $targetSlips->pluck('id')->all();
+            $originalDate = Carbon::parse($ticket->date_of_journey)->format('Y-m-d');
+            $originalTrip = $ticket->trip?->route?->name ?: $ticket->trip?->title ?: 'Original trip';
+            $result = $this->applyRebooking($ticket, $targetSlips, $trip, $date, $requestedSeats);
+            $rebookedSlips = SlipSeriesNumber::whereIn('id', $targetSlipIds)->get();
+            $reason = match ($validated['type']) {
+                'change_seat' => 'Seat changed from ' . implode(', ', $originalSeats) . ' to ' . implode(', ', $requestedSeats),
+                'change_date' => 'Travel date changed from ' . $originalDate . ' to ' . $date,
+                'new_trip' => 'Trip changed from ' . $originalTrip . ' to ' . ($trip->route?->name ?: $trip->title),
+            };
+
+            app(CashierTransactionRecorder::class)->recordRebooking(
+                $result,
+                $rebookedSlips,
+                (int) auth('admin')->id(),
+                $reason,
+                Str::uuid()->toString()
+            );
+
+            return $result;
         });
 
         return response()->json([

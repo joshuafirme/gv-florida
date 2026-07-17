@@ -408,6 +408,16 @@
         "submenu": [
             {
                 "keyword": [
+                    "shift end report",
+                    "cashier report",
+                    "shift reconciliation"
+                ],
+                "title": "Shift End Report",
+                "route_name": "admin.report.shift.end",
+                "menu_active": "admin.report.shift.end"
+            },
+            {
+                "keyword": [
                     "travel manifest",
                     "travel report"
                 ],
