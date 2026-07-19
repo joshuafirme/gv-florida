@@ -48,6 +48,7 @@
                 box-shadow: 0 1px 8px rgba(15, 23, 42, .08);
                 display: grid;
                 grid-template-columns: repeat(4, minmax(0, 1fr));
+                isolation: isolate;
                 left: 0;
                 margin: 0;
                 padding: 9px clamp(18px, 6vw, 64px) 8px;
@@ -65,6 +66,7 @@
                 position: absolute;
                 right: clamp(34px, 7vw, 76px);
                 top: 25px;
+                z-index: 0;
             }
 
             .booking-flow-stepper::before {
@@ -99,7 +101,10 @@
                 display: inline-flex;
                 height: 31px;
                 justify-content: center;
+                position: relative;
                 width: 31px;
+                z-index: 2;
+                box-shadow: 0 0 0 5px #fff;
             }
 
             .booking-flow-step__label {
@@ -120,7 +125,7 @@
                 background: #df2a82;
                 border-color: #df2a82;
                 color: #fff;
-                box-shadow: 0 0 0 4px rgba(223, 42, 130, .12);
+                box-shadow: 0 0 0 5px #fff, 0 0 0 8px rgba(223, 42, 130, .12);
             }
 
             @media (max-width: 575px) {
