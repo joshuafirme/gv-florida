@@ -74,7 +74,7 @@
             }
 
             .booking-flow-stepper::after {
-                background: #df2a82;
+                background: var(--booking-primary);
                 transform: scaleX(var(--booking-flow-progress));
                 transform-origin: left center;
             }
@@ -122,10 +122,10 @@
 
             .booking-flow-step.is-active .booking-flow-step__marker,
             .booking-flow-step.is-complete .booking-flow-step__marker {
-                background: #df2a82;
-                border-color: #df2a82;
-                color: #fff;
-                box-shadow: 0 0 0 5px #fff, 0 0 0 8px rgba(223, 42, 130, .12);
+                background: var(--booking-primary);
+                border-color: var(--booking-primary);
+                color: var(--booking-on-primary);
+                box-shadow: 0 0 0 5px #fff, 0 0 0 8px var(--booking-primary-focus);
             }
 
             @media (max-width: 575px) {

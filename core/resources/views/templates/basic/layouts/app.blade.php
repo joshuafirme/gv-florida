@@ -24,6 +24,17 @@
     <link rel="stylesheet" href="{{ asset($activeTemplateTrue . 'css/custom.css?v=' . $v) }}">
     <link rel="stylesheet"
         href="{{ asset($activeTemplateTrue . 'css/color.php?color=' . gs('base_color')) . '&v=' . $v }}">
+    <style>
+        :root {
+            --booking-primary: var(--main-color, #DF2A82);
+            --booking-primary-hover: color-mix(in srgb, var(--booking-primary) 86%, #000);
+            --booking-primary-soft: color-mix(in srgb, var(--booking-primary) 10%, #fff);
+            --booking-primary-soft-strong: color-mix(in srgb, var(--booking-primary) 18%, #fff);
+            --booking-primary-border: color-mix(in srgb, var(--booking-primary) 35%, transparent);
+            --booking-primary-focus: color-mix(in srgb, var(--booking-primary) 18%, transparent);
+            --booking-on-primary: #fff;
+        }
+    </style>
     @stack('style-lib')
 
     @stack('style')
