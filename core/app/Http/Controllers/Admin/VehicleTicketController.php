@@ -278,14 +278,40 @@ class VehicleTicketController extends Controller
                 'Medical / emergency',
             ],
             'confirm_url' => route('admin.vehicle.ticket.cancel.confirm', $slip->id),
+            'authorization_url' => route('admin.vehicle.ticket.cancel.authorize', $slip->id),
+        ]);
+    }
+
+    public function authorizeCancellation(Request $request, $slip)
+    {
+        $validated = $request->validate([
+            'authorization_code' => 'required|string|max:100',
+        ]);
+
+        $this->cancellableSlip($slip);
+        $authorizedBy = Admin::where('status', Status::ENABLE)
+            ->where('passcode', $validated['authorization_code'])
+            ->first();
+
+        if (!$authorizedBy) {
+            throw ValidationException::withMessages([
+                'authorization_code' => 'The authorization code is invalid or belongs to an inactive administrator.',
+            ]);
+        }
+
+        return response()->json([
+            'authorized' => true,
+            'authorized_by' => [
+                'id' => $authorizedBy->id,
+                'name' => $authorizedBy->name,
+            ],
         ]);
     }
 
     public function confirmCancellation(Request $request, $slip)
     {
         $validated = $request->validate([
-            'reason' => 'required|in:Passenger no-show,Change of plans,Duplicate booking,Wrong trip / seat,Trip cancelled,Medical / emergency',
-            'remarks' => 'required|string|max:1000',
+            'reason' => 'required|string|max:1000',
             'authorization_code' => 'required|string|max:100',
         ]);
 
@@ -317,7 +343,7 @@ class VehicleTicketController extends Controller
                 'authorized_by_admin_id' => $authorizedBy->id,
                 'original_fare' => $fare,
                 'reason' => $validated['reason'],
-                'remarks' => $validated['remarks'],
+                'remarks' => null,
             ]);
             app(CashierTransactionRecorder::class)->recordCancellation($cancellation);
 
