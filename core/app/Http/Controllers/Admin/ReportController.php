@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
+use App\Models\Admin;
 use App\Models\BookedTicket;
 use App\Models\CashierTransactionEvent;
 use App\Models\Counter;
@@ -17,6 +18,79 @@ use App\Services\CashierTransactionRecorder;
 
 class ReportController extends Controller
 {
+    public function auditTrail(Request $request)
+    {
+        $dateToRules = ['nullable', 'date', 'before_or_equal:today'];
+        if ($request->filled('date_from')) {
+            $dateToRules[] = 'after_or_equal:date_from';
+        }
+
+        $validated = $request->validate([
+            'search' => 'nullable|string|max:255',
+            'event' => 'nullable|string|max:30',
+            'admin_id' => 'nullable|integer|exists:admins,id',
+            'source' => 'nullable|string|max:30',
+            'date_from' => 'nullable|date|before_or_equal:today',
+            'date_to' => $dateToRules,
+        ]);
+
+        $pageTitle = 'Audit Trail';
+        $search = trim((string) ($validated['search'] ?? ''));
+
+        $query = CashierTransactionEvent::query()
+            ->with('admin:id,name,username')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($searchQuery) use ($search) {
+                    $searchQuery->where('pnr', 'like', "%{$search}%")
+                        ->orWhere('reference_no', 'like', "%{$search}%")
+                        ->orWhere('passenger_name', 'like', "%{$search}%")
+                        ->orWhere('passenger_type', 'like', "%{$search}%")
+                        ->orWhere('passenger_id', 'like', "%{$search}%")
+                        ->orWhere('seat_no', 'like', "%{$search}%")
+                        ->orWhere('trip_class', 'like', "%{$search}%")
+                        ->orWhere('trip_route', 'like', "%{$search}%")
+                        ->orWhere('payment_method', 'like', "%{$search}%")
+                        ->orWhere('reason', 'like', "%{$search}%")
+                        ->orWhere('status', 'like', "%{$search}%")
+                        ->orWhereHas('admin', function ($adminQuery) use ($search) {
+                            $adminQuery->where('name', 'like', "%{$search}%")
+                                ->orWhere('username', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->when($validated['event'] ?? null, fn ($query, $event) => $query->where('status', $event))
+            ->when($validated['admin_id'] ?? null, fn ($query, $adminId) => $query->where('admin_id', $adminId))
+            ->when($validated['source'] ?? null, fn ($query, $source) => $query->where('source', $source))
+            ->when($validated['date_from'] ?? null, function ($query, $date) {
+                $query->where('processed_at', '>=', Carbon::parse($date)->startOfDay());
+            })
+            ->when($validated['date_to'] ?? null, function ($query, $date) {
+                $query->where('processed_at', '<=', Carbon::parse($date)->endOfDay());
+            });
+
+        $transactions = $query
+            ->orderByDesc('processed_at')
+            ->orderByDesc('id')
+            ->paginate(getPaginate())
+            ->withQueryString();
+
+        $admins = Admin::query()
+            ->whereIn('id', CashierTransactionEvent::query()->select('admin_id')->distinct())
+            ->orderBy('name')
+            ->get(['id', 'name', 'username']);
+        $events = CashierTransactionEvent::query()->distinct()->orderBy('status')->pluck('status');
+        $sources = CashierTransactionEvent::query()->whereNotNull('source')->distinct()->orderBy('source')->pluck('source');
+
+        return view('admin.reports.audit-trail', compact(
+            'pageTitle',
+            'transactions',
+            'admins',
+            'events',
+            'sources',
+            'search'
+        ));
+    }
+
     public function shiftEnd(Request $request)
     {
         $request->validate([

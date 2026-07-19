@@ -278,6 +278,7 @@ Route::middleware('admin')->group(function () {
 
     // Report
     Route::controller('ReportController')->prefix('report')->name('report.')->group(function () {
+        Route::get('audit-trail', 'auditTrail')->name('audit.trail');
         Route::get('shift-end', 'shiftEnd')->name('shift.end');
         Route::get('transaction/{user_id?}', 'transaction')->name('transaction');
         Route::get('login/history', 'loginHistory')->name('login.history');

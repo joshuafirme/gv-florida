@@ -408,6 +408,19 @@
         "submenu": [
             {
                 "keyword": [
+                    "audit trail",
+                    "audit log",
+                    "cashier activity",
+                    "staff activity",
+                    "booking transaction log",
+                    "payment transaction log"
+                ],
+                "title": "Audit Trail",
+                "route_name": "admin.report.audit.trail",
+                "menu_active": "admin.report.audit.trail"
+            },
+            {
+                "keyword": [
                     "shift end report",
                     "cashier report",
                     "shift reconciliation"
