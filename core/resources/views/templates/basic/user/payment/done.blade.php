@@ -1,6 +1,10 @@
 @extends($activeTemplate . $layout)
 
 @section('content')
+    @if ($layout === 'layouts.kiosk')
+        @include('templates.basic.partials.kiosk_nav')
+    @endif
+
     <div class="voucher-flow-wrap">
         <div class="container">
             @include('templates.basic.partials.booking_stepper', ['currentStep' => 'done'])
