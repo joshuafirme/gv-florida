@@ -408,6 +408,7 @@ class ManageTripController extends Controller
         $search = trim((string) $request->search);
         $dispatchStatuses = $this->vehicleDispatchStatuses();
         $trips = Trip::query()
+            ->active()
             ->with([
                 'route.startFrom',
                 'route.endTo',
