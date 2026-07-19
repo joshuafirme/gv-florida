@@ -166,7 +166,7 @@ class PaymentController extends Controller
             $passenger = collect($passengers)->firstWhere('seat', $seat);
 
             if (!$passenger) {
-                $notify[] = ['error', "Please assign passenger details for seat {$seat}."];
+                $notify[] = ['error', 'Please assign passenger details for seat ' . formatSeatLabel($seat) . '.'];
                 return back()->withNotify($notify);
             }
 
@@ -181,12 +181,12 @@ class PaymentController extends Controller
                 $discount = $discounts->get($discountId);
 
                 if (!$discount) {
-                    $notify[] = ['error', "Please select a valid discount type for seat {$seat}."];
+                    $notify[] = ['error', 'Please select a valid discount type for seat ' . formatSeatLabel($seat) . '.'];
                     return back()->withNotify($notify);
                 }
 
                 if ($name === '' || $idNumber === '') {
-                    $notify[] = ['error', "Discounted passengers must provide a name and ID number for seat {$seat}."];
+                    $notify[] = ['error', 'Discounted passengers must provide a name and ID number for seat ' . formatSeatLabel($seat) . '.'];
                     return back()->withNotify($notify);
                 }
 
@@ -451,7 +451,7 @@ class PaymentController extends Controller
                 'rate' => showAmount($deposit->rate, currencyFormat: false),
                 'trx' => $deposit->trx,
                 'journey_date' => showDateTime($bookedTicket->date_of_journey, 'd m, Y'),
-                'seats' => implode(',', $bookedTicket->seats),
+                'seats' => formatSeatLabel($bookedTicket->seats),
                 'total_seats' => sizeof($bookedTicket->seats),
                 'source' => $bookedTicket->pickup->name,
                 'destination' => $bookedTicket->drop->name,
@@ -522,7 +522,7 @@ class PaymentController extends Controller
             'rate' => showAmount($data->rate, currencyFormat: false),
             'trx' => $data->trx,
             'journey_date' => showDateTime($bookedTicket->date_of_journey, 'd m, Y'),
-            'seats' => implode(',', $bookedTicket->seats),
+            'seats' => formatSeatLabel($bookedTicket->seats),
             'total_seats' => sizeof($bookedTicket->seats),
             'source' => $bookedTicket->pickup->name,
             'destination' => $bookedTicket->drop->name

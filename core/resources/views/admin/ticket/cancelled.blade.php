@@ -48,7 +48,7 @@
                                             <div><span class="badge badge--danger">Cancelled</span></div>
                                         </td>
                                         <td data-label="Ref. No.">{{ $cancellation->slip_series_number_id }}</td>
-                                        <td data-label="Seat"><strong>{{ $cancellation->slipSeriesNumber->seat }}</strong></td>
+                                        <td data-label="Seat"><strong>{{ formatSeatLabel($cancellation->slipSeriesNumber->seat) }}</strong></td>
                                         <td data-label="Journey Date">
                                             {{ showDateTime($ticket->date_of_journey, 'M d, Y') }}
                                             <div>{{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}</div>

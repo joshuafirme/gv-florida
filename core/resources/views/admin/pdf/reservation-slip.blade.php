@@ -180,7 +180,7 @@
                     <tr>
                         <td class="label">Seat No.:</td>
                         <td class="value">
-                            {{ $slip_series->seat }}
+                            {{ formatSeatLabel($slip_series->seat) }}
                         </td>
                     </tr>
 

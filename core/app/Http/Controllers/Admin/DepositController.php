@@ -325,7 +325,7 @@ class DepositController extends Controller
             'trx' => $deposit->trx,
             'rejection_message' => $request->message,
             'journey_date' => showDateTime($bookedTicket->date_of_journey, 'd m, Y'),
-            'seats' => implode(',', $bookedTicket->seats),
+            'seats' => formatSeatLabel($bookedTicket->seats),
             'total_seats' => sizeof($bookedTicket->seats),
             'source' => $bookedTicket->pickup->name,
             'destination' => $bookedTicket->drop->name

@@ -26,7 +26,7 @@
 
                 <tr>
                     <td class="title">Seats</td>
-                    <td class="value">{{ implode(',', $ticket->seats) }}</td>
+                    <td class="value">{{ formatSeatLabel($ticket->seats) }}</td>
                 </tr>
 
                 @if (isset($ticket->deposit->userDiscount))

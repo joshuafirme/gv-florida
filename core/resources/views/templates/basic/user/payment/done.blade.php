@@ -36,7 +36,7 @@
                         'destination' => $ticket->drop?->name ?? '',
                         'updated_at' => formatDate($deposit->updated_at, true),
                         'expired_at' => formatDate($expiresAt, true),
-                        'seats' => implode(',', $ticket->seats ?? []),
+                        'seats' => formatSeatLabel($ticket->seats ?? []),
                         'departure_time' => date('h:i A', strtotime($ticket->trip->schedule->start_from)),
                         'bus_type' => $ticket->trip?->fleetType?->name ?? '',
                         'amount' => number_format((float) $deposit->amount, 2),
@@ -73,7 +73,7 @@
                                 <strong>{{ $passenger['name'] ?: 'Guest' }}</strong>
                                 <span>
                                     {{ $passenger['passenger_type'] === 'discounted' ? $passenger['discount_name'] : 'Regular' }}
-                                    &middot; Seat {{ $passenger['seat'] }}
+                                    &middot; Seat {{ formatSeatLabel($passenger['seat']) }}
                                     @if ($ticket->trip?->fleetType)
                                         &middot; {{ $ticket->trip->fleetType->name }}
                                     @endif

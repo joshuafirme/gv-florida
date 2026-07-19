@@ -1009,7 +1009,7 @@ class VehicleTicketController extends Controller
         // D. Check for overlaps (if any requested seat is inside the unavailable array)
         $conflict = array_intersect($requestedSeats, $unavailableSeats);
         if (!empty($conflict)) {
-            $conflictStr = implode(', ', $conflict);
+            $conflictStr = formatSeatLabel($conflict);
             return redirect()->back()->withErrors(['seats' => "The following seats are already booked or unavailable on this date: {$conflictStr}"]);
         }
         // ----------------------------------------
@@ -1046,7 +1046,7 @@ class VehicleTicketController extends Controller
             $reasonParts[] = "Travel date changed from {$originalDate} to {$newDate}";
         }
         if ($originalSeats !== $requestedSeats) {
-            $reasonParts[] = 'Seat changed from ' . implode(', ', $originalSeats) . ' to ' . implode(', ', $requestedSeats);
+            $reasonParts[] = 'Seat changed from ' . formatSeatLabel($originalSeats) . ' to ' . formatSeatLabel($requestedSeats);
         }
 
         app(CashierTransactionRecorder::class)->recordRebooking(
@@ -1178,7 +1178,7 @@ class VehicleTicketController extends Controller
             $result = $this->applyRebooking($ticket, $targetSlips, $trip, $date, $requestedSeats);
             $rebookedSlips = SlipSeriesNumber::whereIn('id', $targetSlipIds)->get();
             $reason = match ($validated['type']) {
-                'change_seat' => 'Seat changed from ' . implode(', ', $originalSeats) . ' to ' . implode(', ', $requestedSeats),
+                'change_seat' => 'Seat changed from ' . formatSeatLabel($originalSeats) . ' to ' . formatSeatLabel($requestedSeats),
                 'change_date' => 'Travel date changed from ' . $originalDate . ' to ' . $date,
                 'new_trip' => 'Trip changed from ' . $originalTrip . ' to ' . ($trip->route?->name ?: $trip->title),
             };

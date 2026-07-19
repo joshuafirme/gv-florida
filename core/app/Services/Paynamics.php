@@ -22,7 +22,7 @@ class Paynamics
             $seats = $this->data->seats ? $this->data->seats : session('seats');
             $orders = [];
             $orders[] = [
-                "itemname" => "PNR: {$this->data->pnr_number} Seats: " . implode(', ', $seats),
+                "itemname" => "PNR: {$this->data->pnr_number} Seats: " . formatSeatLabel($seats),
                 "quantity" => 1,
                 "unitprice" => $final_amount,
                 "totalprice" => $final_amount

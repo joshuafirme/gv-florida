@@ -29,6 +29,27 @@ function buildVer()
     return systemDetails()['build_version'];
 }
 
+if (!function_exists('formatSeatLabel')) {
+    function formatSeatLabel($seats): string
+    {
+        if ($seats instanceof Traversable) {
+            $seats = iterator_to_array($seats);
+        }
+
+        if (is_array($seats)) {
+            return collect($seats)
+                ->map(fn ($seat) => formatSeatLabel($seat))
+                ->filter(fn ($seat) => $seat !== '')
+                ->implode(', ');
+        }
+
+        return collect(preg_split('/\s*,\s*/', trim((string) $seats)) ?: [])
+            ->map(fn ($seat) => preg_replace('/^\d+-/', '', trim($seat)))
+            ->filter(fn ($seat) => $seat !== '')
+            ->implode(', ');
+    }
+}
+
 if (!function_exists('getIntermediateStoppages')) {
     /**
      * Get sorted intermediate stoppages (excluding origin and destination).

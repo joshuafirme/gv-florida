@@ -140,7 +140,7 @@
                                             @endif
                                             &middot;
                                         @endif
-                                        Seat {{ $transaction->seat_no ?: '-' }}
+                                        Seat {{ formatSeatLabel($transaction->seat_no) ?: '-' }}
                                     </small>
                                     @if ($transaction->reason)
                                         <small class="audit-details__reason">{{ $transaction->reason }}</small>

@@ -140,6 +140,7 @@
                                         $details = $deposit->detail ? json_encode($deposit->detail) : null;
                                         $ticket = $deposit->bookedTicket;
                                         $seats = collect($ticket?->seats ?: [])->filter()->values();
+                                        $displaySeats = formatSeatLabel($seats);
                                         $seatCount = $seats->count();
                                         $manifest = collect($ticket?->passenger_manifest ?: ($deposit->userDiscount?->passenger_manifest ?: []));
                                         $discountAmount = (float) ($deposit->userDiscount?->amount ?? 0);
@@ -210,7 +211,7 @@
                                                     {{ $ticket?->trip?->schedule?->start_from ? date('g:i A', strtotime($ticket->trip->schedule->start_from)) : '-' }}
                                                 </span>
                                             </td>
-                                            <td><span class="pending-seats">{{ $seats->implode(', ') }}</span></td>
+                                            <td><span class="pending-seats">{{ $displaySeats }}</span></td>
                                             <td>
                                                 <div class="pending-passengers">
                                                     @forelse ($manifest as $passenger)
@@ -333,9 +334,9 @@
                                         </td>
                                         <td>
                                             @if ($status == 'pending')
-                                                <span class="pending-seats">{{ $seats->implode(', ') }}</span>
+                                                <span class="pending-seats">{{ $displaySeats }}</span>
                                             @else
-                                                {{ $seats->implode(',') }}
+                                                {{ $displaySeats }}
                                             @endif
                                         </td>
                                         @if ($status == 'pending')
@@ -1098,6 +1099,10 @@
 
                 const formatCurrency = value => currencyFormatter.format(Number(value) || 0);
                 const escapeHtml = value => $('<div>').text(value ?? '').html();
+                const formatSeatLabel = value => (Array.isArray(value) ? value : String(value ?? '').split(','))
+                    .map(seat => String(seat).trim().replace(/^\d+-/, ''))
+                    .filter(Boolean)
+                    .join(', ');
                 const absoluteUrl = value => {
                     if (!value) return value;
                     if (/^https?:\/\//i.test(value)) return value;
@@ -1109,7 +1114,7 @@
                         <div class="payment-ticket-row">
                             <div>
                                 <span class="payment-ticket-name">${escapeHtml(ticket.passenger_name || payment.passenger_name)}</span>
-                                <span class="payment-ticket-meta">${escapeHtml(ticket.passenger_type || payment.passenger_type)} · Seat ${escapeHtml(ticket.seat)}</span>
+                                <span class="payment-ticket-meta">${escapeHtml(ticket.passenger_type || payment.passenger_type)} · Seat ${escapeHtml(formatSeatLabel(ticket.seat))}</span>
                             </div>
                             <strong class="payment-ticket-fare">${formatCurrency(ticket.fare)}</strong>
                         </div>
@@ -1143,7 +1148,7 @@
                 function fillConfirmModal() {
                     const cash = Number($('#posCashReceived').val()) || 0;
                     const change = cash - Number(activePayment.amount);
-                    const seats = activePayment.tickets.map(ticket => ticket.seat).join(', ');
+                    const seats = formatSeatLabel(activePayment.tickets.map(ticket => ticket.seat));
 
                     Object.entries({
                         pnr: activePayment.pnr,

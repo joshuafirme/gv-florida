@@ -112,7 +112,7 @@
                                             </span>
                                         </td>
                                         @if ($ticketSlip)
-                                            <td data-label="@lang('Seat No.')"><strong>{{ $ticketSlip->seat }}</strong></td>
+                                            <td data-label="@lang('Seat No.')"><strong>{{ formatSeatLabel($ticketSlip->seat) }}</strong></td>
                                         @endif
                                         <td data-label="@lang('Fare')">
                                             @if ($ticketDiscount > 0)
@@ -124,7 +124,7 @@
                                                 <div>Ticket Count: {{ $item->seats ? __(sizeof($item->seats)) : '' }}</div>
                                             @endif
                                             @if (!$ticketSlip && $item->seats && is_array($item->seats))
-                                                <div>{{ implode(', ', $item->seats) }}</div>
+                                                <div>{{ formatSeatLabel($item->seats) }}</div>
                                             @endif
                                         </td>
                                         <td data-label="@lang('Passenger')">
@@ -951,6 +951,11 @@
     <script>
         'use strict';
 
+        const formatSeatLabel = value => (Array.isArray(value) ? value : String(value ?? '').split(','))
+            .map(seat => String(seat).trim().replace(/^\d+-/, ''))
+            .filter(Boolean)
+            .join(', ');
+
         (function($) {
             const rebookModal = new bootstrap.Modal(document.getElementById('rebookModal'));
             const csrfToken = "{{ csrf_token() }}";
@@ -1125,7 +1130,7 @@
                 const hasChanged = rebookType === 'change_seat' ? selectedSeats !== originalSeats :
                     (rebookType === 'change_date' ? $('#rebookDate').val() !== rebookData.booking.date : true);
                 $('#rebookAssignmentList').html(rebookSeats.map((seat, index) =>
-                    `<span class="rebook-assignment">Ticket ${index + 1}<br>${escapeHtml(seat)}</span>`
+                    `<span class="rebook-assignment">Ticket ${index + 1}<br>${escapeHtml(formatSeatLabel(seat))}</span>`
                 ).join(''));
                 const pendingText = hasRequiredSeats && !hasChanged
                     ? (rebookType === 'change_date' ? 'Choose a different date' : 'Choose a different seat')
@@ -1164,8 +1169,8 @@
                 $('#reviewAfterTime').text(after.time);
                 $('#reviewBeforeBus').text(before.bus_type);
                 $('#reviewAfterBus').text(after.bus_type);
-                $('#reviewBeforeSeat').text(before.seats.join(', '));
-                $('#reviewAfterSeat').text(rebookSeats.join(', '));
+                $('#reviewBeforeSeat').text(formatSeatLabel(before.seats));
+                $('#reviewAfterSeat').text(formatSeatLabel(rebookSeats));
             }
 
             $('#rebookContinueBtn').on('click', function() {
@@ -1281,7 +1286,7 @@
                     refundData = data;
                     $('#refundPnr').text(data.pnr);
                     $('#refundPassenger').text(data.passenger_name);
-                    $('#refundTicketMeta').text(`${data.passenger_type} · Seat ${data.seat} · Fare ${formatMoney(data.fare)}`);
+                    $('#refundTicketMeta').text(`${data.passenger_type} · Seat ${formatSeatLabel(data.seat)} · Fare ${formatMoney(data.fare)}`);
                     $('#refundFareLabel').text(formatMoney(data.fare));
                     $('#refundCashier').text(data.processed_by);
                     $('#refundRemarks, #refundAuthorizationCode').val('');
@@ -1323,7 +1328,7 @@
             $('#refundReviewBtn').on('click', function() {
                 if (!validateRefundForm()) return;
                 $('#refundReviewTicket').text(`${refundData.pnr} / ${refundData.reference}`);
-                $('#refundReviewPassenger').text(`${refundData.passenger_name} / ${refundData.seat}`);
+                $('#refundReviewPassenger').text(`${refundData.passenger_name} / ${formatSeatLabel(refundData.seat)}`);
                 $('#refundReviewReason').text(refundReason);
                 $('#refundReviewRemarks').text($('#refundRemarks').val().trim());
                 $('#refundReviewFare').text(formatMoney(refundData.fare));
@@ -1413,7 +1418,7 @@
                     cancelData = data;
                     $('#cancelPnr').text(data.pnr);
                     $('#cancelPassenger').text(data.passenger_name);
-                    $('#cancelTicketMeta').text(`${data.passenger_type} - Seat ${data.seat} - Ref. ${data.reference}`);
+                    $('#cancelTicketMeta').text(`${data.passenger_type} - Seat ${formatSeatLabel(data.seat)} - Ref. ${data.reference}`);
                     $('#cancelFare').text(formatMoney(data.fare));
                     $('#cancelReason, #cancelAuthorizationCode').val('');
                     $('#cancelReasonChips').html(data.reasons.map(reason =>
@@ -1474,7 +1479,7 @@
                         .addClass('is-success')
                         .html(`<i class="las la-check"></i> Authorized by ${escapeHtml(authorizedName)}`);
                     $('#cancelReviewTicket').text(`${cancelData.pnr} / ${cancelData.reference}`);
-                    $('#cancelReviewPassenger').text(`${cancelData.passenger_name} / ${cancelData.seat}`);
+                    $('#cancelReviewPassenger').text(`${cancelData.passenger_name} / ${formatSeatLabel(cancelData.seat)}`);
                     $('#cancelReviewReason').text($('#cancelReason').val().trim());
                     $('#cancelReviewAuthorizedBy').text(authorizedName);
                     $('#cancelReviewFare').text(formatMoney(cancelData.fare));
@@ -1564,7 +1569,7 @@
                     voidData = data;
                     $('#voidPnr').text(data.pnr);
                     $('#voidPassenger').text(data.passenger_name);
-                    $('#voidTicketMeta').text(`${data.passenger_type} - Seat ${data.seat} - Ref. ${data.reference}`);
+                    $('#voidTicketMeta').text(`${data.passenger_type} - Seat ${formatSeatLabel(data.seat)} - Ref. ${data.reference}`);
                     $('#voidFare, #voidReturnAmount').text(formatMoney(data.fare));
                     $('#voidRemarks, #voidAuthorizationCode').val('');
                     $('#voidReasonChips').html(data.reasons.map(reason =>

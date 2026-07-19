@@ -40,7 +40,7 @@
         <tr><td class="label">Ticket / Ref.</td><td class="value">{{ $slip->id }}</td></tr>
         <tr><td class="label">Passenger</td><td class="value">{{ $passenger }}</td></tr>
         <tr><td class="label">Passenger Type</td><td class="value">{{ getPassengerType($ticket->deposit) }}</td></tr>
-        <tr><td class="label">Seat</td><td class="value">{{ $slip->seat }}</td></tr>
+        <tr><td class="label">Seat</td><td class="value">{{ formatSeatLabel($slip->seat) }}</td></tr>
         <tr><td class="label">Fare Forfeited</td><td class="value">{{ showAmount($cancellation->original_fare) }}</td></tr>
     </table>
 

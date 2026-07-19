@@ -65,7 +65,7 @@
                                             <strong>{{ $snapshot['bus_type'] ?? ($ticket?->trip?->fleetType?->name ?: '-') }}</strong>
                                             <span class="voided-meta">{{ $snapshot['trip_route'] ?? ($ticket?->pickup?->name . ' - ' . $ticket?->drop?->name) }}</span>
                                         </td>
-                                        <td data-label="Seat No."><strong>{{ $snapshot['seat'] ?? $slip?->seat }}</strong></td>
+                                        <td data-label="Seat No."><strong>{{ formatSeatLabel($snapshot['seat'] ?? $slip?->seat) }}</strong></td>
                                         <td data-label="Fare"><strong>{{ showAmount($ticketVoid->original_fare) }}</strong></td>
                                         <td data-label="Passenger">
                                             <strong>{{ $snapshot['passenger_name'] ?? $passengerName }}</strong>
@@ -163,6 +163,11 @@
             const detailsModal = new bootstrap.Modal(document.getElementById('voidDetailsModal'));
             const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
             const escapeHtml = value => $('<div>').text(value ?? '-').html();
+            const formatSeatLabel = value => String(value ?? '')
+                .split(',')
+                .map(seat => seat.trim().replace(/^\d+-/, ''))
+                .filter(Boolean)
+                .join(', ');
 
             function detailRow(label, value, className = '') {
                 return `<div class="void-detail-row ${className}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
@@ -182,7 +187,7 @@
                         detailRow('Bus Type', data.bus_type),
                         detailRow('Date of Journey', data.date_of_journey),
                         detailRow('Departure Time', data.departure_time),
-                        detailRow('Seat', data.seat),
+                        detailRow('Seat', formatSeatLabel(data.seat)),
                         detailRow('Passenger', data.passenger_name),
                         detailRow('Passenger Type', data.passenger_type),
                         detailRow('Passenger ID No.', data.passenger_id),

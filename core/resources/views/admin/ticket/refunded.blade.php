@@ -31,7 +31,7 @@
                                         <td data-label="PNR">{{ $ticket->pnr_number }}</td>
                                         <td data-label="Passenger">
                                             {{ $ticket->deposit?->userDiscount?->passenger_name ?: ($ticket->user?->fullname ?: 'Guest') }}
-                                            <div class="text-muted">Seat {{ $refund->slipSeriesNumber->seat }}</div>
+                                            <div class="text-muted">Seat {{ formatSeatLabel($refund->slipSeriesNumber->seat) }}</div>
                                         </td>
                                         <td data-label="Trip">
                                             {{ $ticket->pickup->name }}

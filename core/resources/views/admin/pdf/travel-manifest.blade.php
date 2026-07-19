@@ -92,7 +92,7 @@
                     <td>{{ __($item->trip->fleetType->name) }}</td>
                     <td>{{ __($item->pickup->name) }} -> {{ __($item->drop->name) }}</td>
                     <td>{{ __(@$item->user->firstname) }} {{ __(@$item->user->lastname) }}</td>
-                    <td>{{ __(implode(',', $item->seats)) }}</td>
+                    <td>{{ formatSeatLabel($item->seats) }}</td>
                     <td>{{ __(showDateTime($item->date_of_journey, 'd M, Y')) }}</td>
                     <td>{{ date('h:i A', strtotime($item->trip->schedule->start_from)) }}</td>
                     <td>
