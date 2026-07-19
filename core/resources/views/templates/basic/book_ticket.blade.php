@@ -140,7 +140,7 @@
 
                                 <div class="d-flex justify-content-between align-items-center mb-4">
                                     <h6 class="mb-0 text-dark fw-bold">@lang('Total Fare')</h6>
-                                    <h4 class="mb-0 fw-bold total-fare-amount" style="color: #e84c88;">{{ gs('cur_sym') }}0.00</h4>
+                                    <h4 class="mb-0 fw-bold total-fare-amount">{{ gs('cur_sym') }}0.00</h4>
                                 </div>
 
                                 <div class="price-error-message text-danger small fw-bold mb-2 text-center d-none"></div>
@@ -301,6 +301,13 @@
                 /* Shows the user they can drag it */
             }
 
+            .booking-seat-flow .seat-wrapper .seat.selected,
+            .booking-seat-flow .seat-for-reserved .selected-by-you .seat {
+                background: var(--booking-primary);
+                border-color: var(--booking-primary);
+                color: var(--booking-on-primary);
+            }
+
             .seat.selected:active {
                 cursor: grabbing;
             }
@@ -318,8 +325,8 @@
             .overview-icon-box {
                 width: 34px;
                 height: 34px;
-                background-color: #fce8ef;
-                color: #e84c88;
+                background-color: var(--booking-primary-soft);
+                color: var(--booking-primary);
                 border-radius: 8px;
                 display: flex;
                 align-items: center;
@@ -334,7 +341,22 @@
             }
 
             .btn-continue:hover {
-                background-color: #d87a98 !important;
+                background-color: var(--booking-primary-hover) !important;
+            }
+
+            .booking-seat-flow .book-bus-btn {
+                background: var(--booking-primary);
+                border: 1px solid var(--booking-primary);
+                border-radius: 8px;
+                color: var(--booking-on-primary);
+                font-weight: 800;
+            }
+
+            .booking-seat-flow .book-bus-btn:not(:disabled):hover,
+            .booking-seat-flow .book-bus-btn:not(:disabled):focus {
+                background: var(--booking-primary-hover);
+                border-color: var(--booking-primary-hover);
+                color: var(--booking-on-primary);
             }
 
             /* Hide the old default details box since it's replaced by the new UI */
@@ -363,9 +385,9 @@
 
             .seat-confirm-icon {
                 align-items: center;
-                background: #ffe7f3;
+                background: var(--booking-primary-soft);
                 border-radius: 14px;
-                color: #df2a82;
+                color: var(--booking-primary);
                 display: inline-flex;
                 font-size: 30px;
                 height: 52px;
@@ -395,9 +417,9 @@
             }
 
             .seat-confirm-tags span {
-                background: #ffe7f3;
+                background: var(--booking-primary-soft);
                 border-radius: 999px;
-                color: #c21870;
+                color: var(--booking-primary);
                 font-size: 12px;
                 font-weight: 900;
                 padding: 6px 10px;
@@ -415,7 +437,7 @@
             }
 
             .seat-confirm-total strong {
-                color: #df2a82;
+                color: var(--booking-primary);
                 font-size: 17px;
                 font-weight: 900;
             }
@@ -442,8 +464,17 @@
             }
 
             .seat-confirm-primary {
-                background: #df2a82;
-                color: #fff;
+                background: var(--booking-primary);
+                color: var(--booking-on-primary);
+            }
+
+            .seat-confirm-primary:hover,
+            .seat-confirm-primary:focus {
+                background: var(--booking-primary-hover);
+            }
+
+            .total-fare-amount {
+                color: var(--booking-primary);
             }
 
             .seat-confirm-secondary {
