@@ -122,52 +122,61 @@
                     </button>
                 </section>
 
-                <section class="flow-panel js-step-panel d-none" data-panel="payment">
-                    <button type="button" class="flow-back-btn mb-3" id="backToDetails">
+                <section class="payment-step js-step-panel d-none" data-panel="payment">
+                    <button type="button" class="flow-back-btn" id="backToDetails">
                         <i class="las la-arrow-left"></i> Back to details
                     </button>
 
                     <h4 class="payment-title">Payment</h4>
-                    <div class="payment-passenger-list js-payment-passengers"></div>
 
-                    <label class="flow-label mt-3">Payment Method</label>
-                    <div class="payment-methods">
-                        @foreach ($gatewayCurrency as $data)
-                            @php
-                                if ($kiosk_id && $data->name == 'Paynamics') {
-                                    continue;
-                                }
-                                if (!$kiosk_id && $data->name == 'Cash') {
-                                    continue;
-                                }
-                                $description = $data->instruction ?: ($data->name == 'Cash' ? 'Pay at the cashier with the printed voucher' : 'Follow the payment instructions on the next screen');
-                            @endphp
-                            <label class="payment-method-card">
-                                <input class="gateway-input" data-gateway='@json($data)' type="radio" name="gateway"
-                                    value="{{ $data->method_code }}" data-min-amount="{{ showAmount($data->min_amount) }}"
-                                    data-max-amount="{{ showAmount($data->max_amount) }}" @checked($loop->first)>
-                                <span class="method-icon"><i class="las {{ $data->name == 'Cash' ? 'la-money-bill' : 'la-credit-card' }}"></i></span>
-                                <span class="method-copy">
-                                    <strong>{{ __($data->name) }}</strong>
-                                    <small>{{ __($description) }}</small>
-                                </span>
-                                <span class="method-check"><i class="las la-check"></i></span>
-                            </label>
-                        @endforeach
-                    </div>
-
-                    <div class="payment-total-box">
-                        <div class="js-payment-breakdown"></div>
-                        <div class="payment-instructions js-payment-instructions"></div>
-                        <div class="summary-total">
-                            <span>Total to pay ({{ $seatCount }} {{ $seatWord }})</span>
-                            <strong class="js-payment-total">{{ showAmount($bookedTicket->sub_total) }}</strong>
+                    <div class="payment-section payment-method-section">
+                        <label class="flow-label">Payment Method</label>
+                        <div class="payment-methods">
+                            @foreach ($gatewayCurrency as $data)
+                                @php
+                                    if ($kiosk_id && $data->name == 'Paynamics') {
+                                        continue;
+                                    }
+                                    if (!$kiosk_id && $data->name == 'Cash') {
+                                        continue;
+                                    }
+                                    $description = $data->instruction ?: ($data->name == 'Cash' ? 'Pay at the cashier with the printed voucher' : 'Follow the payment instructions on the next screen');
+                                @endphp
+                                <label class="payment-method-card">
+                                    <input class="gateway-input" data-gateway='@json($data)' type="radio" name="gateway"
+                                        value="{{ $data->method_code }}" data-min-amount="{{ showAmount($data->min_amount) }}"
+                                        data-max-amount="{{ showAmount($data->max_amount) }}" @checked($loop->first)>
+                                    <span class="method-icon"><i class="las {{ $data->name == 'Cash' ? 'la-money-bill' : 'la-credit-card' }}"></i></span>
+                                    <span class="method-copy">
+                                        <strong>{{ __($data->name) }}</strong>
+                                        <small>{{ __($description) }}</small>
+                                    </span>
+                                    <span class="method-check"><i class="las la-check"></i></span>
+                                </label>
+                            @endforeach
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-primary-flow w-100 mt-3" id="confirmPayment">
-                        Confirm & Print Voucher
-                    </button>
+                    <div class="payment-section payment-details-section">
+                        <h5>Payment Details</h5>
+                        <div class="js-payment-breakdown"></div>
+                        <div class="summary-total">
+                            <span>Total Amount</span>
+                            <strong class="js-payment-total">{{ showAmount($bookedTicket->sub_total) }}</strong>
+                        </div>
+
+                        <div class="payment-notice">
+                            <span class="payment-notice__icon"><i class="las la-info-circle"></i></span>
+                            <div>
+                                <strong>Please note</strong>
+                                <p class="payment-instructions js-payment-instructions"></p>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-primary-flow w-100" id="confirmPayment">
+                            <i class="las la-print"></i> Confirm &amp; Print Voucher
+                        </button>
+                    </div>
                 </section>
             </form>
 
@@ -491,11 +500,33 @@
             text-align: center;
         }
 
-        .payment-passenger-list {
-            background: #f8fafc;
-            border-radius: 8px;
+        .payment-step {
             margin-top: 10px;
-            padding: 10px;
+        }
+
+        .payment-step .payment-title {
+            margin: 8px 0 12px;
+        }
+
+        .payment-section {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 8px rgba(15, 23, 42, .06);
+            padding: 16px;
+        }
+
+        .payment-section + .payment-section {
+            margin-top: 12px;
+        }
+
+        .payment-method-section .flow-label {
+            margin-top: 0;
+        }
+
+        .payment-details-section h5 {
+            color: #111827;
+            font-weight: 800;
+            margin: 0 0 10px;
         }
 
         .payment-methods {
@@ -510,7 +541,8 @@
             cursor: pointer;
             display: flex;
             gap: 10px;
-            padding: 12px;
+            min-height: 72px;
+            padding: 13px 16px;
         }
 
         .payment-method-card:has(input:checked) {
@@ -526,6 +558,13 @@
         .method-check {
             color: #df2a82;
             font-size: 20px;
+        }
+
+        .method-icon {
+            align-items: center;
+            display: inline-flex;
+            justify-content: center;
+            width: 28px;
         }
 
         .method-copy {
@@ -544,8 +583,50 @@
 
         .payment-instructions {
             color: #64748b;
-            font-weight: 700;
-            margin-top: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 3px 0 0;
+        }
+
+        .payment-notice {
+            align-items: flex-start;
+            background: #f4f7ff;
+            border-radius: 7px;
+            display: flex;
+            gap: 12px;
+            margin: 12px 0;
+            padding: 13px;
+        }
+
+        .payment-notice__icon {
+            color: #2563eb;
+            flex: 0 0 auto;
+            font-size: 25px;
+            line-height: 1;
+        }
+
+        .payment-notice strong {
+            color: #111827;
+            display: block;
+            font-size: 13px;
+        }
+
+        .payment-details-section .summary-line {
+            font-size: 13px;
+            padding: 5px 0;
+        }
+
+        .payment-details-section .summary-total {
+            margin-top: 6px;
+            padding-top: 12px;
+        }
+
+        .payment-details-section .summary-total strong {
+            font-size: 25px;
+        }
+
+        #confirmPayment i {
+            margin-right: 5px;
         }
 
         @media (max-width: 575px) {
@@ -612,6 +693,7 @@
 
                 $('.js-step-panel').addClass('d-none');
                 $(`.js-step-panel[data-panel="${step}"]`).removeClass('d-none');
+                $('.seat-release-form').toggleClass('d-none', step === 'payment');
                 $('.flow-step').removeClass('is-active is-complete');
                 $('.booking-flow-stepper').css('--booking-flow-progress', progress);
 
@@ -708,12 +790,11 @@
 
                 $('.js-breakdown').html(detailsBreakdown);
                 $('.js-details-total').text(money(totals.payable));
-                $('.js-payment-passengers').html(lines);
 
                 const discountLine = totals.discount > 0 ?
                     `<div class="summary-line"><span>Discount</span><strong>-${money(totals.discount)}</strong></div>` : '';
                 $('.js-payment-breakdown').html(
-                    `<div class="summary-line"><span>Regular fare x ${seats.length}</span><strong>${money(totals.subtotal)}</strong></div>${discountLine}<div class="summary-line"><span>Processing charge</span><strong class="js-processing-charge">${money(totals.charge)}</strong></div>`
+                    `<div class="summary-line"><span>Base Fare (${seats.length} ${seats.length === 1 ? 'seat' : 'seats'})</span><strong>${money(totals.subtotal)}</strong></div>${discountLine}<div class="summary-line"><span>Processing Fee</span><strong class="js-processing-charge">${money(totals.charge)}</strong></div>`
                 );
                 $('.js-payment-total').text(money(totals.final));
 
@@ -743,7 +824,7 @@
                 $('input[name="currency"]').val(gateway.currency);
                 $('.js-processing-charge').text(money(totals.charge));
                 $('.js-payment-total').text(money(totals.final));
-                $('.js-payment-instructions').text(gateway.instruction || (gateway.name === 'Cash' ? 'Present the voucher at the Cashier Window for payment and ticket issuance.' : 'Follow the next screen to complete payment validation.'));
+                $('.js-payment-instructions').text(gateway.instruction || (gateway.name === 'Cash' ? 'A payment voucher will be printed after confirmation. Present it at the Cashier Window to complete your payment.' : 'Follow the next screen to complete payment validation.'));
             }
 
             $(document).on('click', '.type-option', function() {
