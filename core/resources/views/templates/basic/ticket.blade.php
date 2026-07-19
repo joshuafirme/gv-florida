@@ -69,8 +69,8 @@
             box-shadow: 0 10px 24px rgba(15, 23, 42, .07);
             cursor: pointer;
             display: block;
-            margin-bottom: 16px !important;
-            padding: 20px;
+            margin-bottom: 12px !important;
+            padding: 17px;
             position: relative;
             transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
         }
@@ -95,8 +95,7 @@
         .trip-card-top,
         .trip-card-route,
         .trip-card-meta,
-        .trip-card-actions,
-        .trip-card-footer {
+        .trip-card-actions {
             position: relative;
             z-index: 2;
         }
@@ -104,7 +103,7 @@
         .trip-card-top {
             align-items: flex-start;
             display: grid;
-            gap: 16px;
+            gap: 14px;
             grid-template-columns: 1fr auto;
         }
 
@@ -114,7 +113,7 @@
             font-weight: 900;
             letter-spacing: .01em;
             line-height: 1.2;
-            margin: 0 0 18px;
+            margin: 0 0 10px;
             text-transform: uppercase;
         }
 
@@ -127,10 +126,32 @@
         }
 
         .trip-duration {
+            align-items: center;
             color: #718096;
+            display: flex;
+            flex-wrap: wrap;
             font-size: 14px;
             font-weight: 700;
-            margin-top: 8px;
+            gap: 7px;
+            margin-top: 7px;
+        }
+
+        .trip-duration__item {
+            align-items: center;
+            display: inline-flex;
+            gap: 5px;
+            white-space: nowrap;
+        }
+
+        .trip-duration__item i {
+            color: var(--booking-primary);
+            font-size: 18px;
+        }
+
+        .trip-duration__separator {
+            background: #cbd5e1;
+            height: 18px;
+            width: 1px;
         }
 
         .trip-card-price {
@@ -147,8 +168,8 @@
             font-size: 12px;
             font-weight: 900;
             gap: 6px;
-            margin-bottom: 20px;
-            padding: 6px 12px;
+            margin-bottom: 10px;
+            padding: 2px 12px;
             text-transform: uppercase;
         }
 
@@ -167,6 +188,14 @@
             margin-top: 8px;
         }
 
+        .trip-price-unavailable {
+            color: #b45309;
+            display: inline-block;
+            font-size: 13px;
+            line-height: 1.2;
+            max-width: 130px;
+        }
+
         .trip-card-route {
             align-items: center;
             background: #f8fafc;
@@ -174,8 +203,8 @@
             display: grid;
             gap: 14px;
             grid-template-columns: 1fr auto 1fr;
-            margin-top: 18px;
-            padding: 14px 16px;
+            margin-top: 12px;
+            padding: 4px 16px;
         }
 
         .trip-point {
@@ -215,7 +244,7 @@
             display: flex;
             flex-wrap: wrap;
             gap: 12px;
-            margin-top: 14px;
+            margin-top: 10px;
         }
 
         .trip-card-meta span {
@@ -229,7 +258,7 @@
         .trip-card-actions {
             display: grid;
             gap: 10px;
-            margin-top: 16px;
+            margin-top: 12px;
         }
 
         .trip-availability {
@@ -265,7 +294,7 @@
             display: flex;
             font-weight: 900;
             justify-content: center;
-            min-height: 50px;
+            min-height: 44px;
             text-decoration: none;
         }
 
@@ -279,18 +308,10 @@
             pointer-events: none;
         }
 
-        .trip-card-footer {
-            color: #64748b;
-            font-size: 13px;
-            font-weight: 700;
-            margin-top: 12px;
-            text-align: center;
-        }
-
         .route-details {
             border-top: 1px dashed #e5e7eb;
-            margin-top: 14px;
-            padding-top: 12px;
+            margin-top: 10px;
+            padding-top: 10px;
         }
 
         .route-details__toggle {
@@ -321,7 +342,7 @@
 
         @media screen and (max-width: 767px) {
             .ticket-item {
-                padding: 16px;
+                padding: 15px;
             }
 
             .trip-card-top {
@@ -344,6 +365,10 @@
             .trip-card-route {
                 grid-template-columns: 1fr;
                 text-align: left;
+            }
+
+            .trip-duration {
+                gap: 5px;
             }
 
             .trip-point--end {
@@ -496,19 +521,69 @@
                                 $stoppageArr = $trip->route->stoppages ?? [];
                                 $routeSequence = App\Models\Counter::routeStoppages($stoppageArr);
                                 $isFullyBooked = $available_seats_ctr < 1;
+                                $requestedPickupId = (string) (request('pickup') ?: request('counter_id') ?: $trip->start_from);
+                                $requestedDestinationId = (string) (request('destination') ?: request('selected_destination') ?: '');
+                                $routeStopIds = $routeSequence->pluck('id')->map(fn ($id) => (string) $id)->values();
+                                $displayDrop = $requestedDestinationId
+                                    ? $routeSequence->first(fn ($counter) => (string) $counter->id === $requestedDestinationId)
+                                    : null;
+                                $displayDrop = $displayDrop ?: $trip->endTo;
+                                $displayDropId = (string) $displayDrop->id;
+
+                                $ticket_price = $ticketPrices->get($trip->vehicle_route_id . ':' . $trip->fleet_type_id);
+                                $prices = $ticket_price?->prices ?? collect();
+                                $segmentPrice = null;
+
+                                if ($requestedDestinationId) {
+                                    $segmentPrice = $prices->first(function ($price) use ($requestedPickupId, $displayDropId) {
+                                        $segment = array_values(array_map('strval', (array) ($price->source_destination ?? [])));
+
+                                        return $segment === [$requestedPickupId, $displayDropId]
+                                            || $segment === [$displayDropId, $requestedPickupId];
+                                    });
+                                }
+
+                                $minPrice = $prices->where('price', '>', 0)->min('price') ?? 0;
+                                $maxPrice = $prices->max('price') ?? $minPrice;
+                                $displayPrice = $segmentPrice?->price;
+
+                                $tripStartIndex = $routeStopIds->search((string) $trip->start_from);
+                                $tripEndIndex = $routeStopIds->search((string) $trip->end_to);
+                                $pickupIndex = $routeStopIds->search($requestedPickupId);
+                                $dropIndex = $routeStopIds->search($displayDropId);
+                                $fullTripMinutes = max((int) round($start->diffInMinutes($end)), 0);
+                                $arrivalMinutes = $fullTripMinutes;
+                                $displayDurationMinutes = $fullTripMinutes;
+
+                                if ($tripStartIndex !== false && $tripEndIndex !== false && $dropIndex !== false) {
+                                    $totalLegs = abs($tripEndIndex - $tripStartIndex);
+                                    if ($totalLegs > 0) {
+                                        $arrivalMinutes = (int) round($fullTripMinutes * abs($dropIndex - $tripStartIndex) / $totalLegs);
+                                        if ($pickupIndex !== false) {
+                                            $displayDurationMinutes = (int) round($fullTripMinutes * abs($dropIndex - $pickupIndex) / $totalLegs);
+                                        }
+                                    }
+                                }
+
+                                $durationHours = intdiv($displayDurationMinutes, 60);
+                                $durationRemainder = $displayDurationMinutes % 60;
+                                $displayDurationLabel = trim(
+                                    ($durationHours ? $durationHours . ' ' . ($durationHours === 1 ? 'hr' : 'hrs') : '')
+                                    . ($durationRemainder ? ' ' . $durationRemainder . ' mins' : '')
+                                ) ?: '0 mins';
+                                $departureAt = Carbon::parse(
+                                    Carbon::parse($date_of_journey)->format('Y-m-d') . ' ' . $trip->schedule->start_from
+                                );
+                                $estimatedArrivalAt = $departureAt->copy()->addMinutes($arrivalMinutes);
                                 $selectSeatUrl = route('ticket.seats', [
                                     $trip->id,
                                     slug($trip->title),
-                                    'start_from' => $trip->start_from,
+                                    'start_from' => $requestedPickupId,
                                     'end_to' => $trip->end_to,
-                                    'dropping_point' => request('destination'),
+                                    'dropping_point' => $requestedDestinationId ?: $trip->end_to,
                                     'kiosk_id' => $kiosk_id,
                                     'date_of_journey' => $dateOfJourneyQuery,
                                 ]);
-                                $ticket_price = $trip->ticketPrice;
-                                $prices = $ticket_price?->prices ?? collect();
-                                $minPrice = $prices->where('price', '>', 0)->min('price') ?? 0;
-                                $maxPrice = $prices->max('price') ?? $minPrice;
                                 $routeId = uniqid('route_');
                                 $totalStops = $routeSequence?->count() ?? 0;
                                 $shouldCollapse = $totalStops >= 5;
@@ -523,8 +598,19 @@
                                         <h5 class="trip-route-title">{{ __($trip->route->name) }}</h5>
                                         <p class="trip-time-main">{{ showDateTime($trip->schedule->start_from, 'h:i A') }}</p>
                                         <div class="trip-duration">
-                                            {{ timeDifferenceReadable($trip->schedule->start_from, $trip->schedule->end_at) }}
-                                            &middot; arrives ~ {{ showDateTime($trip->schedule->end_at, 'h:i A') }}
+                                            <span class="trip-duration__item">
+                                                <i class="las la-calendar-alt"></i>
+                                                {{ Carbon::parse($date_of_journey)->format('D, M d, Y') }}
+                                            </span>
+                                            <span class="trip-duration__separator" aria-hidden="true"></span>
+                                            <span class="trip-duration__item">
+                                                <i class="las la-clock"></i>
+                                                {{ $displayDurationLabel }}
+                                            </span>
+                                            <span class="trip-duration__separator" aria-hidden="true"></span>
+                                            <span class="trip-duration__item">
+                                                @lang('Arrives') {{ $estimatedArrivalAt->format('h:i A') }}
+                                            </span>
                                         </div>
                                     </div>
                                     <div class="trip-card-price">
@@ -532,13 +618,15 @@
                                             <i class="las la-bus"></i> {{ __($trip->fleetType->name) }}
                                         </span>
                                         <p class="trip-price">
-                                            @if ($minPrice > 0 && $minPrice != $maxPrice)
-                                                {{ showAmount($maxPrice) }}
+                                            @if ($requestedDestinationId && $displayPrice !== null)
+                                                {{ showAmount($displayPrice) }}
+                                            @elseif ($requestedDestinationId)
+                                                <span class="trip-price-unavailable">@lang('Fare unavailable')</span>
                                             @else
                                                 {{ showAmount($maxPrice) }}
                                             @endif
                                         </p>
-                                        @if ($minPrice > 0 && $minPrice != $maxPrice)
+                                        @if (!$requestedDestinationId && $minPrice > 0 && $minPrice != $maxPrice)
                                             <div class="trip-price-range">{{ showAmount($minPrice) }} - {{ showAmount($maxPrice) }}</div>
                                         @endif
                                     </div>
@@ -554,7 +642,7 @@
                                     </div>
                                     <div class="trip-point trip-point--end">
                                         <small>@lang('Drop-off')</small>
-                                        <strong>{{ __($trip->endTo->name) }}</strong>
+                                        <strong>{{ __($displayDrop->name) }}</strong>
                                     </div>
                                 </div>
 
@@ -582,10 +670,6 @@
                                     @else
                                         <a class="trip-select-btn" href="{{ $selectSeatUrl }}">@lang('Select Seat')</a>
                                     @endif
-                                </div>
-
-                                <div class="trip-card-footer">
-                                    @lang('Travel date') &middot; {{ Carbon::parse($date_of_journey)->format('D, M d, Y') }}
                                 </div>
 
                                 @if ($routeSequence && $routeSequence->count() > 0)
@@ -722,6 +806,19 @@
             resetTimer();
 
             $('.select2').select2();
+
+            const requestedDestination = String(@json(request('destination') ?: request('selected_destination') ?: ''));
+            let destinationSubmitting = false;
+
+            $('select[name="destination"]').on('change', function() {
+                const selectedDestination = String($(this).val() || '');
+                if (destinationSubmitting || selectedDestination === requestedDestination) {
+                    return;
+                }
+
+                destinationSubmitting = true;
+                this.form.submit();
+            });
 
             $('.search-multiple').select2({
                 placeholder: "Select an option"
