@@ -55,9 +55,56 @@ class SeatConflictService
         bool $lockForUpdate = false
     ): Collection {
         $selectedSeats = $this->normalizeSeats($seats);
+
+        if (!$selectedSeats) {
+            return collect();
+        }
+
+        return $this->overlappingBookings(
+            $trip,
+            $dateOfJourney,
+            $pickup,
+            $drop,
+            $excludeTicketId,
+            $lockForUpdate
+        )->filter(function (BookedTicket $booking) use ($selectedSeats) {
+            return count(array_intersect($selectedSeats, $this->normalizeSeats($booking->seats))) > 0;
+        })->values();
+    }
+
+    public function unavailableSeats(
+        Trip $trip,
+        Carbon|string $dateOfJourney,
+        int|string $pickup,
+        int|string $drop,
+        ?int $excludeTicketId = null,
+        bool $lockForUpdate = false
+    ): array {
+        return $this->overlappingBookings(
+            $trip,
+            $dateOfJourney,
+            $pickup,
+            $drop,
+            $excludeTicketId,
+            $lockForUpdate
+        )
+            ->flatMap(fn (BookedTicket $booking) => $this->normalizeSeats($booking->seats))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function overlappingBookings(
+        Trip $trip,
+        Carbon|string $dateOfJourney,
+        int|string $pickup,
+        int|string $drop,
+        ?int $excludeTicketId,
+        bool $lockForUpdate
+    ): Collection {
         $requestedBounds = $this->segmentBounds($trip, $pickup, $drop);
 
-        if (!$requestedBounds || !$selectedSeats) {
+        if (!$requestedBounds) {
             return collect();
         }
 
@@ -85,14 +132,14 @@ class SeatConflictService
             $query->lockForUpdate();
         }
 
-        return $query->get()->filter(function (BookedTicket $booking) use ($trip, $requestedBounds, $selectedSeats) {
+        return $query->get()->filter(function (BookedTicket $booking) use ($trip, $requestedBounds) {
             $bookedBounds = $this->segmentBounds($trip, $booking->pickup_point, $booking->dropping_point);
 
             if (!$bookedBounds || !$this->segmentsOverlap($requestedBounds, $bookedBounds)) {
                 return false;
             }
 
-            return count(array_intersect($selectedSeats, $this->normalizeSeats($booking->seats))) > 0;
+            return true;
         })->values();
     }
 
