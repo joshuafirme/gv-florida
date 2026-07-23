@@ -9,10 +9,18 @@ class ScheduleBoardBroadcaster
 {
     public const CHANNEL = 'schedule-board';
     public const EVENT = 'passenger-transaction';
+    public const DISPATCH_STATUS_EVENT = 'dispatch-status-updated';
 
     public function passengerTransaction(array $payload = []): void
     {
         $this->trigger(self::CHANNEL, self::EVENT, array_merge([
+            'timestamp' => now()->toIso8601String(),
+        ], $payload));
+    }
+
+    public function dispatchStatusUpdated(array $payload): void
+    {
+        $this->trigger(self::CHANNEL, self::DISPATCH_STATUS_EVENT, array_merge([
             'timestamp' => now()->toIso8601String(),
         ], $payload));
     }
