@@ -5,11 +5,19 @@ namespace App\Providers;
 use App\Constants\Status;
 use App\Lib\Searchable;
 use App\Models\AdminNotification;
+use App\Models\AssignedVehicle;
 use App\Models\BookedTicket;
+use App\Models\Counter;
 use App\Models\Deposit;
+use App\Models\FleetType;
 use App\Models\Frontend;
+use App\Models\Schedule;
 use App\Models\SupportTicket;
+use App\Models\Trip;
 use App\Models\User;
+use App\Models\Vehicle;
+use App\Models\VehicleRoute;
+use App\Observers\ScheduleBoardDataObserver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
@@ -30,6 +38,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        foreach ([
+            Trip::class,
+            Schedule::class,
+            VehicleRoute::class,
+            AssignedVehicle::class,
+            Vehicle::class,
+            FleetType::class,
+            Counter::class,
+        ] as $model) {
+            $model::observe(ScheduleBoardDataObserver::class);
+        }
+
         if (!file_exists(public_path())) {
             App::usePublicPath(base_path('public'));
         }

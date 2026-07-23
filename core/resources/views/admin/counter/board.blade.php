@@ -574,6 +574,10 @@
                 queueScheduleRefresh();
             });
 
+            channel.bind('schedule-data-updated', function() {
+                queueScheduleRefresh();
+            });
+
             channel.bind('dispatch-status-updated', function(event) {
                 if (!event.counter_id || String(event.counter_id) === String(counterId)) {
                     applyDispatchStatusUpdate(event);
