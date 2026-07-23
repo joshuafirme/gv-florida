@@ -15,6 +15,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Services\CashierTransactionRecorder;
+use App\Services\CashierDashboardService;
 
 class ReportController extends Controller
 {
@@ -109,15 +110,7 @@ class ReportController extends Controller
             ->orderBy('id')
             ->get();
 
-        $sold = $transactions->where('status', 'Sold');
-        $summary = [
-            'tickets' => $sold->count(),
-            'gross_sales' => (float) $sold->sum('amount'),
-            'discounts' => (float) $sold->sum('discount_amount'),
-            'refunds' => abs((float) $transactions->where('status', 'Refunded')->sum('amount')),
-            'voids' => abs((float) $transactions->where('status', 'Voided')->sum('amount')),
-            'net_collection' => (float) $transactions->sum('amount'),
-        ];
+        $summary = app(CashierDashboardService::class)->summarize($transactions);
 
         return view('admin.reports.shift-end', compact(
             'pageTitle',

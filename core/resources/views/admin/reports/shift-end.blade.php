@@ -19,6 +19,7 @@
                             <th class="text-end">Tickets</th>
                             <th class="text-end">Gross Sales</th>
                             <th class="text-end">Discounts</th>
+                            <th class="text-end">Surcharges</th>
                             <th class="text-end">Refunds</th>
                             <th class="text-end">Voids</th>
                             <th class="text-end">Net Collection</th>
@@ -30,6 +31,7 @@
                             <td class="text-end">{{ $summary['tickets'] }}</td>
                             <td class="text-end">{{ showAmount($summary['gross_sales']) }}</td>
                             <td class="text-end">{{ showAmount($summary['discounts']) }}</td>
+                            <td class="text-end">{{ showAmount($summary['surcharges']) }}</td>
                             <td class="text-end {{ $summary['refunds'] > 0 ? 'shift-negative' : '' }}">
                                 {{ $summary['refunds'] > 0 ? '-' : '' }}{{ showAmount($summary['refunds']) }}
                             </td>
@@ -134,7 +136,7 @@
         </section>
 
         <footer class="shift-report-footer">
-            Net Collection = Sold transactions - Refunds - Voids. Cancelled and same-fare rebooked transactions have no cash impact.
+            Net Collection = Fares + Surcharges - Refunds - Voids. Cancelled and same-fare rebooked transactions have no cash impact.
         </footer>
     </div>
 @endsection

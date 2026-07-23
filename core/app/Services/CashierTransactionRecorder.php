@@ -35,7 +35,7 @@ class CashierTransactionRecorder
                 (int) $deposit->processed_by_admin_id,
                 'Sold',
                 $snapshot,
-                (float) $snapshot['fare'],
+                (float) $snapshot['fare'] + (float) $snapshot['surcharge_amount'],
                 null,
                 $deposit->updated_at ?: now()
             );
@@ -170,7 +170,7 @@ class CashierTransactionRecorder
         ?string $reason,
         $processedAt
     ): void {
-        CashierTransactionEvent::firstOrCreate(
+        CashierTransactionEvent::updateOrCreate(
             ['event_key' => $eventKey],
             [
                 'admin_id' => $adminId,
@@ -195,6 +195,7 @@ class CashierTransactionRecorder
                 'payment_method' => $snapshot['payment_method'] ?? null,
                 'base_fare' => (float) ($snapshot['base_fare'] ?? $snapshot['fare'] ?? 0),
                 'discount_amount' => (float) ($snapshot['discount_amount'] ?? 0),
+                'surcharge_amount' => (float) ($snapshot['surcharge_amount'] ?? 0),
                 'amount' => round($amount, 2),
                 'reason' => $reason,
                 'snapshot' => $snapshot,
@@ -211,6 +212,7 @@ class CashierTransactionRecorder
         $slipCount = max($ticket->slipSeriesNumbers->count(), 1);
         $baseFare = (float) ($passenger['base_fare'] ?? $ticket->unit_price ?? 0);
         $discountAmount = (float) ($passenger['discount_amount'] ?? 0);
+        $surchargeAmount = (float) ($ticket->deposit?->charge ?? 0) / $slipCount;
 
         if (!$passenger && $ticket->deposit?->userDiscount) {
             $percentage = (float) ($ticket->deposit->userDiscount->percentage ?? 0);
@@ -249,6 +251,7 @@ class CashierTransactionRecorder
             'payment_method' => $this->paymentMethod($ticket->deposit),
             'base_fare' => round($baseFare, 2),
             'discount_amount' => round($discountAmount, 2),
+            'surcharge_amount' => round($surchargeAmount, 2),
             'fare' => round($fare, 2),
         ];
     }
