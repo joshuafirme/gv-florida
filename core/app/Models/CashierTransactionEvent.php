@@ -6,6 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class CashierTransactionEvent extends Model
 {
+    public const BOOKING_TRANSACTION_STATUSES = [
+        'Sold',
+        'Rebooked',
+        'Cancelled',
+        'Voided',
+        'Refunded',
+    ];
+
     protected $guarded = ['id'];
 
     protected $casts = [
@@ -21,5 +29,10 @@ class CashierTransactionEvent extends Model
     public function admin()
     {
         return $this->belongsTo(Admin::class);
+    }
+
+    public function scopeBookingTransactions($query)
+    {
+        return $query->whereIn('status', self::BOOKING_TRANSACTION_STATUSES);
     }
 }

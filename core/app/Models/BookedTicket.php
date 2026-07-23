@@ -78,8 +78,8 @@ class BookedTicket extends Model
     public function getConflicts()
     {
         $trip = $this->trip()->with('route')->firstOrFail();
-
-        return app(\App\Services\SeatConflictService::class)->conflicts(
+        $seatConflicts = app(\App\Services\SeatConflictService::class);
+        $conflicts = $seatConflicts->conflicts(
             $trip,
             $this->date_of_journey,
             $this->pickup_point,
@@ -87,6 +87,19 @@ class BookedTicket extends Model
             $this->seats ?: [],
             $this->id
         );
+        $lockedSeats = array_intersect(
+            $seatConflicts->normalizeSeats($this->seats ?: []),
+            $seatConflicts->lockedSeats($trip, $this->date_of_journey)
+        );
+
+        if ($lockedSeats) {
+            $conflicts->push((object) [
+                'admin_seat_lock' => true,
+                'seats' => array_values($lockedSeats),
+            ]);
+        }
+
+        return $conflicts;
     }
 
     public function deposit()

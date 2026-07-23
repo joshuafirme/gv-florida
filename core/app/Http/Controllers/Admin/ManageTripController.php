@@ -15,6 +15,8 @@ use App\Models\Schedule;
 use App\Models\Trip;
 use App\Models\Vehicle;
 use App\Services\ScheduleBoardBroadcaster;
+use App\Services\AdminSeatLockService;
+use App\Models\UserRole;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
@@ -311,6 +313,11 @@ class ManageTripController extends Controller
     {
         $pageTitle = "All Trip";
         $emptyMessage = "No trip found";
+        $canManageSeatLocks = in_array(
+            AdminSeatLockService::PERMISSION,
+            UserRole::permissions('admin'),
+            true
+        );
         $fleetTypes = FleetType::where('status', 1)->get();
         $routes = VehicleRoute::where('status', 1)->get();
         $schedules = Schedule::where('status', 1)->get();
@@ -343,7 +350,16 @@ class ManageTripController extends Controller
         // Paginate and append query params
         $trips = $trips->paginate(getPaginate())->appends($request->all());
 
-        return view('admin.trip.trip', compact('pageTitle', 'emptyMessage', 'trips', 'fleetTypes', 'routes', 'schedules', 'stoppages'));
+        return view('admin.trip.trip', compact(
+            'pageTitle',
+            'emptyMessage',
+            'trips',
+            'fleetTypes',
+            'routes',
+            'schedules',
+            'stoppages',
+            'canManageSeatLocks'
+        ));
     }
 
     // New Method for Bulk Enable/Disable

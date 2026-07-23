@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Models\BookedTicket;
+use App\Models\AdminSeatLock;
 use App\Models\Trip;
 use Illuminate\Http\Request;
 use App\Models\Counter;
@@ -105,6 +106,10 @@ class CounterController extends Controller
             foreach ($tickets as $key => $ticket) {
                 $occupied_seats_ctr += $ticket?->seats ? count($ticket->seats) : 0;
             }
+            $occupied_seats_ctr += AdminSeatLock::active()
+                ->where('trip_id', $trip->id)
+                ->whereDate('date_of_journey', date('Y-m-d'))
+                ->count();
 
             $deck_seats = $trip->fleetType->deck_seats;
             $deck_seats = (int) $deck_seats[$trip->fleetType->deck - 1];
@@ -134,7 +139,8 @@ class CounterController extends Controller
             'res' => $data,
             'last_updated' => max(
                 (string) Trip::max('updated_at'),
-                (string) BookedTicket::whereDate('date_of_journey', date('Y-m-d'))->max('updated_at')
+                (string) BookedTicket::whereDate('date_of_journey', date('Y-m-d'))->max('updated_at'),
+                (string) AdminSeatLock::whereDate('date_of_journey', date('Y-m-d'))->max('updated_at')
             )
         ]);
     }

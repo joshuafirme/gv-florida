@@ -29,6 +29,7 @@ class DailyReportService
         $this->transactionRecorder->backfillAllForDate($businessDate);
 
         $transactions = CashierTransactionEvent::query()
+            ->bookingTransactions()
             ->with('admin:id,name,username')
             ->whereBetween('processed_at', [
                 $businessDate->copy()->startOfDay(),

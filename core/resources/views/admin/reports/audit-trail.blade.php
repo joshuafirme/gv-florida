@@ -4,7 +4,7 @@
     <div class="audit-report">
         <header class="audit-report__header">
             <p>Generated: {{ now()->format('F j, Y h:i A') }}</p>
-            <strong>{{ number_format($transactions->total()) }} {{ $transactions->total() === 1 ? 'event' : 'events' }} &middot; payment and booking activity with staff attribution</strong>
+            <strong>{{ number_format($transactions->total()) }} {{ $transactions->total() === 1 ? 'event' : 'events' }} &middot; payment, booking, and seat-control activity with staff attribution</strong>
         </header>
 
         <section class="audit-filter" aria-label="Audit trail filters">
@@ -87,8 +87,11 @@
                                     'Cancelled' => 'cancelled',
                                     'Voided' => 'voided',
                                     'Refunded' => 'refunded',
+                                    'Seat Locked' => 'seat-locked',
+                                    'Seat Unlocked' => 'seat-unlocked',
                                     default => 'neutral',
                                 };
+                                $isSeatLockEvent = data_get($transaction->snapshot, 'audit_type') === 'admin_seat_lock';
                                 $amount = (float) $transaction->amount;
                                 if (in_array($transaction->status, ['Rebooked', 'Cancelled'], true) && abs($amount) < 0.01) {
                                     $amount = max((float) $transaction->base_fare - (float) $transaction->discount_amount, 0);
@@ -105,16 +108,25 @@
                                 <td data-label="PNR"><strong class="audit-pnr">{{ $transaction->pnr ?: '-' }}</strong></td>
                                 <td data-label="Ref. No."><span class="audit-reference">{{ $transaction->reference_no ?: '-' }}</span></td>
                                 <td data-label="Passenger">
-                                    <strong>{{ $transaction->passenger_name ?: 'Guest' }}</strong>
-                                    <small>
-                                        {{ $transaction->passenger_type ?: 'Regular' }}
-                                        @if ($transaction->passenger_id)
-                                            &middot; ID {{ $transaction->passenger_id }}
-                                        @endif
-                                    </small>
+                                    @if ($isSeatLockEvent)
+                                        <strong>Seat {{ formatSeatLabel($transaction->seat_no) }}</strong>
+                                        <small>Administrative seat control</small>
+                                    @else
+                                        <strong>{{ $transaction->passenger_name ?: 'Guest' }}</strong>
+                                        <small>
+                                            {{ $transaction->passenger_type ?: 'Regular' }}
+                                            @if ($transaction->passenger_id)
+                                                &middot; ID {{ $transaction->passenger_id }}
+                                            @endif
+                                        </small>
+                                    @endif
                                 </td>
                                 <td data-label="Amount" class="text-end audit-amount {{ $amount < 0 ? 'audit-amount--negative' : '' }}">
-                                    {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
+                                    @if ($isSeatLockEvent)
+                                        -
+                                    @else
+                                        {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
+                                    @endif
                                 </td>
                                 <td data-label="Performed By">
                                     <strong>{{ $transaction->admin?->name ?: 'Unknown staff' }}</strong>
@@ -144,6 +156,11 @@
                                     </small>
                                     @if ($transaction->reason)
                                         <small class="audit-details__reason">{{ $transaction->reason }}</small>
+                                    @endif
+                                    @if ($isSeatLockEvent)
+                                        <small class="audit-details__authorization">
+                                            Authorized by {{ data_get($transaction->snapshot, 'authorized_by_name', 'Unknown personnel') }}
+                                        </small>
                                     @endif
                                 </td>
                             </tr>
@@ -355,6 +372,18 @@
             color: #7e22ce;
         }
 
+        .audit-status--seat-locked {
+            background: #fff2dc;
+            border-color: #edc27f;
+            color: #985200;
+        }
+
+        .audit-status--seat-unlocked {
+            background: #f1f3f5;
+            border-color: #d2d7dd;
+            color: #4d5968;
+        }
+
         .audit-status--neutral {
             background: #f3f4f6;
             border-color: #d1d5db;
@@ -377,6 +406,11 @@
 
         .audit-details__reason {
             color: #9a5a14 !important;
+        }
+
+        .audit-details__authorization {
+            color: #176b43 !important;
+            font-weight: 600;
         }
 
         .audit-empty-icon,

@@ -614,7 +614,13 @@
                 ],
                 "title": "Trip",
                 "route_name": "admin.trip.list",
-                "menu_active": "admin.trip.list"
+                "menu_active": "admin.trip.list",
+                "additional_permissions": [
+                    {
+                        "title": "Admin Seat Locking",
+                        "value": "admin.trip.seat-locks.index"
+                    }
+                ]
             },
             {
                 "keyword": [

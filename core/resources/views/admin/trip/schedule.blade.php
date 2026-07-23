@@ -3,17 +3,17 @@
     use App\Constants\Status;
     $status = request('status');
 
-    function sortUrl($field) {
+    $sortUrl = function ($field) {
         $currentOrder = request('sort_order', 'desc');
         $newOrder = (request('sort_field') == $field && $currentOrder == 'asc') ? 'desc' : 'asc';
         return request()->fullUrlWithQuery(['sort_field' => $field, 'sort_order' => $newOrder]);
-    }
-    function sortIcon($field) {
+    };
+    $sortIcon = function ($field) {
         if (request('sort_field') == $field) {
             return request('sort_order', 'desc') == 'asc' ? '<i class="las la-sort-up"></i>' : '<i class="las la-sort-down"></i>';
         }
         return '<i class="las la-sort"></i>';
-    }
+    };
 @endphp
 @section('panel')
     <div class="row">
@@ -74,14 +74,14 @@
                                         </th>
                                         <!-- Sortable Headers -->
                                         <th>
-                                            <a href="{{ sortUrl('start_from') }}" class="text--dark">@lang('Start From') {!! sortIcon('start_from') !!}</a>
+                                            <a href="{{ $sortUrl('start_from') }}" class="text--dark">@lang('Start From') {!! $sortIcon('start_from') !!}</a>
                                         </th>
                                         <th>
-                                            <a href="{{ sortUrl('end_at') }}" class="text--dark">@lang('End At') {!! sortIcon('end_at') !!}</a>
+                                            <a href="{{ $sortUrl('end_at') }}" class="text--dark">@lang('End At') {!! $sortIcon('end_at') !!}</a>
                                         </th>
                                         <th>@lang('Duration')</th>
                                         <th>
-                                            <a href="{{ sortUrl('status') }}" class="text--dark">@lang('Status') {!! sortIcon('status') !!}</a>
+                                            <a href="{{ $sortUrl('status') }}" class="text--dark">@lang('Status') {!! $sortIcon('status') !!}</a>
                                         </th>
                                         <th>@lang('Action')</th>
                                     </tr>

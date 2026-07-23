@@ -57,6 +57,11 @@ class Trip extends Model
         return $this->hasMany(BookedTicket::class)->whereIn('status', [1, 2]);
     }
 
+    public function adminSeatLocks()
+    {
+        return $this->hasMany(AdminSeatLock::class);
+    }
+
     //scope
     public function scopeActive($query)
     {

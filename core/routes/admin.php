@@ -162,6 +162,15 @@ Route::middleware('admin')->group(function () {
         });
     });
 
+    Route::controller('AdminSeatLockController')
+        ->prefix('manage/trip/{trip}/seat-locks')
+        ->name('trip.seat-locks.')
+        ->middleware('role:admin.trip.seat-locks.index')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'change')->name('change');
+        });
+
 
 
     Route::controller('VehicleTicketController')->prefix('manage')->name('trip.ticket.')->group(function () {

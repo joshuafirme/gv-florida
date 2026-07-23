@@ -105,7 +105,8 @@ class ReportController extends Controller
 
         app(CashierTransactionRecorder::class)->backfillForDate($admin, $date);
 
-        $transactions = CashierTransactionEvent::where('admin_id', $admin->id)
+        $transactions = CashierTransactionEvent::bookingTransactions()
+            ->where('admin_id', $admin->id)
             ->whereBetween('processed_at', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
             ->orderBy('processed_at')
             ->orderBy('id')

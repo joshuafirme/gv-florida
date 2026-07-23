@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Constants\Status;
+use App\Models\AdminSeatLock;
 use App\Models\BookedTicket;
 use App\Models\Trip;
 use Carbon\Carbon;
@@ -80,6 +81,28 @@ class SeatConflictService
         ?int $excludeTicketId = null,
         bool $lockForUpdate = false
     ): array {
+        return collect($this->bookedSeats(
+            $trip,
+            $dateOfJourney,
+            $pickup,
+            $drop,
+            $excludeTicketId,
+            $lockForUpdate
+        ))
+            ->merge($this->lockedSeats($trip, $dateOfJourney, $lockForUpdate))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function bookedSeats(
+        Trip $trip,
+        Carbon|string $dateOfJourney,
+        int|string $pickup,
+        int|string $drop,
+        ?int $excludeTicketId = null,
+        bool $lockForUpdate = false
+    ): array {
         return $this->overlappingBookings(
             $trip,
             $dateOfJourney,
@@ -92,6 +115,23 @@ class SeatConflictService
             ->unique()
             ->values()
             ->all();
+    }
+
+    public function lockedSeats(
+        Trip $trip,
+        Carbon|string $dateOfJourney,
+        bool $lockForUpdate = false
+    ): array {
+        $query = AdminSeatLock::query()
+            ->active()
+            ->where('trip_id', $trip->id)
+            ->whereDate('date_of_journey', Carbon::parse($dateOfJourney)->format('Y-m-d'));
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+
+        return $this->normalizeSeats($query->pluck('seat_no')->all());
     }
 
     private function overlappingBookings(

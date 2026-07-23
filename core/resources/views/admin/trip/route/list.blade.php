@@ -35,17 +35,17 @@
 
         <!-- Sort Helper Logic -->
         @php
-            function sortUrl($field) {
+            $sortUrl = function ($field) {
                 $currentOrder = request('sort_order', 'desc');
                 $newOrder = (request('sort_field') == $field && $currentOrder == 'asc') ? 'desc' : 'asc';
                 return request()->fullUrlWithQuery(['sort_field' => $field, 'sort_order' => $newOrder]);
-            }
-            function sortIcon($field) {
+            };
+            $sortIcon = function ($field) {
                 if (request('sort_field') == $field) {
                     return request('sort_order', 'desc') == 'asc' ? '<i class="las la-sort-up"></i>' : '<i class="las la-sort-down"></i>';
                 }
                 return '<i class="las la-sort"></i>';
-            }
+            };
         @endphp
 
         <div class="col-md-12">
@@ -67,21 +67,21 @@
                                         </th>
                                         <!-- Sortable Headers -->
                                         <th>
-                                            <a href="{{ sortUrl('name') }}" class="text--dark">@lang('Name') {!! sortIcon('name') !!}</a>
+                                            <a href="{{ $sortUrl('name') }}" class="text--dark">@lang('Name') {!! $sortIcon('name') !!}</a>
                                         </th>
                                         <th>@lang('Starting Point')</th>
                                         <th>@lang('Ending Point')</th>
                                         <th>
-                                            <a href="{{ sortUrl('distance') }}" class="text--dark">@lang('Distance') {!! sortIcon('distance') !!}</a>
+                                            <a href="{{ $sortUrl('distance') }}" class="text--dark">@lang('Distance') {!! $sortIcon('distance') !!}</a>
                                         </th>
                                         <th>
-                                            <a href="{{ sortUrl('time') }}" class="text--dark">@lang('Time') {!! sortIcon('time') !!}</a>
+                                            <a href="{{ $sortUrl('time') }}" class="text--dark">@lang('Time') {!! $sortIcon('time') !!}</a>
                                         </th>
                                         <th>
                                             Stops
                                         </th>
                                         <th>
-                                            <a href="{{ sortUrl('status') }}" class="text--dark">@lang('Status') {!! sortIcon('status') !!}</a>
+                                            <a href="{{ $sortUrl('status') }}" class="text--dark">@lang('Status') {!! $sortIcon('status') !!}</a>
                                         </th>
                                         <th>@lang('Action')</th>
                                     </tr>

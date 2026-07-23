@@ -2,17 +2,17 @@
 
 @section('panel')
     @php
-        function sortUrl($field) {
+        $sortUrl = function ($field) {
             $currentOrder = request('sort_order', 'desc');
             $newOrder = (request('sort_field') == $field && $currentOrder == 'asc') ? 'desc' : 'asc';
             return request()->fullUrlWithQuery(['sort_field' => $field, 'sort_order' => $newOrder]);
-        }
-        function sortIcon($field) {
+        };
+        $sortIcon = function ($field) {
             if (request('sort_field') == $field) {
                 return request('sort_order', 'desc') == 'asc' ? '<i class="las la-sort-up"></i>' : '<i class="las la-sort-down"></i>';
             }
             return '<i class="las la-sort"></i>';
-        }
+        };
     @endphp
 
     <div class="row">
@@ -69,10 +69,10 @@
                                             <input type="checkbox" id="checkAll">
                                         </th>
                                         <th>
-                                            <a href="{{ sortUrl('name') }}" class="text--dark">@lang('Name') {!! sortIcon('name') !!}</a>
+                                            <a href="{{ $sortUrl('name') }}" class="text--dark">@lang('Name') {!! $sortIcon('name') !!}</a>
                                         </th>
                                         <th>
-                                            <a href="{{ sortUrl('status') }}" class="text--dark">@lang('Status') {!! sortIcon('status') !!}</a>
+                                            <a href="{{ $sortUrl('status') }}" class="text--dark">@lang('Status') {!! $sortIcon('status') !!}</a>
                                         </th>
                                         <th>@lang('Action')</th>
                                     </tr>
@@ -210,6 +210,25 @@
                                             </div>
                                         </div>
                                     </div>
+                                    @foreach ($submenu->additional_permissions ?? [] as $additionalPermission)
+                                        <div>
+                                            <div class="row">
+                                                <div class="col-8 pt-1">
+                                                    <div class="custom-control ps-3">
+                                                        <label>{{ $additionalPermission->title }}</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-4 pt-1">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" name="permissions[]"
+                                                            id="chkbx-{{ $additionalPermission->value }}"
+                                                            value="{{ $additionalPermission->value }}"
+                                                            class="parent-identy-{{ $menu_active }}">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
                                 @endforeach
                             @endif
                             <hr>

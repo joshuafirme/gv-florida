@@ -4,21 +4,19 @@
         use App\Constants\Status;
         $status = request('status');
 
-        function sortUrl($field)
-        {
+        $sortUrl = function ($field) {
             $currentOrder = request('sort_order', 'desc');
             $newOrder = request('sort_field') == $field && $currentOrder == 'asc' ? 'desc' : 'asc';
             return request()->fullUrlWithQuery(['sort_field' => $field, 'sort_order' => $newOrder]);
-        }
-        function sortIcon($field)
-        {
+        };
+        $sortIcon = function ($field) {
             if (request('sort_field') == $field) {
                 return request('sort_order', 'desc') == 'asc'
                     ? '<i class="las la-sort-up"></i>'
                     : '<i class="las la-sort-down"></i>';
             }
             return '<i class="las la-sort"></i>';
-        }
+        };
 
         // Preload Master Data for Fare Preview Engine
         $allRoutes = App\Models\VehicleRoute::active()->get()->keyBy('id');
@@ -75,17 +73,17 @@
                                     <tr>
                                         <th><input type="checkbox" id="checkAll"></th>
                                         <th>
-                                            <a href="{{ sortUrl('title') }}" class="text--dark">@lang('Trip')
-                                                {!! sortIcon('title') !!}</a>
+                                            <a href="{{ $sortUrl('title') }}" class="text--dark">@lang('Trip')
+                                                {!! $sortIcon('title') !!}</a>
                                         </th>
                                         <th>@lang('Route Details')</th>
                                         <th>
-                                            <a href="{{ sortUrl('fleet_type_id') }}" class="text--dark">@lang('Fleet Info')
-                                                {!! sortIcon('fleet_type_id') !!}</a>
+                                            <a href="{{ $sortUrl('fleet_type_id') }}" class="text--dark">@lang('Fleet Info')
+                                                {!! $sortIcon('fleet_type_id') !!}</a>
                                         </th>
                                         <th>
-                                            <a href="{{ sortUrl('schedule_id') }}" class="text--dark">@lang('Schedule')
-                                                {!! sortIcon('schedule_id') !!}</a>
+                                            <a href="{{ $sortUrl('schedule_id') }}" class="text--dark">@lang('Schedule')
+                                                {!! $sortIcon('schedule_id') !!}</a>
                                         </th>
                                         <th>@lang('Status')</th>
                                         <th>@lang('Action')</th>
@@ -169,6 +167,14 @@
                                                         data-manifest-url="{{ route('admin.trip.manifestSeatLayout', $item->id) }}">
                                                         <i class="las la-clipboard-list"></i> Manifest
                                                     </button>
+
+                                                    @if ($canManageSeatLocks)
+                                                        <a href="{{ route('admin.trip.seat-locks.index', $item->id) }}"
+                                                            class="btn btn-sm btn-outline--warning"
+                                                            title="Manage administrative seat locks">
+                                                            <i class="las la-lock"></i> Seats
+                                                        </a>
+                                                    @endif
 
                                                     @if (!$item->status)
                                                         <button type="button"

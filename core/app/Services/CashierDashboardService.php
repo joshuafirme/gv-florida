@@ -30,6 +30,7 @@ class CashierDashboardService
         $end = $date->copy()->endOfDay();
 
         $transactions = CashierTransactionEvent::query()
+            ->bookingTransactions()
             ->where('admin_id', $admin->id)
             ->whereBetween('processed_at', [$start, $end])
             ->orderBy('processed_at')
@@ -40,6 +41,7 @@ class CashierDashboardService
         $currentStatusPriority = $this->statusPrioritySql('cashier_transaction_events');
 
         $latestTransactions = CashierTransactionEvent::query()
+            ->bookingTransactions()
             ->where('cashier_transaction_events.admin_id', $admin->id)
             ->whereBetween('cashier_transaction_events.processed_at', [$start, $end])
             ->whereNotExists(function ($newerEvent) use ($newerStatusPriority, $currentStatusPriority) {

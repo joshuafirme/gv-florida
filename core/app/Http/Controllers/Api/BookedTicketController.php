@@ -8,6 +8,7 @@ use App\Lib\BusLayout;
 use App\Models\BookedTicket;
 use App\Models\Trip;
 use App\Services\PendingPaymentExpirationService;
+use App\Services\SeatConflictService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -69,9 +70,18 @@ class BookedTicketController extends Controller
             ])
             ->get()->toArray();
 
-        // 3. Merge disabled seats with newly booked seats
-        $disabled_seats = $fleetType->disabled_seats ? $fleetType->disabled_seats : [];
-        $disabled_seats = array_merge($disabled_seats, $bookedSeats);
+        // 3. Customer-facing channels treat booked and administratively locked seats the same.
+        $bookedSeatLabels = collect($bookedSeats)
+            ->flatMap(fn ($booking) => $booking['seats'] ?? [])
+            ->map(fn ($seat) => preg_replace('/^\d+-/', '', (string) $seat));
+        $lockedSeatLabels = collect(app(SeatConflictService::class)->lockedSeats($trip, $date))
+            ->map(fn ($seat) => preg_replace('/^\d+-/', '', (string) $seat));
+        $disabled_seats = collect((array) ($fleetType->disabled_seats ?? []))
+            ->merge($bookedSeatLabels)
+            ->merge($lockedSeatLabels)
+            ->unique()
+            ->values()
+            ->all();
 
         // 4. Render the Blade partial
         // Note: Save the Blade code you provided in my prompt into a file called 'seat_layout_partial.blade.php'

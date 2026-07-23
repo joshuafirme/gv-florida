@@ -2,13 +2,13 @@
 
 @section('panel')
     @php
-        function sortUrl($field)
+        $sortUrl = function ($field)
         {
             $currentOrder = request('sort_order', 'desc');
             $newOrder = request('sort_field') == $field && $currentOrder == 'asc' ? 'desc' : 'asc';
             return request()->fullUrlWithQuery(['sort_field' => $field, 'sort_order' => $newOrder]);
-        }
-        function sortIcon($field)
+        };
+        $sortIcon = function ($field)
         {
             if (request('sort_field') == $field) {
                 return request('sort_order', 'desc') == 'asc'
@@ -16,7 +16,7 @@
                     : '<i class="las la-sort-down"></i>';
             }
             return '<i class="las la-sort"></i>';
-        }
+        };
     @endphp
 
     <div class="row">
@@ -78,26 +78,26 @@
                                             <input type="checkbox" id="checkAll">
                                         </th>
                                         <th>
-                                            <a href="{{ sortUrl('id') }}" class="text--dark">@lang('ID')
-                                                {!! sortIcon('id') !!}</a>
+                                            <a href="{{ $sortUrl('id') }}" class="text--dark">@lang('ID')
+                                                {!! $sortIcon('id') !!}</a>
                                         </th>
                                         <th>
-                                            <a href="{{ sortUrl('name') }}" class="text--dark">@lang('Name')
-                                                {!! sortIcon('name') !!}</a>
+                                            <a href="{{ $sortUrl('name') }}" class="text--dark">@lang('Name')
+                                                {!! $sortIcon('name') !!}</a>
                                         </th>
                                         <th>
-                                            <a href="{{ sortUrl('mobile') }}" class="text--dark">@lang('Mobile Number')
-                                                {!! sortIcon('mobile') !!}</a>
+                                            <a href="{{ $sortUrl('mobile') }}" class="text--dark">@lang('Mobile Number')
+                                                {!! $sortIcon('mobile') !!}</a>
                                         </th>
                                         <th>
-                                            <a href="{{ sortUrl('city') }}" class="text--dark">@lang('City')
-                                                {!! sortIcon('city') !!}</a>
+                                            <a href="{{ $sortUrl('city') }}" class="text--dark">@lang('City')
+                                                {!! $sortIcon('city') !!}</a>
                                         </th>
                                         <th>@lang('Location')</th>
                                         <th>@lang('KM Post')</th>
                                         <th>
-                                            <a href="{{ sortUrl('status') }}" class="text--dark">@lang('Status')
-                                                {!! sortIcon('status') !!}</a>
+                                            <a href="{{ $sortUrl('status') }}" class="text--dark">@lang('Status')
+                                                {!! $sortIcon('status') !!}</a>
                                         </th>
                                         <th>@lang('Action')</th>
                                     </tr>

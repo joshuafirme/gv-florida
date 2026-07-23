@@ -506,6 +506,13 @@
                                         $occupied_seats_ctr += count($ticket->seats);
                                     }
                                 }
+                                $occupied_seats_ctr += App\Models\AdminSeatLock::active()
+                                    ->where('trip_id', $trip->id)
+                                    ->whereDate(
+                                        'date_of_journey',
+                                        Carbon::parse(request('date_of_journey') ?: now())->format('Y-m-d'),
+                                    )
+                                    ->count();
 
                                 $available_seats_ctr = 0;
                                 $deck_seats = $trip->fleetType->deck_seats;

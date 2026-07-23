@@ -397,7 +397,7 @@ class SiteController extends Controller
     {
         $dateOfJourney = $request->date ?: $request->date_of_journey;
 
-        return BookedTicket::where('trip_id', $request->trip_id)
+        $bookings = BookedTicket::where('trip_id', $request->trip_id)
             ->whereDate('date_of_journey', Carbon::parse($dateOfJourney)->format('Y-m-d'))
             ->where(function ($query) {
                 $query->where('status', Status::BOOKED_APPROVED)
@@ -413,6 +413,23 @@ class SiteController extends Controller
             })
             // Select only the columns needed by the frontend to save memory
             ->get(['pickup_point', 'dropping_point', 'seats', 'gender', 'pnr_number']);
+
+        $trip = Trip::with('route')->find($request->trip_id);
+        if ($trip) {
+            $lockedSeats = app(SeatConflictService::class)->lockedSeats($trip, $dateOfJourney);
+
+            if ($lockedSeats) {
+                $bookings->push((object) [
+                    'pickup_point' => $trip->start_from,
+                    'dropping_point' => $trip->end_to,
+                    'seats' => $lockedSeats,
+                    'gender' => null,
+                    'pnr_number' => null,
+                ]);
+            }
+        }
+
+        return $bookings;
     }
 
     public function getTicketPrice(Request $request)
@@ -521,14 +538,15 @@ class SiteController extends Controller
             ], 422);
         }
 
-        $conflicts = $seatConflicts->conflicts(
-            $trip,
-            $request->date_of_journey,
-            $request->pickup_point,
-            $request->dropping_point,
-            $seats
-        );
-        $unavailableSeats = $seatConflicts->conflictingSeats($conflicts, $seats);
+        $unavailableSeats = array_values(array_intersect(
+            $seats,
+            $seatConflicts->unavailableSeats(
+                $trip,
+                $request->date_of_journey,
+                $request->pickup_point,
+                $request->dropping_point
+            )
+        ));
 
         if ($unavailableSeats) {
             return response()->json([
@@ -629,15 +647,16 @@ class SiteController extends Controller
             DB::beginTransaction();
 
             $lockedTrip = Trip::with('route')->whereKey($id)->lockForUpdate()->firstOrFail();
-            $conflicts = $seatConflicts->conflicts(
-                $lockedTrip,
-                $request->date_of_journey,
-                $request->pickup_point,
-                $request->dropping_point,
+            $unavailableSeats = array_values(array_intersect(
                 $seats,
-                lockForUpdate: true
-            );
-            $unavailableSeats = $seatConflicts->conflictingSeats($conflicts, $seats);
+                $seatConflicts->unavailableSeats(
+                    $lockedTrip,
+                    $request->date_of_journey,
+                    $request->pickup_point,
+                    $request->dropping_point,
+                    lockForUpdate: true
+                )
+            ));
 
             if ($unavailableSeats) {
                 DB::rollBack();
