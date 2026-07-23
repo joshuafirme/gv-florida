@@ -100,7 +100,7 @@
                                                     class="badge bg-success">{{ __($ticket->trip->fleetType->name) }}</span>
                                             </td>
                                             <td>
-                                                <span>{{ 'Seats: ' . implode(', ', $seats) }}</span>
+                                                <span>{{ 'Seats: ' . formatSeatLabel($seats) }}</span>
                                                 <span>{{ "PNR: $ticket->pnr_number " }}</span>
                                             </td>
                                             <td class="text-end">

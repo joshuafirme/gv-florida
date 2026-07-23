@@ -102,7 +102,7 @@
                                     <strong>{{ $transaction->trip_class ?: '-' }}</strong>
                                     <small>{{ $transaction->trip_route ?: '-' }}</small>
                                 </td>
-                                <td><strong>{{ $transaction->seat_no ?: '-' }}</strong></td>
+                                <td><strong>{{ formatSeatLabel($transaction->seat_no) ?: '-' }}</strong></td>
                                 <td>
                                     <strong>{{ $transaction->km_post ? 'KM ' . $transaction->km_post : ($transaction->drop_off ?: '-') }}</strong>
                                     @if ($transaction->km_post && $transaction->drop_off)

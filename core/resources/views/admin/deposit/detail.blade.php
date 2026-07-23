@@ -39,7 +39,7 @@
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Seats')
                             <span class="fw-bold">
-                                {{ collect($deposit->bookedTicket->seats ?: [])->implode(', ') }}
+                                {{ formatSeatLabel($deposit->bookedTicket->seats ?: []) }}
                             </span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -253,7 +253,7 @@
                         </tr>
                         <tr>
                             <th>Seat(s)</th>
-                            <td>{{ collect($deposit->bookedTicket->seats ?: [])->implode(', ') }}</td>
+                            <td>{{ formatSeatLabel($deposit->bookedTicket->seats ?: []) }}</td>
                         </tr>
                         <tr>
                             <th>Ticket No.(s)</th>

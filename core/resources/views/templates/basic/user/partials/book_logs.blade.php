@@ -33,7 +33,7 @@
                     <td class="time" data-label="@lang('Pickup Time')">
                         {{ __(showDateTime($item->trip->schedule->start_from, 'H:i a')) }}</td>
                     <td class="seats" data-label="@lang('Booked Seats')">
-                        {{ $item->seats ? __(implode(',', $item->seats)) : '' }}
+                        {{ $item->seats ? formatSeatLabel($item->seats) : '' }}
                     </td>
                     <td data-label="@lang('Status')">
                         @if ($item->status == 1)

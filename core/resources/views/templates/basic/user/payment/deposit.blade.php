@@ -68,7 +68,7 @@
                         <div class="passenger-card" data-seat="{{ $seat }}">
                             <div class="passenger-card__head">
                                 <span class="passenger-number">{{ $index + 1 }}</span>
-                                <strong>Seat {{ $seat }}</strong>
+                                <strong>Seat {{ formatSeatLabel($seat) }}</strong>
                             </div>
 
                             <label class="flow-label">Full Name <span class="js-name-note">(optional)</span></label>
@@ -623,27 +623,6 @@
             margin: 0 0 10px;
         }
 
-        .payment-passenger-row {
-            align-items: center;
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 2px;
-        }
-
-        .payment-passenger-row + .payment-passenger-row {
-            border-top: 1px solid #e8ebef;
-        }
-
-        .payment-passenger-row strong,
-        .payment-passenger-row small {
-            display: block;
-        }
-
-        .payment-passenger-row small {
-            color: #7b8490;
-            margin-left: auto;
-        }
-
         .payment-methods {
             display: grid;
             gap: 8px;
@@ -801,6 +780,10 @@
                 return $('<div>').text(value || '').html();
             }
 
+            function formatSeatLabel(value) {
+                return String(value || '').replace(/^\d+-/, '');
+            }
+
             function showMessage(type, message) {
                 if (typeof notify === 'function') {
                     notify(type, message);
@@ -873,8 +856,8 @@
                     const seatDiscount = passengerType === 'discounted' ? unitPrice * (percentage / 100) : 0;
 
                     if (passengerType === 'discounted') {
-                        if (!name) errors.push(`Passenger name is required for seat ${seat}.`);
-                        if (!idNumber) errors.push(`ID number is required for seat ${seat}.`);
+                        if (!name) errors.push(`Passenger name is required for seat ${formatSeatLabel(seat)}.`);
+                        if (!idNumber) errors.push(`ID number is required for seat ${formatSeatLabel(seat)}.`);
                     }
 
                     discount += seatDiscount;

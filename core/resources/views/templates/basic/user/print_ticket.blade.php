@@ -305,7 +305,7 @@
                     @foreach ($ticket->passengers ?? [$ticket->user] as $p)
                         <tr>
                             <td>{{ $p->fullname ?? $p->name }}</td>
-                            <td style="text-align:right;">{{ implode(',', $ticket->seats) }}</td>
+                            <td style="text-align:right;">{{ formatSeatLabel($ticket->seats) }}</td>
                         </tr>
                     @endforeach
                 </table>

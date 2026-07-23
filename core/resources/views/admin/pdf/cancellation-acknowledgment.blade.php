@@ -40,7 +40,7 @@
         <tr><td class="label">Ticket / Ref.</td><td class="value">{{ $slip->id }}</td></tr>
         <tr><td class="label">Passenger</td><td class="value">{{ $passenger }}</td></tr>
         <tr><td class="label">Passenger Type</td><td class="value">{{ getPassengerType($ticket->deposit) }}</td></tr>
-        <tr><td class="label">Seat</td><td class="value">{{ $slip->seat }}</td></tr>
+        <tr><td class="label">Seat</td><td class="value">{{ formatSeatLabel($slip->seat) }}</td></tr>
         <tr><td class="label">Fare Forfeited</td><td class="value">{{ showAmount($cancellation->original_fare) }}</td></tr>
     </table>
 
@@ -57,7 +57,9 @@
     <div class="section">
         <table>
             <tr><td class="label">Reason</td><td class="value reason">{{ $cancellation->reason }}</td></tr>
-            <tr><td class="label">Remarks</td><td class="value reason">{{ $cancellation->remarks }}</td></tr>
+            @if ($cancellation->remarks && trim($cancellation->remarks) !== trim($cancellation->reason))
+                <tr><td class="label">Remarks</td><td class="value reason">{{ $cancellation->remarks }}</td></tr>
+            @endif
             <tr><td class="label">Processed By</td><td class="value">{{ $cancellation->processedBy->name }}</td></tr>
             <tr><td class="label">Authorized By</td><td class="value">{{ $cancellation->authorizedBy->name }}</td></tr>
             <tr><td class="label">Cancelled At</td><td class="value">{{ showDateTime($cancellation->created_at) }}</td></tr>

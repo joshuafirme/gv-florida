@@ -102,7 +102,7 @@
 
                 <tr>
                     <td class="title">Seats</td>
-                    <td class="value">{{ implode(',', $ticket->seats) }}</td>
+                    <td class="value">{{ formatSeatLabel($ticket->seats) }}</td>
                 </tr>
                 <tr>
                     <td class="title">Amount</td>
@@ -202,7 +202,7 @@
                     destination: "{{ $ticket->drop->name }}",
                     updated_at: "{{ formatDate($ticket->deposit->updated_at, true) }}",
                     expired_at: "{{ formatDate(date('Y-m-d H:i:s', strtotime($ticket->deposit->updated_at . ' +15 minutes')), true) }}",
-                    seats: "{{ implode(',', $ticket->seats) }}",
+                    seats: @json(formatSeatLabel($ticket->seats)),
                     departure_time: "{{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}",
                     bus_type: "{{ $ticket->trip->fleetType->name }}",
                     amount: "{{ number_format($ticket->deposit->amount, 2) }}",

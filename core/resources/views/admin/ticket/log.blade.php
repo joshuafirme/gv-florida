@@ -112,7 +112,7 @@
                                             </span>
                                         </td>
                                         @if ($ticketSlip)
-                                            <td data-label="@lang('Seat No.')"><strong>{{ $ticketSlip->seat }}</strong></td>
+                                            <td data-label="@lang('Seat No.')"><strong>{{ formatSeatLabel($ticketSlip->seat) }}</strong></td>
                                         @endif
                                         <td data-label="@lang('Fare')">
                                             @if ($ticketDiscount > 0)
@@ -124,7 +124,7 @@
                                                 <div>Ticket Count: {{ $item->seats ? __(sizeof($item->seats)) : '' }}</div>
                                             @endif
                                             @if (!$ticketSlip && $item->seats && is_array($item->seats))
-                                                <div>{{ implode(', ', $item->seats) }}</div>
+                                                <div>{{ formatSeatLabel($item->seats) }}</div>
                                             @endif
                                         </td>
                                         <td data-label="@lang('Passenger')">
@@ -453,12 +453,10 @@
                             <strong id="cancelFare"></strong>
                         </div>
 
-                        <label class="cancel-label mt-3">Reason for Cancellation</label>
+                        <label class="cancel-label mt-3" for="cancelReason">Reason for Cancellation</label>
                         <div id="cancelReasonChips" class="cancel-reason-chips"></div>
-
-                        <label class="cancel-label mt-3" for="cancelRemarks">Cancellation remarks / explanation</label>
-                        <textarea id="cancelRemarks" class="form-control cancel-textarea" rows="3"
-                            placeholder="Reason for cancellation..." maxlength="1000"></textarea>
+                        <textarea id="cancelReason" class="form-control cancel-textarea mt-2" rows="3"
+                            placeholder="Select a reason above or enter a custom reason..." maxlength="1000"></textarea>
 
                         <div class="cancel-info-note mt-3">
                             <i class="las la-info-circle"></i>
@@ -481,6 +479,7 @@
                                     <i class="las la-eye"></i>
                                 </button>
                             </div>
+                            <div id="cancelAuthorizationStatus" class="cancel-auth-status" role="status" aria-live="polite"></div>
                         </div>
                     </div>
 
@@ -490,7 +489,7 @@
                             <div><span>PNR / Ticket</span><strong id="cancelReviewTicket"></strong></div>
                             <div><span>Passenger / Seat</span><strong id="cancelReviewPassenger"></strong></div>
                             <div><span>Reason</span><strong id="cancelReviewReason"></strong></div>
-                            <div><span>Remarks</span><strong id="cancelReviewRemarks"></strong></div>
+                            <div><span>Authorized By</span><strong id="cancelReviewAuthorizedBy"></strong></div>
                             <div class="cancel-review-total"><span>Fare Forfeited</span><strong id="cancelReviewFare"></strong></div>
                         </div>
                         <div class="cancel-info-note mt-3">
@@ -676,6 +675,10 @@
         .cancel-auth-input { max-width: 390px; position: relative; }
         .cancel-auth-input input { background: #f1f2f4; border-color: #d2d5da; border-radius: 8px; height: 45px; padding-right: 42px; }
         .cancel-auth-input button { background: transparent; border: 0; color: #6f7480; position: absolute; right: 10px; top: 10px; }
+        .cancel-auth-status { display: none; font-size: 12px; font-weight: 600; margin-top: 9px; }
+        .cancel-auth-status.is-success { color: #17834c; display: block; }
+        .cancel-auth-status.is-error { color: #c93636; display: block; }
+        .cancel-auth-status i { color: inherit; font-size: 14px; margin-right: 4px; }
         .void-info-note { align-items: flex-start; background: #fff9e8; border: 1px solid #f3cf74; border-radius: 9px; color: #b65c0d; display: flex; font-size: 12px; gap: 9px; line-height: 1.45; padding: 12px 14px; }
         .void-info-note i { flex: 0 0 auto; font-size: 17px; margin-top: 1px; }
         .cancel-review-intro { color: #686d77; font-size: 13px; }
@@ -948,6 +951,11 @@
     <script>
         'use strict';
 
+        const formatSeatLabel = value => (Array.isArray(value) ? value : String(value ?? '').split(','))
+            .map(seat => String(seat).trim().replace(/^\d+-/, ''))
+            .filter(Boolean)
+            .join(', ');
+
         (function($) {
             const rebookModal = new bootstrap.Modal(document.getElementById('rebookModal'));
             const csrfToken = "{{ csrf_token() }}";
@@ -1122,7 +1130,7 @@
                 const hasChanged = rebookType === 'change_seat' ? selectedSeats !== originalSeats :
                     (rebookType === 'change_date' ? $('#rebookDate').val() !== rebookData.booking.date : true);
                 $('#rebookAssignmentList').html(rebookSeats.map((seat, index) =>
-                    `<span class="rebook-assignment">Ticket ${index + 1}<br>${escapeHtml(seat)}</span>`
+                    `<span class="rebook-assignment">Ticket ${index + 1}<br>${escapeHtml(formatSeatLabel(seat))}</span>`
                 ).join(''));
                 const pendingText = hasRequiredSeats && !hasChanged
                     ? (rebookType === 'change_date' ? 'Choose a different date' : 'Choose a different seat')
@@ -1161,8 +1169,8 @@
                 $('#reviewAfterTime').text(after.time);
                 $('#reviewBeforeBus').text(before.bus_type);
                 $('#reviewAfterBus').text(after.bus_type);
-                $('#reviewBeforeSeat').text(before.seats.join(', '));
-                $('#reviewAfterSeat').text(rebookSeats.join(', '));
+                $('#reviewBeforeSeat').text(formatSeatLabel(before.seats));
+                $('#reviewAfterSeat').text(formatSeatLabel(rebookSeats));
             }
 
             $('#rebookContinueBtn').on('click', function() {
@@ -1278,7 +1286,7 @@
                     refundData = data;
                     $('#refundPnr').text(data.pnr);
                     $('#refundPassenger').text(data.passenger_name);
-                    $('#refundTicketMeta').text(`${data.passenger_type} · Seat ${data.seat} · Fare ${formatMoney(data.fare)}`);
+                    $('#refundTicketMeta').text(`${data.passenger_type} · Seat ${formatSeatLabel(data.seat)} · Fare ${formatMoney(data.fare)}`);
                     $('#refundFareLabel').text(formatMoney(data.fare));
                     $('#refundCashier').text(data.processed_by);
                     $('#refundRemarks, #refundAuthorizationCode').val('');
@@ -1320,7 +1328,7 @@
             $('#refundReviewBtn').on('click', function() {
                 if (!validateRefundForm()) return;
                 $('#refundReviewTicket').text(`${refundData.pnr} / ${refundData.reference}`);
-                $('#refundReviewPassenger').text(`${refundData.passenger_name} / ${refundData.seat}`);
+                $('#refundReviewPassenger').text(`${refundData.passenger_name} / ${formatSeatLabel(refundData.seat)}`);
                 $('#refundReviewReason').text(refundReason);
                 $('#refundReviewRemarks').text($('#refundRemarks').val().trim());
                 $('#refundReviewFare').text(formatMoney(refundData.fare));
@@ -1367,7 +1375,7 @@
             const cancelModal = new bootstrap.Modal(document.getElementById('cancelTicketModal'));
             const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
             let cancelData = null;
-            let cancelReason = '';
+            let cancelAuthorizationInFlight = false;
 
             const formatMoney = value => currency.format(Number(value) || 0);
             const escapeHtml = value => $('<div>').text(value ?? '').html();
@@ -1379,7 +1387,7 @@
             }
 
             function validateCancelForm() {
-                const valid = cancelData && cancelReason && $('#cancelRemarks').val().trim() &&
+                const valid = cancelData && $('#cancelReason').val().trim() &&
                     $('#cancelAuthorizationCode').val().trim();
                 $('#cancelReviewBtn').prop('disabled', !valid);
                 return Boolean(valid);
@@ -1390,25 +1398,29 @@
                 $('#cancelFormStage, #cancelKeepBtn, #cancelReviewBtn').removeClass('d-none');
             }
 
+            function resetCancelAuthorization() {
+                $('#cancelAuthorizationStatus').removeClass('is-success is-error').empty();
+            }
+
             $(document).on('click', '.cancel-ticket-btn', function(event) {
                 event.preventDefault();
                 cancelData = null;
-                cancelReason = '';
                 $('#cancelLoading').removeClass('d-none');
                 $('#cancelFormStage, #cancelReviewStage').addClass('d-none');
                 $('#cancelKeepBtn, #cancelReviewBtn').removeClass('d-none');
                 $('#cancelBackBtn, #cancelConfirmBtn').addClass('d-none');
                 $('#cancelReviewBtn').prop('disabled', true);
                 $('#cancelAuthorizationCode').attr('type', 'password');
+                resetCancelAuthorization();
                 cancelModal.show();
 
                 $.getJSON($(this).data('cancel-url')).done(function(data) {
                     cancelData = data;
                     $('#cancelPnr').text(data.pnr);
                     $('#cancelPassenger').text(data.passenger_name);
-                    $('#cancelTicketMeta').text(`${data.passenger_type} - Seat ${data.seat} - Ref. ${data.reference}`);
+                    $('#cancelTicketMeta').text(`${data.passenger_type} - Seat ${formatSeatLabel(data.seat)} - Ref. ${data.reference}`);
                     $('#cancelFare').text(formatMoney(data.fare));
-                    $('#cancelRemarks, #cancelAuthorizationCode').val('');
+                    $('#cancelReason, #cancelAuthorizationCode').val('');
                     $('#cancelReasonChips').html(data.reasons.map(reason =>
                         `<button type="button" class="cancel-reason-chip" data-reason="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`
                     ).join(''));
@@ -1421,13 +1433,23 @@
             });
 
             $(document).on('click', '.cancel-reason-chip', function() {
-                cancelReason = $(this).data('reason');
+                $('#cancelReason').val($(this).data('reason')).trigger('input').focus();
                 $('.cancel-reason-chip').removeClass('active');
                 $(this).addClass('active');
+            });
+
+            $('#cancelReason').on('input', function() {
+                const reason = $(this).val().trim();
+                $('.cancel-reason-chip').each(function() {
+                    $(this).toggleClass('active', $(this).data('reason') === reason);
+                });
                 validateCancelForm();
             });
 
-            $('#cancelRemarks, #cancelAuthorizationCode').on('input', validateCancelForm);
+            $('#cancelAuthorizationCode').on('input', function() {
+                resetCancelAuthorization();
+                validateCancelForm();
+            });
 
             $('#toggleCancelCode').on('click', function() {
                 const input = $('#cancelAuthorizationCode');
@@ -1435,14 +1457,44 @@
             });
 
             $('#cancelReviewBtn').on('click', function() {
-                if (!validateCancelForm()) return;
-                $('#cancelReviewTicket').text(`${cancelData.pnr} / ${cancelData.reference}`);
-                $('#cancelReviewPassenger').text(`${cancelData.passenger_name} / ${cancelData.seat}`);
-                $('#cancelReviewReason').text(cancelReason);
-                $('#cancelReviewRemarks').text($('#cancelRemarks').val().trim());
-                $('#cancelReviewFare').text(formatMoney(cancelData.fare));
-                $('#cancelFormStage, #cancelKeepBtn, #cancelReviewBtn').addClass('d-none');
-                $('#cancelReviewStage, #cancelBackBtn, #cancelConfirmBtn').removeClass('d-none');
+                if (!validateCancelForm() || cancelAuthorizationInFlight) return;
+
+                const button = $(this);
+                const originalLabel = button.html();
+                cancelAuthorizationInFlight = true;
+                button.prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i> Validating...');
+                resetCancelAuthorization();
+
+                $.ajax({
+                    url: cancelData.authorization_url,
+                    method: 'POST',
+                    dataType: 'json',
+                    data: {
+                        _token: "{{ csrf_token() }}",
+                        authorization_code: $('#cancelAuthorizationCode').val()
+                    }
+                }).done(function(result) {
+                    const authorizedName = result.authorized_by?.name || 'Authorized personnel';
+                    $('#cancelAuthorizationStatus')
+                        .addClass('is-success')
+                        .html(`<i class="las la-check"></i> Authorized by ${escapeHtml(authorizedName)}`);
+                    $('#cancelReviewTicket').text(`${cancelData.pnr} / ${cancelData.reference}`);
+                    $('#cancelReviewPassenger').text(`${cancelData.passenger_name} / ${formatSeatLabel(cancelData.seat)}`);
+                    $('#cancelReviewReason').text($('#cancelReason').val().trim());
+                    $('#cancelReviewAuthorizedBy').text(authorizedName);
+                    $('#cancelReviewFare').text(formatMoney(cancelData.fare));
+                    $('#cancelFormStage, #cancelKeepBtn, #cancelReviewBtn').addClass('d-none');
+                    $('#cancelReviewStage, #cancelBackBtn, #cancelConfirmBtn').removeClass('d-none');
+                }).fail(function(xhr) {
+                    $('#cancelAuthorizationStatus')
+                        .addClass('is-error')
+                        .html(`<i class="las la-times-circle"></i> ${escapeHtml(cancelError(xhr))}`);
+                    $('#cancelAuthorizationCode').trigger('focus').select();
+                }).always(function() {
+                    cancelAuthorizationInFlight = false;
+                    button.html(originalLabel);
+                    validateCancelForm();
+                });
             });
 
             $('#cancelBackBtn').on('click', showCancelForm);
@@ -1460,8 +1512,7 @@
                     dataType: 'json',
                     data: {
                         _token: "{{ csrf_token() }}",
-                        reason: cancelReason,
-                        remarks: $('#cancelRemarks').val().trim(),
+                        reason: $('#cancelReason').val().trim(),
                         authorization_code: $('#cancelAuthorizationCode').val()
                     }
                 }).done(function(result) {
@@ -1518,7 +1569,7 @@
                     voidData = data;
                     $('#voidPnr').text(data.pnr);
                     $('#voidPassenger').text(data.passenger_name);
-                    $('#voidTicketMeta').text(`${data.passenger_type} - Seat ${data.seat} - Ref. ${data.reference}`);
+                    $('#voidTicketMeta').text(`${data.passenger_type} - Seat ${formatSeatLabel(data.seat)} - Ref. ${data.reference}`);
                     $('#voidFare, #voidReturnAmount').text(formatMoney(data.fare));
                     $('#voidRemarks, #voidAuthorizationCode').val('');
                     $('#voidReasonChips').html(data.reasons.map(reason =>

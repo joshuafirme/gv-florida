@@ -534,7 +534,7 @@ class SiteController extends Controller
             return response()->json([
                 'available' => false,
                 'conflicting_seats' => $unavailableSeats,
-                'message' => 'Seat(s) ' . implode(', ', $unavailableSeats) . ' are already assigned on an overlapping trip segment.',
+                'message' => 'Seat(s) ' . formatSeatLabel($unavailableSeats) . ' are already assigned on an overlapping trip segment.',
             ], 409);
         }
 
@@ -641,7 +641,7 @@ class SiteController extends Controller
 
             if ($unavailableSeats) {
                 DB::rollBack();
-                $notify[] = ['error', 'Seat(s) ' . implode(', ', $unavailableSeats) . ' were just assigned on an overlapping trip segment. Please choose another seat.'];
+                $notify[] = ['error', 'Seat(s) ' . formatSeatLabel($unavailableSeats) . ' were just assigned on an overlapping trip segment. Please choose another seat.'];
                 return redirect()->back()->withInput()->withNotify($notify);
             }
 

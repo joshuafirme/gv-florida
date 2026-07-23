@@ -192,6 +192,7 @@ Route::middleware('admin')->group(function () {
         Route::post('refund/{slip}/confirm', 'confirmRefund')->name('refund.confirm');
         Route::get('cancelled', 'cancelled')->name('cancelled');
         Route::get('cancel/{slip}/options', 'cancelOptions')->name('cancel.options');
+        Route::post('cancel/{slip}/authorize', 'authorizeCancellation')->name('cancel.authorize');
         Route::post('cancel/{slip}/confirm', 'confirmCancellation')->name('cancel.confirm');
         Route::get('cancel/{id}/acknowledgment', 'cancellationAcknowledgment')->name('cancel.acknowledgment');
         Route::get('voided', 'voided')->name('voided');
@@ -278,6 +279,7 @@ Route::middleware('admin')->group(function () {
 
     // Report
     Route::controller('ReportController')->prefix('report')->name('report.')->group(function () {
+        Route::get('audit-trail', 'auditTrail')->name('audit.trail');
         Route::get('shift-end', 'shiftEnd')->name('shift.end');
         Route::get('transaction/{user_id?}', 'transaction')->name('transaction');
         Route::get('login/history', 'loginHistory')->name('login.history');
