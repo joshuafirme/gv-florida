@@ -717,6 +717,7 @@ class SiteController extends Controller
                 }
             })
             ->orderBy('earliest_start')
+            ->orderBy('id')
             ->active();
     }
 

@@ -5,13 +5,14 @@
         $status = request('status');
 
         $sortUrl = function ($field) {
-            $currentOrder = request('sort_order', 'desc');
-            $newOrder = request('sort_field') == $field && $currentOrder == 'asc' ? 'desc' : 'asc';
+            $currentField = request('sort_field', 'departure_time');
+            $currentOrder = request('sort_order', 'asc');
+            $newOrder = $currentField == $field && $currentOrder == 'asc' ? 'desc' : 'asc';
             return request()->fullUrlWithQuery(['sort_field' => $field, 'sort_order' => $newOrder]);
         };
         $sortIcon = function ($field) {
-            if (request('sort_field') == $field) {
-                return request('sort_order', 'desc') == 'asc'
+            if (request('sort_field', 'departure_time') == $field) {
+                return request('sort_order', 'asc') == 'asc'
                     ? '<i class="las la-sort-up"></i>'
                     : '<i class="las la-sort-down"></i>';
             }
@@ -82,8 +83,8 @@
                                                 {!! $sortIcon('fleet_type_id') !!}</a>
                                         </th>
                                         <th>
-                                            <a href="{{ $sortUrl('schedule_id') }}" class="text--dark">@lang('Schedule')
-                                                {!! $sortIcon('schedule_id') !!}</a>
+                                            <a href="{{ $sortUrl('departure_time') }}" class="text--dark">@lang('Schedule')
+                                                {!! $sortIcon('departure_time') !!}</a>
                                         </th>
                                         <th>@lang('Status')</th>
                                         <th>@lang('Action')</th>
@@ -98,7 +99,7 @@
                                             </td>
 
                                             <td>
-                                                <span class="fw-bold">{{ __($item->title) }}</span>
+                                                <span class="fw-bold">{{ __($item->route->name ?? $item->title) }}</span>
                                             </td>
 
                                             <td>
@@ -106,17 +107,6 @@
                                                     {{ $item->route->startFrom->city ?? 'N/A' }} &rarr;
                                                     {{ $item->route->endTo->city ?? 'N/A' }}
                                                 </div>
-                                                @php
-                                                    $stoppageArr = $item->route->stoppages ?? [];
-                                                    $stoppagesList = getIntermediateStoppages($stoppageArr);
-                                                @endphp
-                                                @if ($stoppagesList && $stoppagesList->count() > 0)
-                                                    <div class="text-muted small mt-1"
-                                                        style="max-width: 250px; white-space: normal;">
-                                                        <i class="las la-map-marker"></i> Via:
-                                                        {{ $stoppagesList->pluck('name')->implode(', ') }}
-                                                    </div>
-                                                @endif
                                             </td>
 
                                             <td>
