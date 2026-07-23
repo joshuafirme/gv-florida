@@ -122,7 +122,13 @@ class KioskController extends Controller
             $trips = $trips->whereJsonDoesntContain('day_off', $dayOff);
         }
 
-        $trips = $trips->with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->where('status', Status::ENABLE)->paginate(getPaginate());
+        $trips = $trips
+            ->with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])
+            ->withMin('schedule as earliest_start', 'start_from')
+            ->where('status', Status::ENABLE)
+            ->orderBy('earliest_start')
+            ->orderBy('id')
+            ->paginate(getPaginate());
 
         $pageTitle = 'Search Result';
         $emptyMessage = 'There is no trip available';

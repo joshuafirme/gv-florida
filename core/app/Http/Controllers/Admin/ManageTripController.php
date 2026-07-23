@@ -316,7 +316,8 @@ class ManageTripController extends Controller
         $schedules = Schedule::where('status', 1)->get();
         $stoppages = Counter::where('status', 1)->get();
 
-        $trips = Trip::with(['fleetType', 'route', 'schedule']);
+        $trips = Trip::with(['fleetType', 'route.startFrom', 'route.endTo', 'schedule'])
+            ->withMin('schedule as departure_time', 'start_from');
 
         // 1. Dynamic Filtering (Search by Title)
         if ($request->search) {
@@ -330,15 +331,21 @@ class ManageTripController extends Controller
         }
 
         // 3. Dynamic Sorting
-        $sortField = $request->get('sort_field', 'id'); // Default sort
-        $sortOrder = $request->get('sort_order', 'desc');
+        $sortField = $request->get('sort_field', 'departure_time');
+        $sortOrder = strtolower((string) $request->get('sort_order', 'asc'));
+        $sortOrder = in_array($sortOrder, ['asc', 'desc'], true) ? $sortOrder : 'asc';
 
         // Whitelist allowed sort columns
-        $allowedSorts = ['id', 'title', 'fleet_type_id', 'schedule_id', 'trip_status', 'status'];
+        $allowedSorts = ['id', 'title', 'fleet_type_id', 'departure_time', 'trip_status', 'status'];
+        $sortField = $sortField === 'schedule_id' ? 'departure_time' : $sortField;
 
         if (in_array($sortField, $allowedSorts)) {
             $trips->orderBy($sortField, $sortOrder);
+        } else {
+            $trips->orderBy('departure_time');
         }
+
+        $trips->orderBy('id');
 
         // Paginate and append query params
         $trips = $trips->paginate(getPaginate())->appends($request->all());

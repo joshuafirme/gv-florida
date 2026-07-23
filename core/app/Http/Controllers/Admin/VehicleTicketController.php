@@ -1071,6 +1071,9 @@ class VehicleTicketController extends Controller
         $trips = Trip::active()
             ->where('id', '!=', $ticket->trip_id)
             ->with(['route', 'schedule', 'fleetType'])
+            ->withMin('schedule as earliest_start', 'start_from')
+            ->orderBy('earliest_start')
+            ->orderBy('id')
             ->get()
             ->filter(function ($trip) use ($ticket) {
                 $fare = $this->fareForTrip($trip, $ticket);
