@@ -53,32 +53,30 @@
                 <section class="flow-panel js-step-panel" data-panel="details">
                     <div class="flow-title-row">
                         <div class="flow-title-icon"><i class="las la-users"></i></div>
-                        <div>
+                        <div class="flow-title-copy">
                             <h4>Passenger Details</h4>
-                            <p>{{ $seatCount }} {{ $seatWord }} &middot; {{ $bookedTicket->pickup->name ?? $bookedTicket->trip->startFrom->name }} &rarr; {{ $bookedTicket->drop->name ?? $bookedTicket->trip->endTo->name }} &middot; {{ showDateTime($bookedTicket->trip->schedule->start_from, 'h:i A') }}</p>
+                            <div class="trip-meta">
+                                <span><i class="las la-bus"></i>{{ $bookedTicket->pickup->name ?? $bookedTicket->trip->startFrom->name }} &rarr; {{ $bookedTicket->drop->name ?? $bookedTicket->trip->endTo->name }}</span>
+                                <span><i class="las la-calendar"></i>{{ showDateTime($bookedTicket->date_of_journey, 'M d, Y') }}</span>
+                                <span><i class="las la-clock"></i>{{ showDateTime($bookedTicket->trip->schedule->start_from, 'h:i A') }}</span>
+                            </div>
                         </div>
+                        <span class="passenger-count">{{ $seatCount }} {{ $seatCount === 1 ? 'Passenger' : 'Passengers' }}</span>
                     </div>
 
                     @foreach ($seats as $index => $seat)
                         <div class="passenger-card" data-seat="{{ $seat }}">
                             <div class="passenger-card__head">
-                                <div>
-                                    <span>Passenger {{ $index + 1 }}</span>
-                                    <strong>{{ $seat }}</strong>
-                                </div>
-                                <div class="seat-price">
-                                    <small class="js-original-price d-none">{{ showAmount($unitPrice) }}</small>
-                                    <strong class="js-seat-price">{{ showAmount($unitPrice) }}</strong>
-                                </div>
+                                <span class="passenger-number">{{ $index + 1 }}</span>
+                                <strong>Seat {{ $seat }}</strong>
                             </div>
 
                             <label class="flow-label">Full Name <span class="js-name-note">(optional)</span></label>
                             <input type="text" class="flow-input js-passenger-name" placeholder="Guest">
 
                             <div class="discount-fields d-none">
-                                <div class="discount-note js-discount-note"></div>
-                                <label class="flow-label">ID Number</label>
-                                <input type="text" class="flow-input js-id-number" placeholder="Required for discounted passenger">
+                                <label class="flow-label">ID Number <span>(required for discounted passengers)</span></label>
+                                <input type="text" class="flow-input js-id-number" placeholder="Enter passenger ID number">
                             </div>
                             <label class="flow-label">Passenger Type</label>
                             <div class="passenger-type-grid">
@@ -93,10 +91,15 @@
                                     </button>
                                 @endforeach
                             </div>
+                            <div class="discount-note js-discount-note d-none"></div>
                         </div>
                     @endforeach
 
                     <div class="flow-summary">
+                        <div class="section-heading">
+                            <div class="section-icon"><i class="las la-receipt"></i></div>
+                            <h5>Fare Summary</h5>
+                        </div>
                         <div class="js-breakdown"></div>
                         <div class="summary-total">
                             <span>Total Fare</span>
@@ -108,18 +111,16 @@
                         <div class="authorization-heading">
                             <div class="auth-icon"><i class="las la-shield-alt"></i></div>
                             <div>
-                                <h5>Discount Authorization</h5>
-                                <p>Note: discounted transactions require authorization from authorized personnel before payment can proceed.</p>
+                                <h5>Authorization Required</h5>
+                                <p>An authorized employee must approve this transaction before payment can continue. Please request assistance and enter the authorization code.</p>
                             </div>
                         </div>
-
-                        <div class="authorization-preview js-auth-preview"></div>
-                        <div class="auth-status js-auth-status"></div>
                     </div>
 
                     <button type="button" class="btn-primary-flow w-100 mt-3" id="continueToPayment">
-                        Continue to Payment
+                        <i class="las la-lock"></i> Continue to Payment
                     </button>
+                    <p class="flow-security-note"><i class="las la-lock"></i> Your transaction is secure and protected.</p>
                 </section>
 
                 <section class="flow-panel js-step-panel d-none" data-panel="payment">
@@ -175,10 +176,8 @@
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
                         <div class="auth-modal-icon"><i class="las la-shield-alt"></i></div>
-                        <h5>Discount Authorization</h5>
-                        <p class="auth-modal-copy">Enter the authorization code to approve the discounted fare.</p>
-
-                        <div class="authorization-preview js-auth-modal-preview"></div>
+                        <h5>Authorization Required</h5>
+                        <p class="auth-modal-copy">An authorized employee must approve this transaction before payment can continue.</p>
 
                         <label class="flow-label text-start">Authorization Code</label>
                         <input type="password" class="flow-input" id="authPasscode" placeholder="Enter authorization code" autocomplete="new-password">
@@ -231,7 +230,12 @@
         .authorization-heading {
             align-items: center;
             display: flex;
-            gap: 14px;
+            gap: 12px;
+        }
+
+        .flow-title-copy {
+            flex: 1;
+            min-width: 0;
         }
 
         .flow-title-row h4,
@@ -242,10 +246,35 @@
             margin: 0;
         }
 
-        .flow-title-row p,
         .authorization-heading p {
             color: #7b8490;
             margin: 3px 0 0;
+        }
+
+        .trip-meta {
+            align-items: center;
+            color: #667085;
+            display: flex;
+            flex-wrap: wrap;
+            font-size: 12px;
+            gap: 7px 16px;
+            margin-top: 5px;
+        }
+
+        .trip-meta span {
+            align-items: center;
+            display: inline-flex;
+            gap: 5px;
+        }
+
+        .passenger-count {
+            background: #fff0f7;
+            border-radius: 4px;
+            color: #df2a82;
+            flex: 0 0 auto;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 5px 8px;
         }
 
         .flow-title-icon,
@@ -268,23 +297,23 @@
         }
 
         .passenger-card {
-            border: 1px solid #edf0f3;
-            border-radius: 8px;
-            margin-top: 12px;
-            overflow: hidden;
-            padding: 0 16px 16px;
+            border-bottom: 1px solid #edf0f3;
+            margin-top: 10px;
+            padding: 0 0 16px;
+        }
+
+        .passenger-card:last-of-type {
+            border-bottom: 0;
         }
 
         .passenger-card__head {
             align-items: center;
-            background: #f8fafc;
             display: flex;
-            justify-content: space-between;
-            margin: 0 -16px 14px;
-            padding: 10px 16px;
+            gap: 9px;
+            margin-bottom: 10px;
+            padding: 7px 0;
         }
 
-        .passenger-card__head span,
         .flow-label {
             color: #7b8490;
             display: block;
@@ -293,10 +322,22 @@
             text-transform: uppercase;
         }
 
-        .passenger-card__head strong,
-        .seat-price strong {
-            color: #df2a82;
+        .passenger-card__head strong {
+            color: #1f2937;
             font-weight: 800;
+        }
+
+        .passenger-number {
+            align-items: center;
+            background: #df2a82;
+            border-radius: 999px;
+            color: #fff;
+            display: inline-flex;
+            flex: 0 0 26px;
+            font-size: 12px;
+            font-weight: 800;
+            height: 26px;
+            justify-content: center;
         }
 
         .flow-input {
@@ -321,8 +362,8 @@
 
         .passenger-type-grid {
             display: grid;
-            gap: 8px;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 7px;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
         }
 
         .type-option {
@@ -331,7 +372,11 @@
             border-radius: 8px;
             color: #4b5563;
             font-weight: 800;
+            line-height: 1.15;
             min-height: 38px;
+            overflow-wrap: anywhere;
+            padding: 6px 8px;
+            white-space: normal;
         }
 
         .type-option.is-active {
@@ -341,10 +386,15 @@
         }
 
         .discount-note {
+            align-items: center;
+            background: #edfdf3;
+            border-radius: 4px;
             color: #059669;
+            display: inline-flex;
             font-size: 12px;
             font-weight: 800;
-            margin-top: 10px;
+            margin-top: 8px;
+            padding: 4px 7px;
         }
 
         .flow-summary,
@@ -353,6 +403,31 @@
             border-radius: 8px;
             margin-top: 12px;
             padding: 14px;
+        }
+
+        .section-heading {
+            align-items: center;
+            display: flex;
+            gap: 9px;
+            margin-bottom: 8px;
+        }
+
+        .section-heading h5 {
+            color: #1f2937;
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .section-icon {
+            align-items: center;
+            background: #ffe7f3;
+            border-radius: 6px;
+            color: #df2a82;
+            display: flex;
+            font-size: 17px;
+            height: 30px;
+            justify-content: center;
+            width: 30px;
         }
 
         .summary-line,
@@ -365,8 +440,13 @@
         }
 
         .summary-line {
-            color: #5f6b7a;
-            font-weight: 700;
+            color: #667085;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .summary-line--discount {
+            color: #15803d;
         }
 
         .summary-total {
@@ -379,23 +459,14 @@
 
         .summary-total strong {
             color: #df2a82;
-            font-size: 24px;
+            font-size: 25px;
         }
 
         .authorization-panel {
-            border: 1px solid #ffe0ef;
+            background: #fffaf0;
             border-radius: 8px;
             margin-top: 12px;
             padding: 14px;
-        }
-
-        .authorization-preview {
-            background: #f8fafc;
-            border-radius: 8px;
-            color: #334155;
-            font-weight: 700;
-            margin: 12px 0 4px;
-            padding: 10px;
         }
 
         .tap-target {
@@ -473,6 +544,17 @@
             color: #fff;
         }
 
+        .btn-primary-flow i {
+            margin-right: 5px;
+        }
+
+        .flow-security-note {
+            color: #8a94a3;
+            font-size: 11px;
+            margin: 7px 0 0;
+            text-align: center;
+        }
+
         .btn-light-flow {
             background: #f1f5f9;
             color: #334155;
@@ -496,6 +578,27 @@
             border-radius: 8px;
             margin-top: 10px;
             padding: 10px;
+        }
+
+        .payment-passenger-row {
+            align-items: center;
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 2px;
+        }
+
+        .payment-passenger-row + .payment-passenger-row {
+            border-top: 1px solid #e8ebef;
+        }
+
+        .payment-passenger-row strong,
+        .payment-passenger-row small {
+            display: block;
+        }
+
+        .payment-passenger-row small {
+            color: #7b8490;
+            margin-left: auto;
         }
 
         .payment-methods {
@@ -553,6 +656,20 @@
                 padding: 16px;
             }
 
+            .flow-title-row {
+                align-items: flex-start;
+            }
+
+            .passenger-count {
+                display: none;
+            }
+
+            .trip-meta {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 3px;
+            }
+
             .auth-actions {
                 grid-template-columns: 1fr;
             }
@@ -585,6 +702,10 @@
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 });
+            }
+
+            function escapeHtml(value) {
+                return $('<div>').text(value || '').html();
             }
 
             function showMessage(type, message) {
@@ -698,17 +819,23 @@
 
             function renderSummary() {
                 const state = collectPassengers();
-                const lines = passengerManifest.map((item) => {
-                    let label = `Seat ${item.seat} &middot; ${item.passenger_type === 'discounted' ? item.discount_name : 'Regular'}`;
-                    return `<div class="summary-line"><span>${label}</span><strong>${money(item.fare)}</strong></div>`;
+                const paymentPassengers = passengerManifest.map((item) => {
+                    const name = escapeHtml(item.name || 'Guest');
+                    const type = escapeHtml(item.passenger_type === 'discounted' ? item.discount_name : 'Regular');
+                    return `<div class="payment-passenger-row"><strong>${name}</strong><small>${type} &middot; Seat ${escapeHtml(item.seat)}</small></div>`;
                 }).join('');
+                const appliedDiscounts = [...new Map(state.discounted.map((item) => [
+                    `${item.discount_name}-${item.discount_percentage}`,
+                    `${item.discount_name} (${Number(item.discount_percentage).toFixed(0)}%)`
+                ])).values()];
+                const discountLabel = appliedDiscounts.length ? `Discount (${appliedDiscounts.join(', ')})` : 'Discount';
                 const detailsDiscountLine = totals.discount > 0 ?
-                    `<div class="summary-line"><span>Discount</span><strong>-${money(totals.discount)}</strong></div>` : '';
-                const detailsBreakdown = `${lines}<div class="summary-line"><span>Base Fare</span><strong>${money(totals.subtotal)}</strong></div>${detailsDiscountLine}`;
+                    `<div class="summary-line summary-line--discount"><span>${escapeHtml(discountLabel)}</span><strong>-${money(totals.discount)}</strong></div>` : '';
+                const detailsBreakdown = `<div class="summary-line"><span>Base Fare</span><strong>${money(totals.subtotal)}</strong></div>${detailsDiscountLine}`;
 
                 $('.js-breakdown').html(detailsBreakdown);
                 $('.js-details-total').text(money(totals.payable));
-                $('.js-payment-passengers').html(lines);
+                $('.js-payment-passengers').html(paymentPassengers);
 
                 const discountLine = totals.discount > 0 ?
                     `<div class="summary-line"><span>Discount</span><strong>-${money(totals.discount)}</strong></div>` : '';
@@ -719,16 +846,14 @@
 
                 if (state.discounted.length) {
                     $('#authorizationPanel').removeClass('d-none');
-                    const authorizationPreview = state.discounted.map((item) => {
-                        return `<div class="summary-line"><span>${item.name} &middot; Seat ${item.seat}<br><small>${item.discount_name} &middot; ID ${item.id_number}</small></span><strong>-${money(item.discount_amount)}</strong></div>`;
-                    }).join('');
-                    $('.js-auth-preview, .js-auth-modal-preview').html(authorizationPreview);
                 } else {
                     $('#authorizationPanel').addClass('d-none');
                     resetAuthorization();
                 }
 
-                $('#continueToPayment').text(state.discounted.length ? 'Authorize & Continue to Payment' : 'Continue to Payment');
+                $('#continueToPayment').html(state.discounted.length ?
+                    '<i class="las la-lock"></i> Authorize & Continue' :
+                    '<i class="las la-arrow-right"></i> Continue to Payment');
             }
 
             function calculateGateway() {
@@ -753,19 +878,14 @@
                 button.addClass('is-active');
 
                 if (button.data('type') === 'discounted') {
-                    const percentage = Number(button.data('percentage') || 0);
-                    const fare = unitPrice - (unitPrice * (percentage / 100));
                     card.find('.discount-fields').removeClass('d-none');
                     card.find('.js-name-note').text('(required)');
-                    card.find('.js-discount-note').text(`${button.data('discount-name')} discount - ${percentage.toFixed(0)}% off`);
-                    card.find('.js-original-price').removeClass('d-none');
-                    card.find('.js-seat-price').text(money(fare));
+                    card.find('.js-discount-note').removeClass('d-none').html(`<i class="las la-tag"></i>&nbsp; ${escapeHtml(button.data('discount-name'))} discount applied (${Number(button.data('percentage') || 0).toFixed(0)}%)`);
                 } else {
                     card.find('.discount-fields').addClass('d-none');
                     card.find('.js-name-note').text('(optional)');
                     card.find('.js-id-number').val('');
-                    card.find('.js-original-price').addClass('d-none');
-                    card.find('.js-seat-price').text(money(unitPrice));
+                    card.find('.js-discount-note').addClass('d-none').empty();
                 }
 
                 resetAuthorization();
