@@ -6,37 +6,21 @@ use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Lib\BusLayout;
 use App\Models\BookedTicket;
-use App\Models\Deposit;
 use App\Models\Trip;
+use App\Services\PendingPaymentExpirationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class BookedTicketController extends Controller
 {
-    public function updateExpiredTicket()
+    public function updateExpiredTicket(PendingPaymentExpirationService $expirationService)
     {
-        $deposits = Deposit::where('status', Status::PAYMENT_PENDING)
-            ->where('updated_at', '<=', now()->subMinutes(15))
-            ->get();
+        $expiredCount = $expirationService->expireDue();
 
-        foreach ($deposits as $deposit) {
-            $deposit = Deposit::find($deposit->id);
-            $deposit->status = Status::PAYMENT_EXPIRED;
-            $deposit->save();
-
-            $deposit->bookedTicket->status = Status::BOOKED_EXPIRED;
-            $deposit->bookedTicket->save();
-        }
-
-        if (count($deposits) > 0) {
-            return response()->json([
-                'success' => true,
-                'message' => count($deposits) . " expired tickets has been updated."
-            ]);
-        }
         return response()->json([
             'success' => true,
-            'message' => "All goods."
+            'expired_count' => $expiredCount,
+            'message' => "Expired {$expiredCount} pending payment(s).",
         ]);
     }
 
