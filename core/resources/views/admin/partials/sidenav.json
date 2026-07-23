@@ -431,6 +431,17 @@
             },
             {
                 "keyword": [
+                    "daily report",
+                    "daily collection report",
+                    "cashier collections",
+                    "daily revenue"
+                ],
+                "title": "Daily Report",
+                "route_name": "admin.report.daily",
+                "menu_active": "admin.report.daily"
+            },
+            {
+                "keyword": [
                     "travel manifest",
                     "travel report"
                 ],

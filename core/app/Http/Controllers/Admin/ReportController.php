@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Services\CashierTransactionRecorder;
 use App\Services\CashierDashboardService;
+use App\Services\DailyReportService;
 
 class ReportController extends Controller
 {
@@ -118,6 +119,22 @@ class ReportController extends Controller
             'date',
             'transactions',
             'summary'
+        ));
+    }
+
+    public function daily(Request $request, DailyReportService $dailyReportService)
+    {
+        $request->validate([
+            'date' => 'nullable|date|before_or_equal:today',
+        ]);
+
+        $pageTitle = 'Daily Report';
+        $date = Carbon::parse($request->date ?: now())->startOfDay();
+        $report = $dailyReportService->forDate($date);
+
+        return view('admin.reports.daily', array_merge(
+            compact('pageTitle', 'date'),
+            $report
         ));
     }
 

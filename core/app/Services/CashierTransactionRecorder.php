@@ -161,6 +161,47 @@ class CashierTransactionRecorder
             ->each(fn ($ticketVoid) => $this->safely(fn () => $this->recordVoid($ticketVoid)));
     }
 
+    public function backfillAllForDate(Carbon $date): void
+    {
+        $start = $date->copy()->startOfDay();
+        $end = $date->copy()->endOfDay();
+
+        $adminIds = collect()
+            ->merge(
+                Deposit::successful()
+                    ->whereNotNull('processed_by_admin_id')
+                    ->whereBetween('updated_at', [$start, $end])
+                    ->pluck('processed_by_admin_id')
+            )
+            ->merge(
+                TicketRefund::whereNotNull('processed_by_admin_id')
+                    ->whereBetween('created_at', [$start, $end])
+                    ->pluck('processed_by_admin_id')
+            )
+            ->merge(
+                TicketCancellation::whereNotNull('processed_by_admin_id')
+                    ->whereBetween('created_at', [$start, $end])
+                    ->pluck('processed_by_admin_id')
+            )
+            ->merge(
+                TicketVoid::whereNotNull('processed_by_admin_id')
+                    ->whereBetween('created_at', [$start, $end])
+                    ->pluck('processed_by_admin_id')
+            )
+            ->merge(
+                CashierTransactionEvent::whereBetween('processed_at', [$start, $end])
+                    ->pluck('admin_id')
+            )
+            ->filter()
+            ->map(fn ($adminId) => (int) $adminId)
+            ->unique()
+            ->values();
+
+        Admin::whereIn('id', $adminIds)
+            ->get()
+            ->each(fn (Admin $admin) => $this->backfillForDate($admin, $date));
+    }
+
     private function store(
         string $eventKey,
         int $adminId,
