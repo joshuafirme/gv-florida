@@ -13,6 +13,7 @@ class CashierTransactionEvent extends Model
         'journey_date' => 'date',
         'base_fare' => 'decimal:2',
         'discount_amount' => 'decimal:2',
+        'surcharge_amount' => 'decimal:2',
         'amount' => 'decimal:2',
         'snapshot' => 'array',
     ];

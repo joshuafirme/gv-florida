@@ -14,6 +14,7 @@ use App\Models\Deposit;
 use App\Models\User;
 use App\Models\UserLogin;
 use App\Rules\FileTypeValidate;
+use App\Services\CashierDashboardService;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -32,32 +33,17 @@ class AdminController extends Controller
         $discountOnlyMath = 'deposits.final_amount * (COALESCE(user_discounts.percentage, 0) / 100)';
 
         if ($role?->name && str_contains(strtolower($role->name), 'cashier')) {
-            $cashierWidget['today_processed_amount'] = Deposit::query()
-                ->leftJoin('user_discounts', 'deposits.id', '=', 'user_discounts.deposit_id')
-                ->where('deposits.processed_by_admin_id', $admin->id)
-                ->whereDate('deposits.updated_at', Carbon::today())
-                ->where('deposits.status', Status::PAYMENT_SUCCESS)
-                ->sum(DB::raw('deposits.final_amount - (deposits.final_amount * (COALESCE(user_discounts.percentage, 0) / 100))'));
+            $cashierDashboard = app(CashierDashboardService::class)->forDate($admin, Carbon::today());
+            $cashierWidget = $cashierDashboard['summary'];
+            $statusMetrics = $cashierDashboard['status_metrics'];
+            $latestTransactions = $cashierDashboard['latest_transactions'];
 
-            // $cashierWidget['today_processed_discount_amount'] = Deposit::query()
-            //     ->leftJoin('user_discounts', 'deposits.id', '=', 'user_discounts.deposit_id')
-            //     ->where('deposits.processed_by_admin_id', $admin->id)
-            //     ->whereDate('deposits.updated_at', Carbon::today())
-            //     ->where('deposits.status', Status::PAYMENT_SUCCESS)
-            //     ->sum($discountOnlyMath);
-
-            $cashierWidget['today_processed_count'] = Deposit::where('processed_by_admin_id', $admin->id)
-                ->whereDate('updated_at', Carbon::today())
-                ->where('status', Status::PAYMENT_SUCCESS)
-                ->count();
-
-            $soldTickets = BookedTicket::with('user')
-                ->where('status', Status::BOOKED_APPROVED)
-                ->latest()
-                ->take(5)
-                ->get();
-
-            return view('admin.dashboard-cashier', compact('pageTitle', 'cashierWidget', 'soldTickets'));
+            return view('admin.dashboard-cashier', compact(
+                'pageTitle',
+                'cashierWidget',
+                'statusMetrics',
+                'latestTransactions'
+            ));
         }
 
         // --- SUPER ADMIN DASHBOARD LOGIC BELOW ---
