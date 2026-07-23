@@ -313,6 +313,11 @@ class SiteController extends Controller
         // 5. FINALIZE & PAGINATE
         // -------------------------------
         $trips = $trips_query->paginate(getPaginate());
+        $ticketPrices = TicketPrice::with('prices')
+            ->whereIn('vehicle_route_id', $trips->getCollection()->pluck('vehicle_route_id')->unique())
+            ->whereIn('fleet_type_id', $trips->getCollection()->pluck('fleet_type_id')->unique())
+            ->get()
+            ->keyBy(fn ($price) => $price->vehicle_route_id . ':' . $price->fleet_type_id);
 
         // Prepare View Data
         $fleetType = FleetType::active()->get();
@@ -335,6 +340,7 @@ class SiteController extends Controller
             'counters',
             'schedules',
             'emptyMessage',
+            'ticketPrices',
             'layout'
         ));
     }
