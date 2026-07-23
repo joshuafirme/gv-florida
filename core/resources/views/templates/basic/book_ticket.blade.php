@@ -16,7 +16,7 @@
     <div class="padding-top padding-bottom booking-seat-flow">
         <div class="container">
             @include('templates.basic.partials.booking_stepper', ['currentStep' => 'seat'])
-            <a class="btn btn-outline-dark w-auto mb-3"
+            <a class="seat-back-link"
                 href="{{ url('/tickets?' . urldecode(http_build_query([
                     'kiosk_id' => $kiosk_id,
                     'counter_id' => $trip->startFrom->id,
@@ -24,7 +24,7 @@
                     'destination' => $trip->endTo->id,
                     'date_of_journey' => $dateOfJourneyQuery,
                 ]))) }}">
-                <i class="fa-solid fa-arrow-left"></i> Go Back
+                <i class="las la-arrow-left"></i> Go Back
             </a>
             <div class="card border-0 shadow-sm rounded-4 mb-4 trip-header-banner">
                 <div class="card-body p-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -36,22 +36,6 @@
                         <div class="d-flex align-items-center fw-bold trip-fleet-type">
                             <i class="las la-bus fs-5 me-1"></i>
                             {{ strtoupper($trip->fleetType->name) }}
-                        </div>
-                    </div>
-
-                    <div class="header-middle d-flex align-items-center gap-4 text-center mx-auto">
-                        <div class="trip-location">
-                            <span class="d-block fw-bolder text-uppercase text-dark">{{ $trip->startFrom->name }}</span>
-                            <span class="d-block text-muted location-label">ORIGIN</span>
-                        </div>
-
-                        <div class="trip-arrow">
-                            <i class="las la-arrow-right text-muted fs-5"></i>
-                        </div>
-
-                        <div class="trip-location">
-                            <span class="d-block fw-bolder text-uppercase text-dark">{{ $trip->endTo->name }}</span>
-                            <span class="d-block text-muted location-label">DESTINATION</span>
                         </div>
                     </div>
 
@@ -91,7 +75,7 @@
                                         <i class="las la-calendar-alt"></i>
                                     </div>
                                     <div>
-                                        <span class="d-block text-muted small fw-bold mb-1">@lang('Journey Date')</span>
+                                        <span class="d-block text-muted small fw-bold mb-1">@lang('Departure Date')</span>
                                         <h6 class="mb-0 fw-bold text-dark">
                                             {{ \Carbon\Carbon::parse($date_of_journey)->format('D, M d, Y') }}</h6>
                                     </div>
@@ -269,9 +253,20 @@
                 max-width: 1240px;
             }
 
-            .booking-seat-flow .btn-outline-dark {
-                margin-bottom: 10px !important;
-                padding: 7px 12px;
+            .seat-back-link {
+                align-items: center;
+                color: #7b8490;
+                display: inline-flex;
+                font-weight: 700;
+                gap: 6px;
+                margin-bottom: 10px;
+                text-decoration: none;
+            }
+
+            .seat-back-link:hover,
+            .seat-back-link:focus {
+                color: #df2a82;
+                text-decoration: none;
             }
 
             .trip-header-banner {
