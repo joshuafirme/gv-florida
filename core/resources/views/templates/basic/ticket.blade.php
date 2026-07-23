@@ -76,7 +76,7 @@
         }
 
         .ticket-item:hover {
-            border-color: rgba(223, 42, 130, .35);
+            border-color: var(--booking-primary-border);
             box-shadow: 0 16px 32px rgba(15, 23, 42, .12);
             transform: translateY(-1px);
         }
@@ -139,10 +139,10 @@
 
         .fleet-pill {
             align-items: center;
-            background: #fff8e5;
-            border: 1px solid #f6c852;
+            background: var(--booking-primary-soft);
+            border: 1px solid var(--booking-primary-border);
             border-radius: 999px;
-            color: #b45309;
+            color: var(--booking-primary);
             display: inline-flex;
             font-size: 12px;
             font-weight: 900;
@@ -153,7 +153,7 @@
         }
 
         .trip-price {
-            color: #df2a82;
+            color: var(--booking-primary);
             font-size: 32px;
             font-weight: 900;
             line-height: 1;
@@ -258,10 +258,10 @@
 
         .trip-select-btn {
             align-items: center;
-            background: #df2a82;
+            background: var(--booking-primary);
             border: 0;
             border-radius: 10px;
-            color: #fff;
+            color: var(--booking-on-primary);
             display: flex;
             font-weight: 900;
             justify-content: center;
@@ -270,7 +270,8 @@
         }
 
         .trip-select-btn:hover {
-            color: #fff;
+            background: var(--booking-primary-hover);
+            color: var(--booking-on-primary);
         }
 
         .trip-select-btn.is-disabled {
@@ -294,7 +295,7 @@
         }
 
         .route-details__toggle {
-            color: #df2a82;
+            color: var(--booking-primary);
             font-size: 12px;
             font-weight: 900;
             text-decoration: none;
@@ -302,7 +303,7 @@
         }
 
         .route-details__toggle:hover {
-            color: #df2a82;
+            color: var(--booking-primary-hover);
         }
 
         .trip-item-empty {
@@ -313,8 +314,8 @@
         .seat-count {
             font-weight: 600;
             font-size: 14px;
-            background: #eef6ff;
-            color: #0d6efd;
+            background: var(--booking-primary-soft);
+            color: var(--booking-primary);
             padding: 4px 10px;
             border-radius: 20px;
         }

@@ -215,9 +215,9 @@
 
         .ticket-index {
             align-items: center;
-            background: #ffe7f3;
+            background: var(--booking-primary-soft);
             border-radius: 999px;
-            color: #df2a82;
+            color: var(--booking-primary);
             display: inline-flex;
             font-size: 12px;
             font-weight: 900;
@@ -242,7 +242,7 @@
 
         .ticket-price,
         .ticket-total strong {
-            color: #df2a82;
+            color: var(--booking-primary);
             font-weight: 900;
         }
 
@@ -271,8 +271,14 @@
         }
 
         .btn-primary-flow {
-            background: #df2a82;
-            color: #fff;
+            background: var(--booking-primary);
+            color: var(--booking-on-primary);
+        }
+
+        .btn-primary-flow:hover,
+        .btn-primary-flow:focus {
+            background: var(--booking-primary-hover);
+            color: var(--booking-on-primary);
         }
 
         .btn-light-flow {
