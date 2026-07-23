@@ -16,6 +16,11 @@ use Illuminate\Support\Collection;
 
 class CashierTransactionRecorder
 {
+    public function __construct(
+        private readonly TicketPassengerResolver $passengerResolver
+    ) {
+    }
+
     public function recordSold(Deposit $deposit): void
     {
         if (!$deposit->processed_by_admin_id || (int) $deposit->status !== Status::PAYMENT_SUCCESS) {
@@ -247,22 +252,21 @@ class CashierTransactionRecorder
     private function ticketSnapshot(BookedTicket $ticket, SlipSeriesNumber $slip): array
     {
         $ticket->loadMissing($this->ticketRelations());
-        $manifest = collect($ticket->passenger_manifest ?: ($ticket->deposit?->userDiscount?->passenger_manifest ?: []));
-        $passenger = $manifest->first(fn ($item) => (string) ($item['seat'] ?? '') === (string) $slip->seat) ?: [];
-        $discounted = ($passenger['passenger_type'] ?? 'regular') === 'discounted';
+        $passenger = $this->passengerResolver->forSeat($ticket, (string) $slip->seat);
+        $manifestEntry = $passenger['entry'];
         $slipCount = max($ticket->slipSeriesNumbers->count(), 1);
-        $baseFare = (float) ($passenger['base_fare'] ?? $ticket->unit_price ?? 0);
-        $discountAmount = (float) ($passenger['discount_amount'] ?? 0);
+        $baseFare = (float) ($manifestEntry['base_fare'] ?? $ticket->unit_price ?? 0);
+        $discountAmount = (float) ($manifestEntry['discount_amount'] ?? 0);
         $surchargeAmount = (float) ($ticket->deposit?->charge ?? 0) / $slipCount;
 
-        if (!$passenger && $ticket->deposit?->userDiscount) {
+        if (!$passenger['manifest_found'] && $ticket->deposit?->userDiscount) {
             $percentage = (float) ($ticket->deposit->userDiscount->percentage ?? 0);
             $discountAmount = $percentage > 0
                 ? $baseFare * ($percentage / 100)
                 : (float) ($ticket->deposit->userDiscount->amount ?? 0) / $slipCount;
         }
 
-        $fare = (float) ($passenger['fare'] ?? max($baseFare - $discountAmount, 0));
+        $fare = (float) ($manifestEntry['fare'] ?? max($baseFare - $discountAmount, 0));
 
         return [
             'booked_ticket_id' => $ticket->id,
@@ -271,14 +275,9 @@ class CashierTransactionRecorder
             'source' => $ticket->kiosk_id ? 'Kiosk' : ($ticket->user_id ? 'Online' : 'Counter'),
             'pnr' => $ticket->pnr_number,
             'reference_no' => (string) $slip->id,
-            'passenger_name' => ($passenger['name'] ?? null)
-                ?: $ticket->deposit?->userDiscount?->passenger_name
-                ?: $ticket->user?->fullname
-                ?: 'Guest',
-            'passenger_type' => $passenger
-                ? ($discounted ? ($passenger['discount_name'] ?? 'Discounted') : 'Regular')
-                : getPassengerType($ticket->deposit),
-            'passenger_id' => $passenger['id_number'] ?? null,
+            'passenger_name' => $passenger['name'],
+            'passenger_type' => $passenger['type'],
+            'passenger_id' => $passenger['id_number'],
             'journey_date' => $ticket->date_of_journey
                 ? Carbon::parse($ticket->date_of_journey)->format('Y-m-d')
                 : null,

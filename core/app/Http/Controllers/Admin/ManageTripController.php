@@ -16,6 +16,7 @@ use App\Models\Trip;
 use App\Models\Vehicle;
 use App\Services\ScheduleBoardBroadcaster;
 use App\Services\AdminSeatLockService;
+use App\Services\TicketPassengerResolver;
 use App\Models\UserRole;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -25,6 +26,11 @@ use Illuminate\Validation\ValidationException;
 
 class ManageTripController extends Controller
 {
+    public function __construct(
+        private readonly TicketPassengerResolver $passengerResolver
+    ) {
+    }
+
     public function routeList(Request $request)
     {
         $pageTitle = 'All Routes';
@@ -606,22 +612,20 @@ class ManageTripController extends Controller
         $seatManifest = collect();
 
         foreach ($bookings as $booking) {
-            $passengerName = $booking->deposit?->userDiscount?->passenger_name
-                ?: $booking->user?->fullname
-                ?: 'Guest';
-            $passengerType = getPassengerType($booking->deposit);
-
             foreach ($booking->activeSlipSeriesNumbers as $slip) {
+                $passenger = $this->passengerResolver->forSeat($booking, (string) $slip->seat);
                 $haystack = strtolower(implode(' ', [
                     $slip->seat,
                     $slip->id,
-                    $passengerName,
-                    $passengerType,
+                    $passenger['name'],
+                    $passenger['type'],
+                    $passenger['id_number'],
                 ]));
                 $seatManifest->put($slip->seat, [
                     'seat' => $slip->seat,
-                    'passenger_name' => $passengerName,
-                    'passenger_type' => $passengerType,
+                    'passenger_name' => $passenger['name'],
+                    'passenger_type' => $passenger['type'],
+                    'passenger_id' => $passenger['id_number'],
                     'reference' => $slip->id,
                     'destination' => $booking->drop?->name,
                     'km_post' => $booking->drop?->km_post,
