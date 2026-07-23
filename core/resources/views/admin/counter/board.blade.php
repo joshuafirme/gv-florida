@@ -153,8 +153,25 @@
             font-weight: 600;
         }
 
+        .status-text--on-time {
+            color: #60a5fa;
+        }
+
+        .status-text--boarding {
+            color: #22d3ee;
+        }
+
         .status-text--departed {
             color: #f59e0b;
+        }
+
+        .status-text--delayed,
+        .status-text--cancelled {
+            color: #f87171;
+        }
+
+        .status-text--arrived {
+            color: #22c55e;
         }
 
         .seat-badge {
@@ -339,6 +356,14 @@
         const scheduleBoardUrl = @json(route('admin.counter.scheduleBoardJSON', '__COUNTER_ID__')).replace('__COUNTER_ID__', counterId);
         const pusherKey = @json($pusherKey);
         const pusherCluster = @json($pusherCluster);
+        const tripStatusLabels = {
+            @json(Status::TRIP_ON_TIME): 'Scheduled',
+            @json(Status::TRIP_BOARDING): 'Boarding',
+            @json(Status::TRIP_DEPARTED): 'Departed',
+            @json(Status::TRIP_DELAYED): 'Delayed',
+            @json(Status::TRIP_ARRIVED): 'Arrived',
+            @json(Status::TRIP_CANCELLED): 'Cancelled'
+        };
 
         scheduleBoard();
         connectScheduleBoardUpdates();
@@ -402,9 +427,7 @@
             }
 
             for (const item of paginatedItems) {
-                const displayStatus = isDeparted(item.schedule.start_from) && item.trip_status === '{{ Status::TRIP_ON_TIME }}'
-                    ? '{{ Status::TRIP_DEPARTED }}'
-                    : item.trip_status;
+                const displayStatus = item.trip_status || @json(Status::TRIP_ON_TIME);
 
                 let bus_no = item.assigned_vehicle && item.assigned_vehicle.vehicle ? item.assigned_vehicle.vehicle.bus_no : 'N/A';
                 let seatLabel = item.is_fully_booked
@@ -466,20 +489,11 @@
             }
         }
 
-        function isDeparted(hhmm) {
-            const [h, m] = hhmm.split(':').map(Number);
-            const target = h * 60 + m;
-            const now = new Date();
-            const current = now.getHours() * 60 + now.getMinutes();
-            return target < current;
-        }
-
         function generateTripStatusHTML(status) {
-            const className = status === '{{ Status::TRIP_DEPARTED }}'
-                ? 'status-text status-text--departed'
-                : 'status-text';
+            const normalizedStatus = status || @json(Status::TRIP_ON_TIME);
+            const className = `status-text status-text--${normalizedStatus.replace(/_/g, '-')}`;
 
-            return `<span class="${className}">${reverseSlug(status)}</span>`;
+            return `<span class="${className}">${tripStatusLabels[normalizedStatus] || reverseSlug(normalizedStatus)}</span>`;
         }
 
         function reverseSlug(slug) {
@@ -503,6 +517,24 @@
         function queueScheduleRefresh() {
             clearTimeout(refreshTimer);
             refreshTimer = setTimeout(scheduleBoard, 350);
+        }
+
+        function applyDispatchStatusUpdate(event) {
+            if (!event || !event.trip_id || !event.dispatch_status) {
+                queueScheduleRefresh();
+                return;
+            }
+
+            const trip = tableData.find(item => String(item.id) === String(event.trip_id));
+
+            if (trip) {
+                trip.trip_status = event.dispatch_status;
+                renderTable();
+                tickLastUpdate();
+            }
+
+            // Reconcile vehicle and other trip data after the immediate status update.
+            queueScheduleRefresh();
         }
 
         function setConnectionStatus(message) {
@@ -536,8 +568,16 @@
                 setConnectionStatus('Live updates disconnected');
             });
 
-            pusher.subscribe('schedule-board').bind('passenger-transaction', function() {
+            const channel = pusher.subscribe('schedule-board');
+
+            channel.bind('passenger-transaction', function() {
                 queueScheduleRefresh();
+            });
+
+            channel.bind('dispatch-status-updated', function(event) {
+                if (!event.counter_id || String(event.counter_id) === String(counterId)) {
+                    applyDispatchStatusUpdate(event);
+                }
             });
         }
 

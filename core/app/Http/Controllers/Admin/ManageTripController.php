@@ -14,6 +14,7 @@ use App\Models\FleetType;
 use App\Models\Schedule;
 use App\Models\Trip;
 use App\Models\Vehicle;
+use App\Services\ScheduleBoardBroadcaster;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
@@ -498,6 +499,12 @@ class ManageTripController extends Controller
             $trip->trip_status = $validated['dispatch_status'];
             $trip->save();
         });
+
+        app(ScheduleBoardBroadcaster::class)->dispatchStatusUpdated([
+            'trip_id' => $trip->id,
+            'counter_id' => $trip->start_from,
+            'dispatch_status' => $trip->trip_status,
+        ]);
 
         $notify[] = ['success', 'Vehicle assignment and dispatch status saved successfully.'];
         return back()->withNotify($notify);
