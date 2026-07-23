@@ -21,6 +21,14 @@ class PendingPaymentExpirationService
         Deposit::query()
             ->where('status', Status::PAYMENT_PENDING)
             ->where('created_at', '<=', $cutoff)
+            ->whereNotExists(function ($successfulDeposit) {
+                $successfulDeposit
+                    ->selectRaw('1')
+                    ->from('deposits as successful_deposits')
+                    ->whereColumn('successful_deposits.booked_ticket_id', 'deposits.booked_ticket_id')
+                    ->whereNotNull('deposits.booked_ticket_id')
+                    ->where('successful_deposits.status', Status::PAYMENT_SUCCESS);
+            })
             ->select('id')
             ->chunkById(100, function ($deposits) use ($cutoff, &$expiredCount) {
                 $ids = $deposits->pluck('id');
@@ -31,6 +39,14 @@ class PendingPaymentExpirationService
                         ->whereIn('id', $ids)
                         ->where('status', Status::PAYMENT_PENDING)
                         ->where('created_at', '<=', $cutoff)
+                        ->whereNotExists(function ($successfulDeposit) {
+                            $successfulDeposit
+                                ->selectRaw('1')
+                                ->from('deposits as successful_deposits')
+                                ->whereColumn('successful_deposits.booked_ticket_id', 'deposits.booked_ticket_id')
+                                ->whereNotNull('deposits.booked_ticket_id')
+                                ->where('successful_deposits.status', Status::PAYMENT_SUCCESS);
+                        })
                         ->lockForUpdate()
                         ->get();
 

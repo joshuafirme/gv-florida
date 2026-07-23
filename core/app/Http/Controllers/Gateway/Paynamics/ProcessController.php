@@ -113,7 +113,11 @@ class ProcessController extends Controller
 
         if ($deposit->status == Status::PAYMENT_INITIATE && !isset($transaction->direct_otc_info)) {
             PaymentController::userDataUpdate($deposit);
-        } else if (isset($transaction->direct_otc_info) && $transaction->pay_reference != $deposit->pay_reference) {
+        } else if (
+            in_array((int) $deposit->status, [Status::PAYMENT_INITIATE, Status::PAYMENT_PENDING], true)
+            && isset($transaction->direct_otc_info)
+            && $transaction->pay_reference != $deposit->pay_reference
+        ) {
             $deposit->status = Status::PAYMENT_PENDING;
             $deposit->expiry_limit = $transaction->expiry_limit;
             $deposit->pay_reference = $transaction->pay_reference;

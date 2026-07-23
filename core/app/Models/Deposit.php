@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Constants\Status;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use LogicException;
 
 class Deposit extends Model
 {
@@ -14,6 +15,35 @@ class Deposit extends Model
     ];
 
     protected $hidden = ['detail'];
+
+    protected static function booted(): void
+    {
+        static::updating(function (Deposit $deposit) {
+            if (!$deposit->isDirty('status')) {
+                return;
+            }
+
+            $currentStatus = (int) $deposit->getOriginal('status');
+            $nextStatus = (int) $deposit->status;
+
+            if (!self::canTransitionStatus($currentStatus, $nextStatus)) {
+                throw new LogicException('A finalized payment status cannot be changed.');
+            }
+        });
+    }
+
+    public static function canTransitionStatus(int $currentStatus, int $nextStatus): bool
+    {
+        if ($currentStatus === $nextStatus) {
+            return true;
+        }
+
+        return !in_array($currentStatus, [
+            Status::PAYMENT_SUCCESS,
+            Status::PAYMENT_REJECT,
+            Status::PAYMENT_EXPIRED,
+        ], true);
+    }
 
     public function user()
     {
@@ -131,7 +161,16 @@ class Deposit extends Model
 
     public function scopeExpired($query)
     {
-        return $query->where('status', Status::PAYMENT_EXPIRED);
+        return $query
+            ->where('deposits.status', Status::PAYMENT_EXPIRED)
+            ->whereNotExists(function ($successfulDeposit) {
+                $successfulDeposit
+                    ->selectRaw('1')
+                    ->from('deposits as successful_deposits')
+                    ->whereColumn('successful_deposits.booked_ticket_id', 'deposits.booked_ticket_id')
+                    ->whereNotNull('deposits.booked_ticket_id')
+                    ->where('successful_deposits.status', Status::PAYMENT_SUCCESS);
+            });
     }
 
     public function scopePaymentSearch($query, ?string $search = null, bool $includeReference = true)

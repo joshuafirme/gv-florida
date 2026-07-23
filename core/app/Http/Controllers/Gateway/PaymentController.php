@@ -14,6 +14,7 @@ use App\Models\GeneralSetting;
 use App\Models\User;
 use App\Models\UserDiscount;
 use App\Services\CashierTransactionRecorder;
+use App\Services\PendingPaymentExpirationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -251,53 +252,90 @@ class PaymentController extends Controller
         $finalAmount = $payable * $gate->rate;
 
 
-        $deposit = Deposit::where('booked_ticket_id', $bookedTicket->id)->first();
-        if (!$deposit) {
-            $deposit = new Deposit();
+        $payment = DB::transaction(function () use (
+            $bookedTicket,
+            $user,
+            $gate,
+            $charge,
+            $finalAmount,
+            $discountedPassengers,
+            $discountAmount,
+            $request
+        ) {
+            $lockedTicket = BookedTicket::whereKey($bookedTicket->id)->lockForUpdate()->firstOrFail();
+            $deposit = Deposit::where('booked_ticket_id', $lockedTicket->id)->lockForUpdate()->first();
 
-            $deposit->trx = generateReqID();
-        }
-        $deposit->user_id = $user ? $user->id : null;
-        $deposit->booked_ticket_id = $bookedTicket->id;
-        $deposit->method_code = $gate->method_code;
-        $deposit->method_currency = strtoupper($gate->currency);
-        $deposit->amount = $bookedTicket->sub_total;
-        $deposit->charge = $charge;
-        $deposit->rate = $gate->rate;
-        $deposit->btc_amount = 0;
-        $deposit->btc_wallet = "";
-        $deposit->status = Status::PAYMENT_INITIATE;
-        $deposit->expiry_limit = date('Y-m-d H:i:s', strtotime(date('Y-m-d H:i:s') . ' + 1 hour'));
-        $deposit->success_url = route('user.deposit.done');
-        $deposit->failed_url = urlPath('ticket');
-        $deposit->final_amount = $finalAmount;
-        $deposit->save();
+            if ($deposit && in_array((int) $deposit->status, [
+                Status::PAYMENT_PENDING,
+                Status::PAYMENT_SUCCESS,
+                Status::PAYMENT_REJECT,
+                Status::PAYMENT_EXPIRED,
+            ], true)) {
+                return ['deposit' => $deposit, 'existing' => true];
+            }
 
-        if (count($discountedPassengers) > 0) {
-            $user_discount = UserDiscount::where('deposit_id', $deposit->id)->firstOrNew();
-            $user_discount->deposit_id = $deposit->id;
-            $user_discount->percentage = collect($discountedPassengers)->avg('discount_percentage') ?: 0;
-            $user_discount->amount = getAmount($discountAmount);
-            $user_discount->description = collect($discountedPassengers)->pluck('discount_name')->filter()->unique()->implode(', ');
-            $user_discount->id_number = collect($discountedPassengers)->pluck('id_number')->filter()->implode(', ');
-            $user_discount->passenger_name = collect($discountedPassengers)->pluck('name')->filter()->implode(', ');
-            $user_discount->passenger_manifest = $discountedPassengers;
-            $user_discount->authorization_method = $request->authorization_method;
-            $user_discount->authorized_by_admin_id = $request->authorized_by_admin_id;
-            $user_discount->authorized_by_name = $request->authorized_by_name;
-            $user_discount->authorization_reference = $deposit->trx . ' | ' . $request->authorization_reference;
-            $user_discount->authorized_at = now();
-            $user_discount->save();
-        } else {
-            UserDiscount::where('deposit_id', $deposit->id)->delete();
-        }
+            if (!$deposit) {
+                $deposit = new Deposit();
+                $deposit->trx = generateReqID();
+            }
+
+            $deposit->user_id = $user ? $user->id : null;
+            $deposit->booked_ticket_id = $lockedTicket->id;
+            $deposit->method_code = $gate->method_code;
+            $deposit->method_currency = strtoupper($gate->currency);
+            $deposit->amount = $lockedTicket->sub_total;
+            $deposit->charge = $charge;
+            $deposit->rate = $gate->rate;
+            $deposit->btc_amount = 0;
+            $deposit->btc_wallet = "";
+            $deposit->status = Status::PAYMENT_INITIATE;
+            $deposit->expiry_limit = now()->addHour()->format('Y-m-d H:i:s');
+            $deposit->success_url = route('user.deposit.done');
+            $deposit->failed_url = urlPath('ticket');
+            $deposit->final_amount = $finalAmount;
+            $deposit->save();
+
+            if (count($discountedPassengers) > 0) {
+                $userDiscount = UserDiscount::where('deposit_id', $deposit->id)->firstOrNew();
+                $userDiscount->deposit_id = $deposit->id;
+                $userDiscount->percentage = collect($discountedPassengers)->avg('discount_percentage') ?: 0;
+                $userDiscount->amount = getAmount($discountAmount);
+                $userDiscount->description = collect($discountedPassengers)->pluck('discount_name')->filter()->unique()->implode(', ');
+                $userDiscount->id_number = collect($discountedPassengers)->pluck('id_number')->filter()->implode(', ');
+                $userDiscount->passenger_name = collect($discountedPassengers)->pluck('name')->filter()->implode(', ');
+                $userDiscount->passenger_manifest = $discountedPassengers;
+                $userDiscount->authorization_method = $request->authorization_method;
+                $userDiscount->authorized_by_admin_id = $request->authorized_by_admin_id;
+                $userDiscount->authorized_by_name = $request->authorized_by_name;
+                $userDiscount->authorization_reference = $deposit->trx . ' | ' . $request->authorization_reference;
+                $userDiscount->authorized_at = now();
+                $userDiscount->save();
+            } else {
+                UserDiscount::where('deposit_id', $deposit->id)->delete();
+            }
+
+            if (strtolower($gate->name) === 'cash') {
+                $deposit->status = Status::PAYMENT_PENDING;
+                $deposit->save();
+            }
+
+            return ['deposit' => $deposit, 'existing' => false];
+        });
+
+        $deposit = $payment['deposit'];
 
         session()->put('Track', $deposit->trx);
 
-        if (strtolower($gate->name) === 'cash') {
-            $deposit->status = Status::PAYMENT_PENDING;
-            $deposit->save();
+        if ($payment['existing']) {
+            if (in_array((int) $deposit->status, [Status::PAYMENT_PENDING, Status::PAYMENT_SUCCESS], true)) {
+                return to_route('user.deposit.done');
+            }
 
+            $notify[] = ['error', 'This payment transaction is already finalized. Please start a new booking.'];
+            return to_route('ticket')->withNotify($notify);
+        }
+
+        if ((int) $deposit->status === Status::PAYMENT_PENDING) {
             return to_route('user.deposit.done');
         }
 
@@ -407,6 +445,21 @@ class PaymentController extends Controller
             }
 
             $bookedTicket = BookedTicket::whereKey($deposit->booked_ticket_id)->lockForUpdate()->firstOrFail();
+
+            if (
+                (int) $deposit->status === Status::PAYMENT_PENDING
+                && $deposit->created_at->lte(now()->subMinutes(PendingPaymentExpirationService::EXPIRATION_MINUTES))
+            ) {
+                $deposit->status = Status::PAYMENT_EXPIRED;
+                $deposit->save();
+
+                if ((int) $bookedTicket->status === Status::BOOKED_PENDING) {
+                    $bookedTicket->status = Status::BOOKED_EXPIRED;
+                    $bookedTicket->save();
+                }
+
+                return null;
+            }
 
             $deposit->status = Status::PAYMENT_SUCCESS;
             $deposit->save();
