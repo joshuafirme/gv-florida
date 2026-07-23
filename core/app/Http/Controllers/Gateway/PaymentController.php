@@ -13,6 +13,7 @@ use App\Models\GatewayCurrency;
 use App\Models\GeneralSetting;
 use App\Models\User;
 use App\Models\UserDiscount;
+use App\Services\CashierTransactionRecorder;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -421,6 +422,11 @@ class PaymentController extends Controller
         }
 
         [$deposit, $bookedTicket] = $payment;
+        try {
+            app(CashierTransactionRecorder::class)->recordSold($deposit);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
         $user = User::find($deposit->user_id);
 
         if (!$isManual && !$bookedTicket->kiosk_id) {

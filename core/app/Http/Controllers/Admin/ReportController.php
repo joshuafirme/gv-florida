@@ -5,15 +5,55 @@ namespace App\Http\Controllers\Admin;
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Models\BookedTicket;
+use App\Models\CashierTransactionEvent;
 use App\Models\Counter;
 use App\Models\NotificationLog;
 use App\Models\Transaction;
 use App\Models\UserLogin;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use App\Services\CashierTransactionRecorder;
 
 class ReportController extends Controller
 {
+    public function shiftEnd(Request $request)
+    {
+        $request->validate([
+            'date' => 'nullable|date|before_or_equal:today',
+        ]);
+
+        $pageTitle = 'Shift End Report';
+        $admin = auth('admin')->user();
+        $date = Carbon::parse($request->date ?: now())->startOfDay();
+
+        app(CashierTransactionRecorder::class)->backfillForDate($admin, $date);
+
+        $transactions = CashierTransactionEvent::where('admin_id', $admin->id)
+            ->whereBetween('processed_at', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
+            ->orderBy('processed_at')
+            ->orderBy('id')
+            ->get();
+
+        $sold = $transactions->where('status', 'Sold');
+        $summary = [
+            'tickets' => $sold->count(),
+            'gross_sales' => (float) $sold->sum('amount'),
+            'discounts' => (float) $sold->sum('discount_amount'),
+            'refunds' => abs((float) $transactions->where('status', 'Refunded')->sum('amount')),
+            'voids' => abs((float) $transactions->where('status', 'Voided')->sum('amount')),
+            'net_collection' => (float) $transactions->sum('amount'),
+        ];
+
+        return view('admin.reports.shift-end', compact(
+            'pageTitle',
+            'admin',
+            'date',
+            'transactions',
+            'summary'
+        ));
+    }
+
     public function transaction(Request $request, $userId = null)
     {
         $pageTitle = 'Transaction Logs';
