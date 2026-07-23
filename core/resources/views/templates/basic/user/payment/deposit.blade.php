@@ -332,6 +332,11 @@
         }
 
         .passenger-card__head strong {
+            color: #1f2937;
+            font-weight: 800;
+        }
+
+        .seat-price strong {
             color: var(--booking-primary);
             font-weight: 800;
         }

@@ -125,6 +125,7 @@ class CounterController extends Controller
             $trip['occupied_seats'] = $occupied_seats_ctr;
             $trip['available_seats'] = $available_seats_ctr;
             $trip['is_fully_booked'] = $available_seats_ctr < 1;
+            $trip['trip_status'] = $trip->trip_status ?: Status::TRIP_ON_TIME;
 
             $data[] = $trip;
         }
