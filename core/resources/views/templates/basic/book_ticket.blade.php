@@ -712,7 +712,7 @@
                     if (selectedCount > 0) {
                         let seatNames = [];
                         $.each(selectedSeats, function(i, val) {
-                            seatNames.push($(val).data('seat'));
+                            seatNames.push(formatSeatName($(val).data('seat')));
                         });
                         $('.selected-seat-text').text(seatNames.join(', '));
                     } else {
@@ -731,6 +731,10 @@
                     return `Deck ${deck}`;
                 }
 
+                function formatSeatName(seat) {
+                    return String(seat || '').trim().replace(/^\d+-/, '');
+                }
+
                 function updateConfirmModal() {
                     let price = parseFloat($('input[name=price]').val()) || 0;
                     let selectedSeats = $('.seat.selected');
@@ -740,7 +744,7 @@
                     let tags = [];
 
                     selectedSeats.each(function() {
-                        tags.push(`<span>${$(this).data('seat')} &middot; ${deckLabel(this)}</span>`);
+                        tags.push(`<span>${formatSeatName($(this).data('seat'))} &middot; ${deckLabel(this)}</span>`);
                     });
 
                     $('.js-confirm-count').text(selectedCount);
