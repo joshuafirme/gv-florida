@@ -12,7 +12,11 @@ class GatewayCurrency extends Model
         'gateway_parameter'
     ];
 
-    protected $casts = ['status' => 'boolean'];
+    protected $casts = [
+        'status' => 'boolean',
+        'online_enabled' => 'boolean',
+        'kiosk_enabled' => 'boolean',
+    ];
 
     // Relation
     public function method()

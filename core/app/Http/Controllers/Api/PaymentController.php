@@ -2,23 +2,22 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Constants\Status;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Gateway\PaymentController as GatewayPaymentController;
 use App\Models\Deposit;
-use App\Models\GatewayCurrency;
+use App\Services\PaymentGatewayService;
 use Http;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use App\Models\AdminNotification;
 
 class PaymentController extends Controller
 {
+    public function __construct(private readonly PaymentGatewayService $paymentGateways)
+    {
+    }
+
     public function methods()
     {
-        $gatewayCurrency = GatewayCurrency::whereHas('method', function ($gate) {
-            $gate->where('status', Status::ENABLE);
-        })->with('method')->orderby('method_code')->get();
+        $gatewayCurrency = $this->paymentGateways->getEnabledGatewayCurrencies(false);
         $notify[] = 'Payment Methods';
         return response()->json([
             'remark' => 'deposit_methods',
@@ -48,15 +47,17 @@ class PaymentController extends Controller
 
 
         $user = auth()->user();
-        $gate = GatewayCurrency::whereHas('method', function ($gate) {
-            $gate->where('status', Status::ENABLE);
-        })->where('method_code', $request->method_code)->where('currency', $request->currency)->first();
-        if (!$gate) {
-            $notify[] = 'Invalid gateway';
+        try {
+            $gate = $this->paymentGateways->validateGatewayCurrency(
+                $request->method_code,
+                $request->currency,
+                false
+            );
+        } catch (\Illuminate\Validation\ValidationException $exception) {
             return response()->json([
                 'remark' => 'validation_error',
                 'status' => 'error',
-                'message' => ['error' => $notify],
+                'message' => ['error' => $exception->errors()['gateway']],
             ]);
         }
 

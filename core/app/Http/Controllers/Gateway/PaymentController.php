@@ -9,18 +9,21 @@ use App\Models\AdminNotification;
 use App\Models\BookedTicket;
 use App\Models\Deposit;
 use App\Models\Discount;
-use App\Models\GatewayCurrency;
 use App\Models\GeneralSetting;
 use App\Models\User;
 use App\Models\UserDiscount;
 use App\Services\CashierTransactionRecorder;
+use App\Services\PaymentGatewayService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
+    public function __construct(private readonly PaymentGatewayService $paymentGateways)
+    {
+    }
+
     public function deposit(Request $request)
     {
         $pnr = session()->get('pnr_number');
@@ -38,15 +41,8 @@ class PaymentController extends Controller
             return redirect()->route('ticket')->withNotify($notify);
         }
 
-        $gatewayCurrency = GatewayCurrency::whereHas('method', function ($gate) {
-            $gate->where('status', Status::ENABLE);
-        })->with('method');
-
-        if (request('kiosk_id')) {
-            //    $gatewayCurrency->where('method_code', '>=', 1000);
-        }
-
-        $gatewayCurrency = $gatewayCurrency->orderby('name')->get();
+        $isKioskBooking = $bookedTicket->isKioskBooking();
+        $gatewayCurrency = $this->paymentGateways->getEnabledGatewayCurrencies($isKioskBooking);
 
         // $bookedTicket = $bookedTicket->orderBy('id', 'desc');
         // if (!$booked_ticket_id) {
@@ -58,9 +54,11 @@ class PaymentController extends Controller
         } else {
             $layout = 'layouts.frontend';
         }
-        $discounts = Discount::where('status', Status::ENABLE)->get();
+        $discounts = $isKioskBooking
+            ? Discount::where('status', Status::ENABLE)->get()
+            : collect();
         $pageTitle = 'Payment Methods';
-        return view('Template::user.payment.deposit', compact('gatewayCurrency', 'pageTitle', 'bookedTicket', 'layout', 'discounts'));
+        return view('Template::user.payment.deposit', compact('gatewayCurrency', 'pageTitle', 'bookedTicket', 'layout', 'discounts', 'isKioskBooking'));
     }
 
     public function releaseSeats(Request $request)
@@ -137,18 +135,17 @@ class PaymentController extends Controller
             $notify[] = ['error', 'Invalid booking session. Please select your seats again.'];
             return to_route('ticket')->withNotify($notify);
         }
+        $isKioskBooking = $bookedTicket->isKioskBooking();
         $bookedTicket->seats = session()->has('seats') ? session('seats') : $bookedTicket->seats;
         $seats = is_array($bookedTicket->seats) ? $bookedTicket->seats : json_decode($bookedTicket->seats, true);
         $seats = array_values(array_filter($seats ?? []));
 
         $user = auth()->user();
-        $gate = GatewayCurrency::whereHas('method', function ($gate) {
-            $gate->where('status', Status::ENABLE);
-        })->where('method_code', $request->gateway)->where('currency', $request->currency)->first();
-        if (!$gate) {
-            $notify[] = ['error', 'Invalid gateway'];
-            return back()->withNotify($notify);
-        }
+        $gate = $this->paymentGateways->validateGatewayCurrency(
+            $request->gateway,
+            $request->currency,
+            $isKioskBooking
+        );
 
         $passengers = json_decode($request->passengers, true);
         if (json_last_error() !== JSON_ERROR_NONE || !is_array($passengers)) {
@@ -176,6 +173,16 @@ class PaymentController extends Controller
             $discountId = isset($passenger['discount_id']) ? (int) $passenger['discount_id'] : null;
             $discount = null;
             $seatDiscount = 0;
+
+            if (!in_array($passengerType, ['regular', 'discounted'], true)) {
+                $notify[] = ['error', 'Please select a valid passenger type for seat ' . formatSeatLabel($seat) . '.'];
+                return back()->withNotify($notify);
+            }
+
+            if (!$isKioskBooking && $passengerType !== 'regular') {
+                $notify[] = ['error', 'Discounted passengers are only available for kiosk bookings. Online bookings accept Regular passengers only.'];
+                return back()->withNotify($notify);
+            }
 
             if ($passengerType === 'discounted') {
                 $discount = $discounts->get($discountId);
@@ -348,7 +355,17 @@ class PaymentController extends Controller
     {
         $track = session()->get('Track');
 
-        $deposit = Deposit::where('trx', $track)->where('status', Status::PAYMENT_INITIATE)->orderBy('id', 'DESC')->with('gateway')->firstOrFail();
+        $deposit = Deposit::where('trx', $track)
+            ->where('status', Status::PAYMENT_INITIATE)
+            ->orderBy('id', 'DESC')
+            ->with(['gateway', 'bookedTicket'])
+            ->firstOrFail();
+        $isKioskBooking = $deposit->bookedTicket?->isKioskBooking() ?? false;
+        $this->paymentGateways->validateGatewayCurrency(
+            $deposit->method_code,
+            $deposit->method_currency,
+            $isKioskBooking
+        );
 
         if ($deposit->method_code >= 1000) {
             return to_route('user.deposit.manual.confirm');
@@ -387,9 +404,12 @@ class PaymentController extends Controller
         }
 
         $ticket = BookedTicket::where('id', $deposit->booked_ticket_id)->with(['trip', 'pickup', 'drop'])->first();
+        $paynamicsMethods = strtolower((string) $deposit->gateway?->alias) === PaymentGatewayService::PAYNAMICS
+            ? $this->paymentGateways->getEnabledPaynamicsMethods($isKioskBooking)
+            : collect();
 
         $pageTitle = 'Confirm Payment';
-        return view("Template::$data->view", compact('data', 'pageTitle', 'deposit', 'ticket', 'layout'));
+        return view("Template::$data->view", compact('data', 'pageTitle', 'deposit', 'ticket', 'layout', 'paynamicsMethods'));
     }
 
 

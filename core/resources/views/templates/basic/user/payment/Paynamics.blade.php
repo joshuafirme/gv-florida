@@ -9,7 +9,6 @@
     @extends($activeTemplate . $layout)
 
     @php
-        $pmethod = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'));
         $seats = $ticket->seats ? $ticket->seats : session('seats');
     @endphp
 
@@ -26,33 +25,42 @@
                             payment on the list below</p>
 
                         <div class="accordion mt-4" id="paymentAccordion">
-                            @foreach ($pmethod->pmethod as $key => $item)
+                            @forelse ($paynamicsMethods as $item)
+                                @php($isOpen = $item->code === 'onlinebanktransfer')
                                 <div class="accordion-item border-0">
-                                    <h2 class="accordion-header" id="heading{{ $item->value }}">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                            data-bs-target="#collapse{{ $item->value }}" aria-expanded="false"
-                                            aria-controls="collapse{{ $item->value }}">
+                                    <h2 class="accordion-header" id="heading{{ $item->code }}">
+                                        <button class="accordion-button {{ $isOpen ? '' : 'collapsed' }}" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#collapse{{ $item->code }}"
+                                            aria-expanded="{{ $isOpen ? 'true' : 'false' }}"
+                                            aria-controls="collapse{{ $item->code }}">
                                             {{ $item->name }}
                                         </button>
                                     </h2>
-                                    <div id="collapse{{ $item->value }}" class="accordion-collapse collapse"
-                                        aria-labelledby="heading{{ $item->value }}" data-bs-parent="#paymentAccordion">
+                                    <div id="collapse{{ $item->code }}"
+                                        class="accordion-collapse collapse {{ $isOpen ? 'show' : '' }}"
+                                        aria-labelledby="heading{{ $item->code }}" data-bs-parent="#paymentAccordion">
                                         <div class="accordion-body">
-                                            @foreach ($item->types as $type)
+                                            @foreach ($item->channels as $channel)
                                                 <div class="payment-option">
-                                                    <input type="radio" name="pchannel" data-pmethod="{{ $item->value }}"
-                                                        value="{{ $type->value }}" required name="{{ $type->value }}"
-                                                        id="{{ $type->value }}">
-                                                    {{-- <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/GCash_Logo.svg"
-                                                                alt="GCash"> --}}
-                                                    <label for="{{ $type->value }}"
-                                                        class="mb-0">{{ $type->name }}</label>
+                                                    <input type="radio" name="pchannel" data-pmethod="{{ $item->code }}"
+                                                        value="{{ $channel->code }}" required
+                                                        id="channel-{{ $channel->id }}">
+                                                    @if ($channel->icon_url)
+                                                        <img src="{{ $channel->icon_url }}" alt="{{ $channel->name }}"
+                                                            loading="lazy" referrerpolicy="no-referrer">
+                                                    @endif
+                                                    <label for="channel-{{ $channel->id }}"
+                                                        class="mb-0">{{ $channel->name }}</label>
                                                 </div>
                                             @endforeach
                                         </div>
                                     </div>
                                 </div>
-                            @endforeach
+                            @empty
+                                <p class="text-muted">No Paynamics payment channels are currently available.</p>
+                            @endforelse
+
+                            <input type="hidden" name="pmethod" id="selectedPaynamicsMethod">
 
 
                         </div>
@@ -64,7 +72,9 @@
                             </label>
                         </div>
 
-                        <button class="btn btn--base mt-3 w-100">PAY {{ showAmount($deposit->final_amount) }}</button>
+                        <button class="btn btn--base mt-3 w-100" @disabled($paynamicsMethods->isEmpty())>
+                            PAY {{ showAmount($deposit->final_amount) }}
+                        </button>
                     </div>
                 </div>
 
@@ -203,3 +213,19 @@
         </div> --}}
     </div>
 @endsection
+
+@push('script')
+    <script>
+        (function($) {
+            'use strict';
+
+            $('.payment-option img').on('error', function() {
+                $(this).remove();
+            });
+
+            $('input[name="pchannel"]').on('change', function() {
+                $('#selectedPaynamicsMethod').val($(this).data('pmethod'));
+            });
+        })(jQuery);
+    </script>
+@endpush

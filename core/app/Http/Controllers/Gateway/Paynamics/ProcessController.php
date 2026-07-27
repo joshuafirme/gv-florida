@@ -6,18 +6,20 @@ use App\Constants\Status;
 use App\Models\BookedTicket;
 use App\Models\Deposit;
 use App\Http\Controllers\Gateway\PaymentController;
-use App\Models\GeneralSetting;
-use App\Models\User;
 use App\Services\Paynamics;
-use Carbon\Carbon;
+use App\Services\PaymentGatewayService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\ValidationException;
 use Storage;
 
 
 class ProcessController extends Controller
 {
+    public function __construct(private readonly PaymentGatewayService $paymentGateways)
+    {
+    }
+
     /*
      * Stripe Gateway
      */
@@ -41,10 +43,26 @@ class ProcessController extends Controller
 
     public function redirect(Request $request)
     {
+        $request->validate([
+            'pmethod' => ['required', 'string'],
+            'pchannel' => ['required', 'string'],
+        ]);
+
         try {
             $booked_ticket_id = session()->get('booked_ticket_id');
 
-            $ticket = BookedTicket::find($booked_ticket_id);
+            $ticket = BookedTicket::with('deposit')->findOrFail($booked_ticket_id);
+            $isKioskBooking = $ticket->isKioskBooking();
+            $this->paymentGateways->validateGatewayCurrency(
+                $ticket->deposit->method_code,
+                $ticket->deposit->method_currency,
+                $isKioskBooking
+            );
+            $channel = $this->paymentGateways->validatePaynamicsChannel(
+                $request->pmethod,
+                $request->pchannel,
+                $isKioskBooking
+            );
 
             $booked_tickets = $this->bookedQuery($ticket);
             if ($booked_tickets->count() > 0) {
@@ -54,11 +72,10 @@ class ProcessController extends Controller
             // $booked_tickets
 
             $paynamics = new Paynamics(request()->user());
-            $paynamics->pchannel = request()->pchannel;
             $paynamics->data = $ticket;
-            $transaction = $paynamics->createTransaction();
-            $ticket->deposit->pchannel = $paynamics->pchannel;
-            $ticket->deposit->pmethod = getPaynamicsPMethod($paynamics->pchannel);
+            $transaction = $paynamics->createTransaction($channel);
+            $ticket->deposit->pchannel = $channel->code;
+            $ticket->deposit->pmethod = $channel->paymentMethod->code;
             $ticket->deposit->save();
 
             if ($transaction?->response_code == "GR011") { // if req ID is already process or exist.
@@ -67,10 +84,14 @@ class ProcessController extends Controller
                 $ticket->deposit->save();
 
                 $paynamics = new Paynamics(request()->user());
-                $paynamics->pchannel = request()->pchannel;
                 $paynamics->data = $ticket;
 
-                $transaction = $paynamics->createTransaction();
+                $channel = $this->paymentGateways->validatePaynamicsChannel(
+                    $request->pmethod,
+                    $request->pchannel,
+                    $isKioskBooking
+                );
+                $transaction = $paynamics->createTransaction($channel);
             }
 
             session()->put('paynamics_request_id', $transaction->request_id);
@@ -86,13 +107,12 @@ class ProcessController extends Controller
                 return redirect()->to('/user/paynamics/response');
             }
             return $transaction;
-        } catch (\Exception $e) {
-
-            $response = "Message: " . $e->getMessage() . "<br>" .
-                "File: " . $e->getFile() . "<br>" .
-                "Line: " . $e->getLine() . "<br>";
-
-            return dd($response);
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            report($exception);
+            $notify[] = ['error', 'Unable to start the Paynamics transaction. Please try again.'];
+            return back()->withNotify($notify);
         }
     }
 

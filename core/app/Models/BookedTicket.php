@@ -173,6 +173,11 @@ class BookedTicket extends Model
         return $this->hasOne(Kiosk::class, 'id', 'kiosk_id');
     }
 
+    public function isKioskBooking(): bool
+    {
+        return (int) $this->kiosk_id > 0;
+    }
+
     public function getPhotoAttribute()
     {
         return $this->where('status', Status::DISABLE);

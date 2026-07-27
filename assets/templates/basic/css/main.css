@@ -6358,8 +6358,11 @@ label.required:after {
 }
 
 .payment-option img {
+    width: fit-content;
     height: 30px;
     margin-right: 15px;
+    object-fit: cover !important;
+    border-radius: 6px;
 }
 
 .payment-option input {

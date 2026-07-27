@@ -141,10 +141,10 @@
             "two checkout",
             "2checkout"
         ],
-        "title": "Payment Gateways",
-        "subtitle": "Configure automatic or manual payment gateways to accept payment from users.",
+        "title": "Payment Settings",
+        "subtitle": "Configure Cash, Paynamics, and the payment channels available during booking.",
         "icon": "las la-credit-card",
-        "route_name": "admin.gateway.automatic.index"
+        "route_name": "admin.payment.settings.edit"
     },
     "seo_configuration": {
         "keyword": [

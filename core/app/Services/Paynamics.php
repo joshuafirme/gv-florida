@@ -1,21 +1,23 @@
 <?php
 namespace App\Services;
 
+use App\Models\PaynamicsPaymentChannel;
 use Storage;
 
 class Paynamics
 {
     public $user;
     public $data;
-    public $pchannel;
     public function __construct($user)
     {
         $this->user = $user;
     }
-    public function createTransaction()
+    public function createTransaction(PaynamicsPaymentChannel $channel)
     {
         try {
-            $pmethod = getPaynamicsPMethod($this->pchannel);
+            $channel->loadMissing('paymentMethod');
+            $pmethod = $channel->paymentMethod->code;
+            $pchannel = $channel->code;
 
             $final_amount = number_format((float) $this->data->deposit->final_amount, 2, '.', '');
 
@@ -48,7 +50,7 @@ class Paynamics
                     "response_url" => "{$base_url}user/paynamics/response",
                     "cancel_url" => "{$base_url}user/paynamics/cancel",
                     "pmethod" => $pmethod,
-                    "pchannel" => $this->pchannel,
+                    "pchannel" => $pchannel,
                     "payment_action" => $payment_action,
                     "collection_method" => "single_pay",
                     "payment_notification_status" => "1",
