@@ -292,7 +292,9 @@ Route::middleware('admin')->group(function () {
     Route::controller('ReportController')->prefix('report')->name('report.')->group(function () {
         Route::get('audit-trail', 'auditTrail')->name('audit.trail');
         Route::get('shift-end', 'shiftEnd')->name('shift.end');
+        Route::get('shift-end/pdf', 'shiftEndPdf')->name('shift.end.pdf');
         Route::get('daily', 'daily')->name('daily');
+        Route::get('daily/pdf', 'dailyPdf')->name('daily.pdf');
         Route::get('transaction/{user_id?}', 'transaction')->name('transaction');
         Route::get('login/history', 'loginHistory')->name('login.history');
         Route::get('travel-manifest', 'travelManifest')->name('travelManifest');
