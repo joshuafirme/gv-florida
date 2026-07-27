@@ -533,7 +533,8 @@
                         "source_id": sourceId,
                         "destination_id": destinationId,
                         "date": date,
-                        "start_from_time": '{{ $trip->schedule->start_from }}'
+                        "start_from_time": '{{ $trip->schedule->start_from }}',
+                        "kiosk_id": @json(request('kiosk_id'))
                     };
 
                     $.ajax({

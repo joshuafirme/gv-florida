@@ -21,13 +21,17 @@
     function getDroppingPoints(counter_id) {
         let host = window.location.hostname;
         let url = '/trip/dropping-points/';
+        const pageParams = new URLSearchParams(window.location.search);
+        const kioskId = pageParams.get('kiosk_id');
 
         // Preserve your local environment routing
         if (host.includes('local')) {
             url = '/gv-florida/trip/dropping-points/';
         }
 
-        fetch(url + counter_id)
+        const channelQuery = kioskId ? `?kiosk_id=${encodeURIComponent(kioskId)}` : '';
+
+        fetch(url + counter_id + channelQuery)
             .then(response => response.json())
             .then(function (data) {
                 let $destination = $('select[name=destination]');
