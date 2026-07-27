@@ -93,7 +93,7 @@ class CashierDashboardService
 
         return [
             'summary' => $this->summarize($transactions),
-            'status_metrics' => $this->statusMetrics($latestTransactions),
+            'status_metrics' => $this->statusMetrics($transactions, $latestTransactions),
             'latest_transactions' => $latestTransactions->take(5),
         ];
     }
@@ -117,17 +117,29 @@ class CashierDashboardService
         ];
     }
 
-    private function statusMetrics(Collection $latestTransactions): array
+    public function statusMetrics(Collection $transactions, Collection $latestTransactions): array
     {
+        $terminalStatuses = ['Refunded', 'Voided', 'Cancelled'];
+        $terminalSlipIds = $latestTransactions
+            ->whereIn('status', $terminalStatuses)
+            ->pluck('slip_series_number_id')
+            ->filter()
+            ->unique();
+        $activeSold = $transactions
+            ->where('status', 'Sold')
+            ->reject(fn ($transaction) => $terminalSlipIds->contains($transaction->slip_series_number_id));
+
         return collect(self::STATUS_LABELS)
-            ->mapWithKeys(function (string $status, string $key) use ($latestTransactions) {
-                $transactions = $latestTransactions->where('status', $status);
+            ->mapWithKeys(function (string $status, string $key) use ($activeSold, $latestTransactions) {
+                $metricTransactions = $status === 'Sold'
+                    ? $activeSold
+                    : $latestTransactions->where('status', $status);
 
                 return [
                     $key => [
                         'status' => $status,
-                        'count' => $transactions->count(),
-                        'amount' => abs((float) $transactions->sum('amount')),
+                        'count' => $metricTransactions->count(),
+                        'amount' => abs((float) $metricTransactions->sum('amount')),
                     ],
                 ];
             })
