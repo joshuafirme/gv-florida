@@ -196,6 +196,8 @@ Route::middleware('admin')->group(function () {
 
     Route::controller('VehicleTicketController')->prefix('tickets')->name('vehicle.ticket.')->group(function () {
         Route::get('booked', 'booked')->name('booked');
+        Route::get('rebooked', 'rebooked')->name('rebooked');
+        Route::get('rebooked/{event}/details', 'rebookedDetails')->name('rebooked.details');
         Route::get('refunded', 'refunded')->name('refunded');
         Route::get('refund/{slip}/options', 'refundOptions')->name('refund.options');
         Route::post('refund/{slip}/confirm', 'confirmRefund')->name('refund.confirm');

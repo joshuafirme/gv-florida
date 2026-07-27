@@ -31,6 +31,16 @@ class CashierTransactionEvent extends Model
         return $this->belongsTo(Admin::class);
     }
 
+    public function bookedTicket()
+    {
+        return $this->belongsTo(BookedTicket::class);
+    }
+
+    public function slipSeriesNumber()
+    {
+        return $this->belongsTo(SlipSeriesNumber::class);
+    }
+
     public function scopeBookingTransactions($query)
     {
         return $query->whereIn('status', self::BOOKING_TRANSACTION_STATUSES);
