@@ -26,22 +26,29 @@ class TicketPassengerResolver
             ];
         }
 
+        $deposit = $ticket->payment_record;
+
         return [
             'manifest_found' => false,
-            'name' => $ticket->deposit?->userDiscount?->passenger_name
+            'name' => $deposit?->userDiscount?->passenger_name
                 ?: $ticket->user?->fullname
                 ?: 'Guest',
-            'type' => getPassengerType($ticket->deposit),
-            'id_number' => $ticket->deposit?->userDiscount?->id_number,
+            'type' => getPassengerType($deposit),
+            'id_number' => $deposit?->userDiscount?->id_number,
             'entry' => [],
         ];
     }
 
     private function manifestEntry(BookedTicket $ticket, string $seat): ?array
     {
+        $depositManifest = [];
+        if (empty($ticket->passenger_manifest)) {
+            $depositManifest = $ticket->payment_record?->userDiscount?->passenger_manifest ?: [];
+        }
+
         $manifest = collect(
             $ticket->passenger_manifest
-                ?: ($ticket->deposit?->userDiscount?->passenger_manifest ?: [])
+                ?: $depositManifest
         )
             ->map(fn ($entry) => is_array($entry) ? $entry : (array) $entry)
             ->filter(fn (array $entry) => trim((string) ($entry['seat'] ?? '')) !== '')

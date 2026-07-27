@@ -30,4 +30,9 @@ class SlipSeriesNumber extends Model
     {
         return $this->hasOne(TicketVoid::class);
     }
+
+    public function transactionEvents()
+    {
+        return $this->hasMany(CashierTransactionEvent::class);
+    }
 }
