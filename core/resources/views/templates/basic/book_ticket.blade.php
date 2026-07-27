@@ -13,7 +13,7 @@
     @endif
     @extends($activeTemplate . $layout)
 
-    <div class="padding-top padding-bottom booking-seat-flow">
+    <div class="padding-top padding-bottom booking-seat-flow {{ $kiosk_id ? 'is-kiosk' : '' }}">
         <div class="container">
             @include('templates.basic.partials.booking_stepper', ['currentStep' => 'seat'])
             <a class="seat-back-link"
@@ -171,6 +171,10 @@
                             <div class="seat"><span></span></div>
                             <p>@lang('Non-Operational Seats')</p>
                         </div>
+                        <div class="seat-condition sc-pwd-legend">
+                            <div class="seat"><span></span></div>
+                            <p>@lang('Senior Citizen / PWD')</p>
+                        </div>
                     </div>
                     @include('templates.basic.partials.seat_layout', ['fleetType' => $trip->fleetType])
 
@@ -301,6 +305,78 @@
                 background: var(--booking-primary);
                 border-color: var(--booking-primary);
                 color: var(--booking-on-primary);
+            }
+
+            .booking-seat-flow .seat-plan-inner .seat-wrapper .seat {
+                border-radius: 8px;
+            }
+
+            .booking-seat-flow .seat-plan-inner .seat-wrapper .seat.comfort-room {
+                border-radius: 8px;
+                height: 40px !important;
+                line-height: 1 !important;
+                width: 30px !important;
+            }
+
+            .booking-seat-flow .seat-for-reserved .seat {
+                border-radius: 6px;
+            }
+
+            .booking-seat-flow .sc-pwd-row .seat:not(.comfort-room) {
+                flex-direction: column;
+                line-height: 1;
+            }
+
+            .booking-seat-flow .sc-pwd-row .seat:not(.comfort-room):not(.selected) {
+                background: #ffd60a;
+                border-color: #d6ad00;
+                color: #342b00;
+            }
+
+            .booking-seat-flow .sc-pwd-row .seat:not(.comfort-room)::after {
+                content: "SC/PWD";
+                display: block;
+                font-size: 7px;
+                font-weight: 800;
+                line-height: 1;
+                margin-top: 3px;
+            }
+
+            .booking-seat-flow .sc-pwd-row .selected-by-gents .seat,
+            .booking-seat-flow .sc-pwd-row .selected-by-ladies .seat,
+            .booking-seat-flow .sc-pwd-row .selected-by-others .seat {
+                color: #fff;
+            }
+
+            .booking-seat-flow .seat-for-reserved .sc-pwd-legend .seat {
+                background: #ffd60a;
+                border-color: #d6ad00;
+            }
+
+            .booking-seat-flow .seat-for-reserved .sc-pwd-legend .seat span {
+                border-color: #8f7300;
+            }
+
+            .booking-seat-flow.is-kiosk .seat-plan-inner .seat-wrapper .seat:not(.comfort-room) {
+                font-size: 16px;
+                height: 56px;
+                margin-right: 10px;
+                width: 48px;
+            }
+
+            .booking-seat-flow.is-kiosk .seat-plan-inner .seat-wrapper .seat.comfort-room {
+                height: 56px !important;
+                margin-right: 10px;
+                width: 48px !important;
+            }
+
+            .booking-seat-flow.is-kiosk .seat-plan-inner .seat-wrapper {
+                margin-bottom: 18px;
+            }
+
+            .booking-seat-flow.is-kiosk .sc-pwd-row .seat:not(.comfort-room)::after {
+                font-size: 8px;
+                margin-top: 5px;
             }
 
             .seat.selected:active {
@@ -478,6 +554,23 @@
             }
 
             @media (max-width: 575px) {
+                .booking-seat-flow.is-kiosk .seat-plan-inner .single {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                }
+
+                .booking-seat-flow.is-kiosk .seat-plan-inner .seat-wrapper .seat:not(.comfort-room) {
+                    height: 52px;
+                    margin-right: 5px;
+                    width: 42px;
+                }
+
+                .booking-seat-flow.is-kiosk .seat-plan-inner .seat-wrapper .seat.comfort-room {
+                    height: 52px !important;
+                    margin-right: 5px;
+                    width: 42px !important;
+                }
+
                 .seat-confirm-actions {
                     grid-template-columns: 1fr;
                 }
