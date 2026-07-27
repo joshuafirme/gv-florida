@@ -692,11 +692,41 @@ class VehicleTicketController extends Controller
         return view('admin.ticket.log', compact('pageTitle', 'tickets'));
     }
 
-    public function list()
+    public function list(Request $request)
     {
-        $pageTitle = 'All Ticket';
-        $tickets = BookedTicket::with(['trip', 'pickup', 'drop', 'user'])->paginate(getPaginate());
-        return view('admin.ticket.log', compact('pageTitle', 'tickets'));
+        $validated = $request->validate([
+            'search' => 'nullable|string|max:255',
+            'travel_date' => 'nullable|date',
+            'route_id' => 'nullable|integer|exists:vehicle_routes,id',
+            'status' => 'nullable|in:booked,rebooked,refunded,cancelled,voided,pending,expired,rejected',
+        ]);
+
+        $pageTitle = 'All Tickets';
+        $search = trim((string) ($validated['search'] ?? ''));
+        $travelDate = $validated['travel_date'] ?? null;
+        $routeId = isset($validated['route_id']) ? (int) $validated['route_id'] : null;
+        $status = $validated['status'] ?? null;
+
+        $tickets = $this->allTicketRows($search, $travelDate, $routeId, $status)
+            ->paginate(getPaginate())
+            ->withQueryString();
+        $tickets->through(fn (SlipSeriesNumber $slip) => $this->allTicketData($slip));
+
+        $routes = VehicleRoute::query()
+            ->with(['startFrom:id,name', 'endTo:id,name'])
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['id', 'name', 'start_from', 'end_to']);
+
+        return view('admin.ticket.all', compact(
+            'pageTitle',
+            'tickets',
+            'routes',
+            'search',
+            'travelDate',
+            'routeId',
+            'status'
+        ));
     }
 
     public function search(Request $request, $scope)
@@ -770,6 +800,201 @@ class VehicleTicketController extends Controller
             ])
             ->orderByDesc('booked_ticket_id')
             ->orderBy('id');
+    }
+
+    private function allTicketRows(
+        string $search = '',
+        ?string $travelDate = null,
+        ?int $routeId = null,
+        ?string $status = null
+    ) {
+        $query = SlipSeriesNumber::query()
+            ->whereHas('bookedTicket')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($rowQuery) use ($search) {
+                    $rowQuery->where('id', 'like', "%{$search}%")
+                        ->orWhere('seat', 'like', "%{$search}%")
+                        ->orWhereHas('bookedTicket', function ($ticketQuery) use ($search) {
+                            $ticketQuery->where('pnr_number', 'like', "%{$search}%")
+                                ->orWhere('series_number', 'like', "%{$search}%")
+                                ->orWhere('passenger_manifest', 'like', "%{$search}%")
+                                ->orWhereHas('user', function ($userQuery) use ($search) {
+                                    $userQuery->where('firstname', 'like', "%{$search}%")
+                                        ->orWhere('lastname', 'like', "%{$search}%")
+                                        ->orWhere('username', 'like', "%{$search}%");
+                                })
+                                ->orWhereHas('kiosk', function ($kioskQuery) use ($search) {
+                                    $kioskQuery->where('name', 'like', "%{$search}%")
+                                        ->orWhere('uid', 'like', "%{$search}%");
+                                })
+                                ->orWhereHas('deposit', function ($depositQuery) use ($search) {
+                                    $depositQuery->where('trx', 'like', "%{$search}%")
+                                        ->orWhereHas('userDiscount', function ($discountQuery) use ($search) {
+                                            $discountQuery->where('passenger_name', 'like', "%{$search}%")
+                                                ->orWhere('id_number', 'like', "%{$search}%");
+                                        });
+                                })
+                                ->orWhereHas('paymentSourceDeposit', function ($depositQuery) use ($search) {
+                                    $depositQuery->where('trx', 'like', "%{$search}%")
+                                        ->orWhereHas('userDiscount', function ($discountQuery) use ($search) {
+                                            $discountQuery->where('passenger_name', 'like', "%{$search}%")
+                                                ->orWhere('id_number', 'like', "%{$search}%");
+                                        });
+                                })
+                                ->orWhereHas('pickup', fn ($counterQuery) => $counterQuery->where('name', 'like', "%{$search}%"))
+                                ->orWhereHas('drop', fn ($counterQuery) => $counterQuery->where('name', 'like', "%{$search}%"))
+                                ->orWhereHas('trip.fleetType', fn ($fleetQuery) => $fleetQuery->where('name', 'like', "%{$search}%"))
+                                ->orWhereHas('trip.route', fn ($routeQuery) => $routeQuery->where('name', 'like', "%{$search}%"));
+                        });
+                });
+            })
+            ->when($travelDate, function ($query) use ($travelDate) {
+                $query->whereHas('bookedTicket', fn ($ticketQuery) => $ticketQuery->whereDate('date_of_journey', $travelDate));
+            })
+            ->when($routeId, function ($query) use ($routeId) {
+                $query->whereHas('bookedTicket.trip', fn ($tripQuery) => $tripQuery->where('vehicle_route_id', $routeId));
+            });
+
+        $this->applyAllTicketStatusFilter($query, $status);
+
+        return $query
+            ->with([
+                'refund.processedBy:id,name,username',
+                'refund.authorizedBy:id,name,username',
+                'cancellation.processedBy:id,name,username',
+                'cancellation.authorizedBy:id,name,username',
+                'voidRecord.processedBy:id,name,username',
+                'voidRecord.authorizedBy:id,name,username',
+                'transactionEvents' => fn ($eventQuery) => $eventQuery
+                    ->where('status', 'Rebooked')
+                    ->with('admin:id,name,username')
+                    ->orderByDesc('processed_at')
+                    ->orderByDesc('id'),
+                'bookedTicket.trip.route',
+                'bookedTicket.trip.schedule',
+                'bookedTicket.trip.fleetType',
+                'bookedTicket.pickup',
+                'bookedTicket.drop',
+                'bookedTicket.user',
+                'bookedTicket.kiosk',
+                'bookedTicket.deposit.userDiscount',
+                'bookedTicket.paymentSourceDeposit.userDiscount',
+                'bookedTicket.slipSeriesNumbers',
+                'bookedTicket.approvedBy',
+            ])
+            ->orderByDesc('id');
+    }
+
+    private function applyAllTicketStatusFilter($query, ?string $status): void
+    {
+        if (!$status) {
+            return;
+        }
+
+        match ($status) {
+            'voided' => $query->whereHas('voidRecord'),
+            'refunded' => $query
+                ->whereDoesntHave('voidRecord')
+                ->whereHas('refund'),
+            'cancelled' => $query
+                ->whereDoesntHave('voidRecord')
+                ->whereDoesntHave('refund')
+                ->whereHas('cancellation'),
+            'rebooked' => $query
+                ->whereDoesntHave('voidRecord')
+                ->whereDoesntHave('refund')
+                ->whereDoesntHave('cancellation')
+                ->whereHas('transactionEvents', fn ($eventQuery) => $eventQuery->where('status', 'Rebooked')),
+            'booked' => $query
+                ->whereDoesntHave('voidRecord')
+                ->whereDoesntHave('refund')
+                ->whereDoesntHave('cancellation')
+                ->whereDoesntHave('transactionEvents', fn ($eventQuery) => $eventQuery->where('status', 'Rebooked'))
+                ->whereHas('bookedTicket', fn ($ticketQuery) => $ticketQuery->booked()),
+            'pending' => $this->filterAllTicketByBookingStatus($query, Status::BOOKED_PENDING),
+            'expired' => $this->filterAllTicketByBookingStatus($query, Status::BOOKED_EXPIRED),
+            'rejected' => $this->filterAllTicketByBookingStatus($query, Status::BOOKED_REJECTED),
+        };
+    }
+
+    private function filterAllTicketByBookingStatus($query, int $status): void
+    {
+        $query
+            ->whereDoesntHave('voidRecord')
+            ->whereDoesntHave('refund')
+            ->whereDoesntHave('cancellation')
+            ->whereDoesntHave('transactionEvents', fn ($eventQuery) => $eventQuery->where('status', 'Rebooked'))
+            ->whereHas('bookedTicket', fn ($ticketQuery) => $ticketQuery->where('status', $status));
+    }
+
+    private function allTicketData(SlipSeriesNumber $slip): array
+    {
+        $ticket = $slip->bookedTicket;
+        $rebooking = $slip->transactionEvents->first();
+        $passenger = app(\App\Services\TicketPassengerResolver::class)->forSeat($ticket, (string) $slip->seat);
+
+        $status = match (true) {
+            (bool) $slip->voidRecord => 'Voided',
+            (bool) $slip->refund => 'Refunded',
+            (bool) $slip->cancellation => 'Cancelled',
+            (bool) $rebooking => 'Rebooked',
+            $ticket->status === Status::BOOKED_APPROVED => 'Booked',
+            $ticket->status === Status::BOOKED_PENDING => 'Pending',
+            $ticket->status === Status::BOOKED_EXPIRED => 'Expired',
+            $ticket->status === Status::BOOKED_REJECTED => 'Rejected',
+            $ticket->status === Status::BOOKED_REFUNDED => 'Refunded',
+            $ticket->status === Status::BOOKED_CANCELLED => 'Cancelled',
+            $ticket->status === Status::BOOKED_VOIDED => 'Voided',
+            default => 'Unknown',
+        };
+
+        $statusRecord = match ($status) {
+            'Voided' => $slip->voidRecord,
+            'Refunded' => $slip->refund,
+            'Cancelled' => $slip->cancellation,
+            'Rebooked' => $rebooking,
+            default => null,
+        };
+        $processedBy = match ($status) {
+            'Voided', 'Refunded', 'Cancelled' => $statusRecord?->processedBy,
+            'Rebooked' => $rebooking?->admin,
+            default => $ticket->approvedBy,
+        };
+        $authorizedBy = in_array($status, ['Voided', 'Refunded', 'Cancelled'], true)
+            ? $statusRecord?->authorizedBy
+            : null;
+        $paymentRecord = $ticket->payment_record;
+
+        return [
+            'id' => $slip->id,
+            'pnr' => $ticket->pnr_number ?: '-',
+            'reference' => (string) $slip->id,
+            'journey_date' => $ticket->date_of_journey
+                ? Carbon::parse($ticket->date_of_journey)->format('M d, Y')
+                : '-',
+            'departure_time' => $ticket->trip?->schedule?->start_from
+                ? Carbon::parse($ticket->trip->schedule->start_from)->format('g:i A')
+                : '-',
+            'trip_class' => $ticket->trip?->fleetType?->name ?: '-',
+            'route' => trim(($ticket->pickup?->name ?: '') . ' - ' . ($ticket->drop?->name ?: ''), ' -') ?: '-',
+            'seat' => formatSeatLabel($slip->seat),
+            'fare' => $this->ticketFare($ticket, $slip),
+            'passenger_name' => $passenger['name'],
+            'passenger_type' => $passenger['type'],
+            'passenger_id' => $passenger['id_number'],
+            'source' => $ticket->kiosk_id ? ($ticket->kiosk?->name ?: 'Kiosk') : ($ticket->user_id ? 'Online' : 'Counter'),
+            'device_id' => $ticket->kiosk?->uid,
+            'payment_method' => $this->paymentMethod($ticket),
+            'transaction' => $paymentRecord?->trx,
+            'processed_by' => $processedBy?->name ?: $processedBy?->username ?: '-',
+            'authorized_by' => $authorizedBy?->name
+                ?: $authorizedBy?->username
+                ?: ($rebooking?->snapshot['authorized_by_name'] ?? $rebooking?->snapshot['authorized_by'] ?? null),
+            'status' => $status,
+            'reason' => $statusRecord?->reason,
+            'updated_at' => ($statusRecord?->processed_at ?? $statusRecord?->created_at ?? $slip->updated_at)?->format('M d, Y g:i A'),
+            'view_url' => route('admin.trip.reservationSlip', $ticket->id),
+        ];
     }
 
     public function ticketPriceList()
