@@ -397,8 +397,7 @@ class VehicleTicketController extends Controller
     public function confirmVoid(Request $request, $slip)
     {
         $validated = $request->validate([
-            'reason' => 'required|in:' . implode(',', $this->voidReasons()),
-            'remarks' => 'required|string|max:1000',
+            'reason' => 'required|string|max:100',
             'authorization_code' => 'required|string|max:100',
         ]);
 
@@ -437,7 +436,7 @@ class VehicleTicketController extends Controller
                 'original_fare' => $passenger['fare'],
                 'returned_amount' => $passenger['fare'],
                 'reason' => $validated['reason'],
-                'remarks' => $validated['remarks'],
+                'remarks' => '',
                 'transaction_snapshot' => $this->voidSnapshot($ticket, $slip, $passenger, $authorizedBy),
             ]);
             app(CashierTransactionRecorder::class)->recordVoid($ticketVoid);
