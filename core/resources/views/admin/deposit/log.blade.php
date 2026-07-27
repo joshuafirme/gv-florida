@@ -334,7 +334,14 @@
                                         </td>
                                         <td>
                                             @if ($status == 'pending')
-                                                <span class="pending-seats">{{ $displaySeats }}</span>
+                                                <span class="pending-seats small">
+                                                    @php
+                                                        $seats_arr = explode(', ', $displaySeats);
+                                                    @endphp
+                                                    @foreach ($seats_arr as $seat)
+                                                        <div>{{ $seat }}</div>
+                                                    @endforeach
+                                                </span>
                                             @else
                                                 {{ $displaySeats }}
                                             @endif
