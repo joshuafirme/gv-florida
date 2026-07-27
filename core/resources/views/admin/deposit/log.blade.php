@@ -112,9 +112,7 @@
                                         @endif
                                         <th>Trip</th>
                                         <th>Seats</th>
-                                        @if ($status == 'pending')
-                                            <th>@lang('Passenger')</th>
-                                        @endif
+                                        <th>@lang('Passenger')</th>
                                         <th>
                                             @lang('Amount')
                                             @if ($status == 'pending')
@@ -123,8 +121,6 @@
                                         </th>
                                         @if ($status == 'pending')
                                             <th>@lang('Payment Method')</th>
-                                        @else
-                                            <th>@lang('Passenger type')</th>
                                         @endif
                                         <th>@lang('Status')</th>
                                         @if ($status == 'pending')
@@ -139,10 +135,35 @@
                                     @php
                                         $details = $deposit->detail ? json_encode($deposit->detail) : null;
                                         $ticket = $deposit->bookedTicket;
-                                        $seats = collect($ticket?->seats ?: [])->filter()->values();
-                                        $displaySeats = formatSeatLabel($seats);
-                                        $seatCount = $seats->count();
                                         $manifest = collect($ticket?->passenger_manifest ?: ($deposit->userDiscount?->passenger_manifest ?: []));
+                                        $seats = collect($ticket?->seats ?: $manifest->pluck('seat')->all())
+                                            ->map(fn ($seat) => trim((string) $seat))
+                                            ->filter()
+                                            ->unique()
+                                            ->values();
+                                        $seatCount = $seats->count();
+                                        $passengerResolver = app(\App\Services\TicketPassengerResolver::class);
+                                        if ($ticket) {
+                                            $ticket->setRelation('deposit', $deposit);
+                                            $ticket->setRelation('user', $deposit->user);
+                                        }
+                                        $ticketRows = $seats->map(function ($seat) use ($ticket, $deposit, $passengerResolver) {
+                                            $passenger = $ticket
+                                                ? $passengerResolver->forSeat($ticket, $seat)
+                                                : [
+                                                    'name' => $deposit->user?->fullname ?: __('Guest'),
+                                                    'type' => getPassengerType($deposit),
+                                                    'id_number' => $deposit->userDiscount?->id_number,
+                                                ];
+
+                                            return [
+                                                'seat' => $seat,
+                                                'name' => $passenger['name'] ?: __('Guest'),
+                                                'type' => $passenger['type'] ?: __('Regular'),
+                                                'id_number' => $passenger['id_number'] ?? null,
+                                            ];
+                                        });
+                                        $depositListKey = 'deposit-' . $deposit->id;
                                         $discountAmount = (float) ($deposit->userDiscount?->amount ?? 0);
                                         $gatewayName = $deposit->method_code >= 5000
                                             ? __('Google Pay')
@@ -211,21 +232,11 @@
                                                     {{ $ticket?->trip?->schedule?->start_from ? date('g:i A', strtotime($ticket->trip->schedule->start_from)) : '-' }}
                                                 </span>
                                             </td>
-                                            <td><span class="pending-seats">{{ $displaySeats }}</span></td>
                                             <td>
-                                                <div class="pending-passengers">
-                                                    @forelse ($manifest as $passenger)
-                                                        <span>
-                                                            <strong>{{ ($passenger['name'] ?? null) ?: __('Guest') }}</strong>
-                                                            &middot; {{ ($passenger['passenger_type'] ?? 'regular') === 'discounted' ? ($passenger['discount_name'] ?? __('Discounted')) : __('Regular') }}
-                                                            @if (!empty($passenger['id_number']))
-                                                                &middot; ID {{ $passenger['id_number'] }}
-                                                            @endif
-                                                        </span>
-                                                    @empty
-                                                        <span><strong>{{ $deposit->user?->fullname ?: __('Guest') }}</strong> &middot; {{ getPassengerType($deposit) }}</span>
-                                                    @endforelse
-                                                </div>
+                                                @include('admin.deposit.partials.ticket-list', ['column' => 'seat'])
+                                            </td>
+                                            <td>
+                                                @include('admin.deposit.partials.ticket-list', ['column' => 'passenger'])
                                             </td>
                                             <td class="pending-amount-cell">
                                                 <span class="pending-fare-line">@lang('Base Fare'): {{ showAmount($deposit->amount) }}</span>
@@ -333,36 +344,11 @@
                                             @endif
                                         </td>
                                         <td>
-                                            @if ($status == 'pending')
-                                                <span class="pending-seats small">
-                                                    @php
-                                                        $seats_arr = explode(', ', $displaySeats);
-                                                    @endphp
-                                                    @foreach ($seats_arr as $seat)
-                                                        <div>{{ $seat }}</div>
-                                                    @endforeach
-                                                </span>
-                                            @else
-                                                {{ $displaySeats }}
-                                            @endif
+                                            @include('admin.deposit.partials.ticket-list', ['column' => 'seat'])
                                         </td>
-                                        @if ($status == 'pending')
-                                            <td>
-                                                <div class="pending-passengers">
-                                                    @forelse ($manifest as $passenger)
-                                                        <span>
-                                                            <strong>{{ ($passenger['name'] ?? null) ?: __('Guest') }}</strong>
-                                                            &middot; {{ ($passenger['passenger_type'] ?? 'regular') === 'discounted' ? ($passenger['discount_name'] ?? __('Discounted')) : __('Regular') }}
-                                                            @if (!empty($passenger['id_number']))
-                                                                &middot; ID {{ $passenger['id_number'] }}
-                                                            @endif
-                                                        </span>
-                                                    @empty
-                                                        <span><strong>{{ $deposit->user?->fullname ?: __('Guest') }}</strong> &middot; {{ getPassengerType($deposit) }}</span>
-                                                    @endforelse
-                                                </div>
-                                            </td>
-                                        @endif
+                                        <td>
+                                            @include('admin.deposit.partials.ticket-list', ['column' => 'passenger'])
+                                        </td>
                                         <td class="{{ $status == 'pending' ? 'pending-amount-cell' : '' }}">
                                             @if ($status == 'pending')
                                                 <span class="pending-fare-line">@lang('Base Fare'): {{ showAmount($deposit->amount) }}</span>
@@ -377,8 +363,6 @@
                                         </td>
                                         @if ($status == 'pending')
                                             <td><span class="pending-cell-title">{{ $gatewayName ?: __('Payment') }}</span></td>
-                                        @else
-                                            <td>{{ getPassengerType($deposit) }}</td>
                                         @endif
                                         <td>
                                             @if ($status == 'pending')
@@ -739,6 +723,84 @@
             color: #303640;
         }
 
+        .deposit-ticket-list {
+            min-width: 84px;
+        }
+
+        .deposit-ticket-list--passengers {
+            min-width: 190px;
+        }
+
+        .deposit-ticket-list__row {
+            display: flex;
+            flex-direction: column;
+            height: 42px;
+            justify-content: center;
+            min-width: 0;
+            padding: 3px 0;
+        }
+
+        .deposit-ticket-list__row + .deposit-ticket-list__row {
+            border-top: 1px solid #eef0f3;
+        }
+
+        .deposit-ticket-list__row strong,
+        .deposit-ticket-list__row span {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .deposit-ticket-list--seats .deposit-ticket-list__row strong {
+            color: #353c47;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .deposit-ticket-list--passengers .deposit-ticket-list__row strong {
+            color: #303640;
+            font-size: 11px;
+        }
+
+        .deposit-ticket-list--passengers .deposit-ticket-list__row span {
+            color: #747b88;
+            font-size: 10px;
+            margin-top: 2px;
+        }
+
+        .deposit-ticket-list__toggle {
+            align-items: center;
+            background: transparent;
+            border: 0;
+            color: #df257b;
+            display: inline-flex;
+            font-size: 11px;
+            font-weight: 700;
+            gap: 5px;
+            margin-top: 5px;
+            padding: 3px 0;
+        }
+
+        .deposit-ticket-list__toggle:hover,
+        .deposit-ticket-list__toggle:focus {
+            color: #b91560;
+        }
+
+        .deposit-ticket-list__toggle i {
+            transition: transform .2s ease;
+        }
+
+        .deposit-ticket-list__toggle.is-expanded i {
+            transform: rotate(180deg);
+        }
+
+        .deposit-ticket-list__count {
+            color: #747b88;
+            font-weight: 600;
+        }
+
         .pending-payments-table .pending-discount-line {
             color: #f47b20;
             font-size: 11px;
@@ -1078,6 +1140,25 @@
     <script>
         (function($) {
             "use strict"
+
+            $(document).on('click', '.deposit-ticket-list__toggle', function() {
+                const group = String($(this).data('deposit-list-toggle'));
+                const expanding = $(this).attr('aria-expanded') !== 'true';
+
+                $('.deposit-ticket-list').filter(function() {
+                    return String($(this).data('deposit-list-content')) === group;
+                }).find('.deposit-ticket-list__row.is-extra').toggleClass('d-none', !expanding);
+
+                $('.deposit-ticket-list__toggle').filter(function() {
+                    return String($(this).data('deposit-list-toggle')) === group;
+                }).each(function() {
+                    $(this)
+                        .attr('aria-expanded', expanding ? 'true' : 'false')
+                        .toggleClass('is-expanded', expanding)
+                        .find('[data-deposit-list-label]')
+                        .text(expanding ? @json(__('View less')) : @json(__('View more')));
+                });
+            });
 
             @if ($status == 'pending')
                 const currencyFormatter = new Intl.NumberFormat('en-PH', {
