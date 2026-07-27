@@ -187,9 +187,10 @@
             <input type="date" name="date" value="{{ $date->format('Y-m-d') }}"
                 max="{{ now()->format('Y-m-d') }}" aria-label="Business date">
         </form>
-        <button type="button" class="btn btn--primary" onclick="window.print()">
+        <a class="btn btn--primary" target="_blank"
+            href="{{ route('admin.report.daily.pdf', ['date' => $date->format('Y-m-d')]) }}">
             <i class="las la-print"></i> Print Daily Report
-        </button>
+        </a>
     </div>
 @endpush
 

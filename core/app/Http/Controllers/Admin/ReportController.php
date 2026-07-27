@@ -95,14 +95,66 @@ class ReportController extends Controller
 
     public function shiftEnd(Request $request)
     {
+        $pageTitle = 'Shift End Report';
+        $admin = auth('admin')->user();
+        $date = $this->reportDate($request);
+        $report = $this->shiftEndData($admin, $date);
+
+        return view('admin.reports.shift-end', compact(
+            'pageTitle',
+            'admin',
+            'date'
+        ) + $report);
+    }
+
+    public function shiftEndPdf(Request $request)
+    {
+        $admin = auth('admin')->user();
+        $date = $this->reportDate($request);
+        $report = $this->shiftEndData($admin, $date);
+        $filename = 'shift-end-report-' . $date->format('Y-m-d') . '.pdf';
+
+        return Pdf::setOptions($this->reportPdfOptions())
+            ->loadView('admin.pdf.shift-end-report', compact('admin', 'date') + $report)
+            ->setPaper('legal', 'landscape')
+            ->stream($filename);
+    }
+
+    public function daily(Request $request, DailyReportService $dailyReportService)
+    {
+        $pageTitle = 'Daily Report';
+        $date = $this->reportDate($request);
+        $report = $dailyReportService->forDate($date);
+
+        return view('admin.reports.daily', array_merge(
+            compact('pageTitle', 'date'),
+            $report
+        ));
+    }
+
+    public function dailyPdf(Request $request, DailyReportService $dailyReportService)
+    {
+        $date = $this->reportDate($request);
+        $report = $dailyReportService->forDate($date);
+        $filename = 'daily-report-' . $date->format('Y-m-d') . '.pdf';
+
+        return Pdf::setOptions($this->reportPdfOptions())
+            ->loadView('admin.pdf.daily-report', compact('date') + $report)
+            ->setPaper('legal', 'landscape')
+            ->stream($filename);
+    }
+
+    private function reportDate(Request $request): Carbon
+    {
         $request->validate([
             'date' => 'nullable|date|before_or_equal:today',
         ]);
 
-        $pageTitle = 'Shift End Report';
-        $admin = auth('admin')->user();
-        $date = Carbon::parse($request->date ?: now())->startOfDay();
+        return Carbon::parse($request->date ?: now())->startOfDay();
+    }
 
+    private function shiftEndData(Admin $admin, Carbon $date): array
+    {
         app(CashierTransactionRecorder::class)->backfillForDate($admin, $date);
 
         $transactions = CashierTransactionEvent::bookingTransactions()
@@ -112,31 +164,20 @@ class ReportController extends Controller
             ->orderBy('id')
             ->get();
 
-        $summary = app(CashierDashboardService::class)->summarize($transactions);
-
-        return view('admin.reports.shift-end', compact(
-            'pageTitle',
-            'admin',
-            'date',
-            'transactions',
-            'summary'
-        ));
+        return [
+            'transactions' => $transactions,
+            'summary' => app(CashierDashboardService::class)->summarize($transactions),
+        ];
     }
 
-    public function daily(Request $request, DailyReportService $dailyReportService)
+    private function reportPdfOptions(): array
     {
-        $request->validate([
-            'date' => 'nullable|date|before_or_equal:today',
-        ]);
-
-        $pageTitle = 'Daily Report';
-        $date = Carbon::parse($request->date ?: now())->startOfDay();
-        $report = $dailyReportService->forDate($date);
-
-        return view('admin.reports.daily', array_merge(
-            compact('pageTitle', 'date'),
-            $report
-        ));
+        return [
+            'defaultFont' => 'DejaVu Sans',
+            'dpi' => 96,
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+        ];
     }
 
     public function transaction(Request $request, $userId = null)
