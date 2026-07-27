@@ -252,18 +252,19 @@ class CashierTransactionRecorder
     private function ticketSnapshot(BookedTicket $ticket, SlipSeriesNumber $slip): array
     {
         $ticket->loadMissing($this->ticketRelations());
+        $deposit = $ticket->payment_record;
         $passenger = $this->passengerResolver->forSeat($ticket, (string) $slip->seat);
         $manifestEntry = $passenger['entry'];
         $slipCount = max($ticket->slipSeriesNumbers->count(), 1);
         $baseFare = (float) ($manifestEntry['base_fare'] ?? $ticket->unit_price ?? 0);
         $discountAmount = (float) ($manifestEntry['discount_amount'] ?? 0);
-        $surchargeAmount = (float) ($ticket->deposit?->charge ?? 0) / $slipCount;
+        $surchargeAmount = (float) ($deposit?->charge ?? 0) / $slipCount;
 
-        if (!$passenger['manifest_found'] && $ticket->deposit?->userDiscount) {
-            $percentage = (float) ($ticket->deposit->userDiscount->percentage ?? 0);
+        if (!$passenger['manifest_found'] && $deposit?->userDiscount) {
+            $percentage = (float) ($deposit->userDiscount->percentage ?? 0);
             $discountAmount = $percentage > 0
                 ? $baseFare * ($percentage / 100)
-                : (float) ($ticket->deposit->userDiscount->amount ?? 0) / $slipCount;
+                : (float) ($deposit->userDiscount->amount ?? 0) / $slipCount;
         }
 
         $fare = (float) ($manifestEntry['fare'] ?? max($baseFare - $discountAmount, 0));
@@ -271,7 +272,7 @@ class CashierTransactionRecorder
         return [
             'booked_ticket_id' => $ticket->id,
             'slip_series_number_id' => $slip->id,
-            'deposit_id' => $ticket->deposit?->id,
+            'deposit_id' => $deposit?->id,
             'source' => $ticket->kiosk_id ? 'Kiosk' : ($ticket->user_id ? 'Online' : 'Counter'),
             'pnr' => $ticket->pnr_number,
             'reference_no' => (string) $slip->id,
@@ -288,7 +289,7 @@ class CashierTransactionRecorder
             'seat_no' => $slip->seat,
             'drop_off' => $ticket->drop?->name,
             'km_post' => $ticket->drop?->km_post,
-            'payment_method' => $this->paymentMethod($ticket->deposit),
+            'payment_method' => $this->paymentMethod($deposit),
             'base_fare' => round($baseFare, 2),
             'discount_amount' => round($discountAmount, 2),
             'surcharge_amount' => round($surchargeAmount, 2),
@@ -352,6 +353,7 @@ class CashierTransactionRecorder
             $prefix . 'user',
             $prefix . 'kiosk',
             $prefix . 'deposit.userDiscount',
+            $prefix . 'paymentSourceDeposit.userDiscount',
             $prefix . 'slipSeriesNumbers',
         ];
     }

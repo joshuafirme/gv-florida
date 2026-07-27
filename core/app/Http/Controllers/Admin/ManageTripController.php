@@ -562,7 +562,17 @@ class ManageTripController extends Controller
 
     public function reservationSlip($id = null)
     {
-        $ticket = BookedTicket::find($id);
+        $ticket = BookedTicket::with([
+            'deposit.userDiscount',
+            'paymentSourceDeposit.userDiscount',
+            'trip.route',
+            'trip.schedule',
+            'trip.fleetType',
+            'pickup',
+            'drop',
+            'slipSeriesNumbers',
+        ])->findOrFail($id);
+        $ticket->setRelation('deposit', $ticket->payment_record);
 
         $dir = 'assets/admin/contents/';
         $file = "{$dir}reservation-slip-$ticket->pickup_point.json";

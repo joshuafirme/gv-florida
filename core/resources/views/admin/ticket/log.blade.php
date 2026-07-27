@@ -36,32 +36,33 @@
                                     @php
                                         $ticketSlip = !empty($ticketRows) ? $item : null;
                                         $item = $ticketSlip ? $ticketSlip->bookedTicket : $item;
+                                        $paymentRecord = $item->payment_record;
                                         $slipCount = max($item->slipSeriesNumbers->count(), 1);
-                                        $manifest = collect($item->passenger_manifest ?: ($item->deposit?->userDiscount?->passenger_manifest ?: []));
+                                        $manifest = collect($item->passenger_manifest ?: ($paymentRecord?->userDiscount?->passenger_manifest ?: []));
                                         $seatPassenger = $ticketSlip
                                             ? $manifest->first(fn ($passenger) => (string) ($passenger['seat'] ?? '') === (string) $ticketSlip->seat)
                                             : null;
                                         $ticketOriginalFare = $ticketSlip
-                                            ? (float) ($seatPassenger['base_fare'] ?? $item->unit_price ?? (($item->deposit?->amount ?? $item->sub_total) / $slipCount))
+                                            ? (float) ($seatPassenger['base_fare'] ?? $item->unit_price ?? (($paymentRecord?->amount ?? $item->sub_total) / $slipCount))
                                             : (float) $item->sub_total;
-                                        $discountPercentage = (float) ($seatPassenger['discount_percentage'] ?? $item->deposit?->userDiscount?->percentage ?? 0);
+                                        $discountPercentage = (float) ($seatPassenger['discount_percentage'] ?? $paymentRecord?->userDiscount?->percentage ?? 0);
                                         $ticketDiscount = $seatPassenger
                                             ? (float) ($seatPassenger['discount_amount'] ?? ($discountPercentage > 0 ? $ticketOriginalFare * ($discountPercentage / 100) : 0))
-                                            : ($ticketSlip && $item->deposit?->userDiscount
-                                                ? $item->deposit->userDiscount->amount / $slipCount
+                                            : ($ticketSlip && $paymentRecord?->userDiscount
+                                                ? $paymentRecord->userDiscount->amount / $slipCount
                                                 : 0);
                                         $ticketFare = $ticketSlip
                                             ? (float) ($seatPassenger['fare'] ?? max($ticketOriginalFare - $ticketDiscount, 0))
                                             : (float) $item->sub_total;
                                         $passengerName = $seatPassenger
                                             ? ($seatPassenger['name'] ?: 'Guest')
-                                            : ($item->deposit?->userDiscount?->passenger_name ?: ($item->user?->fullname ?: 'Guest'));
+                                            : ($paymentRecord?->userDiscount?->passenger_name ?: ($item->user?->fullname ?: 'Guest'));
                                         $passengerType = $seatPassenger
                                             ? (($seatPassenger['passenger_type'] ?? 'regular') === 'discounted'
                                                 ? ($seatPassenger['discount_name'] ?: 'Discounted')
                                                 : 'Regular')
-                                            : getPassengerType($item?->deposit);
-                                        $passengerIdNumber = $seatPassenger['id_number'] ?? $item->deposit?->userDiscount?->id_number;
+                                            : getPassengerType($paymentRecord);
+                                        $passengerIdNumber = $seatPassenger['id_number'] ?? $paymentRecord?->userDiscount?->id_number;
                                     @endphp
                                     <tr>
                                         <td data-label="@lang('User')">
@@ -136,10 +137,10 @@
                                         </td>
                                         <td>{{ $item->kiosk_id ? $item?->kiosk?->name : 'Online' }}</td>
                                         <td>
-                                            @if ($item?->deposit && $item?->deposit?->pchannel)
-                                                {{ readPaymentChannel($item->deposit->pchannel) }}
-                                            @elseif($item->deposit)
-                                                {{ $item->deposit->gatewayCurrency()->name }}
+                                            @if ($paymentRecord?->pchannel)
+                                                {{ readPaymentChannel($paymentRecord->pchannel) }}
+                                            @elseif($paymentRecord)
+                                                {{ $paymentRecord->gatewayCurrency()?->name }}
                                             @endif
                                         </td>
                                         <td>
@@ -147,7 +148,7 @@
                                                 {{ $item->approvedBy->name }}
                                             @elseif ($item->kiosk_id)
                                                 {{ $item->kiosk->name }}
-                                            @elseif ($item?->deposit && $item->deposit?->pchannel)
+                                            @elseif ($paymentRecord?->pchannel)
                                                 Paynamics
                                             @endif
                                         </td>

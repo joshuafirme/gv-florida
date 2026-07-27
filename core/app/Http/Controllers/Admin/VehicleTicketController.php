@@ -192,17 +192,18 @@ class VehicleTicketController extends Controller
     {
         $slip = $this->refundableSlip($slip);
         $ticket = $slip->bookedTicket;
-        $fare = $this->ticketFare($ticket);
+        $deposit = $ticket->payment_record;
+        $fare = $this->ticketFare($ticket, $slip);
 
         return response()->json([
             'slip_id' => $slip->id,
             'booking_id' => $ticket->id,
             'pnr' => $ticket->pnr_number,
             'reference' => (string) $slip->id,
-            'passenger_name' => $ticket->deposit?->userDiscount?->passenger_name
+            'passenger_name' => $deposit?->userDiscount?->passenger_name
                 ?: $ticket->user?->fullname
                 ?: 'Guest',
-            'passenger_type' => getPassengerType($ticket->deposit),
+            'passenger_type' => getPassengerType($deposit),
             'seat' => $slip->seat,
             'fare' => $fare,
             'default_refund' => round($fare * 0.5, 2),
@@ -246,7 +247,7 @@ class VehicleTicketController extends Controller
                 ->lockForUpdate()
                 ->findOrFail($slip);
             $ticket = $slip->bookedTicket;
-            $fare = $this->ticketFare($ticket);
+            $fare = $this->ticketFare($ticket, $slip);
 
             if ((float) $validated['refund_amount'] > $fare) {
                 throw ValidationException::withMessages([
@@ -295,17 +296,18 @@ class VehicleTicketController extends Controller
     {
         $slip = $this->cancellableSlip($slip);
         $ticket = $slip->bookedTicket;
-        $fare = $this->ticketFare($ticket);
+        $deposit = $ticket->payment_record;
+        $fare = $this->ticketFare($ticket, $slip);
 
         return response()->json([
             'slip_id' => $slip->id,
             'booking_id' => $ticket->id,
             'pnr' => $ticket->pnr_number,
             'reference' => (string) $slip->id,
-            'passenger_name' => $ticket->deposit?->userDiscount?->passenger_name
+            'passenger_name' => $deposit?->userDiscount?->passenger_name
                 ?: $ticket->user?->fullname
                 ?: 'Guest',
-            'passenger_type' => getPassengerType($ticket->deposit),
+            'passenger_type' => getPassengerType($deposit),
             'seat' => $slip->seat,
             'fare' => $fare,
             'processed_by' => auth('admin')->user()->name,
@@ -374,7 +376,7 @@ class VehicleTicketController extends Controller
                 ->lockForUpdate()
                 ->findOrFail($slip);
             $ticket = $slip->bookedTicket;
-            $fare = $this->ticketFare($ticket);
+            $fare = $this->ticketFare($ticket, $slip);
 
             $cancellation = TicketCancellation::create([
                 'booked_ticket_id' => $ticket->id,
@@ -613,7 +615,8 @@ class VehicleTicketController extends Controller
 
     private function ticketPassenger(BookedTicket $ticket, SlipSeriesNumber $slip): array
     {
-        $manifest = collect($ticket->passenger_manifest ?: ($ticket->deposit?->userDiscount?->passenger_manifest ?: []));
+        $deposit = $ticket->payment_record;
+        $manifest = collect($ticket->passenger_manifest ?: ($deposit?->userDiscount?->passenger_manifest ?: []));
         $passenger = $manifest->first(fn ($item) => (string) ($item['seat'] ?? '') === (string) $slip->seat) ?: [];
         $discounted = ($passenger['passenger_type'] ?? 'regular') === 'discounted';
 
@@ -621,28 +624,40 @@ class VehicleTicketController extends Controller
             'name' => ($passenger['name'] ?? null) ?: ($ticket->user?->fullname ?: 'Guest'),
             'type' => $passenger
                 ? ($discounted ? ($passenger['discount_name'] ?? 'Discounted') : 'Regular')
-                : getPassengerType($ticket->deposit),
+                : getPassengerType($deposit),
             'id_number' => $passenger['id_number'] ?? null,
-            'fare' => round((float) ($passenger['fare'] ?? $this->ticketFare($ticket)), 2),
+            'fare' => round((float) ($passenger['fare'] ?? $this->ticketFare($ticket, $slip)), 2),
         ];
     }
 
     private function paymentMethod(BookedTicket $ticket): string
     {
-        if (!$ticket->deposit) {
+        $deposit = $ticket->payment_record;
+
+        if (!$deposit) {
             return '-';
         }
 
-        if ($ticket->deposit->pchannel) {
-            return readPaymentChannel($ticket->deposit->pchannel);
+        if ($deposit->pchannel) {
+            return readPaymentChannel($deposit->pchannel);
         }
 
-        return $ticket->deposit->gatewayCurrency()?->name ?: '-';
+        return $deposit->gatewayCurrency()?->name ?: '-';
     }
 
     private function voidSnapshot(BookedTicket $ticket, SlipSeriesNumber $slip, array $passenger, Admin $authorizedBy): array
     {
-        $ticket->loadMissing(['trip.route', 'trip.schedule', 'trip.fleetType', 'pickup', 'drop', 'kiosk', 'deposit']);
+        $ticket->loadMissing([
+            'trip.route',
+            'trip.schedule',
+            'trip.fleetType',
+            'pickup',
+            'drop',
+            'kiosk',
+            'deposit',
+            'paymentSourceDeposit',
+        ]);
+        $deposit = $ticket->payment_record;
 
         return [
             'booked_ticket_id' => $ticket->id,
@@ -652,10 +667,10 @@ class VehicleTicketController extends Controller
             'dropping_point_id' => $ticket->dropping_point,
             'user_id' => $ticket->user_id,
             'kiosk_id' => $ticket->kiosk_id,
-            'deposit_id' => $ticket->deposit?->id,
+            'deposit_id' => $deposit?->id,
             'pnr' => $ticket->pnr_number,
             'reference' => (string) $slip->id,
-            'transaction' => $ticket->deposit?->trx ?: '-',
+            'transaction' => $deposit?->trx ?: '-',
             'route_name' => $ticket->trip?->route?->name ?: '-',
             'trip_route' => $ticket->pickup?->name . ' - ' . $ticket->drop?->name,
             'bus_type' => $ticket->trip?->fleetType?->name ?: '-',
@@ -677,10 +692,22 @@ class VehicleTicketController extends Controller
         ];
     }
 
-    private function ticketFare(BookedTicket $ticket): float
+    private function ticketFare(BookedTicket $ticket, ?SlipSeriesNumber $slip = null): float
     {
+        if ($slip) {
+            $passenger = app(\App\Services\TicketPassengerResolver::class)
+                ->forSeat($ticket, (string) $slip->seat);
+            if (isset($passenger['entry']['fare'])) {
+                return round((float) $passenger['entry']['fare'], 2);
+            }
+        }
+
+        if ((float) $ticket->unit_price > 0) {
+            return round((float) $ticket->unit_price, 2);
+        }
+
         $ticketCount = max($ticket->slipSeriesNumbers->count(), 1);
-        $total = (float) ($ticket->deposit?->final_amount ?? 0);
+        $total = (float) ($ticket->payment_record?->final_amount ?? 0);
         if ($total <= 0) {
             $total = (float) $ticket->sub_total;
         }
@@ -750,6 +777,9 @@ class VehicleTicketController extends Controller
             ->whereDoesntHave('refund')
             ->whereDoesntHave('cancellation')
             ->whereDoesntHave('voidRecord')
+            ->whereDoesntHave('transactionEvents', function ($query) {
+                $query->where('status', 'Rebooked');
+            })
             ->whereHas('bookedTicket', function ($query) {
                 $query->booked();
             })
@@ -774,6 +804,7 @@ class VehicleTicketController extends Controller
                 'bookedTicket.user',
                 'bookedTicket.kiosk',
                 'bookedTicket.deposit.userDiscount',
+                'bookedTicket.paymentSourceDeposit.userDiscount',
                 'bookedTicket.slipSeriesNumbers',
                 'bookedTicket.approvedBy',
             ])
@@ -1250,7 +1281,16 @@ class VehicleTicketController extends Controller
 
         $result = DB::transaction(function () use ($id, $validated, $slipId) {
             $ticket = BookedTicket::booked()
-                ->with(['trip.route', 'trip.schedule', 'trip.fleetType', 'pickup', 'drop', 'activeSlipSeriesNumbers', 'deposit.userDiscount'])
+                ->with([
+                    'trip.route',
+                    'trip.schedule',
+                    'trip.fleetType',
+                    'pickup',
+                    'drop',
+                    'activeSlipSeriesNumbers',
+                    'deposit.userDiscount',
+                    'paymentSourceDeposit.userDiscount',
+                ])
                 ->lockForUpdate()
                 ->findOrFail($id);
             $targetSlips = $this->rebookingSlips($ticket, $slipId);
@@ -1331,6 +1371,7 @@ class VehicleTicketController extends Controller
                 'slipSeriesNumbers',
                 'activeSlipSeriesNumbers',
                 'deposit.userDiscount',
+                'paymentSourceDeposit.userDiscount',
                 'user',
             ])
             ->findOrFail($id);
@@ -1464,6 +1505,7 @@ class VehicleTicketController extends Controller
         $oldSeats = $targetSlips->pluck('seat')->values()->all();
 
         if ($isPartial && $movesTripOrDate) {
+            $paymentRecord = $ticket->payment_record;
             $newTicket = $ticket->replicate();
             $newTicket->trip_id = $trip->id;
             $newTicket->date_of_journey = $date;
@@ -1472,6 +1514,7 @@ class VehicleTicketController extends Controller
             $newTicket->sub_total = count($requestedSeats) * (float) $ticket->unit_price;
             $newTicket->passenger_manifest = null;
             $newTicket->is_rebooked = 1;
+            $newTicket->payment_source_deposit_id = $paymentRecord?->id;
             $newTicket->save();
 
             foreach ($targetSlips as $index => $slip) {
@@ -1481,12 +1524,20 @@ class VehicleTicketController extends Controller
             }
 
             $this->movePassengerManifest($ticket, $newTicket, $oldSeats, $requestedSeats);
-            $this->splitDepositForRebooking($ticket, $newTicket, $oldSeats, $requestedSeats, $allActiveSlips->count());
 
-            $ticket->is_rebooked = 1;
             $this->syncTicketSeats($ticket);
+            $this->syncRebookingFlag($ticket);
 
-            return $newTicket->load(['trip.route', 'trip.schedule', 'trip.fleetType', 'pickup', 'drop', 'activeSlipSeriesNumbers', 'deposit.userDiscount']);
+            return $newTicket->load([
+                'trip.route',
+                'trip.schedule',
+                'trip.fleetType',
+                'pickup',
+                'drop',
+                'activeSlipSeriesNumbers',
+                'deposit.userDiscount',
+                'paymentSourceDeposit.userDiscount',
+            ]);
         }
 
         foreach ($targetSlips as $index => $slip) {
@@ -1500,7 +1551,16 @@ class VehicleTicketController extends Controller
         $this->replacePassengerManifestSeats($ticket, $oldSeats, $requestedSeats);
         $this->syncTicketSeats($ticket);
 
-        return $ticket->fresh(['trip.route', 'trip.schedule', 'trip.fleetType', 'pickup', 'drop', 'activeSlipSeriesNumbers', 'deposit.userDiscount']);
+        return $ticket->fresh([
+            'trip.route',
+            'trip.schedule',
+            'trip.fleetType',
+            'pickup',
+            'drop',
+            'activeSlipSeriesNumbers',
+            'deposit.userDiscount',
+            'paymentSourceDeposit.userDiscount',
+        ]);
     }
 
     private function syncTicketSeats(BookedTicket $ticket): void
@@ -1516,6 +1576,14 @@ class VehicleTicketController extends Controller
         $ticket->seats = $seats;
         $ticket->ticket_count = count($seats);
         $ticket->sub_total = count($seats) * (float) $ticket->unit_price;
+        $ticket->save();
+    }
+
+    private function syncRebookingFlag(BookedTicket $ticket): void
+    {
+        $ticket->is_rebooked = $ticket->slipSeriesNumbers()
+            ->whereHas('transactionEvents', fn ($query) => $query->where('status', 'Rebooked'))
+            ->exists();
         $ticket->save();
     }
 
@@ -1569,62 +1637,6 @@ class VehicleTicketController extends Controller
         return [$moving, $remaining];
     }
 
-    private function splitDepositForRebooking(BookedTicket $sourceTicket, BookedTicket $targetTicket, array $oldSeats, array $newSeats, int $originalSeatCount): void
-    {
-        $deposit = $sourceTicket->deposit()->with('userDiscount')->lockForUpdate()->first();
-
-        if (!$deposit || $originalSeatCount <= count($oldSeats)) {
-            return;
-        }
-
-        $movingCount = count($oldSeats);
-        $remainingCount = $originalSeatCount - $movingCount;
-        $newDeposit = $deposit->replicate();
-        $newDeposit->booked_ticket_id = $targetTicket->id;
-        $newDeposit->trx = generateReqID('GVF-RB');
-        $this->scaleMonetaryAttributes($newDeposit, $movingCount, $originalSeatCount);
-        $newDeposit->save();
-
-        $this->scaleMonetaryAttributes($deposit, $remainingCount, $originalSeatCount);
-        $deposit->save();
-
-        if (!$deposit->userDiscount) {
-            return;
-        }
-
-        $discount = $deposit->userDiscount;
-        $newDiscount = $discount->replicate();
-        $newDiscount->deposit_id = $newDeposit->id;
-        $newDiscount->amount = $this->proportionalAmount($discount->amount, $movingCount, $originalSeatCount);
-
-        [$movingManifest, $remainingManifest] = $this->partitionManifestBySeats(
-            collect($discount->passenger_manifest ?? []),
-            $oldSeats,
-            $newSeats
-        );
-
-        $newDiscount->passenger_manifest = $movingManifest ?: null;
-        $newDiscount->save();
-
-        $discount->amount = $this->proportionalAmount($discount->amount, $remainingCount, $originalSeatCount);
-        $discount->passenger_manifest = $remainingManifest ?: null;
-        $discount->save();
-    }
-
-    private function scaleMonetaryAttributes($model, int $count, int $total): void
-    {
-        foreach (['amount', 'charge', 'final_amount', 'method_amount'] as $field) {
-            if (array_key_exists($field, $model->getAttributes()) && $model->{$field} !== null) {
-                $model->{$field} = $this->proportionalAmount($model->{$field}, $count, $total);
-            }
-        }
-    }
-
-    private function proportionalAmount($amount, int $count, int $total): float
-    {
-        return round(((float) $amount * $count) / max($total, 1), 2);
-    }
-
     private function seatAvailability(BookedTicket $ticket, Trip $trip, string $date, bool $lock = false, $targetSlips = null): array
     {
         $seatConflicts = app(SeatConflictService::class);
@@ -1673,6 +1685,7 @@ class VehicleTicketController extends Controller
 
     private function bookingSummary(BookedTicket $ticket, ?Trip $trip = null, ?string $date = null, $slips = null): array
     {
+        $deposit = $ticket->payment_record;
         $trip ??= $ticket->trip;
         $date ??= Carbon::parse($ticket->date_of_journey)->format('Y-m-d');
         $slips = collect($slips ?: $ticket->activeSlipSeriesNumbers)->values();
@@ -1681,7 +1694,7 @@ class VehicleTicketController extends Controller
             ->filter(fn ($passenger) => in_array($passenger['seat'] ?? null, $selectedSeats, true))
             ->values();
         $passengerName = $passengers->pluck('name')->filter()->implode(', ')
-            ?: $ticket->deposit?->userDiscount?->passenger_name
+            ?: $deposit?->userDiscount?->passenger_name
             ?: $ticket->user?->fullname
             ?: 'Guest';
         $passengerType = $passengers->isNotEmpty()
@@ -1690,7 +1703,7 @@ class VehicleTicketController extends Controller
                     ? ($passenger['discount_name'] ?? 'Discounted')
                     : 'Regular';
             })->unique()->implode(', ')
-            : getPassengerType($ticket->deposit);
+            : getPassengerType($deposit);
 
         return [
             'id' => $ticket->id,

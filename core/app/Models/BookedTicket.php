@@ -107,6 +107,26 @@ class BookedTicket extends Model
         return $this->hasOne(Deposit::class);
     }
 
+    public function paymentSourceDeposit()
+    {
+        return $this->belongsTo(Deposit::class, 'payment_source_deposit_id');
+    }
+
+    public function getPaymentRecordAttribute(): ?Deposit
+    {
+        $deposit = $this->relationLoaded('deposit')
+            ? $this->getRelation('deposit')
+            : $this->deposit()->first();
+
+        if ($deposit) {
+            return $deposit;
+        }
+
+        return $this->relationLoaded('paymentSourceDeposit')
+            ? $this->getRelation('paymentSourceDeposit')
+            : $this->paymentSourceDeposit()->first();
+    }
+
     public function slipSeriesNumbers()
     {
         return $this->hasMany(SlipSeriesNumber::class, 'booked_ticket_id');

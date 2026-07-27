@@ -114,7 +114,8 @@
             ? collect($ticket->seats ?: [])->map(fn ($seat) => (object) ['seat' => $seat, 'id' => null])
             : $ticket->activeSlipSeriesNumbers;
         $slipCount = max($displaySlips->count(), $ticket->slipSeriesNumbers->count(), 1);
-        $fallbackFare = $ticket->deposit->final_amount / $slipCount;
+        $fallbackFare = (float) ($ticket->unit_price
+            ?: (($ticket->deposit?->final_amount ?? $ticket->sub_total) / $slipCount));
         $manifest = collect($ticket->passenger_manifest ?: ($ticket->deposit?->userDiscount?->passenger_manifest ?: []))
             ->keyBy(fn ($passenger) => (string) ($passenger['seat'] ?? ''));
     @endphp
