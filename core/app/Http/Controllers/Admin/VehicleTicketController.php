@@ -182,9 +182,8 @@ class VehicleTicketController extends Controller
     public function confirmRefund(Request $request, $slip)
     {
         $validated = $request->validate([
-            'reason' => 'required|in:Passenger no-show,Change of plans,Duplicate booking,Wrong trip / seat,Trip cancelled,Medical / emergency',
+            'reason' => 'required|string|max:100',
             'refund_amount' => 'required|numeric|min:0.01',
-            'remarks' => 'required|string|max:1000',
             'authorization_code' => 'required|string|max:100',
         ]);
 
@@ -223,7 +222,7 @@ class VehicleTicketController extends Controller
                 'original_fare' => $fare,
                 'refund_amount' => $validated['refund_amount'],
                 'reason' => $validated['reason'],
-                'remarks' => $validated['remarks'],
+                'remarks' => '',
             ]);
             app(CashierTransactionRecorder::class)->recordRefund($refund);
 
@@ -400,8 +399,7 @@ class VehicleTicketController extends Controller
     public function confirmVoid(Request $request, $slip)
     {
         $validated = $request->validate([
-            'reason' => 'required|in:' . implode(',', $this->voidReasons()),
-            'remarks' => 'required|string|max:1000',
+            'reason' => 'required|string|max:100',
             'authorization_code' => 'required|string|max:100',
         ]);
 
@@ -440,7 +438,7 @@ class VehicleTicketController extends Controller
                 'original_fare' => $passenger['fare'],
                 'returned_amount' => $passenger['fare'],
                 'reason' => $validated['reason'],
-                'remarks' => $validated['remarks'],
+                'remarks' => '',
                 'transaction_snapshot' => $this->voidSnapshot($ticket, $slip, $passenger, $authorizedBy),
             ]);
             app(CashierTransactionRecorder::class)->recordVoid($ticketVoid);

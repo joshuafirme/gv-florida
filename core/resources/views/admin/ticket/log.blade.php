@@ -379,12 +379,10 @@
                         </div>
                         <small class="text-danger" id="refundAmountError"></small>
 
-                        <label class="refund-label mt-3">Reason</label>
+                        <label class="refund-label mt-3" for="refundReason">Reason for Refund</label>
                         <div id="refundReasonChips" class="refund-reason-chips"></div>
-
-                        <label class="refund-label mt-3" for="refundRemarks">Refund remarks / explanation</label>
-                        <textarea id="refundRemarks" class="form-control refund-textarea" rows="3"
-                            placeholder="Provide the reason for this refund…" maxlength="1000"></textarea>
+                        <textarea id="refundReason" class="form-control refund-textarea mt-2" rows="3"
+                            placeholder="Select a reason above or enter a custom reason..." maxlength="100"></textarea>
 
                         <label class="refund-label mt-3" for="refundAuthorizationCode">Authorization Code</label>
                         <input type="password" id="refundAuthorizationCode" class="form-control"
@@ -407,7 +405,6 @@
                             <div><span>PNR / Ticket</span><strong id="refundReviewTicket"></strong></div>
                             <div><span>Passenger / Seat</span><strong id="refundReviewPassenger"></strong></div>
                             <div><span>Reason</span><strong id="refundReviewReason"></strong></div>
-                            <div><span>Remarks</span><strong id="refundReviewRemarks"></strong></div>
                             <div><span>Original Fare</span><strong id="refundReviewFare"></strong></div>
                             <div class="refund-review-total"><span>Refund Amount</span><strong id="refundReviewAmount"></strong></div>
                         </div>
@@ -537,12 +534,10 @@
                             <strong id="voidFare"></strong>
                         </div>
 
-                        <label class="cancel-label mt-3">Reason for Voiding</label>
+                        <label class="cancel-label mt-3" for="voidReason">Reason for Voiding</label>
                         <div id="voidReasonChips" class="cancel-reason-chips"></div>
-
-                        <label class="cancel-label mt-3" for="voidRemarks">Void remarks / explanation</label>
-                        <textarea id="voidRemarks" class="form-control cancel-textarea" rows="3"
-                            placeholder="Reason for voiding..." maxlength="1000"></textarea>
+                        <textarea id="voidReason" class="form-control cancel-textarea mt-2" rows="3"
+                            placeholder="Select a reason above or enter a custom reason..." maxlength="100"></textarea>
 
                         <div class="void-info-note mt-3">
                             <i class="las la-exclamation-circle"></i>
@@ -1240,9 +1235,9 @@
             const refundModal = new bootstrap.Modal(document.getElementById('refundTicketModal'));
             const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
             let refundData = null;
-            let refundReason = '';
 
             const formatMoney = value => currency.format(Number(value) || 0);
+            const escapeHtml = value => $('<div>').text(value ?? '').html();
 
             function refundError(xhr) {
                 const errors = xhr.responseJSON?.errors;
@@ -1266,8 +1261,9 @@
             function validateRefundForm() {
                 if (!refundData) return false;
                 const amount = Number($('#refundAmount').val()) || 0;
-                const valid = refundReason && amount > 0 && amount <= Number(refundData.fare) &&
-                    $('#refundRemarks').val().trim() && $('#refundAuthorizationCode').val().trim();
+                const valid = $('#refundReason').val().trim() &&
+                    amount > 0 && amount <= Number(refundData.fare) &&
+                    $('#refundAuthorizationCode').val().trim();
                 $('#refundReviewBtn').prop('disabled', !valid);
                 return Boolean(valid);
             }
@@ -1275,7 +1271,6 @@
             $(document).on('click', '.refund-ticket-btn', function(event) {
                 event.preventDefault();
                 refundData = null;
-                refundReason = '';
                 $('#refundLoading').removeClass('d-none');
                 $('#refundFormStage, #refundReviewStage').addClass('d-none');
                 $('#refundReviewBtn, #refundCancelBtn').removeClass('d-none');
@@ -1290,9 +1285,9 @@
                     $('#refundTicketMeta').text(`${data.passenger_type} · Seat ${formatSeatLabel(data.seat)} · Fare ${formatMoney(data.fare)}`);
                     $('#refundFareLabel').text(formatMoney(data.fare));
                     $('#refundCashier').text(data.processed_by);
-                    $('#refundRemarks, #refundAuthorizationCode').val('');
+                    $('#refundReason, #refundAuthorizationCode').val('');
                     $('#refundReasonChips').html(data.reasons.map(reason =>
-                        `<button type="button" class="refund-reason-chip" data-reason="${$('<div>').text(reason).html()}">${$('<div>').text(reason).html()}</button>`
+                        `<button type="button" class="refund-reason-chip" data-reason="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`
                     ).join(''));
                     $('#refundAmount').attr('max', data.fare).val(data.default_refund);
                     $('.refund-chip').removeClass('active').filter('[data-refund-percent="50"]').addClass('active');
@@ -1306,10 +1301,9 @@
             });
 
             $(document).on('click', '.refund-reason-chip', function() {
-                refundReason = $(this).data('reason');
+                $('#refundReason').val($(this).data('reason')).trigger('input').focus();
                 $('.refund-reason-chip').removeClass('active');
                 $(this).addClass('active');
-                validateRefundForm();
             });
 
             $('.refund-chip').on('click', function() {
@@ -1324,14 +1318,20 @@
                 $('.refund-chip').removeClass('active');
                 updateRefundAmount();
             });
-            $('#refundRemarks, #refundAuthorizationCode').on('input', validateRefundForm);
+            $('#refundReason').on('input', function() {
+                const reason = $(this).val().trim();
+                $('.refund-reason-chip').each(function() {
+                    $(this).toggleClass('active', $(this).data('reason') === reason);
+                });
+                validateRefundForm();
+            });
+            $('#refundAuthorizationCode').on('input', validateRefundForm);
 
             $('#refundReviewBtn').on('click', function() {
                 if (!validateRefundForm()) return;
                 $('#refundReviewTicket').text(`${refundData.pnr} / ${refundData.reference}`);
                 $('#refundReviewPassenger').text(`${refundData.passenger_name} / ${formatSeatLabel(refundData.seat)}`);
-                $('#refundReviewReason').text(refundReason);
-                $('#refundReviewRemarks').text($('#refundRemarks').val().trim());
+                $('#refundReviewReason').text($('#refundReason').val().trim());
                 $('#refundReviewFare').text(formatMoney(refundData.fare));
                 $('#refundReviewAmount').text(formatMoney($('#refundAmount').val()));
                 $('#refundFormStage, #refundReviewBtn, #refundCancelBtn').addClass('d-none');
@@ -1355,9 +1355,8 @@
                     dataType: 'json',
                     data: {
                         _token: "{{ csrf_token() }}",
-                        reason: refundReason,
+                        reason: $('#refundReason').val().trim(),
                         refund_amount: $('#refundAmount').val(),
-                        remarks: $('#refundRemarks').val().trim(),
                         authorization_code: $('#refundAuthorizationCode').val()
                     }
                 }).done(function(result) {
@@ -1538,7 +1537,6 @@
             const voidModal = new bootstrap.Modal(document.getElementById('voidTicketModal'));
             const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
             let voidData = null;
-            let voidReason = '';
 
             const formatMoney = value => currency.format(Number(value) || 0);
             const escapeHtml = value => $('<div>').text(value ?? '').html();
@@ -1550,7 +1548,7 @@
             }
 
             function validateVoidForm() {
-                const valid = voidData && voidReason && $('#voidRemarks').val().trim() &&
+                const valid = voidData && $('#voidReason').val().trim() &&
                     $('#voidAuthorizationCode').val().trim();
                 $('#voidConfirmBtn').prop('disabled', !valid);
                 return Boolean(valid);
@@ -1559,7 +1557,6 @@
             $(document).on('click', '.void-ticket-btn', function(event) {
                 event.preventDefault();
                 voidData = null;
-                voidReason = '';
                 $('#voidLoading').removeClass('d-none');
                 $('#voidFormStage').addClass('d-none');
                 $('#voidConfirmBtn').prop('disabled', true).html('<i class="las la-ban me-1"></i> Void (1)');
@@ -1572,7 +1569,7 @@
                     $('#voidPassenger').text(data.passenger_name);
                     $('#voidTicketMeta').text(`${data.passenger_type} - Seat ${formatSeatLabel(data.seat)} - Ref. ${data.reference}`);
                     $('#voidFare, #voidReturnAmount').text(formatMoney(data.fare));
-                    $('#voidRemarks, #voidAuthorizationCode').val('');
+                    $('#voidReason, #voidAuthorizationCode').val('');
                     $('#voidReasonChips').html(data.reasons.map(reason =>
                         `<button type="button" class="cancel-reason-chip void-reason-chip" data-reason="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`
                     ).join(''));
@@ -1585,13 +1582,19 @@
             });
 
             $(document).on('click', '.void-reason-chip', function() {
-                voidReason = $(this).data('reason');
+                $('#voidReason').val($(this).data('reason')).trigger('input').focus();
                 $('.void-reason-chip').removeClass('active');
                 $(this).addClass('active');
-                validateVoidForm();
             });
 
-            $('#voidRemarks, #voidAuthorizationCode').on('input', validateVoidForm);
+            $('#voidReason').on('input', function() {
+                const reason = $(this).val().trim();
+                $('.void-reason-chip').each(function() {
+                    $(this).toggleClass('active', $(this).data('reason') === reason);
+                });
+                validateVoidForm();
+            });
+            $('#voidAuthorizationCode').on('input', validateVoidForm);
 
             $('#toggleVoidCode').on('click', function() {
                 const input = $('#voidAuthorizationCode');
@@ -1610,8 +1613,7 @@
                     dataType: 'json',
                     data: {
                         _token: "{{ csrf_token() }}",
-                        reason: voidReason,
-                        remarks: $('#voidRemarks').val().trim(),
+                        reason: $('#voidReason').val().trim(),
                         authorization_code: $('#voidAuthorizationCode').val()
                     }
                 }).done(function(result) {
