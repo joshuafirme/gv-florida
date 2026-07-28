@@ -42,6 +42,7 @@ class PaymentGatewayService
     {
         $channelColumn = $this->paynamicsChannelColumn($isKioskBooking);
         $hasPaynamicsChannels = PaynamicsPaymentChannel::query()
+            ->where('is_enabled', true)
             ->where($channelColumn, true)
             ->whereHas('paymentMethod', fn ($query) => $query->where('is_enabled', true))
             ->exists();
@@ -68,8 +69,12 @@ class PaymentGatewayService
 
         return PaynamicsPaymentMethod::query()
             ->where('is_enabled', true)
-            ->whereHas('channels', fn ($query) => $query->where($channelColumn, true))
-            ->with(['channels' => fn ($query) => $query->where($channelColumn, true)])
+            ->whereHas('channels', fn ($query) => $query
+                ->where('is_enabled', true)
+                ->where($channelColumn, true))
+            ->with(['channels' => fn ($query) => $query
+                ->where('is_enabled', true)
+                ->where($channelColumn, true)])
             ->orderByRaw("CASE WHEN code = 'onlinebanktransfer' THEN 0 ELSE 1 END")
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -97,6 +102,7 @@ class PaymentGatewayService
 
         return PaynamicsPaymentChannel::query()
             ->where('code', $channelCode)
+            ->where('is_enabled', true)
             ->where($channelColumn, true)
             ->whereHas('paymentMethod', fn ($query) => $query->where('is_enabled', true))
             ->exists();
@@ -115,6 +121,7 @@ class PaymentGatewayService
         $channelColumn = $this->paynamicsChannelColumn($isKioskBooking);
         $channel = PaynamicsPaymentChannel::query()
             ->where('code', $channelCode)
+            ->where('is_enabled', true)
             ->where($channelColumn, true)
             ->whereHas('paymentMethod', function ($query) use ($methodCode) {
                 $query->where('code', $methodCode)->where('is_enabled', true);

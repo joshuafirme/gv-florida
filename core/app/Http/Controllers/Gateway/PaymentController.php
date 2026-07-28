@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Gateway;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Gateway\Paynamics\ProcessController as PaynamicsProcessController;
 use App\Lib\FormProcessor;
 use App\Models\AdminNotification;
 use App\Models\BookedTicket;
@@ -57,8 +58,17 @@ class PaymentController extends Controller
         $discounts = $isKioskBooking
             ? Discount::where('status', Status::ENABLE)->get()
             : collect();
+        $paynamicsMethods = $this->paymentGateways->getEnabledPaynamicsMethods($isKioskBooking);
         $pageTitle = 'Payment Methods';
-        return view('Template::user.payment.deposit', compact('gatewayCurrency', 'pageTitle', 'bookedTicket', 'layout', 'discounts', 'isKioskBooking'));
+        return view('Template::user.payment.deposit', compact(
+            'gatewayCurrency',
+            'pageTitle',
+            'bookedTicket',
+            'layout',
+            'discounts',
+            'isKioskBooking',
+            'paynamicsMethods'
+        ));
     }
 
     public function releaseSeats(Request $request)
@@ -128,6 +138,8 @@ class PaymentController extends Controller
             'gateway' => 'required',
             'currency' => 'required',
             'passengers' => 'required|string',
+            'pmethod' => 'nullable|string',
+            'pchannel' => 'nullable|string',
         ]);
         $booked_ticket_id = session()->get('booked_ticket_id');
         $bookedTicket = BookedTicket::find($booked_ticket_id);
@@ -146,6 +158,20 @@ class PaymentController extends Controller
             $request->currency,
             $isKioskBooking
         );
+        $gatewayAlias = strtolower((string) ($gate->method?->alias ?: $gate->gateway_alias));
+        $paynamicsChannel = null;
+
+        if ($gatewayAlias === PaymentGatewayService::PAYNAMICS) {
+            $request->validate([
+                'pmethod' => ['required', 'string'],
+                'pchannel' => ['required', 'string'],
+            ]);
+            $paynamicsChannel = $this->paymentGateways->validatePaynamicsChannel(
+                $request->pmethod,
+                $request->pchannel,
+                $isKioskBooking
+            );
+        }
 
         $passengers = json_decode($request->passengers, true);
         if (json_last_error() !== JSON_ERROR_NONE || !is_array($passengers)) {
@@ -308,6 +334,15 @@ class PaymentController extends Controller
             return to_route('user.deposit.done');
         }
 
+        if ($paynamicsChannel) {
+            $request->merge([
+                'pmethod' => $paynamicsChannel->paymentMethod->code,
+                'pchannel' => $paynamicsChannel->code,
+            ]);
+
+            return app(PaynamicsProcessController::class)->redirect($request);
+        }
+
         return to_route('user.deposit.confirm');
     }
 
@@ -331,7 +366,9 @@ class PaymentController extends Controller
         }
 
         $ticket = $deposit->bookedTicket;
-        $pageTitle = 'Booking Voucher';
+        $pageTitle = (int) $deposit->status === Status::PAYMENT_SUCCESS
+            ? 'Payment Confirmation'
+            : 'Booking Voucher';
 
         return view('Template::user.payment.done', compact('deposit', 'ticket', 'pageTitle', 'layout'));
     }
@@ -366,6 +403,13 @@ class PaymentController extends Controller
             $deposit->method_currency,
             $isKioskBooking
         );
+
+        if (strtolower((string) $deposit->gateway?->alias) === PaymentGatewayService::PAYNAMICS) {
+            return to_route('user.deposit.index', [
+                'booked_ticket_id' => $deposit->booked_ticket_id,
+                'kiosk_id' => $deposit->bookedTicket?->kiosk_id,
+            ]);
+        }
 
         if ($deposit->method_code >= 1000) {
             return to_route('user.deposit.manual.confirm');
@@ -404,12 +448,9 @@ class PaymentController extends Controller
         }
 
         $ticket = BookedTicket::where('id', $deposit->booked_ticket_id)->with(['trip', 'pickup', 'drop'])->first();
-        $paynamicsMethods = strtolower((string) $deposit->gateway?->alias) === PaymentGatewayService::PAYNAMICS
-            ? $this->paymentGateways->getEnabledPaynamicsMethods($isKioskBooking)
-            : collect();
 
         $pageTitle = 'Confirm Payment';
-        return view("Template::$data->view", compact('data', 'pageTitle', 'deposit', 'ticket', 'layout', 'paynamicsMethods'));
+        return view("Template::$data->view", compact('data', 'pageTitle', 'deposit', 'ticket', 'layout'));
     }
 
 

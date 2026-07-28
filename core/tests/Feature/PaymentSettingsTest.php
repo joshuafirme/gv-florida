@@ -173,7 +173,12 @@ class PaymentSettingsTest extends TestCase
         $channel->update([
             'online_enabled' => true,
             'kiosk_enabled' => true,
+            'is_enabled' => false,
         ]);
+        $this->assertFalse($service->isPaynamicsChannelEnabled('gc'));
+        $this->assertTrue($service->getEnabledPaynamicsMethods()->isEmpty());
+
+        $channel->update(['is_enabled' => true]);
         $method->update(['is_enabled' => false]);
         $this->assertFalse($service->isPaynamicsChannelEnabled('gc'));
 

@@ -97,7 +97,7 @@ class ProcessController extends Controller
             session()->put('paynamics_request_id', $transaction->request_id);
             session()->put('paynamics_response_id', $transaction->response_id);
 
-            $ticket->seats = session()->has('seats') ? session('seats') : $ticket->seat;
+            $ticket->seats = session()->has('seats') ? session('seats') : $ticket->seats;
             $ticket->save();
             session()->forget('seats');
 
@@ -125,13 +125,18 @@ class ProcessController extends Controller
 
         $pageTitle = "Payment Details";
 
-        $ticket = BookedTicket::find($booked_ticket_id);
+        $ticket = BookedTicket::with('deposit')->findOrFail($booked_ticket_id);
 
         $transaction = $this->getTransaction($request_id);
 
-        $deposit = Deposit::where('trx', $ticket->deposit->trx)->orderBy('id', 'DESC')->first();
+        $deposit = Deposit::where('trx', $ticket->deposit->trx)->orderBy('id', 'DESC')->firstOrFail();
+        $isSuccessfulResponse = ($transaction?->response_code ?? null) === 'GR001';
 
-        if ($deposit->status == Status::PAYMENT_INITIATE && !isset($transaction->direct_otc_info)) {
+        if (
+            $deposit->status == Status::PAYMENT_INITIATE
+            && $isSuccessfulResponse
+            && !isset($transaction->direct_otc_info)
+        ) {
             PaymentController::userDataUpdate($deposit);
         } else if (isset($transaction->direct_otc_info) && $transaction->pay_reference != $deposit->pay_reference) {
             $deposit->status = Status::PAYMENT_PENDING;
@@ -142,6 +147,13 @@ class ProcessController extends Controller
             $bookedTicket = BookedTicket::find($deposit->booked_ticket_id);
             $bookedTicket->status = Status::BOOKED_PENDING;
             $bookedTicket->save();
+        }
+
+        $deposit->refresh();
+        session()->put('Track', $deposit->trx);
+
+        if ((int) $deposit->status === Status::PAYMENT_SUCCESS) {
+            return to_route('user.deposit.done');
         }
 
         if (auth()->user()) {

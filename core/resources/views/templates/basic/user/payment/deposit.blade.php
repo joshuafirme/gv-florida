@@ -147,7 +147,9 @@
                                 <label class="payment-method-card">
                                     <input class="gateway-input" data-gateway='@json($data)' type="radio" name="gateway"
                                         value="{{ $data->method_code }}" data-min-amount="{{ showAmount($data->min_amount) }}"
-                                        data-max-amount="{{ showAmount($data->max_amount) }}" @checked($loop->first)>
+                                        data-max-amount="{{ showAmount($data->max_amount) }}"
+                                        data-alias="{{ strtolower($data->method?->alias ?: $data->gateway_alias) }}"
+                                        @checked($loop->first)>
                                     <span class="method-icon"><i class="las {{ $data->name == 'Cash' ? 'la-money-bill' : 'la-credit-card' }}"></i></span>
                                     <span class="method-copy">
                                         <strong>{{ __($data->name) }}</strong>
@@ -166,6 +168,8 @@
                             @endforelse
                         </div>
                     </div>
+
+                    @include('templates.basic.user.payment.partials.paynamics-channels')
 
                     <div class="payment-section payment-details-section">
                         <h5>Payment Details</h5>
@@ -686,6 +690,133 @@
             margin-top: 2px;
         }
 
+        .paynamics-channel-heading {
+            align-items: center;
+            display: flex;
+            gap: 16px;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .paynamics-channel-heading h5 {
+            color: #111827;
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .paynamics-channel-heading p {
+            color: #7b8490;
+            font-size: 12px;
+            margin: 3px 0 0;
+        }
+
+        .paynamics-channel-heading > i {
+            color: var(--booking-primary);
+            font-size: 24px;
+        }
+
+        .paynamics-methods {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .paynamics-method + .paynamics-method {
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .paynamics-method__toggle {
+            align-items: center;
+            background: #fff;
+            border: 0;
+            color: #334155;
+            display: flex;
+            font-weight: 800;
+            justify-content: space-between;
+            min-height: 46px;
+            padding: 0 14px;
+            text-align: left;
+            width: 100%;
+        }
+
+        .paynamics-method.is-open .paynamics-method__toggle {
+            background: #f8fafc;
+            color: var(--booking-primary);
+        }
+
+        .paynamics-method__toggle i {
+            transition: transform .2s ease;
+        }
+
+        .paynamics-method.is-open .paynamics-method__toggle i {
+            transform: rotate(180deg);
+        }
+
+        .paynamics-method__channels {
+            display: grid;
+            gap: 8px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            padding: 10px;
+        }
+
+        .paynamics-channel {
+            align-items: center;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            gap: 9px;
+            min-height: 54px;
+            padding: 8px 10px;
+        }
+
+        .paynamics-channel:has(input:checked) {
+            background: var(--booking-primary-soft);
+            border-color: var(--booking-primary);
+        }
+
+        .paynamics-channel input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .paynamics-channel__logo {
+            align-items: center;
+            display: inline-flex;
+            flex: 0 0 32px;
+            height: 28px;
+            justify-content: center;
+        }
+
+        .paynamics-channel__logo img {
+            max-height: 28px;
+            max-width: 32px;
+            object-fit: contain;
+        }
+
+        .paynamics-channel__logo i {
+            color: var(--booking-primary);
+            font-size: 22px;
+        }
+
+        .paynamics-channel__name {
+            color: #334155;
+            flex: 1;
+            font-size: 13px;
+            font-weight: 800;
+            overflow-wrap: anywhere;
+        }
+
+        .paynamics-channel__check {
+            color: var(--booking-primary);
+            opacity: 0;
+        }
+
+        .paynamics-channel:has(input:checked) .paynamics-channel__check {
+            opacity: 1;
+        }
+
         .payment-instructions {
             color: #64748b;
             font-size: 12px;
@@ -812,6 +943,14 @@
                 const gatewayElement = $('.gateway-input:checked');
                 if (!gatewayElement.length) return null;
                 return gatewayElement.data('gateway');
+            }
+
+            function selectedGatewayAlias() {
+                return String($('.gateway-input:checked').data('alias') || '').toLowerCase();
+            }
+
+            function isPaynamicsSelected() {
+                return selectedGatewayAlias() === 'paynamics';
             }
 
             function setStep(step) {
@@ -951,7 +1090,15 @@
                 $('input[name="currency"]').val(gateway.currency);
                 $('.js-processing-charge').text(money(totals.charge));
                 $('.js-payment-total').text(money(totals.final));
-                $('.js-payment-instructions').text(gateway.description || (gateway.name === 'Cash' ? 'A payment voucher will be printed after confirmation. Present it at the Cashier Window to complete your payment.' : 'Follow the next screen to complete payment validation.'));
+                $('.js-paynamics-channels').toggleClass('d-none', !isPaynamicsSelected());
+
+                if (isPaynamicsSelected()) {
+                    $('.js-payment-instructions').text(gateway.description || 'Select an enabled Paynamics channel, then continue to its secure payment page.');
+                    $('#confirmPayment').html('<i class="las la-lock"></i> Continue to Secure Payment');
+                } else {
+                    $('.js-payment-instructions').text(gateway.description || 'A payment voucher will be printed after confirmation. Present it at the Cashier Window to complete your payment.');
+                    $('#confirmPayment').html('<i class="las la-print"></i> Confirm &amp; Print Voucher');
+                }
             }
 
             $(document).on('click', '.type-option', function() {
@@ -1100,6 +1247,29 @@
                 calculateGateway();
             });
 
+            $('.paynamics-method__toggle').on('click', function() {
+                const method = $(this).closest('.paynamics-method');
+                const willOpen = !method.hasClass('is-open');
+
+                $('.paynamics-method').removeClass('is-open')
+                    .find('.paynamics-method__toggle').attr('aria-expanded', 'false');
+                $('.paynamics-method__channels').addClass('d-none');
+
+                if (willOpen) {
+                    method.addClass('is-open');
+                    method.find('.paynamics-method__toggle').attr('aria-expanded', 'true');
+                    method.find('.paynamics-method__channels').removeClass('d-none');
+                }
+            });
+
+            $('input[name="pchannel"]').on('change', function() {
+                $('#selectedPaynamicsMethod').val($(this).data('pmethod'));
+            });
+
+            $('.paynamics-channel__logo img').on('error', function() {
+                $(this).replaceWith('<i class="las la-wallet" aria-hidden="true"></i>');
+            });
+
             $('#passengerFlowForm').on('submit', function(e) {
                 const state = collectPassengers(true);
                 if (!state.valid) {
@@ -1121,6 +1291,12 @@
                 if (!$('.gateway-input:checked').length) {
                     e.preventDefault();
                     showMessage('error', 'Please select a payment method.');
+                    return;
+                }
+
+                if (isPaynamicsSelected() && !$('input[name="pchannel"]:checked').length) {
+                    e.preventDefault();
+                    showMessage('error', 'Please select a Paynamics payment channel.');
                     return;
                 }
 
