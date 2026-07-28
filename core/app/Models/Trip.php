@@ -13,7 +13,9 @@ class Trip extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'day_off' => 'array'
+        'day_off' => 'array',
+        'online_booking_enabled' => 'boolean',
+        'kiosk_booking_enabled' => 'boolean',
     ];
 
     public function ticketPrice()
@@ -66,5 +68,20 @@ class Trip extends Model
     public function scopeActive($query)
     {
         return $query->where('status', Status::ENABLE);
+    }
+
+    public function scopeForBookingChannel($query, $kioskId = null)
+    {
+        return $query->where(
+            $kioskId ? 'kiosk_booking_enabled' : 'online_booking_enabled',
+            true
+        );
+    }
+
+    public function bookingEnabledFor($kioskId = null): bool
+    {
+        return $kioskId
+            ? (bool) $this->kiosk_booking_enabled
+            : (bool) $this->online_booking_enabled;
     }
 }

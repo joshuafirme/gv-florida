@@ -394,10 +394,17 @@ class ManageTripController extends Controller
 
     public function tripStore(Request $request, $id = 0)
     {
+        $request->merge([
+            'online_booking_enabled' => $request->boolean('online_booking_enabled'),
+            'kiosk_booking_enabled' => $request->boolean('kiosk_booking_enabled'),
+        ]);
+
         $request->validate([
             'schedule_id' => 'required|integer|gt:0',
             'vehicle_route_id' => 'required|integer|gt:0',
             'fleet_type_id' => 'required|integer|gt:0',
+            'online_booking_enabled' => 'required|boolean',
+            'kiosk_booking_enabled' => 'required|boolean',
         ]);
 
         $route = VehicleRoute::findOrFail($request->vehicle_route_id);
@@ -421,6 +428,8 @@ class ManageTripController extends Controller
         $trip->schedule_id = $request->schedule_id;
         $trip->start_from = $route->start_from;
         $trip->end_to = $route->end_to;
+        $trip->online_booking_enabled = $request->boolean('online_booking_enabled');
+        $trip->kiosk_booking_enabled = $request->boolean('kiosk_booking_enabled');
         $trip->save();
 
         $notify[] = ['success', $message];
