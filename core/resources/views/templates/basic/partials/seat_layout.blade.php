@@ -54,9 +54,9 @@
                                 : false;
                     @endphp
                     @if ($has_cr)
-                        <div class="seat-wrapper" style="height: 40px;">
+                        <div class="seat-wrapper {{ $row === 1 && $deckIndex === 1 ? 'sc-pwd-row' : '' }}" style="height: 40px;">
                         @else
-                            <div class="seat-wrapper">
+                            <div class="seat-wrapper {{ $row === 1 && $deckIndex === 1 ? 'sc-pwd-row' : '' }}">
                     @endif
                     {{-- Left Side --}}
                     <div class="left-side">
