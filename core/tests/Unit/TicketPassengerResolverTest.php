@@ -3,11 +3,27 @@
 namespace Tests\Unit;
 
 use App\Models\BookedTicket;
+use App\Models\Deposit;
 use App\Services\TicketPassengerResolver;
 use PHPUnit\Framework\TestCase;
 
 class TicketPassengerResolverTest extends TestCase
 {
+    public function test_rebooked_ticket_resolves_the_original_payment_record(): void
+    {
+        $deposit = new Deposit();
+        $deposit->id = 42;
+        $deposit->trx = 'ORIGINAL-PAYMENT';
+
+        $ticket = new BookedTicket();
+        $ticket->payment_source_deposit_id = 42;
+        $ticket->setRelation('deposit', null);
+        $ticket->setRelation('paymentSourceDeposit', $deposit);
+
+        $this->assertSame($deposit, $ticket->payment_record);
+        $this->assertSame('ORIGINAL-PAYMENT', $ticket->payment_record->trx);
+    }
+
     public function test_it_resolves_each_reference_to_only_its_assigned_passenger(): void
     {
         $ticket = new BookedTicket();
