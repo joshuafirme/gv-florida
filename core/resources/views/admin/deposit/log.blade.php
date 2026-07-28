@@ -23,8 +23,8 @@
                             <div class="input-group">
                                 <span class="input-group-text"><i class="las la-qrcode"></i></span>
                                 <input type="text" name="scan" id="qrScanInput" class="form-control"
-                                    value="{{ old('scan') }}" placeholder="@lang('Scan QR, PNR, or transaction no.')"
-                                    autocomplete="off" autofocus required>
+                                    value="{{ old('scan') }}" placeholder="@lang('Scan QR, PNR, or transaction no.')" autocomplete="off" autofocus
+                                    required>
                                 <button class="btn btn--primary" type="submit">@lang('Open POS')</button>
                             </div>
                             <small class="text-muted">@lang('A successful scan opens the pending payment in the POS automatically.')</small>
@@ -71,7 +71,8 @@
             <div class="card">
                 <div class="card-body p-0">
                     <div class="table-responsive--sm table-responsive">
-                        <table class="table table--light style--two {{ $status == 'pending' || $enhancedPaymentTable ? 'pending-payments-table' : '' }} {{ $enhancedPaymentTable ? 'approved-payments-table ' . $status . '-payments-table' : '' }}">
+                        <table
+                            class="table table--light style--two {{ $status == 'pending' || $enhancedPaymentTable ? 'pending-payments-table' : '' }} {{ $enhancedPaymentTable ? 'approved-payments-table ' . $status . '-payments-table' : '' }}">
                             <thead>
                                 <tr>
                                     @if ($enhancedPaymentTable)
@@ -97,7 +98,8 @@
                                         <th>@lang('Passenger')</th>
                                         <th>@lang('Amount')</th>
                                         <th>@lang('Payment Method')</th>
-                                        <th>{{ $status == 'rejected' ? __('Reason') : ($status == 'approved' ? __('Approved By') : __('Processed By')) }}</th>
+                                        <th>{{ $status == 'rejected' ? __('Reason') : ($status == 'approved' ? __('Approved By') : __('Processed By')) }}
+                                        </th>
                                         <th>@lang('Status')</th>
                                         <th>@lang('Action')</th>
                                     @else
@@ -165,16 +167,26 @@
                                         });
                                         $depositListKey = 'deposit-' . $deposit->id;
                                         $discountAmount = (float) ($deposit->userDiscount?->amount ?? 0);
-                                        $gatewayName = $deposit->method_code >= 5000
-                                            ? __('Google Pay')
-                                            : (@$deposit->gateway->name == 'Paynamics'
-                                                ? getPaynamicsPChannel($deposit->pchannel, true)
-                                                : __(@$deposit->gateway->name));
-                                        $bookingSource = $ticket?->kiosk_id ? __('Kiosk') : ($deposit->user_id ? __('Online') : __('Counter'));
+                                        $gatewayName =
+                                            $deposit->method_code >= 5000
+                                                ? __('Google Pay')
+                                                : (@$deposit->gateway->name == 'Paynamics'
+                                                    ? getPaynamicsPChannel($deposit->pchannel, true)
+                                                    : __(@$deposit->gateway->name));
+                                        $bookingSource = $ticket?->kiosk_id
+                                            ? __('Kiosk')
+                                            : ($deposit->user_id
+                                                ? __('Online')
+                                                : __('Counter'));
                                         $expiresAt = $deposit->created_at->copy()->addMinutes(15);
                                         $eventDate = $status == 'all' ? $deposit->created_at : $deposit->updated_at;
-                                        $processedByName = $deposit->processedBy?->name
-                                            ?: ($deposit->processed_by_name ?: ($deposit->status == Status::PAYMENT_SUCCESS ? ($gatewayName ?: __('System')) : __('System')));
+                                        $processedByName =
+                                            $deposit->processedBy?->name ?:
+                                            ($deposit->processed_by_name ?:
+                                            ($deposit->status == Status::PAYMENT_SUCCESS
+                                                ? ($gatewayName ?:
+                                                __('System'))
+                                                : __('System')));
                                         $paymentStatusLabel = match ((int) $deposit->status) {
                                             Status::PAYMENT_SUCCESS => __('Successful'),
                                             Status::PAYMENT_PENDING => __('Pending'),
@@ -196,10 +208,13 @@
                                                 <span class="pending-cell-title">{{ $gatewayName ?: __('Payment') }}</span>
                                                 <span class="pending-cell-meta">{{ $deposit->trx }}</span>
                                             </td>
-                                            <td><span class="pending-cell-title">{{ showDateTime($eventDate, 'M j, Y, g:i A') }}</span></td>
+                                            <td><span
+                                                    class="pending-cell-title">{{ showDateTime($eventDate, 'M j, Y, g:i A') }}</span>
+                                            </td>
                                             <td>
                                                 <span class="pending-pnr">{{ $ticket?->pnr_number }}</span>
-                                                <span class="pending-seat-count" title="{{ trans_choice(':count ticket|:count tickets', $seatCount, ['count' => $seatCount]) }}">
+                                                <span class="pending-seat-count"
+                                                    title="{{ trans_choice(':count ticket|:count tickets', $seatCount, ['count' => $seatCount]) }}">
                                                     <i class="las la-users"></i>{{ $seatCount }}
                                                 </span>
                                             </td>
@@ -220,7 +235,8 @@
                                             @endif
                                             <td><span class="pending-cell-title">{{ $bookingSource }}</span></td>
                                             <td>
-                                                <span class="pending-cell-title">{{ $ticket?->trip?->fleetType?->name ?: __('Trip') }}</span>
+                                                <span
+                                                    class="pending-cell-title">{{ $ticket?->trip?->fleetType?->name ?: __('Trip') }}</span>
                                                 <span class="pending-cell-meta pending-route">
                                                     {{ $ticket?->pickup?->name }}
                                                     <i class="las la-long-arrow-alt-right"></i>
@@ -239,12 +255,17 @@
                                                 @include('admin.deposit.partials.ticket-list', ['column' => 'passenger'])
                                             </td>
                                             <td class="pending-amount-cell">
-                                                <span class="pending-fare-line">@lang('Base Fare'): {{ showAmount($deposit->amount) }}</span>
-                                                <span class="pending-discount-line">@lang('Discount'): -{{ showAmount($discountAmount) }}</span>
-                                                <strong class="pending-final-fare">@lang('Final Fare'): {{ showAmount($deposit->final_amount) }}</strong>
-                                                <span class="pending-cell-meta">{{ trans_choice(':count ticket|:count tickets', $seatCount, ['count' => $seatCount]) }}</span>
+                                                <span class="pending-fare-line">@lang('Base Fare'):
+                                                    {{ showAmount($deposit->amount) }}</span>
+                                                <span class="pending-discount-line">@lang('Discount'):
+                                                    -{{ showAmount($discountAmount) }}</span>
+                                                <strong class="pending-final-fare">@lang('Final Fare'):
+                                                    {{ showAmount($deposit->final_amount) }}</strong>
+                                                <span
+                                                    class="pending-cell-meta">{{ trans_choice(':count ticket|:count tickets', $seatCount, ['count' => $seatCount]) }}</span>
                                             </td>
-                                            <td><span class="pending-cell-title">{{ $gatewayName ?: __('Payment') }}</span></td>
+                                            <td><span class="pending-cell-title">{{ $gatewayName ?: __('Payment') }}</span>
+                                            </td>
                                             <td>
                                                 @if ($status == 'rejected')
                                                     <span class="rejection-reason">
@@ -258,150 +279,166 @@
                                                     <span class="pending-cell-title">{{ $processedByName }}</span>
                                                 @endif
                                             </td>
-                                            <td><span class="payment-report-status {{ $paymentStatusClass }}">{{ $paymentStatusLabel }}</span></td>
+                                            <td><span
+                                                    class="payment-report-status {{ $paymentStatusClass }}">{{ $paymentStatusLabel }}</span>
+                                            </td>
                                             <td>
                                                 <div class="pending-actions approved-actions">
                                                     <a href="{{ route('admin.deposit.details', $deposit->id) }}"
-                                                        class="pending-action-btn pending-voucher-btn" title="@lang('View payment')">
+                                                        class="pending-action-btn pending-voucher-btn"
+                                                        title="@lang('View payment')">
                                                         <i class="las la-eye"></i>
                                                     </a>
                                                 </div>
                                             </td>
                                         </tr>
                                     @else
-                                    <tr>
-                                        <td>
-                                            @if ($status == 'pending')
-                                                <span class="pending-cell-title">
-                                                    <a href="{{ appendQuery('method', $deposit->method_code < 5000 ? @$deposit->gateway->alias : $deposit->method_code) }}">
-                                                        {{ $gatewayName ?: __('Payment') }}
-                                                    </a>
-                                                </span>
-                                                <span class="pending-cell-meta">{{ $deposit->trx }}</span>
-                                            @else
-                                                <span class="fw-bold">
-                                                    <a href="{{ appendQuery('method', $deposit->method_code < 5000 ? @$deposit->gateway->alias : $deposit->method_code) }}">
-                                                        {{ $gatewayName ?: __('Payment') }}
-                                                    </a>
-                                                </span>
-                                                <br><small>{{ $deposit->trx }}</small>
-                                            @endif
-                                        </td>
-
-                                        <td>
-                                            @if ($status == 'pending')
-                                                <span class="pending-cell-title">{{ showDateTime($deposit->created_at, 'M j, g:i A') }}</span>
-                                            @else
-                                                {{ showDateTime($deposit->created_at) }}<br>{{ diffForHumans($deposit->created_at) }}
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if ($status == 'pending')
-                                                <span class="pending-pnr">{{ $ticket?->pnr_number }}</span>
-                                                <span class="pending-seat-count" title="{{ trans_choice(':count ticket|:count tickets', $seatCount, ['count' => $seatCount]) }}">
-                                                    <i class="las la-users"></i>{{ $seatCount }}
-                                                </span>
-                                            @else
-                                                {{ $ticket?->pnr_number }}
-                                            @endif
-                                        </td>
-                                        @if ($status == 'pending')
-                                            <td><span class="pending-cell-title">{{ $bookingSource }}</span></td>
-                                        @else
-                                            <td>{{ implodeSeriesNo($deposit) }}</td>
+                                        <tr>
                                             <td>
-                                                @if ($deposit->user)
-                                                    <span class="fw-bold">{{ $deposit->user->fullname }}</span>
-                                                    <br>
-                                                    <span class="small">
-                                                        <a href="{{ appendQuery('search', @$deposit->user->username) }}"><span>@</span>{{ $deposit->user->username }}</a>
+                                                @if ($status == 'pending')
+                                                    <span class="pending-cell-title">
+                                                        <a
+                                                            href="{{ appendQuery('method', $deposit->method_code < 5000 ? @$deposit->gateway->alias : $deposit->method_code) }}">
+                                                            {{ $gatewayName ?: __('Payment') }}
+                                                        </a>
                                                     </span>
+                                                    <span class="pending-cell-meta">{{ $deposit->trx }}</span>
                                                 @else
-                                                    {{ $ticket?->kiosk?->name }}
-                                                    <div>{{ $ticket?->kiosk?->uid }}</div>
+                                                    <span class="fw-bold">
+                                                        <a
+                                                            href="{{ appendQuery('method', $deposit->method_code < 5000 ? @$deposit->gateway->alias : $deposit->method_code) }}">
+                                                            {{ $gatewayName ?: __('Payment') }}
+                                                        </a>
+                                                    </span>
+                                                    <br><small>{{ $deposit->trx }}</small>
                                                 @endif
                                             </td>
-                                        @endif
-                                        <td>
-                                            @if ($status == 'pending')
-                                                <span class="pending-cell-title">{{ $ticket?->trip?->fleetType?->name ?: __('Trip') }}</span>
-                                                <span class="pending-cell-meta pending-route">
-                                                    {{ $ticket?->pickup?->name }}
-                                                    <i class="las la-long-arrow-alt-right"></i>
-                                                    {{ $ticket?->drop?->name }}
-                                                </span>
-                                                <span class="pending-cell-meta">
-                                                    {{ showDateTime($ticket?->date_of_journey, 'M j, Y') }}
-                                                    &middot;
-                                                    {{ $ticket?->trip?->schedule?->start_from ? date('g:i A', strtotime($ticket->trip->schedule->start_from)) : '-' }}
-                                                </span>
-                                            @else
-                                                <span class="fw-bold text-dark text-end">
-                                                    {{ $ticket?->pickup?->name }}
-                                                    <i class="las la-long-arrow-alt-right mx-1 text-muted"></i>
-                                                    {{ $ticket?->drop?->name }}
-                                                </span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @include('admin.deposit.partials.ticket-list', ['column' => 'seat'])
-                                        </td>
-                                        <td>
-                                            @include('admin.deposit.partials.ticket-list', ['column' => 'passenger'])
-                                        </td>
-                                        <td class="{{ $status == 'pending' ? 'pending-amount-cell' : '' }}">
-                                            @if ($status == 'pending')
-                                                <span class="pending-fare-line">@lang('Base Fare'): {{ showAmount($deposit->amount) }}</span>
-                                                <span class="pending-discount-line">@lang('Discount'): -{{ showAmount($discountAmount) }}</span>
-                                                <strong class="pending-final-fare">@lang('Final Fare'): {{ showAmount($deposit->final_amount) }}</strong>
-                                                <span class="pending-cell-meta">{{ trans_choice(':count ticket|:count tickets', $seatCount, ['count' => $seatCount]) }}</span>
-                                            @else
-                                                Fare: {{ showAmount($deposit->amount) }}
-                                                <div>Discount: {{ $deposit?->userDiscount?->amount ?: '-' }}</div>
-                                                <div>Final Amount: {{ showAmount($deposit->final_amount) }}</div>
-                                            @endif
-                                        </td>
-                                        @if ($status == 'pending')
-                                            <td><span class="pending-cell-title">{{ $gatewayName ?: __('Payment') }}</span></td>
-                                        @endif
-                                        <td>
-                                            @if ($status == 'pending')
-                                                <span class="pending-status">@lang('Pending')</span>
-                                            @else
-                                                @php echo $deposit->statusBadge @endphp
-                                            @endif
-                                        </td>
-                                        @if ($status == 'pending')
                                             <td>
-                                                <span class="pending-cell-title">{{ showDateTime($expiresAt, 'M j, g:i A') }}</span>
+                                                @if ($status == 'pending')
+                                                    <span
+                                                        class="pending-cell-title">{{ showDateTime($deposit->created_at, 'M j, g:i A') }}</span>
+                                                @else
+                                                    {{ showDateTime($deposit->created_at) }}<br>{{ diffForHumans($deposit->created_at) }}
+                                                @endif
                                             </td>
-                                        @endif
-                                        @if ($status == 'approved')
                                             <td>
-                                                {{ $deposit->processedBy ? $deposit->processedBy->name : '-' }}
+                                                @if ($status == 'pending')
+                                                    <span class="pending-pnr">{{ $ticket?->pnr_number }}</span>
+                                                    <span class="pending-seat-count"
+                                                        title="{{ trans_choice(':count ticket|:count tickets', $seatCount, ['count' => $seatCount]) }}">
+                                                        <i class="las la-users"></i>{{ $seatCount }}
+                                                    </span>
+                                                @else
+                                                    {{ $ticket?->pnr_number }}
+                                                @endif
                                             </td>
-                                        @endif
-                                        <td>
                                             @if ($status == 'pending')
-                                                <div class="pending-actions">
-                                                    <a href="{{ route('admin.trip.reservationSlip', $ticket->id) }}"
-                                                        target="_blank" rel="noopener"
-                                                        class="pending-action-btn pending-voucher-btn">
-                                                        <i class="las la-eye"></i> @lang('Voucher')
+                                                <td><span class="pending-cell-title">{{ $bookingSource }}</span></td>
+                                            @else
+                                                <td>{{ implodeSeriesNo($deposit) }}</td>
+                                                <td>
+                                                    @if ($deposit->user)
+                                                        <span class="fw-bold">{{ $deposit->user->fullname }}</span>
+                                                        <br>
+                                                        <span class="small">
+                                                            <a
+                                                                href="{{ appendQuery('search', @$deposit->user->username) }}"><span>@</span>{{ $deposit->user->username }}</a>
+                                                        </span>
+                                                    @else
+                                                        {{ $ticket?->kiosk?->name }}
+                                                        <div>{{ $ticket?->kiosk?->uid }}</div>
+                                                    @endif
+                                                </td>
+                                            @endif
+                                            <td>
+                                                @if ($status == 'pending')
+                                                    <span
+                                                        class="pending-cell-title">{{ $ticket?->trip?->fleetType?->name ?: __('Trip') }}</span>
+                                                    <span class="pending-cell-meta pending-route">
+                                                        {{ $ticket?->pickup?->name }}
+                                                        <i class="las la-long-arrow-alt-right"></i>
+                                                        {{ $ticket?->drop?->name }}
+                                                    </span>
+                                                    <span class="pending-cell-meta">
+                                                        {{ showDateTime($ticket?->date_of_journey, 'M j, Y') }}
+                                                        &middot;
+                                                        {{ $ticket?->trip?->schedule?->start_from ? date('g:i A', strtotime($ticket->trip->schedule->start_from)) : '-' }}
+                                                    </span>
+                                                @else
+                                                    <span class="fw-bold text-dark text-end">
+                                                        {{ $ticket?->pickup?->name }}
+                                                        <i class="las la-long-arrow-alt-right mx-1 text-muted"></i>
+                                                        {{ $ticket?->drop?->name }}
+                                                    </span>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @include('admin.deposit.partials.ticket-list', ['column' => 'seat'])
+                                            </td>
+                                            <td>
+                                                @include('admin.deposit.partials.ticket-list', ['column' => 'passenger'])
+                                            </td>
+                                            <td class="{{ $status == 'pending' ? 'pending-amount-cell' : '' }}">
+                                                @if ($status == 'pending')
+                                                    <span class="pending-fare-line">@lang('Base Fare'):
+                                                        {{ showAmount($deposit->amount) }}</span>
+                                                    <span class="pending-discount-line">@lang('Discount'):
+                                                        -{{ showAmount($discountAmount) }}</span>
+                                                    <strong class="pending-final-fare">@lang('Final Fare'):
+                                                        {{ showAmount($deposit->final_amount) }}</strong>
+                                                    <span
+                                                        class="pending-cell-meta">{{ trans_choice(':count ticket|:count tickets', $seatCount, ['count' => $seatCount]) }}</span>
+                                                @else
+                                                    Fare: {{ showAmount($deposit->amount) }}
+                                                    <div>Discount: {{ $deposit?->userDiscount?->amount ?: '-' }}</div>
+                                                    <div>Final Amount: {{ showAmount($deposit->final_amount) }}</div>
+                                                @endif
+                                            </td>
+                                            @if ($status == 'pending')
+                                                <td><span
+                                                        class="pending-cell-title">{{ $gatewayName ?: __('Payment') }}</span>
+                                                </td>
+                                            @endif
+                                            <td>
+                                                @if ($status == 'pending')
+                                                    <span class="pending-status">@lang('Pending')</span>
+                                                @else
+                                                    @php echo $deposit->statusBadge @endphp
+                                                @endif
+                                            </td>
+                                            @if ($status == 'pending')
+                                                <td>
+                                                    <span
+                                                        class="pending-cell-title">{{ showDateTime($expiresAt, 'M j, g:i A') }}</span>
+                                                </td>
+                                            @endif
+                                            @if ($status == 'approved')
+                                                <td>
+                                                    {{ $deposit->processedBy ? $deposit->processedBy->name : '-' }}
+                                                </td>
+                                            @endif
+                                            <td>
+                                                @if ($status == 'pending')
+                                                    <div class="pending-actions">
+                                                        <a href="{{ route('admin.trip.reservationSlip', $ticket->id) }}"
+                                                            target="_blank" rel="noopener"
+                                                            class="pending-action-btn pending-voucher-btn">
+                                                            <i class="las la-eye"></i> @lang('Voucher')
+                                                        </a>
+                                                        <button type="button"
+                                                            class="pending-action-btn pending-process-btn open-pos-btn"
+                                                            data-scan="{{ $deposit->trx }}">
+                                                            <i class="las la-money-bill-wave"></i> @lang('Process')
+                                                        </button>
+                                                    </div>
+                                                @else
+                                                    <a href="{{ route('admin.deposit.details', $deposit->id) }}"
+                                                        class="btn btn-sm btn-outline--primary ms-1">
+                                                        <i class="la la-desktop"></i> @lang('Details')
                                                     </a>
-                                                    <button type="button" class="pending-action-btn pending-process-btn open-pos-btn"
-                                                    data-scan="{{ $deposit->trx }}">
-                                                        <i class="las la-money-bill-wave"></i> @lang('Process')
-                                                    </button>
-                                                </div>
-                                            @else
-                                                <a href="{{ route('admin.deposit.details', $deposit->id) }}"
-                                                    class="btn btn-sm btn-outline--primary ms-1">
-                                                    <i class="la la-desktop"></i> @lang('Details')
-                                                </a>
-                                            @endif
-                                        </td>
-                                    </tr>
+                                                @endif
+                                            </td>
+                                        </tr>
                                     @endif
                                 @empty
                                     <tr>
@@ -452,8 +489,8 @@
                                 <strong class="payment-total" data-pos-currency="amount"></strong>
                             </div>
                             <label for="posCashReceived" class="payment-label mt-3 mb-1">Cash received</label>
-                            <input type="number" min="0" step="0.01" inputmode="decimal" id="posCashReceived"
-                                class="form-control payment-cash-input" placeholder="0.00">
+                            <input type="number" min="0" step="0.01" inputmode="decimal"
+                                id="posCashReceived" class="form-control payment-cash-input" placeholder="0.00">
                             <small class="text-danger d-block mt-1" id="posCashError"></small>
                             <div class="payment-change-row mt-3">
                                 <span>Change</span>
@@ -489,10 +526,14 @@
                         </div>
 
                         <div class="payment-review-box payment-review-grid mt-3">
-                            <div><span class="payment-label">Trip / Route</span><strong data-confirm="route"></strong></div>
-                            <div><span class="payment-label">Bus Type</span><strong data-confirm="bus_type"></strong></div>
-                            <div><span class="payment-label">Departure Time</span><strong data-confirm="departure_time"></strong></div>
-                            <div><span class="payment-label">Travel Date</span><strong data-confirm="travel_date"></strong></div>
+                            <div><span class="payment-label">Trip / Route</span><strong data-confirm="route"></strong>
+                            </div>
+                            <div><span class="payment-label">Bus Type</span><strong data-confirm="bus_type"></strong>
+                            </div>
+                            <div><span class="payment-label">Departure Time</span><strong
+                                    data-confirm="departure_time"></strong></div>
+                            <div><span class="payment-label">Travel Date</span><strong
+                                    data-confirm="travel_date"></strong></div>
                             <div><span class="payment-label">PNR</span><strong data-confirm="pnr"></strong></div>
                             <div><span class="payment-label">Seat(s)</span><strong data-confirm="seats"></strong></div>
                         </div>
@@ -503,9 +544,12 @@
                         </div>
 
                         <div class="payment-review-box mt-3">
-                            <div class="payment-detail-row"><span>Processed by</span><strong data-confirm="processed_by"></strong></div>
-                            <div class="payment-detail-row"><span>Amount to be paid</span><strong data-confirm-currency="amount"></strong></div>
-                            <div class="payment-detail-row"><span>Amount received</span><strong id="confirmCashReceived"></strong></div>
+                            <div class="payment-detail-row"><span>Processed by</span><strong
+                                    data-confirm="processed_by"></strong></div>
+                            <div class="payment-detail-row"><span>Amount to be paid</span><strong
+                                    data-confirm-currency="amount"></strong></div>
+                            <div class="payment-detail-row"><span>Amount received</span><strong
+                                    id="confirmCashReceived"></strong></div>
                             <div class="payment-detail-row payment-change-total"><span>Change to give</span><strong
                                     id="confirmChange"></strong></div>
                         </div>
@@ -557,8 +601,7 @@
         @endif
         <label class="payment-search-control" for="paymentSearchInput">
             <i class="las la-search" aria-hidden="true"></i>
-            <input id="paymentSearchInput" type="search" name="search"
-                value="{{ request('search') }}"
+            <input id="paymentSearchInput" type="search" name="search" value="{{ request('search') }}"
                 placeholder="{{ $status == 'pending' ? __('Search PNR or passenger name') : __('Search PNR, passenger, or ref. no.') }}"
                 aria-label="{{ $status == 'pending' ? __('Search by PNR or passenger name') : __('Search by PNR, passenger name, or reference number') }}">
         </label>
@@ -581,7 +624,7 @@
             width: 100%;
         }
 
-        .payment-search-control > i {
+        .payment-search-control>i {
             color: #8a909b;
             font-size: 17px;
             left: 13px;
@@ -592,7 +635,7 @@
             z-index: 1;
         }
 
-        .payment-search-control > input {
+        .payment-search-control>input {
             background: #f7f8fa;
             border: 1px solid #d6d9df;
             border-radius: 7px;
@@ -604,13 +647,13 @@
             width: 100%;
         }
 
-        .payment-search-control > input:focus {
+        .payment-search-control>input:focus {
             background: #fff;
             border-color: #df257b;
             box-shadow: 0 0 0 3px rgba(223, 37, 123, .1);
         }
 
-        .payment-search-control > input::placeholder {
+        .payment-search-control>input::placeholder {
             color: #858b96;
             opacity: 1;
         }
@@ -620,7 +663,7 @@
             min-width: 1520px;
         }
 
-        .pending-payments-table > thead > tr > th {
+        .pending-payments-table>thead>tr>th {
             font-size: 11px;
             font-weight: 800;
             padding: 13px 12px;
@@ -629,16 +672,16 @@
             white-space: nowrap;
         }
 
-        .pending-payments-table > thead > tr > th:first-child {
+        .pending-payments-table>thead>tr>th:first-child {
             border-radius: 8px 0 0 0;
         }
 
-        .pending-payments-table > thead > tr > th:last-child {
+        .pending-payments-table>thead>tr>th:last-child {
             border-radius: 0 8px 0 0;
             text-align: right;
         }
 
-        .pending-payments-table > tbody > tr > td {
+        .pending-payments-table>tbody>tr>td {
             background: #fff;
             border-color: #e8eaee;
             color: #3f4652;
@@ -648,7 +691,7 @@
             vertical-align: top;
         }
 
-        .pending-payments-table > tbody > tr:hover > td {
+        .pending-payments-table>tbody>tr:hover>td {
             background: #fffafd;
         }
 
@@ -1015,8 +1058,8 @@
             padding: 12px 18px;
         }
 
-        .payment-ticket-row + .payment-ticket-row,
-        .payment-detail-row + .payment-detail-row {
+        .payment-ticket-row+.payment-ticket-row,
+        .payment-detail-row+.payment-detail-row {
             border-top: 1px solid #dedfe3;
         }
 
@@ -1114,6 +1157,7 @@
         }
 
         @media (max-width: 575.98px) {
+
             .payment-summary-grid,
             .payment-review-grid {
                 grid-template-columns: 1fr;
@@ -1351,7 +1395,8 @@
                 });
 
                 async function printReservation(fileUrl) {
-                    if (typeof qz === 'undefined' || typeof connectQZ !== 'function' || typeof getPrinter !== 'function') {
+                    if (typeof qz === 'undefined' || typeof connectQZ !== 'function' || typeof getPrinter !==
+                        'function') {
                         throw new Error('QZ Tray is not available. Please start QZ Tray and try again.');
                     }
 
@@ -1372,47 +1417,90 @@
                     }]);
                 }
 
-                $('#posConfirmPrintBtn').on('click', function() {
+                async function confirmAndPrintPayment() {
                     if (!activePayment) return;
 
-                    const button = $(this);
-                    const originalLabel = button.html();
-                    button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Processing...');
+                    const button = $('#posConfirmPrintBtn');
 
-                    $.getJSON(activePayment.validate_url).then(function(validation) {
+                    // Prevent duplicate requests.
+                    if (button.prop('disabled')) return;
+
+                    const originalLabel = button.html();
+
+                    button.prop('disabled', true).html(
+                        '<i class="las la-spinner la-spin"></i> Processing...'
+                    );
+
+                    try {
+                        const validation = await $.getJSON(activePayment.validate_url);
+
                         if (!validation.success) {
-                            return $.Deferred().reject({
+                            throw {
                                 responseJSON: validation
-                            }).promise();
+                            };
                         }
 
-                        return $.getJSON(activePayment.print_url, {
+                        const result = await $.getJSON(activePayment.print_url, {
                             admin_request: true,
                             admin_id: {{ auth('admin')->id() }}
                         });
-                    }).then(async function(result) {
+
                         if (!result.success || !result.file_url) {
-                            throw new Error(result.message || 'Unable to create the reservation slip.');
+                            throw new Error(
+                                result.message || 'Unable to create the reservation slip.'
+                            );
                         }
 
                         const printUrl = absoluteUrl(result.file_url);
-                        const openUrl = absoluteUrl(result.reservation_slip_url || result.file_url);
+                        const openUrl = absoluteUrl(
+                            result.reservation_slip_url || result.file_url
+                        );
 
                         await printReservation(printUrl);
+
                         localStorage.setItem('to_print_ticket', openUrl);
-                        notify('success', 'Payment confirmed and reservation slip prepared.');
+
+                        notify(
+                            'success',
+                            'Payment confirmed and reservation slip prepared.'
+                        );
+
                         confirmPaymentModal.hide();
+
                         const reloadParams = new URLSearchParams(window.location.search);
                         reloadParams.set('newly_approved', true);
+
                         setTimeout(() => {
                             window.location.search = reloadParams.toString();
                         }, 900);
-                    }).catch(function(error) {
-                        const message = error.responseJSON?.message || error.message ||
+                    } catch (error) {
+                        const message =
+                            error.responseJSON?.message ||
+                            error.message ||
                             'Unable to confirm this payment.';
+
                         notify('error', message);
                         button.prop('disabled', false).html(originalLabel);
-                    });
+                    }
+                }
+
+                // Button click
+                $('#posConfirmPrintBtn').on('click', confirmAndPrintPayment);
+
+                // Enter hotkey
+                $(document).on('keydown.posConfirmPayment', function(event) {
+                    if (event.key !== 'Enter') return;
+
+                    const modalElement = $('#confirmPaymentModal');
+
+                    // Only trigger while the confirmation modal is open.
+                    if (!modalElement.hasClass('show')) return;
+
+                    // Avoid triggering while typing inside a textarea.
+                    if ($(event.target).is('textarea')) return;
+
+                    event.preventDefault();
+                    confirmAndPrintPayment();
                 });
             @endif
 
