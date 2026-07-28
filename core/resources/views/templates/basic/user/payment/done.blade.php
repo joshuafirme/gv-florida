@@ -15,10 +15,21 @@
                     $seatWord = $seatCount === 1 ? 'Seat' : 'Seats';
                     $ticketWord = $seatCount === 1 ? 'ticket' : 'tickets';
                     $dateOfJourneyQuery = \Carbon\Carbon::parse($ticket->date_of_journey)->format('m/d/Y');
+                    $isPaid = (int) $deposit->status === \App\Constants\Status::PAYMENT_SUCCESS;
+                    $paymentMethod = $deposit->pchannel
+                        ? getPaynamicsPChannel($deposit->pchannel, true)
+                        : ($deposit->gateway?->name ?? $deposit->methodName());
                 @endphp
-                <div class="done-icon"><i class="las la-clock"></i></div>
-                <h3>{{ $seatCount }} {{ $seatWord }} Reserved &mdash; Pay at Counter</h3>
-                <p>Present this booking voucher at the <strong>Cashier Window</strong> for ticket issuance or verification.</p>
+                <div class="done-icon {{ $isPaid ? 'is-paid' : '' }}">
+                    <i class="las {{ $isPaid ? 'la-check' : 'la-clock' }}"></i>
+                </div>
+                @if ($isPaid)
+                    <h3>Payment Successful &mdash; {{ $seatCount }} {{ $seatWord }} Confirmed</h3>
+                    <p>Your payment has been confirmed. Present this voucher at the <strong>Cashier Window</strong> for ticket issuance or verification.</p>
+                @else
+                    <h3>{{ $seatCount }} {{ $seatWord }} Reserved &mdash; Pay at Counter</h3>
+                    <p>Present this booking voucher at the <strong>Cashier Window</strong> for ticket issuance or verification.</p>
+                @endif
 
                 @php
                     $qr = base64_encode(QrCode::format('svg')->size(150)->generate($ticket->pnr_number));
@@ -56,13 +67,34 @@
                 <div class="reference-number">{{ $ticket->pnr_number }}</div>
                 <div class="reference-sub">{{ $seatCount }} {{ $ticketWord }} &middot; 1 PNR</div>
 
-                <div class="payment-window">
-                    <strong>
-                        <i class="las la-clock"></i>
-                        Pay within <span id="payCountdown" data-expires-at="{{ $expiresAt->toIso8601String() }}">15 mins 00 secs</span>
-                    </strong>
-                    <span>Valid until {{ showDateTime($expiresAt, 'h:i A') }} &middot; the seat is released if unpaid by then.</span>
-                </div>
+                @if ($isPaid)
+                    <div class="paid-payment-details">
+                        <div>
+                            <span>Payment Method</span>
+                            <strong>{{ $paymentMethod }}</strong>
+                        </div>
+                        <div>
+                            <span>Transaction Number</span>
+                            <strong>{{ $deposit->trx }}</strong>
+                        </div>
+                        <div>
+                            <span>Payment Status</span>
+                            <strong class="paid-status">Successful</strong>
+                        </div>
+                        <div>
+                            <span>Amount Paid</span>
+                            <strong>{{ showAmount($deposit->final_amount) }}</strong>
+                        </div>
+                    </div>
+                @else
+                    <div class="payment-window">
+                        <strong>
+                            <i class="las la-clock"></i>
+                            Pay within <span id="payCountdown" data-expires-at="{{ $expiresAt->toIso8601String() }}">15 mins 00 secs</span>
+                        </strong>
+                        <span>Valid until {{ showDateTime($expiresAt, 'h:i A') }} &middot; the seat is released if unpaid by then.</span>
+                    </div>
+                @endif
 
                 <div class="ticket-details">
                     <div class="ticket-details__head">Ticket Details</div>
@@ -123,6 +155,11 @@
             justify-content: center;
             margin-bottom: 10px;
             width: 52px;
+        }
+
+        .done-icon.is-paid {
+            background: #dcfce7;
+            color: #15803d;
         }
 
         .voucher-panel h3 {
@@ -186,6 +223,42 @@
             background: #fff1f2;
             border-color: #fb7185;
             color: #be123c;
+        }
+
+        .paid-payment-details {
+            background: #f8fafc;
+            border-radius: 8px;
+            display: grid;
+            gap: 1px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin: 18px 0 14px;
+            overflow: hidden;
+            text-align: left;
+        }
+
+        .paid-payment-details > div {
+            background: #fff;
+            border: 1px solid #eef2f7;
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+            padding: 11px 13px;
+        }
+
+        .paid-payment-details span {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .paid-payment-details strong {
+            color: #1f2937;
+            overflow-wrap: anywhere;
+        }
+
+        .paid-payment-details .paid-status {
+            color: #15803d;
         }
 
         .ticket-details {
@@ -287,6 +360,10 @@
         }
 
         @media (max-width: 575px) {
+            .paid-payment-details {
+                grid-template-columns: 1fr;
+            }
+
             .voucher-actions {
                 grid-template-columns: 1fr;
             }

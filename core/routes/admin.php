@@ -246,28 +246,22 @@ Route::middleware('admin')->group(function () {
         Route::get('notification-log/{id}', 'notificationLog')->name('notification.log');
     });
 
-    // Deposit Gateway
-    Route::name('gateway.')->prefix('gateway')->group(function () {
-        // Automatic Gateway
-        Route::controller('AutomaticGatewayController')->prefix('automatic')->name('automatic.')->group(function () {
-            Route::get('/', 'index')->name('index');
-            Route::get('edit/{alias}', 'edit')->name('edit');
-            Route::post('update/{code}', 'update')->name('update');
-            Route::post('remove/{id}', 'remove')->name('remove');
-            Route::post('status/{id}', 'status')->name('status');
+    Route::controller('PaymentSettingController')
+        ->prefix('payment-settings')
+        ->name('payment.settings.')
+        ->middleware('role:admin.setting.system')
+        ->group(function () {
+            Route::get('/', 'edit')->name('edit');
+            Route::put('/', 'update')->name('update');
         });
 
+    Route::get('gateway/automatic/{path?}', function () {
+        return to_route('admin.payment.settings.edit');
+    })->where('path', '.*')->name('gateway.automatic.index');
 
-        // Manual Methods
-        Route::controller('ManualGatewayController')->prefix('manual')->name('manual.')->group(function () {
-            Route::get('/', 'index')->name('index');
-            Route::get('new', 'create')->name('create');
-            Route::post('new', 'store')->name('store');
-            Route::get('edit/{alias}', 'edit')->name('edit');
-            Route::post('update/{id}', 'update')->name('update');
-            Route::post('status/{id}', 'status')->name('status');
-        });
-    });
+    Route::get('gateway/manual/{path?}', function () {
+        return to_route('admin.payment.settings.edit');
+    })->where('path', '.*')->name('gateway.manual.index');
 
 
     // DEPOSIT SYSTEM

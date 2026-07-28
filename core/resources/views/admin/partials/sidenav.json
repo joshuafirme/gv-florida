@@ -723,6 +723,7 @@
             "admin.frontend.index",
             "admin.frontend.sections*",
             "admin.gateway*",
+            "admin.payment.settings.*",
             "admin.setting.app.purchase"
         ]
     }

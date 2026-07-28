@@ -1,6 +1,7 @@
 @php
-    $kiosk_id = request()->kiosk_id;
-    if ($kiosk_id) {
+    $isKioskBooking = $isKioskBooking ?? $bookedTicket->isKioskBooking();
+    $kiosk_id = $isKioskBooking ? $bookedTicket->kiosk_id : null;
+    if ($isKioskBooking) {
         $layout = 'layouts.kiosk';
     }
 
@@ -44,11 +45,13 @@
                 <input type="hidden" name="currency">
                 <input type="hidden" name="amount" value="{{ getAmount($bookedTicket->sub_total) }}">
                 <input type="hidden" name="passengers">
-                <input type="hidden" name="discount_authorized" value="0">
-                <input type="hidden" name="authorization_method">
-                <input type="hidden" name="authorized_by_admin_id">
-                <input type="hidden" name="authorized_by_name">
-                <input type="hidden" name="authorization_reference">
+                @if ($isKioskBooking)
+                    <input type="hidden" name="discount_authorized" value="0">
+                    <input type="hidden" name="authorization_method">
+                    <input type="hidden" name="authorized_by_admin_id">
+                    <input type="hidden" name="authorized_by_name">
+                    <input type="hidden" name="authorization_reference">
+                @endif
 
                 <section class="flow-panel js-step-panel" data-panel="details">
                     <div class="flow-title-row">
@@ -74,24 +77,26 @@
                             <label class="flow-label">Full Name <span class="js-name-note">(optional)</span></label>
                             <input type="text" class="flow-input js-passenger-name" placeholder="Guest">
 
-                            <div class="discount-fields d-none">
-                                <label class="flow-label">ID Number <span>(required for discounted passengers)</span></label>
-                                <input type="text" class="flow-input js-id-number" placeholder="Enter passenger ID number">
-                            </div>
-                            <label class="flow-label">Passenger Type</label>
-                            <div class="passenger-type-grid">
-                                <button type="button" class="type-option is-active" data-type="regular" data-discount-id="">
-                                    Regular
-                                </button>
-                                @foreach ($discountOptions as $discount)
-                                    <button type="button" class="type-option" data-type="discounted"
-                                        data-discount-id="{{ $discount['id'] }}" data-discount-name="{{ $discount['name'] }}"
-                                        data-percentage="{{ $discount['percentage'] }}">
-                                        {{ $discount['name'] }}
+                            @if ($isKioskBooking)
+                                <div class="discount-fields d-none">
+                                    <label class="flow-label">ID Number <span>(required for discounted passengers)</span></label>
+                                    <input type="text" class="flow-input js-id-number" placeholder="Enter passenger ID number">
+                                </div>
+                                <label class="flow-label">Passenger Type</label>
+                                <div class="passenger-type-grid">
+                                    <button type="button" class="type-option is-active" data-type="regular" data-discount-id="">
+                                        Regular
                                     </button>
-                                @endforeach
-                            </div>
-                            <div class="discount-note js-discount-note d-none"></div>
+                                    @foreach ($discountOptions as $discount)
+                                        <button type="button" class="type-option" data-type="discounted"
+                                            data-discount-id="{{ $discount['id'] }}" data-discount-name="{{ $discount['name'] }}"
+                                            data-percentage="{{ $discount['percentage'] }}">
+                                            {{ $discount['name'] }}
+                                        </button>
+                                    @endforeach
+                                </div>
+                                <div class="discount-note js-discount-note d-none"></div>
+                            @endif
                         </div>
                     @endforeach
 
@@ -107,15 +112,17 @@
                         </div>
                     </div>
 
-                    <div class="authorization-panel d-none" id="authorizationPanel">
-                        <div class="authorization-heading">
-                            <div class="auth-icon"><i class="las la-shield-alt"></i></div>
-                            <div>
-                                <h5>Authorization Required</h5>
-                                <p>An authorized employee must approve this transaction before payment can continue. Please request assistance and enter the authorization code.</p>
+                    @if ($isKioskBooking)
+                        <div class="authorization-panel d-none" id="authorizationPanel">
+                            <div class="authorization-heading">
+                                <div class="auth-icon"><i class="las la-shield-alt"></i></div>
+                                <div>
+                                    <h5>Authorization Required</h5>
+                                    <p>An authorized employee must approve this transaction before payment can continue. Please request assistance and enter the authorization code.</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    @endif
 
                     <button type="button" class="btn-primary-flow w-100 mt-3" id="continueToPayment">
                         <i class="las la-lock"></i> Continue to Payment
@@ -133,20 +140,16 @@
                     <div class="payment-section payment-method-section">
                         <label class="flow-label">Payment Method</label>
                         <div class="payment-methods">
-                            @foreach ($gatewayCurrency as $data)
+                            @forelse ($gatewayCurrency as $data)
                                 @php
-                                    if ($kiosk_id && $data->name == 'Paynamics') {
-                                        continue;
-                                    }
-                                    if (!$kiosk_id && $data->name == 'Cash') {
-                                        continue;
-                                    }
-                                    $description = $data->instruction ?: ($data->name == 'Cash' ? 'Pay at the cashier with the printed voucher' : 'Follow the payment instructions on the next screen');
+                                    $description = $data->description ?: ($data->name == 'Cash' ? 'Pay at the cashier with the printed voucher' : 'Follow the payment instructions on the next screen');
                                 @endphp
                                 <label class="payment-method-card">
                                     <input class="gateway-input" data-gateway='@json($data)' type="radio" name="gateway"
                                         value="{{ $data->method_code }}" data-min-amount="{{ showAmount($data->min_amount) }}"
-                                        data-max-amount="{{ showAmount($data->max_amount) }}" @checked($loop->first)>
+                                        data-max-amount="{{ showAmount($data->max_amount) }}"
+                                        data-alias="{{ strtolower($data->method?->alias ?: $data->gateway_alias) }}"
+                                        @checked($loop->first)>
                                     <span class="method-icon"><i class="las {{ $data->name == 'Cash' ? 'la-money-bill' : 'la-credit-card' }}"></i></span>
                                     <span class="method-copy">
                                         <strong>{{ __($data->name) }}</strong>
@@ -154,9 +157,19 @@
                                     </span>
                                     <span class="method-check"><i class="las la-check"></i></span>
                                 </label>
-                            @endforeach
+                            @empty
+                                <div class="payment-notice mb-0">
+                                    <span class="payment-notice__icon"><i class="las la-info-circle"></i></span>
+                                    <div>
+                                        <strong>No payment method available</strong>
+                                        <p>Payment methods are currently disabled for this booking channel. Please request assistance.</p>
+                                    </div>
+                                </div>
+                            @endforelse
                         </div>
                     </div>
+
+                    @include('templates.basic.user.payment.partials.paynamics-channels')
 
                     <div class="payment-section payment-details-section">
                         <h5>Payment Details</h5>
@@ -181,23 +194,25 @@
                 </section>
             </form>
 
-            <div class="modal fade discount-auth-modal" id="discountAuthorizationModal" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="auth-modal-icon"><i class="las la-shield-alt"></i></div>
-                        <h5>Authorization Required</h5>
-                        <p class="auth-modal-copy">An authorized employee must approve this transaction before payment can continue.</p>
+            @if ($isKioskBooking)
+                <div class="modal fade discount-auth-modal" id="discountAuthorizationModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="auth-modal-icon"><i class="las la-shield-alt"></i></div>
+                            <h5>Authorization Required</h5>
+                            <p class="auth-modal-copy">An authorized employee must approve this transaction before payment can continue.</p>
 
-                        <label class="flow-label text-start">Authorization Code</label>
-                        <input type="password" class="flow-input" id="authPasscode" placeholder="Enter authorization code" autocomplete="new-password">
+                            <label class="flow-label text-start">Authorization Code</label>
+                            <input type="password" class="flow-input" id="authPasscode" placeholder="Enter authorization code" autocomplete="new-password">
 
-                        <div class="auth-actions auth-actions--single">
-                            <button type="button" class="btn-light-flow" id="cancelAuthorization">Cancel</button>
+                            <div class="auth-actions auth-actions--single">
+                                <button type="button" class="btn-light-flow" id="cancelAuthorization">Cancel</button>
+                            </div>
+                            <div class="auth-status js-auth-modal-status"></div>
                         </div>
-                        <div class="auth-status js-auth-modal-status"></div>
                     </div>
                 </div>
-            </div>
+            @endif
         </div>
     </div>
 @endsection
@@ -675,6 +690,133 @@
             margin-top: 2px;
         }
 
+        .paynamics-channel-heading {
+            align-items: center;
+            display: flex;
+            gap: 16px;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .paynamics-channel-heading h5 {
+            color: #111827;
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .paynamics-channel-heading p {
+            color: #7b8490;
+            font-size: 12px;
+            margin: 3px 0 0;
+        }
+
+        .paynamics-channel-heading > i {
+            color: var(--booking-primary);
+            font-size: 24px;
+        }
+
+        .paynamics-methods {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .paynamics-method + .paynamics-method {
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .paynamics-method__toggle {
+            align-items: center;
+            background: #fff;
+            border: 0;
+            color: #334155;
+            display: flex;
+            font-weight: 800;
+            justify-content: space-between;
+            min-height: 46px;
+            padding: 0 14px;
+            text-align: left;
+            width: 100%;
+        }
+
+        .paynamics-method.is-open .paynamics-method__toggle {
+            background: #f8fafc;
+            color: var(--booking-primary);
+        }
+
+        .paynamics-method__toggle i {
+            transition: transform .2s ease;
+        }
+
+        .paynamics-method.is-open .paynamics-method__toggle i {
+            transform: rotate(180deg);
+        }
+
+        .paynamics-method__channels {
+            display: grid;
+            gap: 8px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            padding: 10px;
+        }
+
+        .paynamics-channel {
+            align-items: center;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            gap: 9px;
+            min-height: 54px;
+            padding: 8px 10px;
+        }
+
+        .paynamics-channel:has(input:checked) {
+            background: var(--booking-primary-soft);
+            border-color: var(--booking-primary);
+        }
+
+        .paynamics-channel input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .paynamics-channel__logo {
+            align-items: center;
+            display: inline-flex;
+            flex: 0 0 32px;
+            height: 28px;
+            justify-content: center;
+        }
+
+        .paynamics-channel__logo img {
+            max-height: 28px;
+            max-width: 32px;
+            object-fit: contain;
+        }
+
+        .paynamics-channel__logo i {
+            color: var(--booking-primary);
+            font-size: 22px;
+        }
+
+        .paynamics-channel__name {
+            color: #334155;
+            flex: 1;
+            font-size: 13px;
+            font-weight: 800;
+            overflow-wrap: anywhere;
+        }
+
+        .paynamics-channel__check {
+            color: var(--booking-primary);
+            opacity: 0;
+        }
+
+        .paynamics-channel:has(input:checked) .paynamics-channel__check {
+            opacity: 1;
+        }
+
         .payment-instructions {
             color: #64748b;
             font-size: 12px;
@@ -756,6 +898,7 @@
 
             const seats = @json($seats);
             const unitPrice = Number(@json($unitPrice));
+            const discountsEnabled = @json($isKioskBooking);
             let passengerManifest = [];
             let totals = {
                 subtotal: Number(@json(getAmount($bookedTicket->sub_total))),
@@ -802,6 +945,14 @@
                 return gatewayElement.data('gateway');
             }
 
+            function selectedGatewayAlias() {
+                return String($('.gateway-input:checked').data('alias') || '').toLowerCase();
+            }
+
+            function isPaynamicsSelected() {
+                return selectedGatewayAlias() === 'paynamics';
+            }
+
             function setStep(step) {
                 const stepOrder = ['seat', 'details', 'payment', 'done'];
                 const activeIndex = stepOrder.indexOf(step);
@@ -846,10 +997,10 @@
                 $('.passenger-card').each(function() {
                     const card = $(this);
                     const typeButton = card.find('.type-option.is-active');
-                    const passengerType = typeButton.data('type') || 'regular';
-                    const discountId = typeButton.data('discount-id') || null;
-                    const discountName = typeButton.data('discount-name') || null;
-                    const percentage = Number(typeButton.data('percentage') || 0);
+                    const passengerType = discountsEnabled ? (typeButton.data('type') || 'regular') : 'regular';
+                    const discountId = discountsEnabled ? (typeButton.data('discount-id') || null) : null;
+                    const discountName = discountsEnabled ? (typeButton.data('discount-name') || null) : null;
+                    const percentage = discountsEnabled ? Number(typeButton.data('percentage') || 0) : 0;
                     const seat = String(card.data('seat'));
                     const name = $.trim(card.find('.js-passenger-name').val());
                     const idNumber = $.trim(card.find('.js-id-number').val());
@@ -939,7 +1090,15 @@
                 $('input[name="currency"]').val(gateway.currency);
                 $('.js-processing-charge').text(money(totals.charge));
                 $('.js-payment-total').text(money(totals.final));
-                $('.js-payment-instructions').text(gateway.instruction || (gateway.name === 'Cash' ? 'A payment voucher will be printed after confirmation. Present it at the Cashier Window to complete your payment.' : 'Follow the next screen to complete payment validation.'));
+                $('.js-paynamics-channels').toggleClass('d-none', !isPaynamicsSelected());
+
+                if (isPaynamicsSelected()) {
+                    $('.js-payment-instructions').text(gateway.description || 'Select an enabled Paynamics channel, then continue to its secure payment page.');
+                    $('#confirmPayment').html('<i class="las la-lock"></i> Continue to Secure Payment');
+                } else {
+                    $('.js-payment-instructions').text(gateway.description || 'A payment voucher will be printed after confirmation. Present it at the Cashier Window to complete your payment.');
+                    $('#confirmPayment').html('<i class="las la-print"></i> Confirm &amp; Print Voucher');
+                }
             }
 
             $(document).on('click', '.type-option', function() {
@@ -1064,6 +1223,11 @@
                 const state = collectPassengers(true);
                 if (!state.valid) return;
 
+                if (!$('.gateway-input').length) {
+                    showMessage('error', 'No payment method is currently available for this booking channel.');
+                    return;
+                }
+
                 if (state.discounted.length && $('input[name="discount_authorized"]').val() !== '1') {
                     pendingPaymentAfterAuthorization = true;
                     $('.js-auth-modal-status').removeClass('text-success text-danger').text('Enter the authorization code to continue.');
@@ -1081,6 +1245,29 @@
 
             $('.gateway-input').on('change', function() {
                 calculateGateway();
+            });
+
+            $('.paynamics-method__toggle').on('click', function() {
+                const method = $(this).closest('.paynamics-method');
+                const willOpen = !method.hasClass('is-open');
+
+                $('.paynamics-method').removeClass('is-open')
+                    .find('.paynamics-method__toggle').attr('aria-expanded', 'false');
+                $('.paynamics-method__channels').addClass('d-none');
+
+                if (willOpen) {
+                    method.addClass('is-open');
+                    method.find('.paynamics-method__toggle').attr('aria-expanded', 'true');
+                    method.find('.paynamics-method__channels').removeClass('d-none');
+                }
+            });
+
+            $('input[name="pchannel"]').on('change', function() {
+                $('#selectedPaynamicsMethod').val($(this).data('pmethod'));
+            });
+
+            $('.paynamics-channel__logo img').on('error', function() {
+                $(this).replaceWith('<i class="las la-wallet" aria-hidden="true"></i>');
             });
 
             $('#passengerFlowForm').on('submit', function(e) {
@@ -1104,6 +1291,12 @@
                 if (!$('.gateway-input:checked').length) {
                     e.preventDefault();
                     showMessage('error', 'Please select a payment method.');
+                    return;
+                }
+
+                if (isPaynamicsSelected() && !$('input[name="pchannel"]:checked').length) {
+                    e.preventDefault();
+                    showMessage('error', 'Please select a Paynamics payment channel.');
                     return;
                 }
 

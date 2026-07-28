@@ -19,7 +19,7 @@ use Laramin\Utility\VugiChugi;
 function systemDetails()
 {
     $system['name'] = 'GV Florida';
-    $system['build_version'] = '5.3.7';
+    $system['build_version'] = '5.3.8';
     $system['version'] = $system['build_version'];
     return $system;
 }
@@ -197,17 +197,19 @@ function generateTicketQR($pnr_number, $size = 150)
 
 function getPaynamicsPMethod($pchannel, $getname = false): string
 {
-    $pmethods = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'))->pmethod;
-    $pmethod = '';
-    foreach ($pmethods as $item) {
-        foreach ($item->types as $type) {
-            if ($pchannel == $type->value) {
-                $pmethod = $getname ? $item->name : $item->value;
-                break;
-            }
-        }
+    if (!\Illuminate\Support\Facades\Schema::hasTable('paynamics_payment_channels')) {
+        return (string) $pchannel;
     }
-    return $pmethod;
+
+    $channel = \App\Models\PaynamicsPaymentChannel::with('paymentMethod')
+        ->where('code', $pchannel)
+        ->first();
+
+    if (!$channel?->paymentMethod) {
+        return (string) $pchannel;
+    }
+
+    return $getname ? $channel->paymentMethod->name : $channel->paymentMethod->code;
 }
 
 function getPassengerType($data)
@@ -222,17 +224,17 @@ function getPassengerType($data)
 
 function getPaynamicsPChannel($pchannel, $getname = false): string
 {
-    $pmethods = json_decode(file_get_contents('assets/admin/paynamics_pmethod.json'))->pmethod;
-    $pmethod = '';
-    foreach ($pmethods as $item) {
-        foreach ($item->types as $type) {
-            if ($pchannel == $type->value) {
-                $pmethod = $getname ? $type->name : $type->value;
-                break;
-            }
-        }
+    if (!\Illuminate\Support\Facades\Schema::hasTable('paynamics_payment_channels')) {
+        return (string) $pchannel;
     }
-    return $pmethod;
+
+    $channel = \App\Models\PaynamicsPaymentChannel::where('code', $pchannel)->first();
+
+    if (!$channel) {
+        return (string) $pchannel;
+    }
+
+    return $getname ? $channel->name : $channel->code;
 }
 
 function generateUID(int $number, string $locationCode, string $prefix = 'KSK', $zero_padding = 3): string
