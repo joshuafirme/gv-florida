@@ -176,8 +176,9 @@
                                                     class="btn btn-sm btn-outline--primary ms-1">
                                                     <i class="fa-solid fa-receipt"></i>
                                                 </a>
+                                            @endif
 
-                                                {{-- @if (Carbon::parse($item->date_of_journey)->greaterThan(now()) && !$item->is_rebooked) --}}
+                                            @if (in_array((int) $item->status, [Status::BOOKED_APPROVED, Status::BOOKED_PENDING], true))
                                                 @php
                                                     $rebookOptionsUrl = $ticketSlip
                                                         ? route('admin.trip.ticket.rebook.options', [$item->id, 'slip_id' => $ticketSlip->id])
@@ -188,10 +189,12 @@
                                                     class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"
                                                     data-id="{{ $ticketSlip?->id ?? $item->id }}"
                                                     data-options-url="{{ $rebookOptionsUrl }}">
-                                                     <i class="fa-solid fa-calendar-day"></i>
-                                                 </button>
-                                                 @if ($ticketSlip)
-                                                     <button type="button" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                      <i class="fa-solid fa-calendar-day"></i>
+                                                  </button>
+                                            @endif
+
+                                            @if ($item->status == Status::BOOKED_APPROVED && $ticketSlip)
+                                                      <button type="button" data-bs-toggle="tooltip" data-bs-placement="bottom"
                                                          title="Refund Ticket"
                                                          class="btn btn-sm btn-outline--warning ms-1 refund-ticket-btn"
                                                          data-refund-url="{{ route('admin.vehicle.ticket.refund.options', $ticketSlip->id) }}">
@@ -207,10 +210,8 @@
                                                          title="Void Ticket"
                                                          class="btn btn-sm btn-outline--danger ms-1 void-ticket-btn"
                                                          data-void-url="{{ route('admin.vehicle.ticket.void.options', $ticketSlip->id) }}">
-                                                         <i class="las la-ban"></i>
-                                                     </button>
-                                                 @endif
-                                                {{-- @endif --}}
+                                                          <i class="las la-ban"></i>
+                                                      </button>
                                             @endif
                                         </td>
                                     </tr>
@@ -323,6 +324,11 @@
                                 <span>Seat</span><span id="reviewBeforeSeat"></span><strong class="text--primary"
                                     id="reviewAfterSeat"></strong>
                             </div>
+                        </div>
+                        <div class="form-group mt-3 mb-0">
+                            <label for="rebookReason" class="rebook-label">Reason (optional)</label>
+                            <textarea id="rebookReason" class="form-control" rows="2" maxlength="1000"
+                                placeholder="Enter a correction or operational reason, if applicable."></textarea>
                         </div>
                         <div class="rebook-success-alert mt-3">
                             <i class="las la-check"></i>
@@ -993,6 +999,7 @@
                 rebookType = null;
                 rebookAvailability = null;
                 rebookSeats = [];
+                $('#rebookReason').val('');
                 $('.rebook-type-card').removeClass('selected');
                 $('.rebook-stage').addClass('d-none');
                 $('.rebook-stage[data-stage="loading"]').removeClass('d-none');
@@ -1203,7 +1210,8 @@
                     type: rebookType,
                     date: rebookType === 'change_seat' ? rebookData.booking.date : $('#rebookDate').val(),
                     trip_id: rebookType === 'new_trip' ? $('#rebookTrip').val() : rebookData.booking.trip_id,
-                    seats: rebookSeats
+                    seats: rebookSeats,
+                    reason: $('#rebookReason').val()
                 };
 
                 button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Confirming…');
