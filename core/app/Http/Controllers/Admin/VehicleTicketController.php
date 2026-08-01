@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Lib\BusLayout;
 use App\Models\Admin;
 use App\Models\BookedTicket;
+use App\Models\CashierTransactionEvent;
 use App\Models\Counter;
 use App\Models\FleetType;
 use App\Models\SlipSeriesNumber;
@@ -35,6 +36,46 @@ class VehicleTicketController extends Controller
         $tickets = $this->bookedTicketRows()->paginate(getPaginate());
         $ticketRows = true;
         return view('admin.ticket.log', compact('pageTitle', 'tickets', 'ticketRows'));
+    }
+
+    public function rebooked(Request $request)
+    {
+        $pageTitle = 'Rebooked Tickets';
+        $search = trim((string) $request->search);
+        $events = CashierTransactionEvent::query()
+            ->where('status', 'Rebooked')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($searchQuery) use ($search) {
+                    $searchQuery->where('pnr', 'like', "%{$search}%")
+                        ->orWhere('reference_no', 'like', "%{$search}%")
+                        ->orWhere('passenger_name', 'like', "%{$search}%")
+                        ->orWhere('passenger_type', 'like', "%{$search}%")
+                        ->orWhere('passenger_id', 'like', "%{$search}%")
+                        ->orWhere('seat_no', 'like', "%{$search}%")
+                        ->orWhere('trip_class', 'like', "%{$search}%")
+                        ->orWhere('trip_route', 'like', "%{$search}%")
+                        ->orWhereHas('admin', function ($adminQuery) use ($search) {
+                            $adminQuery->where('name', 'like', "%{$search}%")
+                                ->orWhere('username', 'like', "%{$search}%");
+                        });
+                });
+            })
+            ->with($this->rebookedTicketRelations())
+            ->latest('processed_at')
+            ->latest('id')
+            ->paginate(getPaginate())
+            ->withQueryString();
+        $events->through(fn (CashierTransactionEvent $event) => $this->rebookedTicketData($event));
+
+        return view('admin.ticket.rebooked', compact('pageTitle', 'events', 'search'));
+    }
+
+    public function rebookedDetails(CashierTransactionEvent $event)
+    {
+        abort_unless($event->status === 'Rebooked', 404);
+        $event->loadMissing($this->rebookedTicketRelations());
+
+        return response()->json($this->rebookedTicketData($event));
     }
 
     public function refunded()
@@ -992,6 +1033,81 @@ class VehicleTicketController extends Controller
             'reason' => $statusRecord?->reason,
             'updated_at' => ($statusRecord?->processed_at ?? $statusRecord?->created_at ?? $slip->updated_at)?->format('M d, Y g:i A'),
             'view_url' => route('admin.trip.reservationSlip', $ticket->id),
+        ];
+    }
+
+    private function rebookedTicketRelations(): array
+    {
+        return [
+            'admin:id,name,username',
+            'bookedTicket.kiosk:id,name,uid',
+            'bookedTicket.user:id,firstname,lastname,username',
+            'bookedTicket.pickup:id,name',
+            'bookedTicket.drop:id,name',
+            'bookedTicket.trip.route:id,name',
+            'bookedTicket.trip.schedule:id,start_from',
+            'bookedTicket.trip.fleetType:id,name',
+            'slipSeriesNumber:id,booked_ticket_id,seat',
+        ];
+    }
+
+    private function rebookedTicketData(CashierTransactionEvent $event): array
+    {
+        $ticket = $event->bookedTicket;
+        $snapshot = $event->snapshot ?: [];
+        $source = $event->source ?: ($snapshot['source'] ?? 'Counter');
+
+        if (strcasecmp($source, 'Kiosk') === 0) {
+            $deviceName = $ticket?->kiosk?->name ?: 'Kiosk';
+            $deviceId = $ticket?->kiosk?->uid;
+        } elseif (strcasecmp($source, 'Online') === 0) {
+            $deviceName = 'Online Booking';
+            $deviceId = $ticket?->user?->username;
+        } else {
+            $deviceName = 'Counter';
+            $deviceId = $event->admin?->username;
+        }
+
+        $baseFare = (float) ($snapshot['base_fare'] ?? $event->base_fare ?? 0);
+        $discount = (float) ($snapshot['discount_amount'] ?? $event->discount_amount ?? 0);
+        $fare = (float) ($snapshot['fare'] ?? max($baseFare - $discount, 0));
+        $journeyDate = $event->journey_date
+            ? $event->journey_date->format('M d, Y')
+            : ($snapshot['journey_date'] ?? '-');
+        $departureTime = $event->departure_time
+            ? Carbon::parse($event->departure_time)->format('g:i A')
+            : (($snapshot['departure_time'] ?? null)
+                ? Carbon::parse($snapshot['departure_time'])->format('g:i A')
+                : '-');
+
+        return [
+            'id' => $event->id,
+            'device_name' => $deviceName,
+            'device_id' => $deviceId ?: '-',
+            'pnr' => $event->pnr ?: ($snapshot['pnr'] ?? '-'),
+            'reference' => $event->reference_no ?: ($snapshot['reference_no'] ?? '-'),
+            'journey_date' => $journeyDate,
+            'departure_time' => $departureTime,
+            'trip_class' => $event->trip_class ?: ($snapshot['trip_class'] ?? '-'),
+            'trip_route' => $event->trip_route ?: ($snapshot['trip_route'] ?? '-'),
+            'seat' => $event->seat_no
+                ?: ($snapshot['seat_no'] ?? $event->slipSeriesNumber?->seat ?? '-'),
+            'fare' => round($fare, 2),
+            'ticket_count' => 1,
+            'passenger_name' => $event->passenger_name ?: ($snapshot['passenger_name'] ?? 'Guest'),
+            'passenger_type' => $event->passenger_type ?: ($snapshot['passenger_type'] ?? 'Regular'),
+            'passenger_id' => $event->passenger_id ?: ($snapshot['passenger_id'] ?? null),
+            'booking_source' => $source,
+            'payment_method' => $event->payment_method ?: ($snapshot['payment_method'] ?? '-'),
+            'processed_by' => $event->admin?->name ?: $event->admin?->username ?: '-',
+            'authorized_by' => $snapshot['authorized_by_name'] ?? $snapshot['authorized_by'] ?? null,
+            'status' => 'Rebooked',
+            'reason' => $event->reason ?: '-',
+            'processed_at' => $event->processed_at?->format('M d, Y g:i A') ?: '-',
+            'details_url' => route('admin.vehicle.ticket.rebooked.details', $event->id),
+            'print_url' => $event->booked_ticket_id
+                ? route('admin.trip.reservationSlip', $event->booked_ticket_id)
+                : null,
         ];
     }
 

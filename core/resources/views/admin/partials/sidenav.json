@@ -269,6 +269,21 @@
             },
             {
                 "keyword": [
+                    "Rebooked Ticket",
+                    "Rebooking",
+                    "Booking history",
+                    "Ticket activity"
+                ],
+                "title": "Rebooked Tickets",
+                "route_name": "admin.vehicle.ticket.rebooked",
+                "menu_active": "admin.vehicle.ticket.rebooked*",
+                "permission": "admin.vehicle.ticket.booked",
+                "params": {
+                    "user_id": ""
+                }
+            },
+            {
+                "keyword": [
                     "Refund",
                     "Refunded Ticket",
                     "Ticket refund",
