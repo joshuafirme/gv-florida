@@ -75,20 +75,28 @@ class ManageFleetController extends Controller
             [
                 'name' => 'required|unique:fleet_types,name,' . $id,
                 'seat_layout' => 'required',
-                'deck' => 'required|numeric|gt:0',
-                'deck_seats' => 'required|array|min:1',
-                'deck_seats.*' => 'required|numeric|gt:0',
-                'last_row.*' => 'numeric',
-                'prefixes' => 'array',
-                'facilities.*' => 'string'
+                'deck' => 'required|integer|min:1',
+                'deck_seats' => 'required|array|size:' . $request->integer('deck'),
+                'deck_seats.*' => 'required|integer|min:1',
+                'last_row' => 'nullable|array|size:' . $request->integer('deck'),
+                'last_row.*' => 'nullable|integer|min:0',
+                'prefixes' => 'nullable|array|size:' . $request->integer('deck'),
+                'prefixes.*' => 'nullable|string|max:10',
+                'cr_position' => 'nullable|in:Left,Center,Right',
+                'cr_row' => 'nullable|required_with:cr_position|integer|min:1',
+                'cr_row_covered' => 'nullable|required_with:cr_position|integer|min:1|max:3',
+                'facilities' => 'nullable|array',
+                'facilities.*' => 'string',
+                'disabled_seats' => 'nullable|array',
+                'disabled_seats.*' => 'string|max:30',
             ],
             [
                 'deck_seats.*.required' => 'Seat number for all deck is required',
-                'deck_seats.*.numeric' => 'Seat number for all deck is must be a number',
-                'deck_seats.*.gt:0' => 'Seat number for all deck is must be greater than 0',
-            ],
-            [
-                'last_row.*.numeric' => 'Last Row number for all deck is must be a number',
+                'deck_seats.*.integer' => 'Seat number for all decks must be a number',
+                'deck_seats.*.min' => 'Seat number for all decks must be greater than 0',
+                'deck_seats.size' => 'Seat details are required for every deck',
+                'last_row.size' => 'Last-row details are required for every deck',
+                'prefixes.size' => 'A prefix value is required for every deck',
             ],
         );
 
@@ -102,21 +110,32 @@ class ManageFleetController extends Controller
 
         $fleetType->name = $request->name;
         $fleetType->seat_layout = $request->seat_layout;
-        $fleetType->deck = $request->deck;
-        $fleetType->deck_seats = $request->deck_seats;
-        $fleetType->last_row = $request->last_row;
-        $fleetType->cr_row = $request->cr_row;
+        $fleetType->deck = $request->integer('deck');
+        $fleetType->deck_seats = array_map('intval', array_values($request->deck_seats));
+        $fleetType->last_row = array_map(
+            fn ($value) => max((int) ($value ?: 0), 0),
+            array_values($request->last_row ?? array_fill(0, $request->integer('deck'), 0))
+        );
+        $fleetType->cr_row = $request->cr_position ? $request->integer('cr_row') : null;
         $fleetType->cr_position = $request->cr_position;
-        $fleetType->cr_override_seat = $request->cr_override_seat ? 1 : 0;
-        $fleetType->cr_row_covered = $request->cr_row_covered;
-        $fleetType->prefixes = $request->prefixes;
-        $fleetType->has_ac = $request->has_ac ? Status::ENABLE : Status::DISABLE;
+        $fleetType->cr_override_seat = $request->boolean('cr_override_seat');
+        $fleetType->cr_row_covered = $request->cr_position ? $request->integer('cr_row_covered') : null;
+        $fleetType->prefixes = array_map(
+            fn ($value) => trim((string) $value),
+            array_values($request->prefixes ?? array_fill(0, $request->integer('deck'), ''))
+        );
+        $fleetType->has_ac = $request->boolean('has_ac') ? Status::ENABLE : Status::DISABLE;
         $fleetType->facilities = $request->facilities ?? null;
         $fleetType->disabled_seats = $request->disabled_seats ?? null;
-        $fleetType->status = Status::ENABLE;
+        if (!$fleetType->exists) {
+            $fleetType->status = Status::ENABLE;
+        }
         $fleetType->save();
 
-        return $fleetType;
+        return response()->json([
+            'message' => $message,
+            'fleet_type' => $fleetType->fresh(),
+        ]);
     }
 
     public function typeStatus($id)

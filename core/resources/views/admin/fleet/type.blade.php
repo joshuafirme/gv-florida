@@ -107,7 +107,7 @@
                                 <div class="form-group">
                                     <label> @lang('Seat Layout')</label>
                                     <select name="seat_layout" class="form-control select2"
-                                        data-minimum-results-for-search="-1">
+                                        data-minimum-results-for-search="-1" required>
                                         <option value="">@lang('Select an option')</option>
                                         @foreach ($seatLayouts as $item)
                                             <option value="{{ $item->layout }}">{{ __($item->layout) }}</option>
@@ -155,7 +155,7 @@
                                         <div class="content p-3">
                                             <div class="form-group">
                                                 <label> @lang('No of Deck')</label>
-                                                <input type="number" min="0" class="form-control" name="deck"
+                                                <input type="number" min="1" class="form-control" name="deck"
                                                     required>
                                             </div>
                                             <div class="showSeat"></div>
@@ -176,6 +176,9 @@
                                 </div>
 
                                 <div class="form-group" id="non-operational-seats">
+                                    <label for="disabled_seats">@lang('Non-Operational Seats')</label>
+                                    <select id="disabled_seats" class="select2-auto-tokenize disabled_seats"
+                                        name="disabled_seats[]" multiple="multiple"></select>
                                 </div>
 
                                 <div class="form-group">
@@ -325,7 +328,6 @@
             function renderBusLayout(fleetType, containerId) {
                 const $container = $(`#${containerId}`);
                 $container.empty(); // Clear previous layout
-                console.log(fleetType)
                 const busLayout = new BusLayout(fleetType);
                 const disabled_seats = fleetType.disabled_seats || [];
 
@@ -359,7 +361,6 @@
                     let offset = '25px';
 
                     let seatColumns = busLayout.sitLayouts().left + busLayout.sitLayouts().right + busLayout.sitLayouts().center;
-                    console.log('seatColumns', seatColumns)
                     if (seatColumns == 3) {
                         position = 'relative';
                         offset = 0
@@ -506,11 +507,9 @@
                 });
 
                 // Add click event listener to the seats
-                $container.on('click', '.seat:not(.disabled-seat, .comfort-room)', function() {
+                $container.off('click.fleetPreview').on('click.fleetPreview',
+                    '.seat:not(.disabled-seat, .comfort-room)', function() {
                     $(this).toggleClass('selected');
-                    const seatId = $(this).data('seat');
-                    console.log(
-                        `Seat ${seatId} was ${$(this).hasClass('selected') ? 'selected' : 'deselected'}.`);
                 });
             }
 
@@ -519,6 +518,92 @@
                 height = (row_covered == 3) ? '130px' : height;
                 return height;
             }
+
+            function arrayValue(value) {
+                if (Array.isArray(value)) return value;
+                if (value && typeof value === 'object') return Object.values(value);
+                return [];
+            }
+
+            function fleetTypeFromForm() {
+                return {
+                    name: $('#postForm [name="name"]').val() || 'Fleet Type',
+                    seat_layout: $('#postForm [name="seat_layout"]').val() || '',
+                    deck_seats: $('#postForm [name="deck_seats[]"]').map(function() {
+                        return parseInt($(this).val(), 10) || 0;
+                    }).get(),
+                    last_row: $('#postForm [name="last_row[]"]').map(function() {
+                        return parseInt($(this).val(), 10) || 0;
+                    }).get(),
+                    prefixes: $('#postForm [name="prefixes[]"]').map(function() {
+                        return $(this).val() || '';
+                    }).get(),
+                    disabled_seats: arrayValue($('.disabled_seats').val()),
+                    cr_row: parseInt($('#postForm [name="cr_row"]').val(), 10) || 0,
+                    cr_position: $('#postForm [name="cr_position"]').val() || '',
+                    cr_override_seat: $('#postForm [name="cr_override_seat"]').is(':checked'),
+                    cr_row_covered: parseInt($('#postForm [name="cr_row_covered"]').val(), 10) || 1
+                };
+            }
+
+            function refreshFleetPreview() {
+                const fleetType = fleetTypeFromForm();
+                const seatsPerRow = fleetType.seat_layout
+                    .replace(/ /g, '')
+                    .split('x')
+                    .map(Number)
+                    .reduce((total, seats) => total + (seats || 0), 0);
+                const canPreview = fleetType.seat_layout
+                    && fleetType.deck_seats.length
+                    && seatsPerRow > 0;
+
+                if (!canPreview) {
+                    $('#seat-layout-container').empty();
+                    return;
+                }
+
+                renderBusLayout({
+                    ...fleetType,
+                    deck_seats: fleetType.deck_seats.map(seatCount => seatCount || seatsPerRow)
+                }, 'seat-layout-container');
+            }
+
+            function refreshDisabledSeatOptions() {
+                const $select = $('.disabled_seats');
+                const selected = arrayValue($select.val()).map(String);
+                const fleetType = fleetTypeFromForm();
+                const options = [];
+
+                fleetType.deck_seats.forEach((seatCount, deckIndex) => {
+                    const prefix = fleetType.prefixes[deckIndex] || '';
+                    for (let seat = 1; seat <= seatCount; seat++) {
+                        options.push(`${prefix}${seat}`);
+                    }
+                });
+
+                $select.empty();
+                options.forEach(seat => {
+                    $select.append(new Option(seat, seat, false, selected.includes(seat)));
+                });
+                $select.trigger('change.select2');
+            }
+
+            $('#cuModal').on('input change', [
+                '[name="name"]',
+                '[name="seat_layout"]',
+                '[name="deck_seats[]"]',
+                '[name="last_row[]"]',
+                '[name="prefixes[]"]',
+                '[name="cr_position"]',
+                '[name="cr_row"]',
+                '[name="cr_row_covered"]',
+                '[name="cr_override_seat"]',
+                '[name="disabled_seats[]"]'
+            ].join(','), refreshFleetPreview);
+
+            $('#cuModal').on('input', '[name="deck_seats[]"], [name="prefixes[]"]', function() {
+                refreshDisabledSeatOptions();
+            });
 
             $('#postForm').on('submit', function(e) {
                 e.preventDefault();
@@ -531,6 +616,9 @@
                     url = "{{ url('/admin/fleet/type/store') }}/" + id;
                 }
                 let formData = new FormData(form);
+                const $submit = $(form).find('[type="submit"]');
+                const submitLabel = $submit.html();
+                $submit.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> @lang('Saving')');
 
                 $.ajax({
                     url: url,
@@ -538,23 +626,20 @@
                     data: formData,
                     processData: false, // ✅ prevent jQuery from processing data
                     contentType: false, // ✅ let browser set the content type
-                    success: function(data) {
-                        let fleetType = {
-                            name: data.name,
-                            seat_layout: data.seat_layout, // left-center-right
-                            deck_seats: data.deck_seats, // per deck seat count
-                            prefixes: data.prefixes,
-                            disabled_seats: data.disabled_seats,
-                            last_row: data.last_row,
-                            cr_row: parseInt(data.cr_row),
-                            cr_position: data.cr_position,
-                            cr_override_seat: data.cr_override_seat,
-                            cr_row_covered: parseInt(data.cr_row_covered)
-                        };
-                        renderBusLayout(fleetType, 'seat-layout-container');
+                    success: function(response) {
+                        notify('success', response.message);
+                        $('#cuModal').modal('hide');
+                        setTimeout(() => window.location.reload(), 350);
                     },
-                    error: function(err) {
-                        console.error(err);
+                    error: function(xhr) {
+                        const errors = xhr.responseJSON?.errors || {};
+                        const message = Object.values(errors).flat()[0]
+                            || xhr.responseJSON?.message
+                            || '@lang('Unable to save the fleet type.')';
+                        notify('error', message);
+                    },
+                    complete: function() {
+                        $submit.prop('disabled', false).html(submitLabel);
                     }
                 });
 
@@ -562,37 +647,57 @@
             });
 
             $('input[name=deck]').on('input', function() {
-                //$('.showSeat').empty();
-                for (var deck = 2; deck <= $(this).val(); deck++) {
+                const current = fleetTypeFromForm();
+                $('.showSeat').empty();
+                for (var deck = 1; deck <= $(this).val(); deck++) {
+                    const index = deck - 1;
+                    const seatCount = current.deck_seats[index] || '';
+                    const lastRow = current.last_row[index] || 0;
+                    const prefix = $('<div>').text(current.prefixes[index] || '').html();
                     $('.showSeat').append(`
                         <div class="form-group">
                             <label> Seats of Deck - ${deck} </label>
-                            <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Seat')" name="deck_seats[]" required>
+                            <input type="number" min="1" class="form-control hasArray" placeholder="@lang('Enter Number of Seat')" value="${seatCount}" name="deck_seats[]" required>
                         </div>
                             <div class="form-group">
                                 <label> Last Row of Deck - ${deck} </label>
-                                <input type="number" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" name="last_row[]" required>
+                                <input type="number" min="0" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" name="last_row[]" value="${lastRow}">
                             </div>
                             <div class="form-group">
                                 <label> Prefix of Deck - ${deck} </label>
-                                <input type="text" class="form-control hasArray" name="prefixes[]">
+                                <input type="text" maxlength="10" class="form-control hasArray" value="${prefix}" name="prefixes[]">
                             </div>
                             <hr>
                     `);
                 }
+                refreshDisabledSeatOptions();
+                refreshFleetPreview();
             })
 
             $('.cuModalBtn').on('click', function() {
                 let modal = $('#cuModal');
-                let data = $(this).data('resource');
+                let data = $(this).data('resource') || null;
 
-                if ($(this).attr('data-modal_title').includes('Add')) {
+                setTimeout(function() {
+                if (!data) {
                     $('#fleet_id').val('');
-                } else {
-                    $('#fleet_id').val(data.id);
+                    $('.showSeat').empty();
+                    modal.find('input[name=deck]').val(1).trigger('input');
+                    modal.find('input[name=has_ac]').bootstrapToggle('off');
+                    $('#facilities').val([]).trigger('change');
+                    $('.disabled_seats').empty().val([]).trigger('change');
+                    $('#seat-layout-container').empty();
+                    return;
                 }
 
-                console.log(data)
+                $('#fleet_id').val(data.id);
+                modal.find('input[name=name]').val(data.name || '');
+                modal.find('select[name=seat_layout]').val(data.seat_layout || '').trigger('change');
+                modal.find('input[name=deck]').val(data.deck || 1);
+                modal.find('select[name=cr_position]').val(data.cr_position || '').trigger('change');
+                modal.find('input[name=cr_row]').val(data.cr_row || '');
+                modal.find('input[name=cr_row_covered]').val(data.cr_row_covered || '');
+                modal.find('input[name=cr_override_seat]').prop('checked', Boolean(data.cr_override_seat));
                 let fleetType = {
                     name: data.name,
                     seat_layout: data.seat_layout, // left-center-right
@@ -625,19 +730,18 @@
                             let seat = `${[prefix]}${index}`;
                             opts += `<option value="${seat}">${seat}</option>`;
                         }
-                        console.log('opts', opts)
                         $('.showSeat').append(`
                             <div class="form-group">
                                 <label> Seats of Deck - ${i} </label>
-                                <input type="text" class="form-control hasArray" placeholder="@lang('Enter Number of Seat')" value="${total_seats}" name="deck_seats[]" required>
+                                <input type="number" min="1" class="form-control hasArray" placeholder="@lang('Enter Number of Seat')" value="${total_seats}" name="deck_seats[]" required>
                             </div>
                             <div class="form-group">
                                 <label> Last Row of Deck - ${i} </label>
-                                <input type="number" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" value="${last_row}" name="last_row[]" required>
+                                <input type="number" min="0" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" value="${last_row}" name="last_row[]">
                             </div>
                             <div class="form-group">
                                 <label> Prefix of Deck - ${i} </label>
-                                <input type="text" class="form-control hasArray" value="${prefix}" name="prefixes[]">
+                                <input type="text" maxlength="10" class="form-control hasArray" value="${prefix}" name="prefixes[]">
                             </div>
                             <hr>
                         `);
@@ -669,15 +773,15 @@
                 }
 
 
-                $.each($('.select2-auto-tokenize'), function() {
-                    $(this)
-                        .wrap(`<div class="position-relative"></div>`)
-                        .select2({
-                            tags: true,
-                            tokenSeparators: [','],
-                            dropdownParent: $(this).parent()
-                        });
-                });
+                const $disabledSeats = $('.disabled_seats');
+                if (!$disabledSeats.hasClass('select2-hidden-accessible')) {
+                    $disabledSeats.wrap('<div class="position-relative"></div>').select2({
+                        tags: true,
+                        tokenSeparators: [','],
+                        dropdownParent: $disabledSeats.parent()
+                    });
+                }
+                }, 0);
             });
         })(jQuery);
     </script>
