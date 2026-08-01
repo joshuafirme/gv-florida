@@ -1049,12 +1049,22 @@ class VehicleTicketController extends Controller
             'bookedTicket.trip.schedule:id,start_from',
             'bookedTicket.trip.fleetType:id,name',
             'slipSeriesNumber:id,booked_ticket_id,seat',
+            'slipSeriesNumber.bookedTicket:id,status',
+            'slipSeriesNumber.refund:id,slip_series_number_id',
+            'slipSeriesNumber.cancellation:id,slip_series_number_id',
+            'slipSeriesNumber.voidRecord:id,slip_series_number_id',
         ];
     }
 
     private function rebookedTicketData(CashierTransactionEvent $event): array
     {
         $ticket = $event->bookedTicket;
+        $slip = $event->slipSeriesNumber;
+        $currentTicket = $slip?->bookedTicket ?: $ticket;
+        $currentTicketId = $currentTicket?->id;
+        $canRebook = $currentTicket
+            && in_array((int) $currentTicket->status, [Status::BOOKED_APPROVED, Status::BOOKED_PENDING], true)
+            && (!$slip || (!$slip->refund && !$slip->cancellation && !$slip->voidRecord));
         $snapshot = $event->snapshot ?: [];
         $history = $snapshot['rebooking'] ?? [];
         $formatDeparture = static fn ($value) => $value
@@ -1112,14 +1122,22 @@ class VehicleTicketController extends Controller
             'new_trip' => $history['new']['trip'] ?? ($event->trip_route ?: '-'),
             'previous_departure' => $formatDeparture($history['previous']['departure_at'] ?? null),
             'new_departure' => $formatDeparture($history['new']['departure_at'] ?? null),
+            'original_departure' => $formatDeparture($history['original_departure_at'] ?? null),
+            'grace_ends_at' => $formatDeparture($history['grace_ends_at'] ?? null),
             'previous_seat' => $history['previous_seat'] ?? '-',
             'new_seat' => $history['new_seat'] ?? ($event->seat_no ?: '-'),
             'after_departure' => (bool) ($history['after_departure'] ?? false),
             'reason' => $event->reason ?: '-',
             'processed_at' => $event->processed_at?->format('M d, Y g:i A') ?: '-',
             'details_url' => route('admin.vehicle.ticket.rebooked.details', $event->id),
-            'print_url' => $event->booked_ticket_id
-                ? route('admin.trip.reservationSlip', $event->booked_ticket_id)
+            'rebook_url' => $canRebook
+                ? route('admin.vehicle.ticket.booked', array_filter([
+                    'rebook_ticket' => $currentTicketId,
+                    'slip_id' => $event->slip_series_number_id,
+                ]))
+                : null,
+            'print_url' => $currentTicketId
+                ? route('admin.trip.reservationSlip', $currentTicketId)
                 : null,
         ];
     }
@@ -1447,9 +1465,9 @@ class VehicleTicketController extends Controller
     public function rebookingOptions(Request $request, $id)
     {
         $ticket = $this->rebookingTicket($id);
-        $eligibility = app(RebookingPolicy::class)->assertEligible($ticket);
         $slipId = $request->integer('slip_id') ?: null;
         $targetSlips = $this->rebookingSlips($ticket, $slipId);
+        $eligibility = $this->assertAdminRebookingEligible($ticket, $targetSlips);
         $routeParams = $slipId ? [$ticket->id, 'slip_id' => $slipId] : [$ticket->id];
 
         $trips = Trip::active()
@@ -1492,8 +1510,8 @@ class VehicleTicketController extends Controller
         ]);
 
         $ticket = $this->rebookingTicket($id);
-        app(RebookingPolicy::class)->assertEligible($ticket);
         $targetSlips = $this->rebookingSlips($ticket, $request->integer('slip_id') ?: null);
+        $this->assertAdminRebookingEligible($ticket, $targetSlips);
         [$trip, $date] = $this->resolveRebookingTarget($ticket, $validated);
         $availability = $this->seatAvailability($ticket, $trip, $date, false, $targetSlips);
 
@@ -1539,8 +1557,8 @@ class VehicleTicketController extends Controller
                 ])
                 ->lockForUpdate()
                 ->findOrFail($id);
-            $eligibility = app(RebookingPolicy::class)->assertEligible($ticket);
             $targetSlips = $this->rebookingSlips($ticket, $slipId);
+            $eligibility = $this->assertAdminRebookingEligible($ticket, $targetSlips);
             [$trip, $date] = $this->resolveRebookingTarget($ticket, $validated, true);
 
             $requestedSeats = array_values(array_unique($validated['seats']));
@@ -1666,6 +1684,50 @@ class VehicleTicketController extends Controller
         }
 
         return collect([$slip]);
+    }
+
+    private function assertAdminRebookingEligible(BookedTicket $ticket, $targetSlips): array
+    {
+        $slipIds = collect($targetSlips)->pluck('id')->filter()->values();
+        $historyQuery = CashierTransactionEvent::query()
+            ->where('status', 'Rebooked');
+
+        if ($slipIds->isNotEmpty()) {
+            $historyQuery->whereIn('slip_series_number_id', $slipIds);
+        } else {
+            $historyQuery->where('booked_ticket_id', $ticket->id)
+                ->whereNull('slip_series_number_id');
+        }
+
+        $originalDeparture = $historyQuery
+            ->orderBy('processed_at')
+            ->orderBy('id')
+            ->get(['snapshot'])
+            ->map(function (CashierTransactionEvent $event) {
+                $snapshot = $event->snapshot ?: [];
+                $history = $snapshot['rebooking'] ?? [];
+                $value = $history['original_departure_at']
+                    ?? $history['previous']['departure_at']
+                    ?? null;
+
+                if (!$value) {
+                    return null;
+                }
+
+                try {
+                    return Carbon::parse($value);
+                } catch (\Throwable $exception) {
+                    return null;
+                }
+            })
+            ->filter()
+            ->sortBy(fn (Carbon $departure) => $departure->timestamp)
+            ->first();
+
+        return app(RebookingPolicy::class)->assertAdminEligible(
+            $ticket,
+            $originalDeparture
+        );
     }
 
     private function resolveRebookingTarget(BookedTicket $ticket, array $data, bool $lockForUpdate = false): array
@@ -1810,6 +1872,7 @@ class VehicleTicketController extends Controller
         }
 
         return [
+            'original_departure_at' => $eligibility['original_departure_at']->toIso8601String(),
             'previous' => [
                 'trip_id' => $ticket->trip_id,
                 'trip' => $ticket->trip?->route?->name ?: $ticket->trip?->title ?: 'Trip',
@@ -1826,7 +1889,8 @@ class VehicleTicketController extends Controller
                 'seats' => array_values($newSeats),
                 'seats_by_reference' => $newSeatsByReference,
             ],
-            'after_departure' => (bool) $eligibility['after_departure'],
+            'after_departure' => (bool) $eligibility['after_original_departure'],
+            'after_current_departure' => (bool) $eligibility['after_departure'],
             'grace_ends_at' => $eligibility['grace_ends_at']->toIso8601String(),
         ];
     }

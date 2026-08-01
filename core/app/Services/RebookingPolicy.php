@@ -34,8 +34,18 @@ class RebookingPolicy
 
     public function assertEligible(BookedTicket $ticket, ?Carbon $at = null): array
     {
+        return $this->assertAdminEligible($ticket, null, $at);
+    }
+
+    public function assertAdminEligible(
+        BookedTicket $ticket,
+        ?Carbon $originalDeparture = null,
+        ?Carbon $at = null
+    ): array
+    {
         $at ??= now();
         $departure = $this->departureFor($ticket);
+        $originalDeparture ??= $departure->copy();
         $afterDeparture = $at->gte($departure);
 
         if ((int) $ticket->status === Status::BOOKED_PENDING && $afterDeparture) {
@@ -44,7 +54,7 @@ class RebookingPolicy
             ]);
         }
 
-        if ((int) $ticket->status === Status::BOOKED_APPROVED && $at->gte($departure->copy()->addHours(self::MISSED_BOOKING_GRACE_HOURS))) {
+        if ((int) $ticket->status === Status::BOOKED_APPROVED && $at->gte($originalDeparture->copy()->addHours(self::MISSED_BOOKING_GRACE_HOURS))) {
             throw ValidationException::withMessages([
                 'booking' => 'The 24-hour rebooking grace period has expired. Apply the existing cancellation or forfeiture process.',
             ]);
@@ -58,8 +68,10 @@ class RebookingPolicy
 
         return [
             'departure_at' => $departure,
-            'grace_ends_at' => $departure->copy()->addHours(self::MISSED_BOOKING_GRACE_HOURS),
+            'original_departure_at' => $originalDeparture,
+            'grace_ends_at' => $originalDeparture->copy()->addHours(self::MISSED_BOOKING_GRACE_HOURS),
             'after_departure' => $afterDeparture,
+            'after_original_departure' => $at->gte($originalDeparture),
         ];
     }
 

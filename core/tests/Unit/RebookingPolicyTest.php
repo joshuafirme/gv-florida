@@ -71,6 +71,36 @@ class RebookingPolicyTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    public function test_it_allows_an_admin_to_rebook_to_an_earlier_calendar_date(): void
+    {
+        $ticket = $this->ticket('2026-08-15', '8:00 AM');
+        $replacement = $this->trip(2, '8:00 AM');
+
+        $this->policy->assertReplacementTrip(
+            $ticket,
+            $replacement,
+            '2026-08-13',
+            Carbon::parse('2026-08-12 10:00 AM')
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_it_allows_an_admin_to_rebook_to_a_later_calendar_date(): void
+    {
+        $ticket = $this->ticket('2026-08-10', '8:00 AM');
+        $replacement = $this->trip(2, '8:00 AM');
+
+        $this->policy->assertReplacementTrip(
+            $ticket,
+            $replacement,
+            '2026-08-18',
+            Carbon::parse('2026-08-09 10:00 AM')
+        );
+
+        $this->addToAssertionCount(1);
+    }
+
     public function test_pending_booking_is_rebookable_before_departure(): void
     {
         $ticket = $this->ticket('2026-08-03', '5:00 PM', Status::BOOKED_PENDING);
@@ -119,17 +149,42 @@ class RebookingPolicyTest extends TestCase
         $ticket = $this->ticket('2026-08-03', '5:00 PM');
         $ticket->is_rebooked = 1;
 
-        $firstCheck = $this->policy->assertEligible(
+        $firstCheck = $this->policy->assertAdminEligible(
             $ticket,
+            null,
             Carbon::parse('2026-08-03 10:00 AM')
         );
-        $secondCheck = $this->policy->assertEligible(
+        $secondCheck = $this->policy->assertAdminEligible(
             $ticket,
+            null,
             Carbon::parse('2026-08-03 11:00 AM')
         );
 
         $this->assertFalse($firstCheck['after_departure']);
         $this->assertFalse($secondCheck['after_departure']);
+    }
+
+    public function test_admin_grace_period_remains_anchored_to_the_original_departure(): void
+    {
+        $ticket = $this->ticket('2026-08-12', '8:00 AM');
+        $originalDeparture = Carbon::parse('2026-08-10 8:00 AM');
+
+        $eligibility = $this->policy->assertAdminEligible(
+            $ticket,
+            $originalDeparture,
+            Carbon::parse('2026-08-11 7:59:59 AM')
+        );
+
+        $this->assertTrue($eligibility['after_original_departure']);
+        $this->assertFalse($eligibility['after_departure']);
+        $this->assertSame('2026-08-11 08:00:00', $eligibility['grace_ends_at']->format('Y-m-d H:i:s'));
+
+        $this->expectException(ValidationException::class);
+        $this->policy->assertAdminEligible(
+            $ticket,
+            $originalDeparture,
+            Carbon::parse('2026-08-11 8:00 AM')
+        );
     }
 
     public function test_forfeiture_becomes_due_only_when_the_full_grace_period_has_elapsed(): void

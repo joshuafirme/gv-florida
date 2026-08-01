@@ -993,8 +993,7 @@
                 $('#rebookContinueBtn').prop('disabled', stage === 'type' ? !rebookType : true);
             }
 
-            $(document).on('click', '.update-booking-date-btn', function(event) {
-                event.preventDefault();
+            function openRebooking(optionsUrl) {
                 rebookData = null;
                 rebookType = null;
                 rebookAvailability = null;
@@ -1008,7 +1007,7 @@
                 $('#rebookConfirmBtn').addClass('d-none');
                 rebookModal.show();
 
-                $.getJSON($(this).data('options-url')).done(function(data) {
+                $.getJSON(optionsUrl).done(function(data) {
                     rebookData = data;
                     $('#rebookPnr').text(data.booking.pnr);
                     $('#rebookReference').text(data.booking.reference);
@@ -1024,7 +1023,26 @@
                     notify('error', validationMessage(xhr));
                     rebookModal.hide();
                 });
+            }
+
+            $(document).on('click', '.update-booking-date-btn', function(event) {
+                event.preventDefault();
+                openRebooking($(this).data('options-url'));
             });
+
+            const autoRebookUrl = @json(request('rebook_ticket')
+                ? route('admin.trip.ticket.rebook.options', array_filter([
+                    request('rebook_ticket'),
+                    'slip_id' => request('slip_id'),
+                ]))
+                : null);
+            if (autoRebookUrl) {
+                const cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete('rebook_ticket');
+                cleanUrl.searchParams.delete('slip_id');
+                window.history.replaceState({}, '', cleanUrl.toString());
+                openRebooking(autoRebookUrl);
+            }
 
             $('.rebook-type-card').on('click', function() {
                 rebookType = $(this).data('type');
