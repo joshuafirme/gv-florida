@@ -1030,12 +1030,16 @@
                 openRebooking($(this).data('options-url'));
             });
 
-            const autoRebookUrl = @json(request('rebook_ticket')
-                ? route('admin.trip.ticket.rebook.options', array_filter([
-                    request('rebook_ticket'),
-                    'slip_id' => request('slip_id'),
-                ]))
-                : null);
+            @php
+                $autoRebookUrl = null;
+                if (request('rebook_ticket')) {
+                    $autoRebookUrl = route('admin.trip.ticket.rebook.options', array_filter([
+                        request('rebook_ticket'),
+                        'slip_id' => request('slip_id'),
+                    ]));
+                }
+            @endphp
+            const autoRebookUrl = @json($autoRebookUrl);
             if (autoRebookUrl) {
                 const cleanUrl = new URL(window.location.href);
                 cleanUrl.searchParams.delete('rebook_ticket');
