@@ -29,6 +29,7 @@
         .manifest-stat.capacity { border-color: #ef8db7; color: #d41462; }
         .manifest-stat.booked { background: #edfff4; border-color: #a9e5bf; color: #07813a; }
         .manifest-stat.blocked { background: #f2f6fa; border-color: #bdccd9; color: #38566d; }
+        .manifest-stat.locked { background: #fff7e7; border-color: #efc267; color: #955400; }
         .manifest-stat.discounted { background: #fff8e9; border-color: #f1ca72; color: #a66405; }
         .manifest-search-note { background: #fff5f9; border: 1px solid #f1a2c3; border-radius: 8px; color: #9d1751; font-size: 12px; margin-bottom: 18px; padding: 10px 12px; }
         .manifest-deck { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 18px; overflow: hidden; }
@@ -40,6 +41,9 @@
         .manifest-seat-status { color: #a2a8b0; float: right; font-size: 10px; font-style: italic; font-weight: 700; text-transform: uppercase; }
         .manifest-seat.occupied .manifest-seat-number { color: #0f1825; }
         .manifest-seat.blocked { background: #fafbfc; }
+        .manifest-seat.admin-locked { background: #fff8e8; box-shadow: inset 4px 0 #e6a126; }
+        .manifest-seat.admin-locked .manifest-seat-number,
+        .manifest-seat.admin-locked .manifest-seat-status { color: #955400; }
         .manifest-seat.disabled { background: #f2f3f5; color: #9ba2ad; }
         .manifest-seat.comfort-room { background: #eef3f7; }
         .manifest-seat.comfort-room .manifest-seat-number { color: #526474; }
@@ -49,6 +53,9 @@
         .manifest-passenger-dropoff { color: #111; font-size: 18px; font-weight: 800; line-height: 1.12; text-align: right; text-transform: uppercase; }
         .manifest-km-post { font-size: 23px; white-space: nowrap; }
         .manifest-type { background: #fff7df; border: 1px solid #efc75a; border-radius: 5px; color: #9a6500; display: inline-block; font-size: 9px; font-weight: 700; margin-top: 7px; padding: 3px 7px; text-transform: uppercase; }
+        .manifest-lock-details { color: #744500; margin-top: 18px; }
+        .manifest-lock-details strong { display: block; font-size: 13px; text-transform: uppercase; }
+        .manifest-lock-details span { display: block; font-size: 11px; margin-top: 5px; }
         .manifest-seat.filtered { opacity: .18; }
         @media (max-width: 700px) { .manifest-toolbar { align-items: flex-start; flex-direction: column; } .manifest-page { border-radius: 0; margin: 0; padding: 22px 14px; } .manifest-info { grid-template-columns: repeat(2, 1fr); } .manifest-seat-grid { grid-template-columns: 1fr; } .manifest-seat:nth-child(odd) { border-right: 0; } .manifest-passenger { grid-template-columns: minmax(0, 1fr) minmax(130px, .8fr); } .manifest-reference { font-size: 23px; } .manifest-passenger-dropoff { font-size: 15px; } .manifest-km-post { font-size: 18px; } }
         @media print {
@@ -73,6 +80,9 @@
             .manifest-passenger-dropoff { font-size: 13px; }
             .manifest-km-post { font-size: 17px; }
             .manifest-type { font-size: 7px; margin-top: 3px; padding: 2px 5px; }
+            .manifest-lock-details { margin-top: 10px; }
+            .manifest-lock-details strong { font-size: 9px; }
+            .manifest-lock-details span { font-size: 8px; margin-top: 3px; }
             .manifest-seat.filtered { opacity: 1; }
             @page { margin: 8mm; size: legal portrait; }
         }
@@ -113,8 +123,9 @@
         <section class="manifest-stats">
             <span class="manifest-stat capacity">Capacity: {{ $stats['capacity'] }}</span>
             <span class="manifest-stat booked">Booked: {{ $stats['booked'] }}</span>
-            <span class="manifest-stat blocked">Blocked: {{ $stats['blocked'] }}</span>
-            <span class="manifest-stat">Vacant: {{ $stats['vacant'] }}</span>
+            <span class="manifest-stat blocked">Pending/Held: {{ $stats['blocked'] }}</span>
+            <span class="manifest-stat locked">Admin Locked: {{ $stats['locked'] }}</span>
+            <span class="manifest-stat">Available: {{ $stats['vacant'] }}</span>
             <span class="manifest-stat discounted">SC/PWD: {{ $stats['discounted'] }}</span>
         </section>
 
@@ -132,14 +143,25 @@
                         @php
                             $isComfortRoom = $cell['type'] === 'cr';
                             $manifest = $isComfortRoom ? null : $seatManifest->get($cell['seat_id']);
-                            $isDisabled = !$isComfortRoom && in_array($cell['label'], $disabledSeats, true);
+                            $lockedSeat = $isComfortRoom ? null : $lockedSeats->get($cell['seat_id']);
+                            $isDisabled = !$isComfortRoom && in_array($cell['seat_id'], $disabledSeats, true);
+                            $isFiltered = $manifest && !$manifest['matches'];
                         @endphp
-                        <article class="manifest-seat {{ $isComfortRoom ? 'comfort-room' : '' }} {{ $manifest ? 'occupied' : '' }} {{ $manifest && $manifest['blocked'] ? 'blocked' : '' }} {{ $isDisabled ? 'disabled' : '' }} {{ $manifest && !$manifest['matches'] ? 'filtered' : '' }}">
+                        <article class="manifest-seat {{ $isComfortRoom ? 'comfort-room' : '' }} {{ $manifest ? 'occupied' : '' }} {{ $manifest && $manifest['blocked'] ? 'blocked' : '' }} {{ $lockedSeat ? 'admin-locked' : '' }} {{ $isDisabled ? 'disabled' : '' }} {{ $isFiltered ? 'filtered' : '' }}">
                             <span class="manifest-seat-number">{{ $cell['label'] }}</span>
                             @if ($isComfortRoom)
                                 <span class="manifest-seat-status">Comfort Room</span>
                             @elseif ($isDisabled)
                                 <span class="manifest-seat-status">Unavailable</span>
+                            @elseif ($lockedSeat)
+                                <span class="manifest-seat-status"><i class="fas fa-lock"></i> Admin Locked</span>
+                                <div class="manifest-lock-details">
+                                    <strong>Reserved for internal use</strong>
+                                    <span>Reason: {{ $lockedSeat['reason'] }}</span>
+                                    @if ($lockedSeat['authorized_by'])
+                                        <span>Authorized by: {{ $lockedSeat['authorized_by'] }}</span>
+                                    @endif
+                                </div>
                             @elseif ($manifest)
                                 <span class="manifest-seat-status">{{ $manifest['blocked'] ? 'Blocked' : 'Occupied' }}</span>
                                 <div class="manifest-passenger">
