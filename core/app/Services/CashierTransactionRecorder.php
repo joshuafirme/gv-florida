@@ -117,12 +117,31 @@ class CashierTransactionRecorder
         Collection $slips,
         int $adminId,
         string $reason,
-        string $batchKey
+        string $batchKey,
+        array $history = []
     ): void {
         $ticket->loadMissing($this->ticketRelations());
+        $slips = $slips->values();
 
-        foreach ($slips as $slip) {
+        if ($slips->isEmpty()) {
+            $snapshot = $this->bookingSnapshot($ticket);
+            $snapshot = $this->withRebookingHistory($snapshot, $history, null, 0);
+            $this->store(
+                "rebooked:{$batchKey}:booking",
+                $adminId,
+                'Rebooked',
+                $snapshot,
+                0,
+                $reason,
+                now()
+            );
+
+            return;
+        }
+
+        foreach ($slips as $index => $slip) {
             $snapshot = $this->ticketSnapshot($ticket, $slip);
+            $snapshot = $this->withRebookingHistory($snapshot, $history, $slip, $index);
             $this->store(
                 "rebooked:{$batchKey}:{$slip->id}",
                 $adminId,
@@ -133,6 +152,47 @@ class CashierTransactionRecorder
                 now()
             );
         }
+    }
+
+    private function bookingSnapshot(BookedTicket $ticket): array
+    {
+        $placeholder = new SlipSeriesNumber();
+        $placeholder->seat = collect($ticket->seats ?? [])->first();
+
+        return $this->ticketSnapshot($ticket, $placeholder);
+    }
+
+    private function withRebookingHistory(
+        array $snapshot,
+        array $history,
+        ?SlipSeriesNumber $slip,
+        int $index
+    ): array {
+        $sequenceQuery = CashierTransactionEvent::query()->where('status', 'Rebooked');
+        if ($slip?->id) {
+            $sequenceQuery->where('slip_series_number_id', $slip->id);
+        } else {
+            $sequenceQuery->where('booked_ticket_id', $snapshot['booked_ticket_id'] ?? null)
+                ->whereNull('slip_series_number_id');
+        }
+
+        $sequence = $sequenceQuery->count() + 1;
+        $reference = $slip?->id ? (string) $slip->id : null;
+        $previousSeat = $reference
+            ? ($history['previous']['seats_by_reference'][$reference] ?? null)
+            : ($history['previous']['seats'][$index] ?? null);
+        $newSeat = $reference
+            ? ($history['new']['seats_by_reference'][$reference] ?? $slip?->seat)
+            : ($history['new']['seats'][$index] ?? $snapshot['seat_no'] ?? null);
+
+        $snapshot['rebooking'] = array_merge($history, [
+            'sequence' => $sequence,
+            'previous_seat' => $previousSeat,
+            'new_seat' => $newSeat,
+        ]);
+        $snapshot['rebooking_sequence'] = $sequence;
+
+        return $snapshot;
     }
 
     public function backfillForDate(Admin $admin, Carbon $date): void
