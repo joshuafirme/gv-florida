@@ -11,6 +11,7 @@ use App\Models\SlipSeriesNumber;
 use App\Models\TicketCancellation;
 use App\Models\TicketRefund;
 use App\Models\TicketVoid;
+use App\Models\Trip;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -35,7 +36,7 @@ class CashierTransactionRecorder
 
         foreach ($ticket->slipSeriesNumbers as $slip) {
             $snapshot = $this->ticketSnapshot($ticket, $slip);
-            $this->store(
+            $soldEvent = $this->store(
                 "sold:{$deposit->id}:{$slip->id}",
                 (int) $deposit->processed_by_admin_id,
                 'Sold',
@@ -44,6 +45,7 @@ class CashierTransactionRecorder
                 null,
                 $deposit->updated_at ?: now()
             );
+            $this->restoreOriginalSoldTravelDetails($soldEvent);
         }
     }
 
@@ -275,8 +277,14 @@ class CashierTransactionRecorder
         float $amount,
         ?string $reason,
         $processedAt
-    ): void {
-        CashierTransactionEvent::updateOrCreate(
+    ): CashierTransactionEvent {
+        $existingEvent = CashierTransactionEvent::where('event_key', $eventKey)->first();
+
+        if ($existingEvent && ($status === 'Sold' || $existingEvent->status === 'Sold')) {
+            return $existingEvent;
+        }
+
+        return CashierTransactionEvent::updateOrCreate(
             ['event_key' => $eventKey],
             [
                 'admin_id' => $adminId,
@@ -307,6 +315,116 @@ class CashierTransactionRecorder
                 'snapshot' => $snapshot,
             ]
         );
+    }
+
+    private function restoreOriginalSoldTravelDetails(CashierTransactionEvent $soldEvent): void
+    {
+        if (!$soldEvent->slip_series_number_id || !$soldEvent->processed_at) {
+            return;
+        }
+
+        $rebookingEvent = CashierTransactionEvent::query()
+            ->where('slip_series_number_id', $soldEvent->slip_series_number_id)
+            ->where('status', 'Rebooked')
+            ->where(function ($query) use ($soldEvent) {
+                $query->where('processed_at', '>', $soldEvent->processed_at)
+                    ->orWhere(function ($sameTime) use ($soldEvent) {
+                        $sameTime->where('processed_at', $soldEvent->processed_at)
+                            ->where('id', '>', $soldEvent->id);
+                    });
+            })
+            ->orderBy('processed_at')
+            ->orderBy('id')
+            ->first();
+
+        if (!$rebookingEvent) {
+            return;
+        }
+
+        $rebookingSnapshot = $rebookingEvent->snapshot ?: [];
+        $history = $rebookingSnapshot['rebooking'] ?? [];
+        $previous = $history['previous'] ?? [];
+        $reference = (string) $soldEvent->slip_series_number_id;
+        $seat = $previous['seats_by_reference'][$reference]
+            ?? $history['previous_seat']
+            ?? collect($previous['seats'] ?? [])->first();
+        $departure = !empty($previous['departure_at'])
+            ? Carbon::parse($previous['departure_at'])
+            : null;
+        $travelDetails = array_filter([
+            'journey_date' => $previous['journey_date'] ?? $departure?->format('Y-m-d'),
+            'departure_time' => $departure?->format('H:i:s'),
+            'trip_class' => $previous['trip_class'] ?? $this->previousTripClass($previous),
+            'trip_route' => $previous['trip'] ?? null,
+            'seat_no' => $seat,
+        ], fn ($value) => $value !== null && $value !== '');
+
+        if (!$travelDetails) {
+            $travelDetails = $this->legacyPreviousTravelDetails($rebookingEvent);
+        }
+
+        if (!$travelDetails) {
+            return;
+        }
+
+        $changes = collect($travelDetails)->filter(function ($value, $field) use ($soldEvent) {
+            $current = match ($field) {
+                'journey_date' => $soldEvent->journey_date?->format('Y-m-d'),
+                'departure_time' => $soldEvent->departure_time
+                    ? Carbon::parse($soldEvent->departure_time)->format('H:i:s')
+                    : null,
+                default => $soldEvent->{$field},
+            };
+
+            return (string) $current !== (string) $value;
+        })->all();
+
+        if (!$changes) {
+            return;
+        }
+
+        $snapshot = $soldEvent->snapshot ?: [];
+        foreach ($changes as $field => $value) {
+            $snapshot[$field] = $value;
+        }
+
+        $soldEvent->forceFill($changes + ['snapshot' => $snapshot])->save();
+    }
+
+    private function previousTripClass(array $previous): ?string
+    {
+        if (empty($previous['trip_id'])) {
+            return null;
+        }
+
+        return Trip::with('fleetType:id,name')
+            ->find($previous['trip_id'])
+            ?->fleetType
+            ?->name;
+    }
+
+    private function legacyPreviousTravelDetails(CashierTransactionEvent $rebookingEvent): array
+    {
+        $reason = trim((string) $rebookingEvent->reason);
+        $details = [];
+
+        if (preg_match('/Travel date changed from (\d{4}-\d{2}-\d{2}) to /i', $reason, $match)) {
+            $details['journey_date'] = $match[1];
+        }
+
+        if (preg_match('/Seat changed from (.+?) to (.+?)(?:;|$)/i', $reason, $match)) {
+            $previousSeats = array_map('trim', explode(',', $match[1]));
+            $newSeats = array_map('trim', explode(',', $match[2]));
+            $newSeat = formatSeatLabel($rebookingEvent->seat_no);
+            $index = array_search($newSeat, $newSeats, true);
+            $details['seat_no'] = $previousSeats[$index === false ? 0 : $index] ?? null;
+        }
+
+        if (preg_match('/Trip changed from (.+?) to /i', $reason, $match)) {
+            $details['trip_route'] = trim($match[1]);
+        }
+
+        return array_filter($details, fn ($value) => $value !== null && $value !== '');
     }
 
     private function ticketSnapshot(BookedTicket $ticket, SlipSeriesNumber $slip): array

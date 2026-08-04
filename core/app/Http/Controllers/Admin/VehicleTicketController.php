@@ -1373,9 +1373,10 @@ class VehicleTicketController extends Controller
         ]);
 
         $data = BookedTicket::with([
-            'trip' => function ($q) {
-                $q->with('schedule');
-            }
+            'trip.schedule',
+            'trip.route',
+            'trip.fleetType',
+            'activeSlipSeriesNumbers',
         ])->findOrFail($id);
 
         $requestedSeats = explode(',', $request->seats);
@@ -1414,6 +1415,18 @@ class VehicleTicketController extends Controller
             return redirect()->back()->withErrors(['seats' => "The following seats are already booked or unavailable on this date: {$conflictStr}"]);
         }
         // ----------------------------------------
+
+        $rebookingHistory = $this->rebookingHistory(
+            $data,
+            $data->activeSlipSeriesNumbers,
+            $data->trip,
+            Carbon::parse($request->date_of_journey)->format('Y-m-d'),
+            $requestedSeats
+        );
+
+        if ($data->payment_record) {
+            app(CashierTransactionRecorder::class)->recordSold($data->payment_record);
+        }
 
         // 4. Save the update
         $data->date_of_journey = $request->date_of_journey;
@@ -1455,7 +1468,8 @@ class VehicleTicketController extends Controller
             $data->slipSeriesNumbers,
             (int) auth('admin')->id(),
             implode('; ', $reasonParts) ?: 'Booking schedule updated',
-            Str::uuid()->toString()
+            Str::uuid()->toString(),
+            $rebookingHistory
         );
 
         $notify[] = ['success', "Booking Date and Seats Updated Successfully"];
@@ -1610,6 +1624,11 @@ class VehicleTicketController extends Controller
                 $requestedSeats,
                 $eligibility
             );
+
+            if ($ticket->payment_record) {
+                app(CashierTransactionRecorder::class)->recordSold($ticket->payment_record);
+            }
+
             $result = $this->applyRebooking($ticket, $targetSlips, $trip, $date, $requestedSeats);
             $rebookedSlips = SlipSeriesNumber::whereIn('id', $targetSlipIds)->get();
             $generatedReason = match ($validated['type']) {
@@ -1859,8 +1878,10 @@ class VehicleTicketController extends Controller
         Trip $newTrip,
         string $newDate,
         array $newSeats,
-        array $eligibility
+        ?array $eligibility = null
     ): array {
+        $ticket->loadMissing(['trip.route', 'trip.schedule', 'trip.fleetType']);
+        $newTrip->loadMissing(['route', 'schedule', 'fleetType']);
         $slips = collect($targetSlips)->values();
         $oldSeats = $this->rebookingSeats($ticket, $slips)->all();
         $previousSeatsByReference = [];
@@ -1871,28 +1892,41 @@ class VehicleTicketController extends Controller
             $newSeatsByReference[(string) $slip->id] = $newSeats[$index] ?? null;
         }
 
-        return [
-            'original_departure_at' => $eligibility['original_departure_at']->toIso8601String(),
+        $previousDate = Carbon::parse($ticket->date_of_journey)->format('Y-m-d');
+        $previousDeparture = $eligibility['departure_at']
+            ?? Carbon::parse($previousDate . ' ' . $ticket->trip->schedule->start_from);
+        $originalDeparture = $eligibility['original_departure_at'] ?? $previousDeparture;
+        $newDeparture = Carbon::parse($newDate . ' ' . $newTrip->schedule->start_from);
+
+        $history = [
+            'original_departure_at' => $originalDeparture->toIso8601String(),
             'previous' => [
                 'trip_id' => $ticket->trip_id,
                 'trip' => $ticket->trip?->route?->name ?: $ticket->trip?->title ?: 'Trip',
-                'journey_date' => Carbon::parse($ticket->date_of_journey)->format('Y-m-d'),
-                'departure_at' => $eligibility['departure_at']->toIso8601String(),
+                'trip_class' => $ticket->trip?->fleetType?->name,
+                'journey_date' => $previousDate,
+                'departure_at' => $previousDeparture->toIso8601String(),
                 'seats' => $oldSeats,
                 'seats_by_reference' => $previousSeatsByReference,
             ],
             'new' => [
                 'trip_id' => $newTrip->id,
                 'trip' => $newTrip->route?->name ?: $newTrip->title ?: 'Trip',
-                'journey_date' => $newDate,
-                'departure_at' => Carbon::parse($newDate . ' ' . $newTrip->schedule->start_from)->toIso8601String(),
+                'trip_class' => $newTrip->fleetType?->name,
+                'journey_date' => Carbon::parse($newDate)->format('Y-m-d'),
+                'departure_at' => $newDeparture->toIso8601String(),
                 'seats' => array_values($newSeats),
                 'seats_by_reference' => $newSeatsByReference,
             ],
-            'after_departure' => (bool) $eligibility['after_original_departure'],
-            'after_current_departure' => (bool) $eligibility['after_departure'],
-            'grace_ends_at' => $eligibility['grace_ends_at']->toIso8601String(),
         ];
+
+        if ($eligibility) {
+            $history['after_departure'] = (bool) $eligibility['after_original_departure'];
+            $history['after_current_departure'] = (bool) $eligibility['after_departure'];
+            $history['grace_ends_at'] = $eligibility['grace_ends_at']->toIso8601String();
+        }
+
+        return $history;
     }
 
     private function applyRebooking(BookedTicket $ticket, $targetSlips, Trip $trip, string $date, array $requestedSeats): BookedTicket
