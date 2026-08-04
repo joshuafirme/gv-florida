@@ -95,6 +95,26 @@ class ReportController extends Controller
 
     public function shiftEnd(Request $request)
     {
+        return view('admin.reports.shift-end', $this->shiftEndReportData($request));
+    }
+
+    public function shiftEndPdf(Request $request)
+    {
+        $report = $this->shiftEndReportData($request);
+        $filename = 'shift-end-report-' . $report['date']->format('Y-m-d') . '.pdf';
+
+        return Pdf::setOptions([
+            'isHtml5ParserEnabled' => true,
+            'defaultFont' => 'DejaVu Sans',
+            'dpi' => 96,
+        ])
+            ->loadView('admin.pdf.shift-end', $report)
+            ->setPaper('legal', 'landscape')
+            ->stream($filename);
+    }
+
+    private function shiftEndReportData(Request $request): array
+    {
         $request->validate([
             'date' => 'nullable|date|before_or_equal:today',
         ]);
@@ -114,13 +134,13 @@ class ReportController extends Controller
 
         $summary = app(CashierDashboardService::class)->summarize($transactions);
 
-        return view('admin.reports.shift-end', compact(
+        return compact(
             'pageTitle',
             'admin',
             'date',
             'transactions',
             'summary'
-        ));
+        );
     }
 
     public function daily(Request $request, DailyReportService $dailyReportService)
