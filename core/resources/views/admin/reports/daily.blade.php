@@ -187,9 +187,10 @@
             <input type="date" name="date" value="{{ $date->format('Y-m-d') }}"
                 max="{{ now()->format('Y-m-d') }}" aria-label="Business date">
         </form>
-        <button type="button" class="btn btn--primary" onclick="window.print()">
+        <a class="btn btn--primary" target="_blank"
+            href="{{ route('admin.report.daily.pdf', ['date' => $date->format('Y-m-d')]) }}">
             <i class="las la-print"></i> Print Daily Report
-        </button>
+        </a>
     </div>
 @endpush
 
@@ -225,7 +226,7 @@
         }
 
         .daily-report {
-            padding: 42px 28px 24px;
+            padding: 28px 24px 20px;
             background: #fff;
             border: 1px solid #e1e3e8;
             border-radius: 8px;
@@ -233,20 +234,20 @@
         }
 
         .daily-report__header {
-            margin-bottom: 28px;
+            margin-bottom: 14px;
         }
 
         .daily-report__logo {
             display: block;
             width: auto;
             max-width: 240px;
-            height: 38px;
-            margin: 0 auto 42px;
+            height: 32px;
+            margin: 0 auto 16px;
             object-fit: contain;
         }
 
         .daily-report__header h2 {
-            margin: 0 0 5px;
+            margin: 0 0 3px;
             color: #d92378;
             font-size: 21px;
             font-weight: 700;
@@ -255,7 +256,7 @@
         .daily-report__header p,
         .daily-report__header strong {
             display: block;
-            margin: 0 0 5px;
+            margin: 0 0 3px;
             color: #666e7c;
             font-size: 11px;
         }
@@ -267,11 +268,11 @@
 
         .daily-report__section {
             min-width: 0;
-            margin-top: 24px;
+            margin-top: 14px;
         }
 
         .daily-report__section h3 {
-            margin: 0 0 8px;
+            margin: 0 0 5px;
             color: #303642;
             font-size: 12px;
             font-weight: 700;
@@ -281,17 +282,18 @@
         .daily-report__columns {
             display: grid;
             grid-template-columns: minmax(0, 1.1fr) minmax(360px, .9fr);
-            gap: 22px;
+            gap: 14px;
         }
 
         .daily-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 10px;
+            table-layout: fixed;
         }
 
         .daily-table th {
-            padding: 8px 10px;
+            padding: 5px 6px;
             color: #fff;
             background: #d92378;
             border: 1px solid #e26ba1;
@@ -300,8 +302,10 @@
         }
 
         .daily-table td {
-            padding: 8px 10px;
+            padding: 5px 6px;
             border: 1px solid #dfe2e7;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
             vertical-align: middle;
         }
 
@@ -329,7 +333,7 @@
         }
 
         .daily-report__footer {
-            margin-top: 24px;
+            margin-top: 14px;
             color: #8a919e;
             font-size: 9px;
         }
@@ -364,8 +368,8 @@
 
         @media print {
             @page {
-                size: landscape;
-                margin: 9mm;
+                size: legal landscape;
+                margin: 6mm;
             }
 
             body {
@@ -395,25 +399,51 @@
 
             .daily-report__columns {
                 grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
-                gap: 14px;
+                gap: 8px;
             }
 
             .daily-report__logo {
-                height: 28px;
-                margin-bottom: 25px;
+                height: 22px;
+                margin-bottom: 7px;
+            }
+
+            .daily-report__header {
+                margin-bottom: 6px;
+            }
+
+            .daily-report__header h2 {
+                font-size: 14px;
+            }
+
+            .daily-report__header p,
+            .daily-report__header strong {
+                margin-bottom: 1px;
+                font-size: 8px;
+                line-height: 1.15;
             }
 
             .daily-report__section {
-                margin-top: 16px;
+                margin-top: 7px;
+            }
+
+            .daily-report__section h3 {
+                margin-bottom: 3px;
+                font-size: 8px;
             }
 
             .daily-table {
-                font-size: 8px;
+                font-size: 7px;
             }
 
             .daily-table th,
             .daily-table td {
-                padding: 5px 6px;
+                padding: 2px 3px;
+                line-height: 1.1;
+            }
+
+            .daily-report__footer {
+                margin-top: 6px;
+                font-size: 6px;
             }
         }
     </style>
