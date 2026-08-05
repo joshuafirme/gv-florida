@@ -139,7 +139,6 @@
 
         @media screen and (max-width: 991px) {
             .kiosk-advance-window__card {
-                grid-template-columns: 1fr;
                 gap: 13px;
             }
 
