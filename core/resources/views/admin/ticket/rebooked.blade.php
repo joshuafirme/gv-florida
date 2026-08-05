@@ -82,6 +82,14 @@
                                                         <i class="las la-print"></i>
                                                     </a>
                                                 @endif
+                                                @if ($event['rebook_url'])
+                                                    <a href="{{ $event['rebook_url'] }}"
+                                                        class="btn btn-sm btn-outline--primary"
+                                                        data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                        title="Rebook this ticket again">
+                                                        <i class="las la-exchange-alt"></i>
+                                                    </a>
+                                                @endif
                                             </div>
                                         </td>
                                     </tr>
@@ -189,6 +197,16 @@
                         detailRow('Passenger', passenger),
                         detailRow('Booking Source', data.booking_source),
                         detailRow('Payment Method', data.payment_method),
+                        detailRow('Rebooking Sequence', data.sequence),
+                        detailRow('Original Departure', data.original_departure || '-'),
+                        detailRow('Admin Grace Deadline', data.grace_ends_at || '-'),
+                        detailRow('Previous Trip', data.previous_trip),
+                        detailRow('New Trip', data.new_trip),
+                        detailRow('Previous Departure', data.previous_departure || '-'),
+                        detailRow('New Departure', data.new_departure || '-'),
+                        detailRow('Previous Seat', formatSeat(data.previous_seat) || '-'),
+                        detailRow('New Seat', formatSeat(data.new_seat) || '-'),
+                        detailRow('Timing', data.after_departure ? 'After original departure (within grace period)' : 'Before original departure'),
                         detailRow('Processed By', data.processed_by),
                         detailRow('Authorized By', data.authorized_by || '-'),
                         detailRow('Reason', data.reason),
