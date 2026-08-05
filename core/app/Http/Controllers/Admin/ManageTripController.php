@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Lib\BusLayout;
+use App\Models\AdminSeatLock;
 use App\Models\AssignedVehicle;
 use App\Models\BookedTicket;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ use App\Models\Trip;
 use App\Models\Vehicle;
 use App\Services\ScheduleBoardBroadcaster;
 use App\Services\AdminSeatLockService;
+use App\Services\SeatLayoutService;
 use App\Services\TicketPassengerResolver;
 use App\Models\UserRole;
 use Carbon\Carbon;
@@ -602,7 +604,7 @@ class ManageTripController extends Controller
         ]);
     }
 
-    public function manifestSeatLayout(Request $request, $trip_id)
+    public function manifestSeatLayout(Request $request, $trip_id, SeatLayoutService $seatLayoutService)
     {
         $request->validate([
             'date_of_journey' => 'nullable|date',
@@ -633,6 +635,8 @@ class ManageTripController extends Controller
         foreach ($bookings as $booking) {
             foreach ($booking->activeSlipSeriesNumbers as $slip) {
                 $passenger = $this->passengerResolver->forSeat($booking, (string) $slip->seat);
+                $seatId = $seatLayoutService->canonicalSeatId($trip->fleetType, (string) $slip->seat)
+                    ?: strtoupper(trim((string) $slip->seat));
                 $haystack = strtolower(implode(' ', [
                     $slip->seat,
                     $slip->id,
@@ -640,8 +644,8 @@ class ManageTripController extends Controller
                     $passenger['type'],
                     $passenger['id_number'],
                 ]));
-                $seatManifest->put($slip->seat, [
-                    'seat' => $slip->seat,
+                $seatManifest->put($seatId, [
+                    'seat' => $seatId,
                     'passenger_name' => $passenger['name'],
                     'passenger_type' => $passenger['type'],
                     'passenger_id' => $passenger['id_number'],
@@ -654,19 +658,48 @@ class ManageTripController extends Controller
             }
         }
 
+        $lockedSeats = AdminSeatLock::query()
+            ->active()
+            ->where('trip_id', $trip->id)
+            ->whereDate('date_of_journey', $date)
+            ->with('lockAuthorizedBy:id,name,username')
+            ->get()
+            ->mapWithKeys(function (AdminSeatLock $lock) use ($trip, $seatLayoutService) {
+                $seatId = $seatLayoutService->canonicalSeatId($trip->fleetType, $lock->seat_no);
+
+                if (!$seatId) {
+                    return [];
+                }
+
+                $authorizedBy = $lock->lockAuthorizedBy?->name
+                    ?: $lock->lockAuthorizedBy?->username;
+
+                return [$seatId => [
+                    'seat' => $seatId,
+                    'reason' => $lock->reason,
+                    'authorized_by' => $authorizedBy,
+                ]];
+            });
+
         $manifestDecks = $this->manifestDecks($trip->fleetType);
         $capacity = collect($manifestDecks)
             ->flatten(1)
             ->where('type', 'seat')
             ->count();
-        $disabled = array_values((array) ($trip->fleetType->disabled_seats ?? []));
+        $disabled = $seatLayoutService->disabledSeatIds($trip->fleetType);
         $bookedCount = $seatManifest->where('blocked', false)->count();
         $blockedCount = $seatManifest->where('blocked', true)->count();
+        $unavailableCount = $seatManifest->keys()
+            ->merge($lockedSeats->keys())
+            ->merge($disabled)
+            ->unique()
+            ->count();
         $stats = [
             'capacity' => $capacity,
             'booked' => $bookedCount,
             'blocked' => $blockedCount,
-            'vacant' => max($capacity - $bookedCount - $blockedCount - count($disabled), 0),
+            'locked' => $lockedSeats->count(),
+            'vacant' => max($capacity - $unavailableCount, 0),
             'discounted' => $seatManifest->filter(fn ($seat) => str_contains(strtolower($seat['passenger_type']), 'senior')
                 || str_contains(strtolower($seat['passenger_type']), 'pwd'))->count(),
             'matches' => $seatManifest->where('matches', true)->count(),
@@ -677,6 +710,7 @@ class ManageTripController extends Controller
             'date' => $date,
             'search' => $search,
             'seatManifest' => $seatManifest,
+            'lockedSeats' => $lockedSeats,
             'manifestDecks' => $manifestDecks,
             'disabledSeats' => $disabled,
             'stats' => $stats,
