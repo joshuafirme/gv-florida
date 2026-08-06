@@ -24,7 +24,7 @@ class CashierTransactionRecorder
 
     public function recordSold(Deposit $deposit): void
     {
-        if (!$deposit->processed_by_admin_id || (int) $deposit->status !== Status::PAYMENT_SUCCESS) {
+        if ((int) $deposit->status !== Status::PAYMENT_SUCCESS) {
             return;
         }
 
@@ -38,7 +38,7 @@ class CashierTransactionRecorder
             $snapshot = $this->ticketSnapshot($ticket, $slip);
             $soldEvent = $this->store(
                 "sold:{$deposit->id}:{$slip->id}",
-                (int) $deposit->processed_by_admin_id,
+                $deposit->processed_by_admin_id ? (int) $deposit->processed_by_admin_id : null,
                 'Sold',
                 $snapshot,
                 (float) $snapshot['fare'] + (float) $snapshot['surcharge_amount'],
@@ -233,6 +233,14 @@ class CashierTransactionRecorder
         $start = $date->copy()->startOfDay();
         $end = $date->copy()->endOfDay();
 
+        // Kiosk and online payments can complete without a cashier account. Record
+        // them before the cashier-specific action backfill below.
+        Deposit::successful()
+            ->whereBetween('updated_at', [$start, $end])
+            ->with($this->depositRelations())
+            ->get()
+            ->each(fn ($deposit) => $this->safely(fn () => $this->recordSold($deposit)));
+
         $adminIds = collect()
             ->merge(
                 Deposit::successful()
@@ -271,7 +279,7 @@ class CashierTransactionRecorder
 
     private function store(
         string $eventKey,
-        int $adminId,
+        ?int $adminId,
         string $status,
         array $snapshot,
         float $amount,
@@ -452,6 +460,9 @@ class CashierTransactionRecorder
             'slip_series_number_id' => $slip->id,
             'deposit_id' => $deposit?->id,
             'source' => $ticket->kiosk_id ? 'Kiosk' : ($ticket->user_id ? 'Online' : 'Counter'),
+            'processed_by' => $deposit?->processedBy?->name
+                ?: $deposit?->processedBy?->username
+                ?: ($ticket->kiosk_id ? 'Kiosk' : ($ticket->user_id ? 'Online' : 'Counter')),
             'pnr' => $ticket->pnr_number,
             'reference_no' => (string) $slip->id,
             'passenger_name' => $passenger['name'],
@@ -531,7 +542,9 @@ class CashierTransactionRecorder
             $prefix . 'user',
             $prefix . 'kiosk',
             $prefix . 'deposit.userDiscount',
+            $prefix . 'deposit.processedBy:id,name,username',
             $prefix . 'paymentSourceDeposit.userDiscount',
+            $prefix . 'paymentSourceDeposit.processedBy:id,name,username',
             $prefix . 'slipSeriesNumbers',
         ];
     }

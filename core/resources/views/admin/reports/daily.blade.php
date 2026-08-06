@@ -90,19 +90,18 @@
                         </thead>
                         <tbody>
                             @forelse ($cashier_collections as $collection)
-                                @php($cashierSummary = $collection['summary'])
                                 <tr>
                                     <td><strong>{{ $collection['cashier'] }}</strong></td>
-                                    <td class="text-end">{{ $cashierSummary['tickets'] }}</td>
-                                    <td class="text-end">{{ showAmount($cashierSummary['gross_sales']) }}</td>
-                                    <td class="text-end {{ $cashierSummary['refunds'] > 0 ? 'daily-negative' : '' }}">
-                                        {{ $cashierSummary['refunds'] > 0 ? '-' : '' }}{{ showAmount($cashierSummary['refunds']) }}
+                                    <td class="text-end">{{ $collection['summary']['tickets'] }}</td>
+                                    <td class="text-end">{{ showAmount($collection['summary']['gross_sales']) }}</td>
+                                    <td class="text-end {{ $collection['summary']['refunds'] > 0 ? 'daily-negative' : '' }}">
+                                        {{ $collection['summary']['refunds'] > 0 ? '-' : '' }}{{ showAmount($collection['summary']['refunds']) }}
                                     </td>
-                                    <td class="text-end {{ $cashierSummary['voids'] > 0 ? 'daily-negative' : '' }}">
-                                        {{ $cashierSummary['voids'] > 0 ? '-' : '' }}{{ showAmount($cashierSummary['voids']) }}
+                                    <td class="text-end {{ $collection['summary']['voids'] > 0 ? 'daily-negative' : '' }}">
+                                        {{ $collection['summary']['voids'] > 0 ? '-' : '' }}{{ showAmount($collection['summary']['voids']) }}
                                     </td>
                                     <td class="text-end daily-total">
-                                        {{ $cashierSummary['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($cashierSummary['net_collection'])) }}
+                                        {{ $collection['summary']['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($collection['summary']['net_collection'])) }}
                                     </td>
                                 </tr>
                             @empty
@@ -172,6 +171,78 @@
                 </div>
             </section>
         </div>
+
+        <section class="daily-report__section daily-report__transactions">
+            <h3>Detail - Transactions</h3>
+            <div class="table-responsive">
+                <table class="daily-table">
+                    <thead>
+                        <tr>
+                            <th>Transaction Date &amp; Time</th>
+                            <th>Source</th>
+                            <th>PNR</th>
+                            <th>Reference No.</th>
+                            <th>Processed By</th>
+                            <th>Passenger</th>
+                            <th>Journey</th>
+                            <th>Trip</th>
+                            <th>Seat No.</th>
+                            <th>Drop-Off</th>
+                            <th>Payment Method</th>
+                            <th class="text-end">Amount</th>
+                            <th>Status</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($transactions as $transaction)
+                            @php
+                                $seat = preg_replace('/^\d+-/', '', (string) $transaction->seat_no);
+                                $departureTime = $transaction->departure_time
+                                    ? \Carbon\Carbon::parse($transaction->departure_time)->format('h:i A')
+                                    : null;
+                            @endphp
+                            <tr>
+                                <td>{{ $transaction->processed_at?->format('M j, Y') }}<br><small>{{ $transaction->processed_at?->format('h:i A') }}</small></td>
+                                <td>{{ $transaction->source ?: '-' }}</td>
+                                <td><strong>{{ $transaction->pnr ?: '-' }}</strong></td>
+                                <td>{{ $transaction->reference_no ?: '-' }}</td>
+                                <td>{{ $transaction->processed_by_label }}</td>
+                                <td>
+                                    <strong>{{ $transaction->passenger_name ?: 'Guest' }}</strong><br>
+                                    <small>{{ $transaction->passenger_type ?: 'Regular' }}{{ $transaction->passenger_id ? ' - ID ' . $transaction->passenger_id : '' }}</small>
+                                </td>
+                                <td>{{ $transaction->journey_date?->format('M j, Y') ?: '-' }}<br><small>{{ $departureTime ?: '-' }}</small></td>
+                                <td><strong>{{ $transaction->trip_class ?: '-' }}</strong><br><small>{{ $transaction->trip_route ?: '-' }}</small></td>
+                                <td>{{ $seat ?: '-' }}</td>
+                                <td><strong>{{ $transaction->km_post ? 'KM ' . $transaction->km_post : '-' }}</strong><br><small>{{ $transaction->drop_off ?: '' }}</small></td>
+                                <td>{{ $transaction->payment_method ?: '-' }}</td>
+                                <td class="text-end daily-total {{ $transaction->amount < 0 ? 'daily-negative' : '' }}">
+                                    {{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}
+                                </td>
+                                <td><span class="daily-status daily-status--{{ strtolower($transaction->status) }}">{{ $transaction->status }}</span></td>
+                                <td>{{ $transaction->reason ?: '-' }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="14" class="daily-empty">No transactions were recorded for this date.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                    @if ($transactions->isNotEmpty())
+                        <tfoot>
+                            <tr>
+                                <td colspan="11"><strong>Total - {{ $transactions->count() }} transactions</strong></td>
+                                <td class="text-end daily-total {{ $summary['net_collection'] < 0 ? 'daily-negative' : '' }}">
+                                    {{ $summary['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($summary['net_collection'])) }}
+                                </td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    @endif
+                </table>
+            </div>
+        </section>
 
         <footer class="daily-report__footer">
             Net Revenue = Ticket Sales + Surcharges - Refunds - Voids. Rebooked and cancelled transactions are
@@ -332,6 +403,37 @@
             text-align: center;
         }
 
+        .daily-report__transactions .daily-table {
+            min-width: 1650px;
+            font-size: 9px;
+        }
+
+        .daily-report__transactions .daily-table th,
+        .daily-report__transactions .daily-table td {
+            padding: 5px;
+        }
+
+        .daily-report__transactions small {
+            color: #7a818e;
+            font-size: 8px;
+        }
+
+        .daily-status {
+            display: inline-block;
+            padding: 2px 5px;
+            border: 1px solid #d9dce3;
+            border-radius: 999px;
+            font-size: 8px;
+            line-height: 1.1;
+            white-space: nowrap;
+        }
+
+        .daily-status--sold { color: #167944; background: #ecfdf3; border-color: #b6ead0; }
+        .daily-status--rebooked { color: #1c6b9e; background: #eef8ff; border-color: #b9dff7; }
+        .daily-status--cancelled,
+        .daily-status--refunded { color: #b42318; background: #fff3f2; border-color: #ffc8c2; }
+        .daily-status--voided { color: #7f3bb1; background: #f7f0ff; border-color: #dec5fa; }
+
         .daily-report__footer {
             margin-top: 14px;
             color: #8a919e;
@@ -439,6 +541,21 @@
             .daily-table td {
                 padding: 2px 3px;
                 line-height: 1.1;
+            }
+
+            .daily-report__transactions .daily-table {
+                min-width: 0;
+                font-size: 6px;
+            }
+
+            .daily-report__transactions .daily-table th,
+            .daily-report__transactions .daily-table td {
+                padding: 2px;
+            }
+
+            .daily-report__transactions small,
+            .daily-status {
+                font-size: 5px;
             }
 
             .daily-report__footer {

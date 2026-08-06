@@ -103,6 +103,21 @@
             color: #b42318;
         }
 
+        .subtle {
+            color: #737c8b;
+            font-size: 6px;
+        }
+
+        .transactions-table {
+            font-size: 6.2px;
+        }
+
+        .transactions-table th,
+        .transactions-table td {
+            padding: 2px 3px;
+            line-height: 1.1;
+        }
+
         .note {
             margin-top: 10px;
             color: #737c8b;
@@ -200,19 +215,18 @@
         </thead>
         <tbody>
             @forelse ($cashier_collections as $collection)
-                @php($cashierSummary = $collection['summary'])
                 <tr>
                     <td><strong>{{ $collection['cashier'] }}</strong></td>
-                    <td class="right">{{ $cashierSummary['tickets'] }}</td>
-                    <td class="right">{{ showAmount($cashierSummary['gross_sales']) }}</td>
-                    <td class="right {{ $cashierSummary['refunds'] > 0 ? 'negative' : '' }}">
-                        {{ $cashierSummary['refunds'] > 0 ? '-' : '' }}{{ showAmount($cashierSummary['refunds']) }}
+                    <td class="right">{{ $collection['summary']['tickets'] }}</td>
+                    <td class="right">{{ showAmount($collection['summary']['gross_sales']) }}</td>
+                    <td class="right {{ $collection['summary']['refunds'] > 0 ? 'negative' : '' }}">
+                        {{ $collection['summary']['refunds'] > 0 ? '-' : '' }}{{ showAmount($collection['summary']['refunds']) }}
                     </td>
-                    <td class="right {{ $cashierSummary['voids'] > 0 ? 'negative' : '' }}">
-                        {{ $cashierSummary['voids'] > 0 ? '-' : '' }}{{ showAmount($cashierSummary['voids']) }}
+                    <td class="right {{ $collection['summary']['voids'] > 0 ? 'negative' : '' }}">
+                        {{ $collection['summary']['voids'] > 0 ? '-' : '' }}{{ showAmount($collection['summary']['voids']) }}
                     </td>
                     <td class="right total">
-                        {{ $cashierSummary['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($cashierSummary['net_collection'])) }}
+                        {{ $collection['summary']['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($collection['summary']['net_collection'])) }}
                     </td>
                 </tr>
             @empty
@@ -268,6 +282,56 @@
                     <td>Total</td>
                     <td class="right">{{ $channel_collections->sum('tickets') }}</td>
                     <td class="right">{{ showAmount($channel_collections->sum('amount')) }}</td>
+                </tr>
+            </tfoot>
+        @endif
+    </table>
+
+    <div class="section-title">Detail - Transactions</div>
+    <table class="transactions-table">
+        <colgroup>
+            <col style="width: 8%"><col style="width: 5%"><col style="width: 5%"><col style="width: 6%">
+            <col style="width: 8%"><col style="width: 9%"><col style="width: 6%"><col style="width: 10%">
+            <col style="width: 4%"><col style="width: 6%"><col style="width: 7%"><col style="width: 6%">
+            <col style="width: 5%"><col style="width: 9%">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>Transaction Date &amp; Time</th><th>Source</th><th>PNR</th><th>Reference No.</th>
+                <th>Processed By</th><th>Passenger</th><th>Journey</th><th>Trip</th><th>Seat No.</th>
+                <th>Drop-Off</th><th>Payment Method</th><th class="right">Amount</th><th>Status</th><th>Reason</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($transactions as $transaction)
+                @php
+                    $seat = preg_replace('/^\d+-/', '', (string) $transaction->seat_no);
+                    $departureTime = $transaction->departure_time
+                        ? \Carbon\Carbon::parse($transaction->departure_time)->format('h:i A')
+                        : null;
+                @endphp
+                <tr>
+                    <td>{{ $transaction->processed_at?->format('M j, Y') }}<br><span class="subtle">{{ $transaction->processed_at?->format('h:i A') }}</span></td>
+                    <td>{{ $transaction->source ?: '-' }}</td><td>{{ $transaction->pnr ?: '-' }}</td><td>{{ $transaction->reference_no ?: '-' }}</td>
+                    <td>{{ $transaction->processed_by_label }}</td>
+                    <td><strong>{{ $transaction->passenger_name ?: 'Guest' }}</strong><br><span class="subtle">{{ $transaction->passenger_type ?: 'Regular' }}{{ $transaction->passenger_id ? ' - ID ' . $transaction->passenger_id : '' }}</span></td>
+                    <td>{{ $transaction->journey_date?->format('M j, Y') ?: '-' }}<br><span class="subtle">{{ $departureTime ?: '-' }}</span></td>
+                    <td><strong>{{ $transaction->trip_class ?: '-' }}</strong><br><span class="subtle">{{ $transaction->trip_route ?: '-' }}</span></td>
+                    <td>{{ $seat ?: '-' }}</td><td>{{ $transaction->km_post ? 'KM ' . $transaction->km_post : '-' }}<br><span class="subtle">{{ $transaction->drop_off ?: '' }}</span></td>
+                    <td>{{ $transaction->payment_method ?: '-' }}</td>
+                    <td class="right total {{ $transaction->amount < 0 ? 'negative' : '' }}">{{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}</td>
+                    <td>{{ $transaction->status }}</td><td>{{ $transaction->reason ?: '-' }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="14" class="empty">No transactions were recorded for this date.</td></tr>
+            @endforelse
+        </tbody>
+        @if ($transactions->isNotEmpty())
+            <tfoot>
+                <tr>
+                    <td colspan="11">Total - {{ $transactions->count() }} transactions</td>
+                    <td class="right {{ $summary['net_collection'] < 0 ? 'negative' : '' }}">{{ $summary['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($summary['net_collection'])) }}</td>
+                    <td colspan="2"></td>
                 </tr>
             </tfoot>
         @endif
