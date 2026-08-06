@@ -35,7 +35,8 @@ class DailyReportService
                 $businessDate->copy()->startOfDay(),
                 $businessDate->copy()->endOfDay(),
             ])
-            ->orderBy('processed_at')
+            ->orderByRaw("CASE WHEN reference_no IS NULL OR reference_no = '' THEN 1 ELSE 0 END")
+            ->orderBy('reference_no')
             ->orderBy('id')
             ->get();
 
@@ -48,6 +49,7 @@ class DailyReportService
     public function compile(Collection $transactions): array
     {
         $cashierCollections = $transactions
+            ->filter(fn ($transaction) => $transaction->admin_id)
             ->groupBy(fn ($transaction) => (string) ($transaction->admin_id ?? 'unknown'))
             ->map(function (Collection $cashierTransactions) {
                 $first = $cashierTransactions->first();
@@ -88,4 +90,5 @@ class DailyReportService
             'activity' => $activity,
         ];
     }
+
 }

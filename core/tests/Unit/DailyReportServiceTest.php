@@ -49,9 +49,30 @@ class DailyReportServiceTest extends TestCase
         $this->assertSame(900.0, $report['channel_collections'][1]['amount']);
     }
 
+    public function test_it_keeps_online_and_kiosk_sales_in_the_daily_total_without_listing_them_as_cashiers(): void
+    {
+        $recorder = $this->createMock(CashierTransactionRecorder::class);
+        $service = new DailyReportService(
+            $recorder,
+            new CashierDashboardService($recorder)
+        );
+
+        $transactions = collect([
+            $this->transaction(null, null, 'Sold', 'Kiosk', 900),
+            $this->transaction(null, null, 'Sold', 'Online', 500),
+        ]);
+
+        $report = $service->compile($transactions);
+
+        $this->assertSame(2, $report['summary']['tickets']);
+        $this->assertSame(1400.0, $report['summary']['net_collection']);
+        $this->assertCount(0, $report['cashier_collections']);
+        $this->assertSame(['Kiosk', 'Online'], $report['channel_collections']->pluck('channel')->all());
+    }
+
     private function transaction(
-        int $adminId,
-        string $cashier,
+        ?int $adminId,
+        ?string $cashier,
         string $status,
         string $source,
         float $amount,
@@ -60,7 +81,7 @@ class DailyReportServiceTest extends TestCase
     ): object {
         return (object) [
             'admin_id' => $adminId,
-            'admin' => (object) ['name' => $cashier, 'username' => strtolower($cashier)],
+            'admin' => $cashier ? (object) ['name' => $cashier, 'username' => strtolower($cashier)] : null,
             'status' => $status,
             'source' => $source,
             'amount' => $amount,
