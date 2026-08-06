@@ -478,7 +478,9 @@
                             <label class="cancel-label" for="cancelAuthorizationCode">Authorization Code</label>
                             <div class="cancel-auth-input">
                                 <input type="password" id="cancelAuthorizationCode" class="form-control"
-                                    placeholder="Enter staff code" autocomplete="off">
+                                    placeholder="Enter staff code" value="" autocomplete="new-password"
+                                    autocapitalize="none" autocorrect="off" spellcheck="false"
+                                    data-lpignore="true" data-1p-ignore>
                                 <button type="button" id="toggleCancelCode" aria-label="Show authorization code">
                                     <i class="las la-eye"></i>
                                 </button>
@@ -1406,6 +1408,7 @@
             const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
             let cancelData = null;
             let cancelAuthorizationInFlight = false;
+            let cancelAuthorizationRequest = null;
 
             const formatMoney = value => currency.format(Number(value) || 0);
             const escapeHtml = value => $('<div>').text(value ?? '').html();
@@ -1428,8 +1431,19 @@
                 $('#cancelFormStage, #cancelKeepBtn, #cancelReviewBtn').removeClass('d-none');
             }
 
-            function resetCancelAuthorization() {
+            function resetCancelAuthorizationStatus() {
                 $('#cancelAuthorizationStatus').removeClass('is-success is-error').empty();
+            }
+
+            function clearCancelAuthorization() {
+                $('#cancelAuthorizationCode').val('').attr('type', 'password');
+                $('#toggleCancelCode')
+                    .attr('aria-label', 'Show authorization code')
+                    .find('i')
+                    .attr('class', 'las la-eye');
+                $('#cancelReviewAuthorizedBy').empty();
+                resetCancelAuthorizationStatus();
+                validateCancelForm();
             }
 
             $(document).on('click', '.cancel-ticket-btn', function(event) {
@@ -1440,8 +1454,7 @@
                 $('#cancelKeepBtn, #cancelReviewBtn').removeClass('d-none');
                 $('#cancelBackBtn, #cancelConfirmBtn').addClass('d-none');
                 $('#cancelReviewBtn').prop('disabled', true);
-                $('#cancelAuthorizationCode').attr('type', 'password');
-                resetCancelAuthorization();
+                clearCancelAuthorization();
                 cancelModal.show();
 
                 $.getJSON($(this).data('cancel-url')).done(function(data) {
@@ -1450,7 +1463,7 @@
                     $('#cancelPassenger').text(data.passenger_name);
                     $('#cancelTicketMeta').text(`${data.passenger_type} - Seat ${formatSeatLabel(data.seat)} - Ref. ${data.reference}`);
                     $('#cancelFare').text(formatMoney(data.fare));
-                    $('#cancelReason, #cancelAuthorizationCode').val('');
+                    $('#cancelReason').val('');
                     $('#cancelReasonChips').html(data.reasons.map(reason =>
                         `<button type="button" class="cancel-reason-chip" data-reason="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`
                     ).join(''));
@@ -1477,13 +1490,18 @@
             });
 
             $('#cancelAuthorizationCode').on('input', function() {
-                resetCancelAuthorization();
+                resetCancelAuthorizationStatus();
                 validateCancelForm();
             });
 
             $('#toggleCancelCode').on('click', function() {
                 const input = $('#cancelAuthorizationCode');
-                input.attr('type', input.attr('type') === 'password' ? 'text' : 'password');
+                const showCode = input.attr('type') === 'password';
+                input.attr('type', showCode ? 'text' : 'password');
+                $(this)
+                    .attr('aria-label', showCode ? 'Hide authorization code' : 'Show authorization code')
+                    .find('i')
+                    .attr('class', showCode ? 'las la-eye-slash' : 'las la-eye');
             });
 
             $('#cancelReviewBtn').on('click', function() {
@@ -1493,9 +1511,9 @@
                 const originalLabel = button.html();
                 cancelAuthorizationInFlight = true;
                 button.prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i> Validating...');
-                resetCancelAuthorization();
+                resetCancelAuthorizationStatus();
 
-                $.ajax({
+                cancelAuthorizationRequest = $.ajax({
                     url: cancelData.authorization_url,
                     method: 'POST',
                     dataType: 'json',
@@ -1516,18 +1534,24 @@
                     $('#cancelFormStage, #cancelKeepBtn, #cancelReviewBtn').addClass('d-none');
                     $('#cancelReviewStage, #cancelBackBtn, #cancelConfirmBtn').removeClass('d-none');
                 }).fail(function(xhr) {
+                    if (xhr.statusText === 'abort') return;
+
                     $('#cancelAuthorizationStatus')
                         .addClass('is-error')
                         .html(`<i class="las la-times-circle"></i> ${escapeHtml(cancelError(xhr))}`);
                     $('#cancelAuthorizationCode').trigger('focus').select();
                 }).always(function() {
+                    cancelAuthorizationRequest = null;
                     cancelAuthorizationInFlight = false;
                     button.html(originalLabel);
                     validateCancelForm();
                 });
             });
 
-            $('#cancelBackBtn').on('click', showCancelForm);
+            $('#cancelBackBtn').on('click', function() {
+                clearCancelAuthorization();
+                showCancelForm();
+            });
 
             $('#cancelConfirmBtn').on('click', function() {
                 if (!cancelData) return;
@@ -1558,8 +1582,21 @@
                     if (acknowledgmentWindow) acknowledgmentWindow.close();
                     notify('error', cancelError(xhr));
                     button.prop('disabled', false).html(originalLabel);
+                    clearCancelAuthorization();
                     showCancelForm();
                 });
+            });
+
+            $('#cancelTicketModal').on('show.bs.modal', clearCancelAuthorization);
+
+            $('#cancelTicketModal').on('hide.bs.modal hidden.bs.modal', function() {
+                if (cancelAuthorizationRequest) {
+                    cancelAuthorizationRequest.abort();
+                    cancelAuthorizationRequest = null;
+                }
+                clearCancelAuthorization();
+                cancelData = null;
+                cancelAuthorizationInFlight = false;
             });
         })(jQuery);
 
