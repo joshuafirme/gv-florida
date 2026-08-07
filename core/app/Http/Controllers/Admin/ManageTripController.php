@@ -250,8 +250,8 @@ class ManageTripController extends Controller
         }
 
         // 2. Dynamic Sorting
-        $sortField = $request->get('sort_field', 'id'); // Default sort field
-        $sortOrder = $request->get('sort_order', 'desc'); // Default sort order
+        $sortField = $request->get('sort_field', 'start_from'); // Default sort field
+        $sortOrder = $request->get('sort_order', 'asc'); // Default sort order
 
         // Define allowable sort fields to prevent SQL injection (Duration is computed in Blade, so we don't sort by it via SQL)
         $allowedSorts = ['start_from', 'end_at', 'status', 'id'];
