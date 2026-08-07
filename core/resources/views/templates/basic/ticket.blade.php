@@ -52,7 +52,7 @@
             grid-template-columns: minmax(0, 1.35fr) 1px minmax(280px, .8fr);
             align-items: center;
             gap: 28px;
-            padding: 18px 28px;
+            padding: 15px 15px;
             background: #fff7fb;
             background: color-mix(in srgb, var(--booking-primary) 5%, #fff);
             border: 1px solid var(--booking-primary-border);
@@ -651,7 +651,7 @@
         <div class="offcanvas-body">
 
 
-            @include('templates.basic.partials.ticket-filter')
+            @include('templates.basic.partials.ticket-filter', ['filterFormId' => 'mobileFilterForm'])
 
         </div>
     </div>
@@ -1078,9 +1078,10 @@
 
 
             $('.reset-button').on('click', function() {
-                $('.search').attr('checked', false);
-                $('.search').val(null).trigger('change');
-                $('#filterForm').submit();
+                const form = $(this).closest('form');
+                form.find('.search').prop('checked', false);
+                form.find('.search').val(null).trigger('change');
+                form.trigger('submit');
             })
 
         })(jQuery)

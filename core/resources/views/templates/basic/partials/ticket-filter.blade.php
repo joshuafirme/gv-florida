@@ -1,4 +1,4 @@
-<form action="{{ route('search') }}" id="filterForm">
+<form action="{{ route('ticket') }}" method="GET" id="{{ $filterFormId ?? 'filterForm' }}" class="ticket-filter-form">
     @if (request()->kiosk_id)
         <input type="hidden" name="kiosk_id" value="{{ request()->kiosk_id }}">
     @endif
@@ -13,7 +13,7 @@
                     Apply
                 </button>
                 
-                <button style="white-space: nowrap;" class="btn btn-sm btn--base-outline w-100 mt-3 reset-button">
+                <button type="button" style="white-space: nowrap;" class="btn btn-sm btn--base-outline w-100 mt-3 reset-button">
                     @lang('Reset All')
                 </button>
             </div>

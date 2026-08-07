@@ -158,6 +158,11 @@ class SiteController extends Controller
         return view('Template::cookie', compact('pageTitle', 'cookie'));
     }
 
+    public function ticketSearch(Request $request)
+    {
+        return redirect()->route('ticket', $request->query());
+    }
+
     public function ticket(Request $request)
     {
         if ($request->filled('date_of_journey')) {
