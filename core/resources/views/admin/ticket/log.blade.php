@@ -330,6 +330,13 @@
                             <textarea id="rebookReason" class="form-control" rows="2" maxlength="1000"
                                 placeholder="Enter a correction or operational reason, if applicable."></textarea>
                         </div>
+                        <div class="form-group mt-3 mb-0">
+                            <label for="rebookAuthorizationCode" class="rebook-label">Authorization Code</label>
+                            <input type="password" id="rebookAuthorizationCode" class="form-control"
+                                placeholder="Enter authorization code" autocomplete="new-password"
+                                autocapitalize="none" autocorrect="off" spellcheck="false"
+                                data-lpignore="true" data-1p-ignore>
+                        </div>
                         <div class="rebook-success-alert mt-3">
                             <i class="las la-check"></i>
                             <span>Ticket stays paid — same PNR and reference number, with no new voucher required. The updated
@@ -992,6 +999,7 @@
                 $('#rebookBackBtn').text(stage === 'type' ? 'Cancel' : '← Back');
                 $('#rebookContinueBtn').toggleClass('d-none', stage === 'review');
                 $('#rebookConfirmBtn').toggleClass('d-none', stage !== 'review');
+                $('#rebookConfirmBtn').prop('disabled', stage === 'review' && !$('#rebookAuthorizationCode').val().trim());
                 $('#rebookContinueBtn').prop('disabled', stage === 'type' ? !rebookType : true);
             }
 
@@ -1000,7 +1008,7 @@
                 rebookType = null;
                 rebookAvailability = null;
                 rebookSeats = [];
-                $('#rebookReason').val('');
+                $('#rebookReason, #rebookAuthorizationCode').val('');
                 $('.rebook-type-card').removeClass('selected');
                 $('.rebook-stage').addClass('d-none');
                 $('.rebook-stage[data-stage="loading"]').removeClass('d-none');
@@ -1220,9 +1228,14 @@
                 } else if (rebookStage === 'selection') {
                     showStage('type');
                 } else {
+                    $('#rebookAuthorizationCode').val('');
                     showStage('selection');
                     updateSeatAssignment();
                 }
+            });
+
+            $('#rebookAuthorizationCode').on('input', function() {
+                $('#rebookConfirmBtn').prop('disabled', !$(this).val().trim());
             });
 
             $('#rebookConfirmBtn').on('click', function() {
@@ -1235,7 +1248,8 @@
                     date: rebookType === 'change_seat' ? rebookData.booking.date : $('#rebookDate').val(),
                     trip_id: rebookType === 'new_trip' ? $('#rebookTrip').val() : rebookData.booking.trip_id,
                     seats: rebookSeats,
-                    reason: $('#rebookReason').val()
+                    reason: $('#rebookReason').val(),
+                    authorization_code: $('#rebookAuthorizationCode').val()
                 };
 
                 button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Confirming…');
@@ -1257,9 +1271,14 @@
                     if (printWindow) printWindow.close();
                     notify('error', validationMessage(xhr));
                     button.prop('disabled', false).html(originalLabel);
+                    $('#rebookAuthorizationCode').val('').attr('type', 'password');
                     showStage('selection');
                     loadAvailability();
                 });
+            });
+
+            $('#rebookModal').on('hide.bs.modal hidden.bs.modal', function() {
+                $('#rebookAuthorizationCode').val('').attr('type', 'password');
             });
         })(jQuery);
 
@@ -1519,7 +1538,8 @@
                     dataType: 'json',
                     data: {
                         _token: "{{ csrf_token() }}",
-                        authorization_code: $('#cancelAuthorizationCode').val()
+                        authorization_code: $('#cancelAuthorizationCode').val(),
+                        reason: $('#cancelReason').val().trim()
                     }
                 }).done(function(result) {
                     const authorizedName = result.authorized_by?.name || 'Authorized personnel';

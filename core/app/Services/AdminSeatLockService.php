@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Constants\Status;
 use App\Models\Admin;
 use App\Models\AdminSeatLock;
 use App\Models\CashierTransactionEvent;
@@ -32,7 +31,14 @@ class AdminSeatLockService
         string $authorizationCode,
         Admin $performedBy
     ): AdminSeatLock {
-        $authorizedBy = $this->authorizedAdmin($authorizationCode);
+        $authorizedBy = app(TransactionAuthorizationService::class)->authorize(
+            $authorizationCode,
+            TransactionAuthorizationService::SEAT_LOCKING,
+            [
+                'seat_no' => $seat,
+                'reason' => $reason,
+            ]
+        );
 
         $seatLock = DB::transaction(function () use (
             $trip,
@@ -186,24 +192,6 @@ class AdminSeatLockService
         $seatLock->save();
 
         return $seatLock;
-    }
-
-    private function authorizedAdmin(string $authorizationCode): Admin
-    {
-        $admin = Admin::query()
-            ->with('role:id,permissions')
-            ->where('status', Status::ENABLE)
-            ->where('passcode', $authorizationCode)
-            ->first();
-        $permissions = json_decode($admin?->role?->permissions ?: '[]', true) ?: [];
-
-        if (!$admin || !in_array(self::PERMISSION, $permissions, true)) {
-            throw ValidationException::withMessages([
-                'authorization_code' => 'The authorization code is invalid or the personnel account is not authorized for seat locking.',
-            ]);
-        }
-
-        return $admin;
     }
 
     private function recordAuditEvent(

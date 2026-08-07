@@ -53,6 +53,13 @@ class CashierTransactionRecorder
     {
         $refund->loadMissing($this->actionRelations());
         $snapshot = $this->ticketSnapshot($refund->bookedTicket, $refund->slipSeriesNumber);
+        $snapshot = $this->withAuthorizationAudit(
+            $snapshot,
+            $refund->authorizedBy,
+            $refund->processedBy,
+            TransactionAuthorizationService::REFUND,
+            $refund->created_at
+        );
 
         $this->store(
             "refunded:{$refund->id}",
@@ -69,6 +76,13 @@ class CashierTransactionRecorder
     {
         $cancellation->loadMissing($this->actionRelations());
         $snapshot = $this->ticketSnapshot($cancellation->bookedTicket, $cancellation->slipSeriesNumber);
+        $snapshot = $this->withAuthorizationAudit(
+            $snapshot,
+            $cancellation->authorizedBy,
+            $cancellation->processedBy,
+            TransactionAuthorizationService::CANCELLATION,
+            $cancellation->created_at
+        );
 
         $this->store(
             "cancelled:{$cancellation->id}",
@@ -102,6 +116,13 @@ class CashierTransactionRecorder
             'payment_method' => $audit['payment_method'] ?? null,
             'fare' => $audit['fare'] ?? null,
         ], fn ($value) => $value !== null && $value !== ''));
+        $snapshot = $this->withAuthorizationAudit(
+            $snapshot,
+            $ticketVoid->authorizedBy,
+            $ticketVoid->processedBy,
+            TransactionAuthorizationService::VOID,
+            $ticketVoid->created_at
+        );
 
         $this->store(
             "voided:{$ticketVoid->id}",
@@ -120,14 +141,23 @@ class CashierTransactionRecorder
         int $adminId,
         string $reason,
         string $batchKey,
-        array $history = []
+        array $history = [],
+        ?Admin $authorizedBy = null
     ): void {
         $ticket->loadMissing($this->ticketRelations());
         $slips = $slips->values();
+        $performedBy = Admin::find($adminId);
 
         if ($slips->isEmpty()) {
             $snapshot = $this->bookingSnapshot($ticket);
             $snapshot = $this->withRebookingHistory($snapshot, $history, null, 0);
+            $snapshot = $this->withAuthorizationAudit(
+                $snapshot,
+                $authorizedBy,
+                $performedBy,
+                TransactionAuthorizationService::REBOOKING,
+                now()
+            );
             $this->store(
                 "rebooked:{$batchKey}:booking",
                 $adminId,
@@ -144,6 +174,13 @@ class CashierTransactionRecorder
         foreach ($slips as $index => $slip) {
             $snapshot = $this->ticketSnapshot($ticket, $slip);
             $snapshot = $this->withRebookingHistory($snapshot, $history, $slip, $index);
+            $snapshot = $this->withAuthorizationAudit(
+                $snapshot,
+                $authorizedBy,
+                $performedBy,
+                TransactionAuthorizationService::REBOOKING,
+                now()
+            );
             $this->store(
                 "rebooked:{$batchKey}:{$slip->id}",
                 $adminId,
@@ -162,6 +199,32 @@ class CashierTransactionRecorder
         $placeholder->seat = collect($ticket->seats ?? [])->first();
 
         return $this->ticketSnapshot($ticket, $placeholder);
+    }
+
+    private function withAuthorizationAudit(
+        array $snapshot,
+        ?Admin $authorizedBy,
+        ?Admin $performedBy,
+        string $transactionType,
+        $authorizedAt
+    ): array {
+        if (!$authorizedBy) {
+            return $snapshot;
+        }
+
+        $snapshot['authorization'] = [
+            'result' => 'Approved',
+            'transaction_type' => $transactionType,
+            'authorized_by_admin_id' => $authorizedBy->id,
+            'authorized_by_name' => $authorizedBy->name,
+            'authorization_code_owner_id' => $authorizedBy->id,
+            'authorization_code_owner_name' => $authorizedBy->name,
+            'performed_by_admin_id' => $performedBy?->id,
+            'performed_by_name' => $performedBy?->name,
+            'authorized_at' => Carbon::parse($authorizedAt ?: now())->toIso8601String(),
+        ];
+
+        return $snapshot;
     }
 
     private function withRebookingHistory(
@@ -528,7 +591,10 @@ class CashierTransactionRecorder
 
     private function actionRelations(): array
     {
-        return array_merge(['bookedTicket', 'slipSeriesNumber'], $this->ticketRelations('bookedTicket.'));
+        return array_merge(
+            ['bookedTicket', 'slipSeriesNumber', 'processedBy:id,name,username', 'authorizedBy:id,name,username'],
+            $this->ticketRelations('bookedTicket.')
+        );
     }
 
     private function ticketRelations(string $prefix = ''): array

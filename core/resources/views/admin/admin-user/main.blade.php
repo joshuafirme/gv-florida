@@ -191,6 +191,16 @@
                             <label> @lang('Discount Passcode')</label>
                             <input type="text" class="form-control" name="passcode">
                         </div>
+                        <div class="form-group">
+                            <label for="adminAuthorizationCode">@lang('Authorization Code')</label>
+                            <input type="password" class="form-control" id="adminAuthorizationCode"
+                                name="authorization_code" minlength="6" maxlength="100"
+                                autocomplete="new-password" autocapitalize="none" autocorrect="off"
+                                spellcheck="false" data-lpignore="true" data-1p-ignore>
+                            <small class="form-text text-muted authorization-code-help">
+                                @lang('Required for new users. Leave blank while editing to keep the current code.')
+                            </small>
+                        </div>
 
                     </div>
                     <div class="modal-footer">
@@ -234,6 +244,9 @@
             $('.cuModalBtn').on('click', function() {
                 let modal = $('#cuModal');
                 let data = $(this).data('resource');
+                modal.find('[name="authorization_code"]')
+                    .val('')
+                    .prop('required', !data || !data.has_authorization_code);
                 $('#change-password').remove()
                 if (data) {
                     let change_pass_html = '<div class="d-block" id="change-password">';

@@ -7,12 +7,18 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class Admin extends Authenticatable
 {
+    protected $appends = [
+        'has_authorization_code',
+    ];
+
     protected $fillable = [
         'name',
         'username',
         'email',
         'role_id',
         'passcode',
+        'authorization_code_hash',
+        'authorization_code_lookup',
         'password'
     ];
     /**
@@ -22,6 +28,8 @@ class Admin extends Authenticatable
      */
     protected $hidden = [
         'password',
+        'authorization_code_hash',
+        'authorization_code_lookup',
         'remember_token'
     ];
 
@@ -64,6 +72,12 @@ class Admin extends Authenticatable
     public function role()
     {
         return $this->belongsTo(UserRole::class);
+    }
+
+    public function getHasAuthorizationCodeAttribute(): bool
+    {
+        return filled($this->authorization_code_hash)
+            && filled($this->authorization_code_lookup);
     }
 
 }

@@ -263,6 +263,24 @@
                 "title": "Booked Ticket",
                 "route_name": "admin.vehicle.ticket.booked",
                 "menu_active": "admin.vehicle.ticket.booked",
+                "additional_permissions": [
+                    {
+                        "title": "Authorize Ticket Cancellation",
+                        "value": "admin.vehicle.ticket.authorize.cancel"
+                    },
+                    {
+                        "title": "Authorize Ticket Rebooking",
+                        "value": "admin.vehicle.ticket.authorize.rebook"
+                    },
+                    {
+                        "title": "Authorize Ticket Refund",
+                        "value": "admin.vehicle.ticket.authorize.refund"
+                    },
+                    {
+                        "title": "Authorize Ticket Void",
+                        "value": "admin.vehicle.ticket.authorize.void"
+                    }
+                ],
                 "params": {
                     "user_id": ""
                 }

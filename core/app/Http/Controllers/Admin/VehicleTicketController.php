@@ -21,6 +21,7 @@ use App\Models\TicketVoid;
 use App\Services\CashierTransactionRecorder;
 use App\Services\RebookingPolicy;
 use App\Services\SeatConflictService;
+use App\Services\TransactionAuthorizationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -229,15 +230,11 @@ class VehicleTicketController extends Controller
             'authorization_code' => 'required|string|max:100',
         ]);
 
-        $authorizedBy = Admin::where('status', Status::ENABLE)
-            ->where('passcode', $validated['authorization_code'])
-            ->first();
-
-        if (!$authorizedBy) {
-            throw ValidationException::withMessages([
-                'authorization_code' => 'The authorization code is invalid or belongs to an inactive administrator.',
-            ]);
-        }
+        $authorizedBy = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::REFUND,
+            $this->authorizationContextForSlip($slip, $validated['reason'])
+        );
 
         $refund = DB::transaction(function () use ($slip, $validated, $authorizedBy) {
             $slip = SlipSeriesNumber::whereDoesntHave('refund')
@@ -329,18 +326,15 @@ class VehicleTicketController extends Controller
     {
         $validated = $request->validate([
             'authorization_code' => 'required|string|max:100',
+            'reason' => 'nullable|string|max:1000',
         ]);
 
         $this->cancellableSlip($slip);
-        $authorizedBy = Admin::where('status', Status::ENABLE)
-            ->where('passcode', $validated['authorization_code'])
-            ->first();
-
-        if (!$authorizedBy) {
-            throw ValidationException::withMessages([
-                'authorization_code' => 'The authorization code is invalid or belongs to an inactive administrator.',
-            ]);
-        }
+        $authorizedBy = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::CANCELLATION,
+            $this->authorizationContextForSlip($slip, $validated['reason'] ?? null)
+        );
 
         return response()->json([
             'authorized' => true,
@@ -358,15 +352,11 @@ class VehicleTicketController extends Controller
             'authorization_code' => 'required|string|max:100',
         ]);
 
-        $authorizedBy = Admin::where('status', Status::ENABLE)
-            ->where('passcode', $validated['authorization_code'])
-            ->first();
-
-        if (!$authorizedBy) {
-            throw ValidationException::withMessages([
-                'authorization_code' => 'The authorization code is invalid or belongs to an inactive administrator.',
-            ]);
-        }
+        $authorizedBy = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::CANCELLATION,
+            $this->authorizationContextForSlip($slip, $validated['reason'])
+        );
 
         $cancellation = DB::transaction(function () use ($slip, $validated, $authorizedBy) {
             $slip = SlipSeriesNumber::whereDoesntHave('refund')
@@ -445,15 +435,11 @@ class VehicleTicketController extends Controller
             'authorization_code' => 'required|string|max:100',
         ]);
 
-        $authorizedBy = Admin::where('status', Status::ENABLE)
-            ->where('passcode', $validated['authorization_code'])
-            ->first();
-
-        if (!$authorizedBy) {
-            throw ValidationException::withMessages([
-                'authorization_code' => 'The authorization code is invalid or belongs to an inactive administrator.',
-            ]);
-        }
+        $authorizedBy = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::VOID,
+            $this->authorizationContextForSlip($slip, $validated['reason'])
+        );
 
         $ticketVoid = DB::transaction(function () use ($slip, $validated, $authorizedBy) {
             $slip = SlipSeriesNumber::whereDoesntHave('refund')
@@ -1352,25 +1338,17 @@ class VehicleTicketController extends Controller
 
     public function updateBookingDate(Request $request, $id)
     {
-
-        $admin = Admin::where('username', $request->username)
-            ->where('passcode', $request->passcode)
-            ->first();
-
-        $is_authorized = isset($admin->id) ? true : false;
-        $message = $is_authorized ? 'Authorization success!' : 'Invalid username or passcode!';
-
-        if ($is_authorized) {
-            $request->validate([
-                'date_of_journey' => 'required|date|after_or_equal:today',
-            ]);
-        } else {
-            return redirect()->back()->withErrors(['authorization' => $message]);
-        }
-        $request->validate([
+        $validated = $request->validate([
             'date_of_journey' => 'required|date|after_or_equal:today',
             'seats' => 'required|string', // Comma-separated string from JS hidden input
+            'authorization_code' => 'required|string|max:100',
         ]);
+
+        $admin = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::REBOOKING,
+            $this->authorizationContextForBooking($id, null, 'Booking schedule updated')
+        );
 
         $data = BookedTicket::with([
             'trip.schedule',
@@ -1469,7 +1447,8 @@ class VehicleTicketController extends Controller
             (int) auth('admin')->id(),
             implode('; ', $reasonParts) ?: 'Booking schedule updated',
             Str::uuid()->toString(),
-            $rebookingHistory
+            $rebookingHistory,
+            $admin
         );
 
         $notify[] = ['success', "Booking Date and Seats Updated Successfully"];
@@ -1553,10 +1532,17 @@ class VehicleTicketController extends Controller
             'seats' => 'required|array|min:1',
             'seats.*' => 'required|string|max:30',
             'reason' => 'nullable|string|max:1000',
+            'authorization_code' => 'required|string|max:100',
         ]);
         $slipId = $request->integer('slip_id') ?: null;
 
-        $result = DB::transaction(function () use ($id, $validated, $slipId) {
+        $authorizedBy = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::REBOOKING,
+            $this->authorizationContextForBooking($id, $slipId, $validated['reason'] ?? null)
+        );
+
+        $result = DB::transaction(function () use ($id, $validated, $slipId, $authorizedBy) {
             $ticket = BookedTicket::query()
                 ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
                 ->with([
@@ -1644,7 +1630,8 @@ class VehicleTicketController extends Controller
                 (int) auth('admin')->id(),
                 $reason,
                 Str::uuid()->toString(),
-                $history
+                $history,
+                $authorizedBy
             );
 
             return $result;
@@ -2286,6 +2273,40 @@ class VehicleTicketController extends Controller
             'disabled_seats' => $disabled_seats,
             'required_seats' => $requiredSeatsCount
         ]);
+    }
+
+    private function authorizationContextForSlip($slipId, ?string $reason = null): array
+    {
+        $slip = SlipSeriesNumber::with('bookedTicket:id,pnr_number')->find($slipId);
+
+        return [
+            'booked_ticket_id' => $slip?->booked_ticket_id,
+            'slip_series_number_id' => $slip?->id,
+            'pnr' => $slip?->bookedTicket?->pnr_number,
+            'reference_no' => $slip?->id ? (string) $slip->id : null,
+            'seat_no' => $slip?->seat,
+            'reason' => $reason,
+        ];
+    }
+
+    private function authorizationContextForBooking(
+        $bookingId,
+        ?int $slipId = null,
+        ?string $reason = null
+    ): array {
+        $ticket = BookedTicket::with('activeSlipSeriesNumbers:id,booked_ticket_id,seat')->find($bookingId);
+        $slip = $slipId
+            ? $ticket?->activeSlipSeriesNumbers->firstWhere('id', $slipId)
+            : $ticket?->activeSlipSeriesNumbers->first();
+
+        return [
+            'booked_ticket_id' => $ticket?->id,
+            'slip_series_number_id' => $slip?->id,
+            'pnr' => $ticket?->pnr_number,
+            'reference_no' => $slip?->id ? (string) $slip->id : null,
+            'seat_no' => $slip?->seat,
+            'reason' => $reason,
+        ];
     }
 
     public function checkTicketPrice(Request $request)
