@@ -118,13 +118,14 @@
         }
 
         .pnr {
-            color: #d92378;
+            font-family: "DejaVu Sans Mono", monospace;
             font-weight: 700;
         }
 
         .reference {
-            font-family: "DejaVu Sans Mono", monospace;
+            color: #d92378;
             font-weight: 700;
+            font-size: 10px;
         }
 
         .amount {
@@ -238,7 +239,7 @@
                 <th>PNR</th>
                 <th>Reference No.</th>
                 <th>Passenger</th>
-                <th>Journey</th>
+                <th>Departure</th>
                 <th>Trip</th>
                 <th>Seat</th>
                 <th>Drop-Off</th>

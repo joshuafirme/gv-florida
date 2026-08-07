@@ -71,7 +71,7 @@
                             <th>PNR</th>
                             <th>Reference No.</th>
                             <th>Passenger</th>
-                            <th>Journey</th>
+                            <th>Departure</th>
                             <th>Trip</th>
                             <th>Seat No.</th>
                             <th>Drop-Off</th>
@@ -100,8 +100,8 @@
                                     <small>{{ $transaction->processed_at->format('h:i A') }}</small>
                                 </td>
                                 <td>{{ $transaction->source ?: '-' }}</td>
-                                <td><strong class="shift-pnr">{{ $transaction->pnr ?: '-' }}</strong></td>
-                                <td class="shift-reference">{{ $transaction->reference_no ?: '-' }}</td>
+                                <td>{{ $transaction->pnr ?: '-' }}</td>
+                                <td><strong class="shift-pnr">{{ $transaction->reference_no ?: '-' }}</strong></td>
                                 <td>
                                     <strong>{{ $transaction->passenger_name ?: 'Guest' }}</strong>
                                     <small>
@@ -306,6 +306,7 @@
 
         .shift-pnr {
             color: #d92378;
+            font-size: 12px;
         }
 
         .shift-reference {
