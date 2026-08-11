@@ -1019,8 +1019,108 @@ class VehicleTicketController extends Controller
             'status' => $status,
             'reason' => $statusRecord?->reason,
             'updated_at' => ($statusRecord?->processed_at ?? $statusRecord?->created_at ?? $slip->updated_at)?->format('M d, Y g:i A'),
-            'view_url' => route('admin.trip.reservationSlip', $ticket->id),
+            'actions' => $this->allTicketActions($slip, $status),
         ];
+    }
+
+    private function allTicketActions(SlipSeriesNumber $slip, string $status): array
+    {
+        $ticket = $slip->bookedTicket;
+        $canRebook = in_array((int) $ticket->status, [Status::BOOKED_APPROVED, Status::BOOKED_PENDING], true)
+            && !$slip->refund
+            && !$slip->cancellation
+            && !$slip->voidRecord;
+        $bookedActionUrl = fn (string $action) => route('admin.vehicle.ticket.booked', [
+            'ticket_action' => $action,
+            'slip_id' => $slip->id,
+        ]);
+        $rebookUrl = route('admin.vehicle.ticket.booked', [
+            'rebook_ticket' => $ticket->id,
+            'slip_id' => $slip->id,
+        ]);
+
+        return match ($status) {
+            'Booked' => [
+                [
+                    'label' => 'Reservation slip',
+                    'icon' => 'fa-solid fa-receipt',
+                    'class' => 'btn-outline--primary',
+                    'url' => route('admin.trip.reservationSlip', $ticket->id),
+                    'target' => '_blank',
+                ],
+                [
+                    'label' => 'Rebook ticket',
+                    'icon' => 'fa-solid fa-calendar-day',
+                    'class' => 'btn-outline--primary',
+                    'url' => $rebookUrl,
+                ],
+                [
+                    'label' => 'Refund ticket',
+                    'icon' => 'las la-undo-alt',
+                    'class' => 'btn-outline--warning',
+                    'url' => $bookedActionUrl('refund'),
+                ],
+                [
+                    'label' => 'Cancel ticket',
+                    'icon' => 'fa-solid fa-circle-xmark',
+                    'class' => 'btn-outline--danger',
+                    'url' => $bookedActionUrl('cancel'),
+                ],
+                [
+                    'label' => 'Void ticket',
+                    'icon' => 'las la-ban',
+                    'class' => 'btn-outline--danger',
+                    'url' => $bookedActionUrl('void'),
+                ],
+            ],
+            'Pending' => $canRebook ? [[
+                'label' => 'Rebook pending ticket',
+                'icon' => 'fa-solid fa-calendar-day',
+                'class' => 'btn-outline--primary',
+                'url' => $rebookUrl,
+            ]] : [],
+            'Rebooked' => array_values(array_filter([
+                [
+                    'label' => 'View rebooking history',
+                    'icon' => 'las la-eye',
+                    'class' => 'btn-outline--primary',
+                    'url' => route('admin.vehicle.ticket.rebooked', ['search' => $slip->id]),
+                ],
+                [
+                    'label' => 'Print current ticket',
+                    'icon' => 'las la-print',
+                    'class' => 'btn-outline--primary',
+                    'url' => route('admin.trip.reservationSlip', $ticket->id),
+                    'target' => '_blank',
+                ],
+                $canRebook ? [
+                    'label' => 'Rebook this ticket again',
+                    'icon' => 'las la-exchange-alt',
+                    'class' => 'btn-outline--primary',
+                    'url' => $rebookUrl,
+                ] : null,
+            ])),
+            'Refunded' => $slip->refund ? [[
+                'label' => 'View refund record',
+                'icon' => 'las la-eye',
+                'class' => 'btn-outline--primary',
+                'url' => route('admin.vehicle.ticket.refunded', ['search' => $slip->id]),
+            ]] : [],
+            'Cancelled' => $slip->cancellation ? [[
+                'label' => 'View cancellation acknowledgment',
+                'icon' => 'las la-eye',
+                'class' => 'btn-outline--primary',
+                'url' => route('admin.vehicle.ticket.cancel.acknowledgment', $slip->cancellation->id),
+                'target' => '_blank',
+            ]] : [],
+            'Voided' => $slip->voidRecord ? [[
+                'label' => 'View void transaction',
+                'icon' => 'las la-eye',
+                'class' => 'btn-outline--primary',
+                'url' => route('admin.vehicle.ticket.voided', ['search' => $slip->id]),
+            ]] : [],
+            default => [],
+        };
     }
 
     private function rebookedTicketRelations(): array

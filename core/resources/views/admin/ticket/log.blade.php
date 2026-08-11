@@ -1713,5 +1713,44 @@
                 });
             });
         })(jQuery);
+
+        @php
+            $autoTicketAction = in_array(request('ticket_action'), ['refund', 'cancel', 'void'], true)
+                ? request('ticket_action')
+                : null;
+            $autoActionSlipId = request()->integer('slip_id');
+            $autoTicketActionUrl = $autoTicketAction && $autoActionSlipId
+                ? match ($autoTicketAction) {
+                    'refund' => route('admin.vehicle.ticket.refund.options', $autoActionSlipId),
+                    'cancel' => route('admin.vehicle.ticket.cancel.options', $autoActionSlipId),
+                    'void' => route('admin.vehicle.ticket.void.options', $autoActionSlipId),
+                }
+                : null;
+        @endphp
+        (function($) {
+            const action = @json($autoTicketAction);
+            const actionUrl = @json($autoTicketActionUrl);
+
+            if (!action || !actionUrl) return;
+
+            const config = {
+                refund: { className: 'refund-ticket-btn', attribute: 'data-refund-url' },
+                cancel: { className: 'cancel-ticket-btn', attribute: 'data-cancel-url' },
+                void: { className: 'void-ticket-btn', attribute: 'data-void-url' }
+            }[action];
+
+            if (!config) return;
+
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete('ticket_action');
+            cleanUrl.searchParams.delete('slip_id');
+            window.history.replaceState({}, '', cleanUrl.toString());
+
+            const trigger = $('<button type="button">')
+                .addClass(config.className)
+                .attr(config.attribute, actionUrl)
+                .appendTo(document.body);
+            trigger.trigger('click').remove();
+        })(jQuery);
     </script>
 @endpush
