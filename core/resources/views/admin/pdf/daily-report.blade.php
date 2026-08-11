@@ -136,6 +136,12 @@
     <h1>Daily Collection Report</h1>
     <p class="meta">Generated: {{ now()->format('F j, Y h:i A') }}</p>
     <p class="meta"><strong>{{ $date->format('l, F j, Y') }}</strong></p>
+    @if ($active_filter_labels)
+        <p class="meta">
+            <strong>Filters:</strong>
+            {{ collect($active_filter_labels)->map(fn ($value, $label) => $label . ': ' . $value)->implode(' | ') }}
+        </p>
+    @endif
 
     <div class="section-title">Summary</div>
     <table>
