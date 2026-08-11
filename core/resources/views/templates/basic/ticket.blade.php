@@ -629,7 +629,7 @@
                         </div>
                     </div>
                 </form>
-                <div class="d-lg-none row d-flex justify-content-center">
+                {{-- <div class="d-lg-none row d-flex justify-content-center">
                     <div class="col-md-6">
                         <button class="btn btn--base w-100" data-bs-toggle="offcanvas" data-bs-target="#filterPanel">
                             @php
@@ -639,7 +639,7 @@
                             <i class="las la-filter"></i> Filters {{ $count ? "($count)" : '' }}
                         </button>
                     </div>
-                </div>
+                </div> --}}
             </div>
         </div>
     </div>
