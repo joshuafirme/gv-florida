@@ -50,19 +50,19 @@
             <div class="table-responsive shift-detail-scroll">
                 <table class="shift-detail-table">
                     <colgroup>
-                        <col style="width: 9.5%">
-                        <col style="width: 5%">
-                        <col style="width: 7.5%">
-                        <col style="width: 7%">
-                        <col style="width: 9.5%">
                         <col style="width: 8.5%">
-                        <col style="width: 12%">
-                        <col style="width: 5%">
-                        <col style="width: 7%">
+                        <col style="width: 4%">
+                        <col style="width: 6.5%">
+                        <col style="width: 6%">
+                        <col style="width: 8.5%">
                         <col style="width: 7.5%">
-                        <col style="width: 8%">
-                        <col style="width: 5.5%">
-                        <col style="width: 8%">
+                        <col style="width: 10%">
+                        <col style="width: 4.5%">
+                        <col style="width: 6.5%">
+                        <col style="width: 6.5%">
+                        <col style="width: 7%">
+                        <col style="width: 5%">
+                        <col style="width: 19.5%">
                     </colgroup>
                     <thead>
                         <tr>
@@ -131,7 +131,7 @@
                                     {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
                                 </td>
                                 <td><span class="shift-status shift-status--{{ $statusClass }}">{{ $transaction->status }}</span></td>
-                                <td>{{ $transaction->reason ?: '-' }}</td>
+                                <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                             </tr>
                         @empty
                             <tr>
@@ -298,6 +298,14 @@
             color: #78808e;
             font-size: 9px;
             line-height: 1.15;
+        }
+
+        .transaction-reason span {
+            display: block;
+        }
+
+        .transaction-reason span + span {
+            margin-top: 2px;
         }
 
         .shift-detail-table tfoot td {
