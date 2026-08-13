@@ -1,4 +1,8 @@
 .shared-seat-layout {
+    --seat-cell-gap: 10px;
+    --seat-cell-height: 48px;
+    --seat-cell-width: 38px;
+    --seat-row-gap: 14px;
     margin-inline: auto;
     max-width: 560px;
     width: 100%;
@@ -32,8 +36,8 @@
     flex-wrap: nowrap;
     gap: 28px;
     justify-content: space-between;
-    margin: 0 0 14px;
-    min-height: 48px;
+    margin: 0 0 var(--seat-row-gap);
+    min-height: var(--seat-cell-height);
 }
 
 .shared-seat-layout .seat-wrapper--centered {
@@ -43,7 +47,7 @@
 .shared-seat-layout .seat-layout-group {
     display: flex;
     flex: 0 0 auto;
-    gap: 10px;
+    gap: var(--seat-cell-gap);
 }
 
 .shared-seat-layout .seat-wrapper--centered .seat-layout-group {
@@ -51,14 +55,21 @@
 }
 
 .shared-seat-layout .seat-layout-cell {
-    flex: 0 0 38px;
-    height: 48px;
+    flex: 0 0 var(--seat-cell-width);
+    height: var(--seat-cell-height);
     position: relative;
-    width: 38px;
+    width: var(--seat-cell-width);
 }
 
 .shared-seat-layout .seat-layout-cell--empty {
     visibility: hidden;
+}
+
+.shared-seat-layout .seat-layout-cell--span {
+    flex-basis: calc((var(--seat-cell-width) * var(--seat-span)) + (var(--seat-cell-gap) * (var(--seat-span) - 1)));
+    height: var(--seat-cell-height);
+    z-index: 2;
+    width: calc((var(--seat-cell-width) * var(--seat-span)) + (var(--seat-cell-gap) * (var(--seat-span) - 1)));
 }
 
 .shared-seat-layout .seat-wrapper .seat {
@@ -74,14 +85,14 @@
     font-family: inherit;
     font-size: 13px;
     font-weight: 700;
-    height: 48px;
+    height: var(--seat-cell-height);
     justify-content: center;
     line-height: 1;
     margin: 0;
     padding: 4px 3px 10px;
     position: relative;
     text-align: center;
-    width: 38px;
+    width: var(--seat-cell-width);
 }
 
 .shared-seat-layout .seat-wrapper .seat > span {
@@ -141,10 +152,13 @@
     border-color: #cbd5dd;
     color: #526474;
     cursor: default;
-    height: 48px !important;
+    height: calc((var(--seat-cell-height) * var(--seat-row-span)) + (var(--seat-row-gap) * (var(--seat-row-span) - 1))) !important;
+    left: 0;
     line-height: 1 !important;
     padding: 0;
-    width: 38px !important;
+    position: absolute;
+    top: 0;
+    width: 100% !important;
 }
 
 .shared-seat-layout .front,
@@ -232,6 +246,6 @@
     }
 
     .shared-seat-layout .seat-layout-group {
-        gap: 6px;
+        --seat-cell-gap: 6px;
     }
 }

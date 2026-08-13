@@ -92,6 +92,56 @@ class SeatLayoutServiceTest extends TestCase
         $this->assertSame(['U13', 'U14', 'U15', 'U16'], $this->seatLabels($upperLastRow));
     }
 
+    public function test_comfort_room_covers_configured_rows_and_columns_with_override(): void
+    {
+        $fleetType = new FleetType();
+        $fleetType->seat_layout = '2x2';
+        $fleetType->deck_seats = [20];
+        $fleetType->prefixes = ['D'];
+        $fleetType->last_row = [0];
+        $fleetType->disabled_seats = [];
+        $fleetType->cr_position = 'Right';
+        $fleetType->cr_row = 3;
+        $fleetType->cr_row_covered = 2;
+        $fleetType->cr_column_covered = 2;
+        $fleetType->cr_override_seat = true;
+
+        $layout = (new SeatLayoutService())->layout($fleetType);
+        $rightGroup = $layout['decks'][0]['rows'][2]['groups'][1]['cells'];
+
+        $this->assertSame(['cr', 'covered'], array_column($rightGroup, 'type'));
+        $this->assertSame(2, $rightGroup[0]['span']);
+        $this->assertSame(2, $rightGroup[0]['row_span']);
+        $this->assertNotContains('1-D11', $layout['seat_ids']);
+        $this->assertNotContains('1-D12', $layout['seat_ids']);
+        $this->assertNotContains('1-D15', $layout['seat_ids']);
+        $this->assertNotContains('1-D16', $layout['seat_ids']);
+        $this->assertCount(16, $layout['seat_ids']);
+    }
+
+    public function test_comfort_room_shifts_seat_labels_when_override_is_disabled(): void
+    {
+        $fleetType = new FleetType();
+        $fleetType->seat_layout = '2x2';
+        $fleetType->deck_seats = [20];
+        $fleetType->prefixes = ['D'];
+        $fleetType->last_row = [0];
+        $fleetType->disabled_seats = [];
+        $fleetType->cr_position = 'Right';
+        $fleetType->cr_row = 3;
+        $fleetType->cr_row_covered = 2;
+        $fleetType->cr_column_covered = 2;
+        $fleetType->cr_override_seat = false;
+
+        $layout = (new SeatLayoutService())->layout($fleetType);
+
+        $this->assertCount(20, $layout['seat_ids']);
+        $this->assertContains('1-D15', $layout['seat_ids']);
+        $this->assertContains('1-D16', $layout['seat_ids']);
+        $this->assertSame(['D11', 'D12'], $this->seatLabels($layout['decks'][0]['rows'][3]));
+        $this->assertSame(['D13', 'D14', 'D15', 'D16'], $this->seatLabels($layout['decks'][0]['rows'][4]));
+    }
+
     public function test_non_operational_and_locked_states_apply_to_custom_back_row_seats(): void
     {
         $fleetType = $this->sleeperFleet();
@@ -111,6 +161,28 @@ class SeatLayoutServiceTest extends TestCase
         $this->assertSame(['2-U16'], $layout['disabled_seat_ids']);
     }
 
+    public function test_last_row_configuration_applies_independently_to_every_deck(): void
+    {
+        $fleetType = new FleetType();
+        $fleetType->seat_layout = '2x2';
+        $fleetType->deck_seats = [16, 15];
+        $fleetType->last_row = [4, 3];
+        $fleetType->prefixes = ['D', 'U'];
+        $fleetType->disabled_seats = [];
+        $fleetType->cr_position = null;
+        $fleetType->cr_row = null;
+        $fleetType->cr_override_seat = false;
+
+        $layout = (new SeatLayoutService())->layout($fleetType);
+        $lowerLastRow = collect($layout['decks'][0]['rows'])->last();
+        $upperLastRow = collect($layout['decks'][1]['rows'])->last();
+
+        $this->assertTrue($lowerLastRow['centered']);
+        $this->assertSame(['D13', 'D14', 'D15', 'D16'], $this->seatLabels($lowerLastRow));
+        $this->assertTrue($upperLastRow['centered']);
+        $this->assertSame(['U13', 'U14', 'U15'], $this->seatLabels($upperLastRow));
+    }
+
     private function sleeperFleet(): FleetType
     {
         $fleetType = new FleetType();
@@ -123,6 +195,7 @@ class SeatLayoutServiceTest extends TestCase
         $fleetType->cr_position = 'Right';
         $fleetType->cr_row = 3;
         $fleetType->cr_row_covered = 1;
+        $fleetType->cr_column_covered = 1;
         $fleetType->cr_override_seat = true;
 
         return $fleetType;

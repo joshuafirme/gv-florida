@@ -313,9 +313,9 @@
 
             .booking-seat-flow .seat-plan-inner .seat-wrapper .seat.comfort-room {
                 border-radius: 8px;
-                height: 40px !important;
+                height: calc((var(--seat-cell-height) * var(--seat-row-span)) + (var(--seat-row-gap) * (var(--seat-row-span) - 1))) !important;
                 line-height: 1 !important;
-                width: 30px !important;
+                width: 100% !important;
             }
 
             .booking-seat-flow .seat-for-reserved .seat {
@@ -364,10 +364,15 @@
                 width: 48px;
             }
 
+            .booking-seat-flow.is-kiosk .shared-seat-layout {
+                --seat-cell-height: 56px;
+                --seat-cell-width: 48px;
+                --seat-row-gap: 18px;
+            }
+
             .booking-seat-flow.is-kiosk .seat-plan-inner .seat-wrapper .seat.comfort-room {
-                height: 56px !important;
-                margin-right: 10px;
-                width: 48px !important;
+                height: calc((var(--seat-cell-height) * var(--seat-row-span)) + (var(--seat-row-gap) * (var(--seat-row-span) - 1))) !important;
+                width: 100% !important;
             }
 
             .booking-seat-flow.is-kiosk .seat-plan-inner .seat-wrapper {
@@ -566,9 +571,13 @@
                 }
 
                 .booking-seat-flow.is-kiosk .seat-plan-inner .seat-wrapper .seat.comfort-room {
-                    height: 52px !important;
-                    margin-right: 5px;
-                    width: 42px !important;
+                    height: calc((var(--seat-cell-height) * var(--seat-row-span)) + (var(--seat-row-gap) * (var(--seat-row-span) - 1))) !important;
+                    width: 100% !important;
+                }
+
+                .booking-seat-flow.is-kiosk .shared-seat-layout {
+                    --seat-cell-height: 52px;
+                    --seat-cell-width: 42px;
                 }
 
                 .seat-confirm-actions {

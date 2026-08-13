@@ -71,6 +71,9 @@ class ManageFleetController extends Controller
 
     public function typeStore(Request $request, $id = 0)
     {
+        $crColumnLimit = $this->comfortRoomColumnLimit($request);
+        $crRowLimit = $this->comfortRoomRowLimit($request);
+        $crInsertRowLimit = $this->comfortRoomInsertRowLimit($request);
         $request->validate(
             [
                 'name' => 'required|unique:fleet_types,name,' . $id,
@@ -79,12 +82,24 @@ class ManageFleetController extends Controller
                 'deck_seats' => 'required|array|size:' . $request->integer('deck'),
                 'deck_seats.*' => 'required|integer|min:1',
                 'last_row' => 'nullable|array|size:' . $request->integer('deck'),
-                'last_row.*' => 'nullable|integer|min:0',
+                'last_row.*' => [
+                    'nullable',
+                    'integer',
+                    'min:0',
+                    function (string $attribute, mixed $value, \Closure $fail) use ($request) {
+                        $deckIndex = (int) str($attribute)->afterLast('.')->toString();
+                        $seatCount = (int) $request->input("deck_seats.{$deckIndex}", 0);
+                        if ((int) $value > $seatCount) {
+                            $fail('Last Row of Deck cannot exceed the number of seats on that deck.');
+                        }
+                    },
+                ],
                 'prefixes' => 'nullable|array|size:' . $request->integer('deck'),
                 'prefixes.*' => 'nullable|string|max:10',
                 'cr_position' => 'nullable|in:Left,Center,Right',
-                'cr_row' => 'nullable|required_with:cr_position|integer|min:1',
-                'cr_row_covered' => 'nullable|required_with:cr_position|integer|min:1|max:3',
+                'cr_row' => 'nullable|required_with:cr_position|integer|min:1|max:' . $crInsertRowLimit,
+                'cr_row_covered' => 'nullable|required_with:cr_position|integer|min:1|max:' . $crRowLimit,
+                'cr_column_covered' => 'nullable|required_with:cr_position|integer|min:1|max:' . $crColumnLimit,
                 'facilities' => 'nullable|array',
                 'facilities.*' => 'string',
                 'disabled_seats' => 'nullable|array',
@@ -97,6 +112,9 @@ class ManageFleetController extends Controller
                 'deck_seats.size' => 'Seat details are required for every deck',
                 'last_row.size' => 'Last-row details are required for every deck',
                 'prefixes.size' => 'A prefix value is required for every deck',
+                'cr_row.max' => "Row Insert cannot exceed {$crInsertRowLimit} for the lower deck.",
+                'cr_row_covered.max' => "Row Covered cannot exceed {$crRowLimit} from the selected row.",
+                'cr_column_covered.max' => "Column Covered cannot exceed {$crColumnLimit} for the selected CR position.",
             ],
         );
 
@@ -120,6 +138,7 @@ class ManageFleetController extends Controller
         $fleetType->cr_position = $request->cr_position;
         $fleetType->cr_override_seat = $request->boolean('cr_override_seat');
         $fleetType->cr_row_covered = $request->cr_position ? $request->integer('cr_row_covered') : null;
+        $fleetType->cr_column_covered = $request->cr_position ? $request->integer('cr_column_covered') : null;
         $fleetType->prefixes = array_map(
             fn ($value) => trim((string) $value),
             array_values($request->prefixes ?? array_fill(0, $request->integer('deck'), ''))
@@ -140,6 +159,9 @@ class ManageFleetController extends Controller
 
     public function typePreview(Request $request, SeatLayoutService $seatLayoutService)
     {
+        $crColumnLimit = $this->comfortRoomColumnLimit($request);
+        $crRowLimit = $this->comfortRoomRowLimit($request);
+        $crInsertRowLimit = $this->comfortRoomInsertRowLimit($request);
         $validated = $request->validate([
             'name' => 'nullable|string|max:255',
             'seat_layout' => ['required', 'string', 'regex:/^\s*\d+\s*x\s*\d+(?:\s*x\s*\d+)?\s*$/i'],
@@ -152,8 +174,9 @@ class ManageFleetController extends Controller
             'disabled_seats' => 'nullable|array',
             'disabled_seats.*' => 'string|max:30',
             'cr_position' => 'nullable|in:Left,Center,Right',
-            'cr_row' => 'nullable|integer|min:1',
-            'cr_row_covered' => 'nullable|integer|min:1|max:3',
+            'cr_row' => 'nullable|integer|min:1|max:' . $crInsertRowLimit,
+            'cr_row_covered' => 'nullable|integer|min:1|max:' . $crRowLimit,
+            'cr_column_covered' => 'nullable|integer|min:1|max:' . $crColumnLimit,
             'cr_override_seat' => 'nullable|boolean',
         ]);
 
@@ -179,6 +202,38 @@ class ManageFleetController extends Controller
     public function typeStatus($id)
     {
         return FleetType::changeStatus($id);
+    }
+
+    private function comfortRoomColumnLimit(Request $request): int
+    {
+        $segments = array_map(
+            'intval',
+            explode('x', str_replace(' ', '', strtolower((string) $request->seat_layout)))
+        );
+        $groups = count($segments) === 3
+            ? ['left' => $segments[0] ?? 0, 'center' => $segments[1] ?? 0, 'right' => $segments[2] ?? 0]
+            : ['left' => $segments[0] ?? 0, 'right' => $segments[1] ?? 0];
+
+        return max($groups[strtolower((string) $request->cr_position)] ?? 1, 1);
+    }
+
+    private function comfortRoomRowLimit(Request $request): int
+    {
+        return max(
+            $this->comfortRoomInsertRowLimit($request) - max($request->integer('cr_row'), 1) + 1,
+            1
+        );
+    }
+
+    private function comfortRoomInsertRowLimit(Request $request): int
+    {
+        $seatsPerRow = array_sum(array_map(
+            'intval',
+            explode('x', str_replace(' ', '', strtolower((string) $request->seat_layout)))
+        ));
+        $lowerDeckSeats = max((int) ($request->input('deck_seats.0') ?? 1), 1);
+
+        return max((int) ceil($lowerDeckSeats / max($seatsPerRow, 1)), 1);
     }
 
 

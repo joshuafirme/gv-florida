@@ -135,8 +135,15 @@
                                             </div>
                                             <div class="form-group">
                                                 <label>Row Covered</label>
-                                                <input type="number" class="form-control" min="1" max="3"
+                                                <input type="number" class="form-control" min="1" max="1"
+                                                    placeholder="Number of seat rows covered"
                                                     name="cr_row_covered">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Column Covered</label>
+                                                <input type="number" class="form-control" min="1" max="1"
+                                                    placeholder="Number of seat columns covered"
+                                                    name="cr_column_covered">
                                             </div>
                                             <div class="form-group">
                                                 <div class="form-check">
@@ -587,11 +594,57 @@
                         return $(this).val() || '';
                     }).get(),
                     disabled_seats: arrayValue($('.disabled_seats').val()),
-                    cr_row: parseInt($('#postForm [name="cr_row"]').val(), 10) || 0,
+                    cr_row: parseInt($('#postForm [name="cr_row"]').val(), 10) || null,
                     cr_position: $('#postForm [name="cr_position"]').val() || '',
                     cr_override_seat: $('#postForm [name="cr_override_seat"]').is(':checked'),
-                    cr_row_covered: parseInt($('#postForm [name="cr_row_covered"]').val(), 10) || 1
+                    cr_row_covered: parseInt($('#postForm [name="cr_row_covered"]').val(), 10) || 1,
+                    cr_column_covered: parseInt($('#postForm [name="cr_column_covered"]').val(), 10) || 1
                 };
+            }
+
+            function syncCrCoverageLimits() {
+                const segments = String($('#postForm [name="seat_layout"]').val() || '')
+                    .replace(/\s/g, '')
+                    .split('x')
+                    .map(Number);
+                const position = String($('#postForm [name="cr_position"]').val() || '').toLowerCase();
+                const groups = segments.length === 3
+                    ? { left: segments[0], center: segments[1], right: segments[2] }
+                    : { left: segments[0], right: segments[1] };
+                const maxColumns = Math.max(parseInt(groups[position], 10) || 1, 1);
+                const columnInput = $('#postForm [name="cr_column_covered"]');
+                const seatsPerRow = segments.reduce((total, size) => total + (size || 0), 0);
+                const lowerDeckSeats = parseInt($('#postForm [name="deck_seats[]"]').first().val(), 10) || 1;
+                const totalRows = Math.max(Math.ceil(lowerDeckSeats / Math.max(seatsPerRow, 1)), 1);
+                const rowInsert = Math.min(parseInt($('#postForm [name="cr_row"]').val(), 10) || 1, totalRows);
+                const maxRows = Math.max(totalRows - rowInsert + 1, 1);
+                const rowInput = $('#postForm [name="cr_row_covered"]');
+
+                const rowInsertInput = $('#postForm [name="cr_row"]');
+                rowInsertInput.attr('max', totalRows);
+                if ((parseInt(rowInsertInput.val(), 10) || 1) > totalRows) {
+                    rowInsertInput.val(totalRows);
+                }
+                columnInput.attr('max', maxColumns);
+                rowInput.attr('max', maxRows);
+                if ((parseInt(columnInput.val(), 10) || 1) > maxColumns) {
+                    columnInput.val(maxColumns);
+                }
+                if ((parseInt(rowInput.val(), 10) || 1) > maxRows) {
+                    rowInput.val(maxRows);
+                }
+            }
+
+            function syncLastRowLimits() {
+                $('#postForm [name="last_row[]"]').each(function(index) {
+                    const seatCount = parseInt($('#postForm [name="deck_seats[]"]').eq(index).val(), 10) || 0;
+                    const value = parseInt($(this).val(), 10) || 0;
+
+                    $(this).attr('max', seatCount);
+                    if (value > seatCount) {
+                        $(this).val(seatCount);
+                    }
+                });
             }
 
             function refreshFleetPreview() {
@@ -650,11 +703,18 @@
                 '[name="cr_position"]',
                 '[name="cr_row"]',
                 '[name="cr_row_covered"]',
+                '[name="cr_column_covered"]',
                 '[name="cr_override_seat"]',
                 '[name="disabled_seats[]"]'
             ].join(','), refreshFleetPreview);
 
+            $('#cuModal').on('input change', '[name="seat_layout"], [name="cr_position"], [name="cr_row"], [name="deck_seats[]"]', function() {
+                syncCrCoverageLimits();
+                refreshFleetPreview();
+            });
+
             $('#cuModal').on('input', '[name="deck_seats[]"], [name="prefixes[]"]', function() {
+                syncLastRowLimits();
                 refreshDisabledSeatOptions();
             });
 
@@ -714,7 +774,7 @@
                         </div>
                             <div class="form-group">
                                 <label> Last Row of Deck - ${deck} </label>
-                                <input type="number" min="0" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" name="last_row[]" value="${lastRow}">
+                                <input type="number" min="0" max="${seatCount || 0}" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" name="last_row[]" value="${lastRow}">
                             </div>
                             <div class="form-group">
                                 <label> Prefix of Deck - ${deck} </label>
@@ -734,6 +794,8 @@
                 setTimeout(function() {
                 if (!data) {
                     $('#fleet_id').val('');
+                    modal.find('input[name=cr_row_covered]').val(1);
+                    modal.find('input[name=cr_column_covered]').val(1);
                     $('.showSeat').empty();
                     modal.find('input[name=deck]').val(1).trigger('input');
                     modal.find('input[name=has_ac]').bootstrapToggle('off');
@@ -745,26 +807,16 @@
 
                 $('#fleet_id').val(data.id);
                 modal.find('input[name=name]').val(data.name || '');
-                modal.find('select[name=seat_layout]').val(data.seat_layout || '').trigger('change');
+                modal.find('select[name=seat_layout]').val(data.seat_layout || '').trigger('change.select2');
                 modal.find('input[name=deck]').val(data.deck || 1);
-                modal.find('select[name=cr_position]').val(data.cr_position || '').trigger('change');
+                modal.find('select[name=cr_position]').val(data.cr_position || '').trigger('change.select2');
                 modal.find('input[name=cr_row]').val(data.cr_row || '');
-                modal.find('input[name=cr_row_covered]').val(data.cr_row_covered || '');
+                modal.find('input[name=cr_row_covered]').val(data.cr_row_covered || 1);
+                modal.find('input[name=cr_column_covered]').val(data.cr_column_covered || 1);
                 modal.find('input[name=cr_override_seat]').prop('checked', Boolean(data.cr_override_seat));
-                let fleetType = {
-                    name: data.name,
-                    seat_layout: data.seat_layout, // left-center-right
-                    deck_seats: data.deck_seats, // per deck seat count
-                    prefixes: data.prefixes,
-                    disabled_seats: data.disabled_seats,
-                    last_row: data.last_row,
-                    cr_row: data.cr_row,
-                    cr_position: data.cr_position,
-                    cr_override_seat: data.cr_override_seat,
-                    cr_row_covered: parseInt(data.cr_row_covered)
-                };
-
-                renderBusLayout(fleetType, 'seat-layout-container');
+                const deckSeats = arrayValue(data.deck_seats);
+                const lastRows = arrayValue(data.last_row);
+                const prefixes = arrayValue(data.prefixes);
 
                 if (data.has_ac) {
                     modal.find('input[name=has_ac]').bootstrapToggle('on');
@@ -776,12 +828,12 @@
                 let opts = '';
                 if (data.deck) {
                     for (var i = 1; i <= data.deck; i++) {
-                        let last_row = data.last_row ? data.last_row[i - 1] : 0;
-                        let prefix = data.prefixes ? data.prefixes[i - 1] : '';
-                        let total_seats = data.deck_seats[i - 1];
+                        let last_row = lastRows[i - 1] || 0;
+                        let prefix = prefixes[i - 1] || '';
+                        let total_seats = deckSeats[i - 1] || '';
                         for (let index = 1; index <= total_seats; index++) {
                             let seat = `${[prefix]}${index}`;
-                            opts += `<option value="${seat}">${seat}</option>`;
+                            opts += `<option value="${i}-${seat}">${seat}</option>`;
                         }
                         $('.showSeat').append(`
                             <div class="form-group">
@@ -790,7 +842,7 @@
                             </div>
                             <div class="form-group">
                                 <label> Last Row of Deck - ${i} </label>
-                                <input type="number" min="0" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" value="${last_row}" name="last_row[]">
+                                <input type="number" min="0" max="${total_seats}" class="form-control hasArray" placeholder="@lang('Enter Number of Last Row (Backseat)')" value="${last_row}" name="last_row[]">
                             </div>
                             <div class="form-group">
                                 <label> Prefix of Deck - ${i} </label>
@@ -814,7 +866,8 @@
 
 
                 if (data.disabled_seats) {
-                    $('.disabled_seats').val(data.disabled_seats).trigger("change");
+                    const selectedDisabledSeats = arrayValue(data.disabled_seats).map(String);
+                    $('.disabled_seats').val(selectedDisabledSeats).trigger("change");
                 } else {
                     $('.disabled_seats').val('').trigger("change");
                 }
@@ -834,6 +887,9 @@
                         dropdownParent: $disabledSeats.parent()
                     });
                 }
+                syncLastRowLimits();
+                syncCrCoverageLimits();
+                refreshFleetPreview();
                 }, 0);
             });
         })(jQuery);

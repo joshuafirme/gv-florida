@@ -74,7 +74,7 @@ class SeatLayoutService
                 ->flatMap(fn (array $row) => collect($row['groups'])
                     ->flatMap(fn (array $group) => $group['cells'])
                 )
-                ->reject(fn (array $cell) => $cell['type'] === 'empty')
+                ->reject(fn (array $cell) => in_array($cell['type'], ['empty', 'covered'], true))
                 ->values()
                 ->all())
             ->all();
@@ -198,6 +198,7 @@ class SeatLayoutService
             'cr_position' => strtolower((string) $this->value($fleetType, 'cr_position', '')),
             'cr_row' => max((int) $this->value($fleetType, 'cr_row', 0), 0),
             'cr_row_covered' => max((int) $this->value($fleetType, 'cr_row_covered', 1), 1),
+            'cr_column_covered' => max((int) $this->value($fleetType, 'cr_column_covered', 1), 1),
             'cr_override_seat' => filter_var($this->value($fleetType, 'cr_override_seat', false), FILTER_VALIDATE_BOOL),
         ];
     }
@@ -205,47 +206,7 @@ class SeatLayoutService
     private function buildDeck(array $config, int $deckIndex, int $seatCount): array
     {
         $prefix = $config['prefixes'][$deckIndex] ?? '';
-        $cells = [];
-
-        for ($number = 1; $number <= $seatCount; $number++) {
-            $label = $prefix . $number;
-            $cells[] = [
-                'type' => 'seat',
-                'label' => $label,
-                'seat_id' => ($deckIndex + 1) . '-' . $label,
-                'deck' => $deckIndex + 1,
-                'state' => 'available',
-            ];
-        }
-
-        $crSlot = $deckIndex === 0 ? $this->comfortRoomSlot($config) : null;
-
-        if ($crSlot && $crSlot <= $seatCount) {
-            $crCell = [
-                'type' => 'cr',
-                'label' => 'CR',
-                'seat_id' => null,
-                'deck' => $deckIndex + 1,
-                'state' => 'static',
-            ];
-
-            if ($config['cr_override_seat']) {
-                $coveredSlots = [];
-                for ($row = 0; $row < $config['cr_row_covered']; $row++) {
-                    $coveredSlot = $crSlot + ($row * $config['seats_per_row']);
-                    if ($coveredSlot <= $seatCount) {
-                        $coveredSlots[] = $coveredSlot;
-                    }
-                }
-
-                rsort($coveredSlots);
-                foreach ($coveredSlots as $coveredSlot) {
-                    array_splice($cells, $coveredSlot - 1, 1);
-                }
-            }
-
-            array_splice($cells, $crSlot - 1, 0, [$crCell]);
-        }
+        $cells = $this->buildDeckCells($config, $deckIndex, $seatCount, $prefix);
 
         $lastRowCount = max($config['last_row'][$deckIndex] ?? 0, 0);
         $lastRowCells = $this->extractLastRowSeats($cells, $lastRowCount);
@@ -344,21 +305,126 @@ class SeatLayoutService
         ];
     }
 
-    private function comfortRoomSlot(array $config): ?int
+    private function buildDeckCells(array $config, int $deckIndex, int $seatCount, string $prefix): array
+    {
+        $crSlots = $deckIndex === 0 ? $this->comfortRoomSlots($config, $seatCount) : [];
+        $firstCrSlot = $crSlots ? min(array_keys($crSlots)) : null;
+        $lastPhysicalSlot = $config['cr_override_seat'] || !$crSlots
+            ? $seatCount - 1
+            : max(($seatCount + count($crSlots)) - 1, max(array_keys($crSlots)));
+        $cells = [];
+        $seatNumber = 1;
+
+        for ($slot = 0; $slot <= $lastPhysicalSlot; $slot++) {
+            if (isset($crSlots[$slot])) {
+                $cells[] = $slot === $firstCrSlot
+                    ? $this->comfortRoomCell($config, $deckIndex, $crSlots)
+                    : $this->coveredCell($deckIndex);
+                continue;
+            }
+
+            if ($seatNumber > $seatCount) {
+                $cells[] = $this->emptyCell($deckIndex);
+                continue;
+            }
+
+            $number = $config['cr_override_seat'] ? $slot + 1 : $seatNumber;
+            $label = $prefix . $number;
+            $cells[] = [
+                'type' => 'seat',
+                'label' => $label,
+                'seat_id' => ($deckIndex + 1) . '-' . $label,
+                'deck' => $deckIndex + 1,
+                'state' => 'available',
+            ];
+            $seatNumber++;
+        }
+
+        return $cells;
+    }
+
+    private function comfortRoomSlots(array $config, int $seatCount): array
     {
         if (!$config['cr_row'] || !$config['cr_position']) {
-            return null;
+            return [];
         }
 
         $offset = 0;
         foreach ($config['groups'] as $groupName => $groupSize) {
             if ($groupName === $config['cr_position']) {
-                return (($config['cr_row'] - 1) * $config['seats_per_row']) + $offset + 1;
+                break;
             }
             $offset += $groupSize;
         }
 
-        return null;
+        if (!isset($groupSize) || $groupName !== $config['cr_position']) {
+            return [];
+        }
+
+        $start = (($config['cr_row'] - 1) * $config['seats_per_row']) + $offset;
+        if ($start >= $seatCount) {
+            return [];
+        }
+
+        $columnSpan = $this->comfortRoomColumnSpan($config);
+        $availableRows = (int) ceil($seatCount / $config['seats_per_row']) - $config['cr_row'] + 1;
+        $rowSpan = min($config['cr_row_covered'], max($availableRows, 1));
+        $slots = [];
+
+        for ($row = 0; $row < $rowSpan; $row++) {
+            for ($column = 0; $column < $columnSpan; $column++) {
+                $slots[$start + ($row * $config['seats_per_row']) + $column] = true;
+            }
+        }
+
+        return $slots;
+    }
+
+    private function comfortRoomColumnSpan(array $config): int
+    {
+        $groupSize = $config['groups'][$config['cr_position']] ?? 1;
+
+        return min(max($config['cr_column_covered'], 1), $groupSize);
+    }
+
+    private function comfortRoomCell(array $config, int $deckIndex, array $slots): array
+    {
+        $coveredRows = collect(array_keys($slots))
+            ->map(fn (int $slot) => intdiv($slot, $config['seats_per_row']))
+            ->unique()
+            ->count();
+
+        return [
+            'type' => 'cr',
+            'label' => 'CR',
+            'seat_id' => null,
+            'deck' => $deckIndex + 1,
+            'state' => 'static',
+            'span' => $this->comfortRoomColumnSpan($config),
+            'row_span' => max($coveredRows, 1),
+        ];
+    }
+
+    private function coveredCell(int $deckIndex): array
+    {
+        return [
+            'type' => 'covered',
+            'label' => '',
+            'seat_id' => null,
+            'deck' => $deckIndex + 1,
+            'state' => 'static',
+        ];
+    }
+
+    private function emptyCell(int $deckIndex): array
+    {
+        return [
+            'type' => 'empty',
+            'label' => '',
+            'seat_id' => null,
+            'deck' => $deckIndex + 1,
+            'state' => 'static',
+        ];
     }
 
     private function extractLastRowSeats(array &$cells, int $count): array

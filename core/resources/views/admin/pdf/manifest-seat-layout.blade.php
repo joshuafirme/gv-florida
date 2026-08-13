@@ -53,7 +53,8 @@
         .manifest-seat.admin-locked .manifest-seat-number,
         .manifest-seat.admin-locked .manifest-seat-status { color: #955400; }
         .manifest-seat.disabled { background: #f2f3f5; color: #9ba2ad; }
-        .manifest-seat.comfort-room { background: #eef3f7; }
+        .manifest-seat.comfort-room { background: transparent; z-index: 2; }
+        .manifest-seat.comfort-room::before { background: #eef3f7; bottom: auto; content: ''; height: calc(108px * var(--cr-row-span)); left: 0; position: absolute; right: 0; top: 0; z-index: -1; }
         .manifest-seat.comfort-room .manifest-seat-number { color: #526474; }
         .manifest-passenger { align-items: start; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) minmax(155px, .9fr); margin-top: 7px; }
         .manifest-reference { color: var(--pink); display: block; font-size: 28px; font-weight: 800; line-height: 1.05; }
@@ -84,6 +85,7 @@
             .manifest-aisle { flex-basis: 98px; }
             .manifest-aisle::after { bottom: 5px; top: 5px; }
             .manifest-seat { break-inside: avoid; min-height: 76px; padding: 6px 9px; }
+            .manifest-seat.comfort-room::before { height: calc(76px * var(--cr-row-span)); }
             .manifest-seat-empty { min-height: 76px; }
             .manifest-seat-number { font-size: 17px; }
             .manifest-seat-status { font-size: 7px; }
@@ -160,6 +162,10 @@
                                 @endif
                                 <div class="manifest-seat-group" style="--manifest-group-size: {{ count($group['cells']) }};">
                                     @foreach ($group['cells'] as $cell)
+                                        @if ($cell['type'] === 'covered')
+                                            @continue
+                                        @endif
+
                                         @if ($cell['type'] === 'empty')
                                             <div class="manifest-seat-empty" aria-hidden="true"></div>
                                             @continue
@@ -172,7 +178,8 @@
                                             $isDisabled = !$isComfortRoom && $cell['state'] === 'disabled';
                                             $isFiltered = $manifest && !$manifest['matches'];
                                         @endphp
-                                        <article class="manifest-seat {{ $isComfortRoom ? 'comfort-room' : '' }} {{ $manifest ? 'occupied' : '' }} {{ $manifest && $manifest['blocked'] ? 'blocked' : '' }} {{ $lockedSeat ? 'admin-locked' : '' }} {{ $isDisabled ? 'disabled' : '' }} {{ $isFiltered ? 'filtered' : '' }}">
+                                        <article class="manifest-seat {{ $isComfortRoom ? 'comfort-room' : '' }} {{ $manifest ? 'occupied' : '' }} {{ $manifest && $manifest['blocked'] ? 'blocked' : '' }} {{ $lockedSeat ? 'admin-locked' : '' }} {{ $isDisabled ? 'disabled' : '' }} {{ $isFiltered ? 'filtered' : '' }}"
+                                            @if ($isComfortRoom) style="--cr-row-span: {{ $cell['row_span'] ?? 1 }}; grid-column: span {{ $cell['span'] ?? 1 }};" @endif>
                                             <span class="manifest-seat-number">{{ $cell['label'] }}</span>
                                             @if ($isComfortRoom)
                                                 <span class="manifest-seat-status">Comfort Room</span>
