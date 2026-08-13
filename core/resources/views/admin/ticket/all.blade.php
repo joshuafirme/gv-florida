@@ -116,11 +116,21 @@
                                     @endif
                                 </td>
                                 <td data-label="Action">
-                                    <a href="{{ $ticket['view_url'] }}" target="_blank"
-                                        class="btn btn-sm btn-outline--primary" title="View ticket"
-                                        data-bs-toggle="tooltip" data-bs-placement="bottom">
-                                        <i class="las la-eye"></i>
-                                    </a>
+                                    @if ($ticket['actions'])
+                                        <div class="all-ticket-actions">
+                                            @foreach ($ticket['actions'] as $action)
+                                                <a href="{{ $action['url'] }}"
+                                                    class="btn btn-sm {{ $action['class'] }}"
+                                                    title="{{ $action['label'] }}"
+                                                    data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                    @if (($action['target'] ?? null) === '_blank') target="_blank" rel="noopener" @endif>
+                                                    <i class="{{ $action['icon'] }}"></i>
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <span class="text-muted">&mdash;</span>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
@@ -238,6 +248,24 @@
             font-size: 9px;
             line-height: 1.3;
             margin-top: 2px;
+        }
+
+        .all-ticket-actions {
+            align-items: center;
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 4px;
+        }
+
+        .all-ticket-actions .btn {
+            align-items: center;
+            display: inline-flex;
+            flex: 0 0 30px;
+            height: 30px;
+            justify-content: center;
+            margin: 0;
+            padding: 0;
+            width: 30px;
         }
 
         .all-ticket-pnr {
