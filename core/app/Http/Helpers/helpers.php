@@ -19,7 +19,7 @@ use Laramin\Utility\VugiChugi;
 function systemDetails()
 {
     $system['name'] = 'GV Florida';
-    $system['build_version'] = '5.3.9';
+    $system['build_version'] = '5.4.0';
     $system['version'] = $system['build_version'];
     return $system;
 }
