@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Constants\Status;
-use App\Lib\BusLayout;
 use App\Models\AdminNotification;
 use App\Models\FleetType;
 use App\Models\Frontend;
@@ -19,6 +18,7 @@ use App\Models\Page;
 use App\Models\SupportMessage;
 use App\Models\SupportTicket;
 use App\Services\SeatConflictService;
+use App\Services\SeatLayoutService;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -389,7 +389,19 @@ class SiteController extends Controller
         // Define routeSequence for the JavaScript Fare Preview & Dropping Points Engine
         $routeSequence = Counter::routeStoppages($stoppageArr);
 
-        $busLayout = new BusLayout($trip);
+        $pickupPoint = $request->input('start_from', $request->input('pickup', $trip->start_from));
+        $droppingPoint = $request->input(
+            'end_to',
+            $request->input('dropping_point', $request->input('destination', $trip->end_to))
+        );
+        $seatLayout = app(SeatLayoutService::class)->layout($trip->fleetType, [
+            'booked' => app(SeatConflictService::class)->unavailableSeats(
+                $trip,
+                $journeyDate,
+                $pickupPoint,
+                $droppingPoint
+            ),
+        ]);
 
         if (auth()->user()) {
             $layout = 'layouts.master';
@@ -402,7 +414,7 @@ class SiteController extends Controller
             'trip',
             'stoppages',
             'routeSequence', // Added here
-            'busLayout',
+            'seatLayout',
             'layout'
         ));
     }

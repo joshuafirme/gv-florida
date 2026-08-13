@@ -53,61 +53,12 @@
         </div>
 
         <div class="seat-lock-decks">
-            @foreach ($decks as $deckIndex => $cells)
-                @php
-                    $layout = array_map('intval', explode('x', str_replace(' ', '', (string) $trip->fleetType->seat_layout)));
-                    $columnCount = max(array_sum($layout), 1);
-                @endphp
-                <section class="seat-lock-deck">
-                    <div class="seat-lock-deck__heading">
-                        <strong>{{ $deckIndex === 0 ? 'Lower Deck' : 'Upper Deck' }}</strong>
-                        <span>
-                            @if ($deckIndex === 0)
-                                <i class="las la-user"></i>
-                                <i class="las la-door-open"></i> Door
-                            @else
-                                Deck {{ $deckIndex + 1 }}
-                            @endif
-                        </span>
-                    </div>
-
-                    <div class="seat-lock-grid" style="--seat-columns: {{ $columnCount }}">
-                        @foreach ($cells as $cell)
-                            @if ($cell['type'] === 'cr')
-                                <div class="seat-lock-seat is-cr" aria-label="Comfort room">CR</div>
-                            @else
-                                @php
-                                    $seatId = $cell['seat_id'];
-                                    $lock = $lockedSeats->get($seatId);
-                                    $isBooked = in_array($seatId, $bookedSeats, true);
-                                    $isDisabled = in_array($seatId, $disabledSeats, true);
-                                    $state = $lock ? 'locked' : ($isBooked ? 'booked' : ($isDisabled ? 'disabled' : 'available'));
-                                    $action = $lock ? 'unlock' : 'lock';
-                                @endphp
-
-                                <button type="button"
-                                    class="seat-lock-seat is-{{ $state }} {{ in_array($state, ['booked', 'disabled'], true) ? 'is-static' : 'js-seat-lock' }}"
-                                    data-seat="{{ $seatId }}"
-                                    data-label="{{ $cell['label'] }}"
-                                    data-action="{{ $action }}"
-                                    @if ($lock)
-                                        data-reason="{{ $lock->reason }}"
-                                        title="Locked: {{ $lock->reason }}"
-                                    @elseif ($isBooked)
-                                        disabled title="Booked or held by a passenger transaction"
-                                    @elseif ($isDisabled)
-                                        disabled title="Unavailable in the fleet layout"
-                                    @endif>
-                                    @if ($lock)
-                                        <i class="las la-lock" aria-hidden="true"></i>
-                                    @endif
-                                    <span>{{ $cell['label'] }}</span>
-                                </button>
-                            @endif
-                        @endforeach
-                    </div>
-                </section>
-            @endforeach
+            @include('templates.basic.partials.seat_layout', [
+                'fleetType' => $trip->fleetType,
+                'seatLayout' => $seatLayout,
+                'seatLayoutMode' => 'lock',
+                'lockedSeatDetails' => $lockedSeats,
+            ])
         </div>
 
         <p class="seat-lock-note">

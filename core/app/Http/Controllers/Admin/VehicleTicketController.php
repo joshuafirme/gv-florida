@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
-use App\Lib\BusLayout;
 use App\Models\Admin;
 use App\Models\BookedTicket;
 use App\Models\CashierTransactionEvent;
@@ -21,6 +20,7 @@ use App\Models\TicketVoid;
 use App\Services\CashierTransactionRecorder;
 use App\Services\RebookingPolicy;
 use App\Services\SeatConflictService;
+use App\Services\SeatLayoutService;
 use App\Services\TransactionAuthorizationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -1609,8 +1609,10 @@ class VehicleTicketController extends Controller
         $availability = $this->seatAvailability($ticket, $trip, $date, false, $targetSlips);
 
         $fleetType = $trip->fleetType;
-        $busLayout = new BusLayout($trip);
-        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'busLayout'))->render();
+        $seatLayout = app(SeatLayoutService::class)->layout($fleetType, [
+            'booked' => $availability['booked'],
+        ]);
+        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'seatLayout'))->render();
 
         return response()->json([
             'html' => $html,
@@ -2354,9 +2356,10 @@ class VehicleTicketController extends Controller
         );
         $fleetType = $trip->fleetType;
 
-        $busLayout = new BusLayout($trip);
-
-        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'busLayout'))->render();
+        $seatLayout = app(SeatLayoutService::class)->layout($fleetType, [
+            'booked' => $bookedSeatsArray,
+        ]);
+        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'seatLayout'))->render();
 
         $disabled_seats = $fleetType->disabled_seats ? $fleetType->disabled_seats : [];
         $seats = [];

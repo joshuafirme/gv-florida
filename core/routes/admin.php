@@ -114,6 +114,7 @@ Route::middleware('admin')->group(function () {
         Route::prefix('type')->name('type.')->group(function () {
             Route::get('', 'type')->name('index');
             Route::get('details/{id}', 'seatLayoutDetails')->name('seatLayoutDetails');
+            Route::post('preview', 'typePreview')->name('preview');
             Route::post('store/{id?}', 'typeStore')->name('store');
             Route::post('status/{id}', 'typeStatus')->name('status');
         });

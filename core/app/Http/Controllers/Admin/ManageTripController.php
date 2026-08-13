@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
-use App\Lib\BusLayout;
 use App\Models\AdminSeatLock;
 use App\Models\AssignedVehicle;
 use App\Models\BookedTicket;
@@ -681,9 +680,13 @@ class ManageTripController extends Controller
                 ]];
             });
 
-        $manifestDecks = $seatLayoutService->manifestDecks($trip->fleetType);
-        $capacity = $seatLayoutService->seatIds($trip->fleetType)->count();
         $disabled = $seatLayoutService->disabledSeatIds($trip->fleetType);
+        $manifestLayout = $seatLayoutService->layout($trip->fleetType, [
+            'booked' => $seatManifest->where('blocked', false)->keys()->all(),
+            'pending' => $seatManifest->where('blocked', true)->keys()->all(),
+            'locked' => $lockedSeats->keys()->all(),
+        ]);
+        $capacity = count($manifestLayout['seat_ids']);
         $bookedCount = $seatManifest->where('blocked', false)->count();
         $blockedCount = $seatManifest->where('blocked', true)->count();
         $unavailableCount = $seatManifest->keys()
@@ -708,7 +711,7 @@ class ManageTripController extends Controller
             'search' => $search,
             'seatManifest' => $seatManifest,
             'lockedSeats' => $lockedSeats,
-            'manifestDecks' => $manifestDecks,
+            'manifestLayout' => $manifestLayout,
             'disabledSeats' => $disabled,
             'stats' => $stats,
         ]);
