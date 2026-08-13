@@ -7,107 +7,341 @@ use Illuminate\Support\Collection;
 
 class SeatLayoutService
 {
-    public function decks(FleetType $fleetType): array
+    /**
+     * Build the canonical seat geometry consumed by every seat-map surface.
+     */
+    public function layout(FleetType|array $fleetType, array $states = []): array
     {
-        $layout = array_map('intval', explode('x', str_replace(' ', '', (string) $fleetType->seat_layout)));
-        $left = $layout[0] ?? 0;
-        $center = count($layout) === 3 ? ($layout[1] ?? 0) : 0;
-        $right = count($layout) === 2 ? ($layout[1] ?? 0) : ($layout[2] ?? 0);
-        $seatsPerRow = $left + $center + $right;
-        $crOffset = match (strtolower((string) $fleetType->cr_position)) {
-            'left' => $left > 0 ? 1 : null,
-            'center' => $center > 0 ? $left + 1 : null,
-            'right' => $right > 0 ? $left + $center + 1 : null,
-            default => null,
-        };
-        $crSlot = $seatsPerRow > 0 && $crOffset && (int) $fleetType->cr_row > 0
-            ? (((int) $fleetType->cr_row - 1) * $seatsPerRow) + $crOffset
-            : null;
-        $prefixes = array_values((array) ($fleetType->prefixes ?? []));
+        $config = $this->configuration($fleetType);
         $decks = [];
 
-        foreach (array_values((array) $fleetType->deck_seats) as $deckIndex => $seatCount) {
-            $prefix = (string) ($prefixes[$deckIndex] ?? '');
-            $cells = [];
-
-            for ($number = 1; $number <= (int) $seatCount; $number++) {
-                $label = strtoupper($prefix . $number);
-                $cells[] = [
-                    'type' => 'seat',
-                    'label' => $label,
-                    'seat_id' => ($deckIndex + 1) . '-' . $label,
-                ];
-            }
-
-            if ($deckIndex === 0 && $crSlot && $crSlot <= (int) $seatCount) {
-                $crCell = ['type' => 'cr', 'label' => 'CR', 'seat_id' => null];
-
-                if ($fleetType->cr_override_seat) {
-                    $coveredRows = max((int) $fleetType->cr_row_covered, 1);
-                    $coveredSlots = [];
-
-                    for ($row = 0; $row < $coveredRows; $row++) {
-                        $coveredSlot = $crSlot + ($row * $seatsPerRow);
-                        if ($coveredSlot <= (int) $seatCount) {
-                            $coveredSlots[] = $coveredSlot;
-                        }
-                    }
-
-                    rsort($coveredSlots);
-                    foreach ($coveredSlots as $coveredSlot) {
-                        array_splice($cells, $coveredSlot - 1, 1);
-                    }
-                    array_splice($cells, $crSlot - 1, 0, [$crCell]);
-                } else {
-                    array_splice($cells, $crSlot - 1, 0, [$crCell]);
-                }
-            }
-
-            $decks[] = $cells;
+        foreach ($config['deck_seats'] as $deckIndex => $seatCount) {
+            $decks[] = $this->buildDeck($config, $deckIndex, $seatCount);
         }
 
-        return $decks;
+        $seatIndex = collect($decks)
+            ->flatMap(fn (array $deck) => collect($deck['rows'])->flatMap(
+                fn (array $row) => collect($row['groups'])->flatMap(fn (array $group) => $group['cells'])
+            ))
+            ->where('type', 'seat')
+            ->keyBy('seat_id');
+        $stateIds = [
+            'disabled' => $this->canonicalizeFromIndex($seatIndex, $config['disabled_seats']),
+            'booked' => $this->canonicalizeFromIndex($seatIndex, $states['booked'] ?? []),
+            'pending' => $this->canonicalizeFromIndex($seatIndex, $states['pending'] ?? []),
+            'locked' => $this->canonicalizeFromIndex($seatIndex, $states['locked'] ?? []),
+        ];
+
+        foreach ($decks as &$deck) {
+            foreach ($deck['rows'] as &$row) {
+                foreach ($row['groups'] as &$group) {
+                    foreach ($group['cells'] as &$cell) {
+                        if ($cell['type'] !== 'seat') {
+                            continue;
+                        }
+
+                        $cell['state'] = match (true) {
+                            in_array($cell['seat_id'], $stateIds['disabled'], true) => 'disabled',
+                            in_array($cell['seat_id'], $stateIds['locked'], true) => 'locked',
+                            in_array($cell['seat_id'], $stateIds['booked'], true) => 'booked',
+                            in_array($cell['seat_id'], $stateIds['pending'], true) => 'pending',
+                            default => 'available',
+                        };
+                    }
+                    unset($cell);
+                }
+                unset($group);
+            }
+            unset($row);
+        }
+        unset($deck);
+
+        return [
+            'name' => $config['name'],
+            'seat_layout' => $config['seat_layout'],
+            'groups' => $config['groups'],
+            'seats_per_row' => $config['seats_per_row'],
+            'decks' => $decks,
+            'seat_ids' => $seatIndex->keys()->values()->all(),
+            'disabled_seat_ids' => $stateIds['disabled'],
+        ];
+    }
+
+    public function decks(FleetType $fleetType): array
+    {
+        return collect($this->layout($fleetType)['decks'])
+            ->map(fn (array $deck) => collect($deck['rows'])
+                ->flatMap(fn (array $row) => collect($row['groups'])
+                    ->flatMap(fn (array $group) => $group['cells'])
+                )
+                ->reject(fn (array $cell) => $cell['type'] === 'empty')
+                ->values()
+                ->all())
+            ->all();
     }
 
     public function seatIds(FleetType $fleetType): Collection
     {
-        return collect($this->decks($fleetType))
-            ->flatten(1)
-            ->where('type', 'seat')
-            ->pluck('seat_id')
-            ->values();
+        return collect($this->layout($fleetType)['seat_ids']);
     }
 
     public function canonicalSeatId(FleetType $fleetType, string $seat): ?string
     {
-        $seat = strtoupper(trim($seat));
-        $seats = collect($this->decks($fleetType))->flatten(1)->where('type', 'seat');
-        $exact = $seats->first(fn (array $cell) => $cell['seat_id'] === $seat);
+        $layout = $this->layout($fleetType);
+        $seatIndex = $this->seatIndex($layout);
 
-        if ($exact) {
-            return $exact['seat_id'];
-        }
-
-        $byLabel = $seats->first(fn (array $cell) => $cell['label'] === $seat);
-
-        return $byLabel['seat_id'] ?? null;
+        return $this->canonicalizeFromIndex($seatIndex, [$seat])[0] ?? null;
     }
 
     public function canonicalizeSeats(FleetType $fleetType, array $seats): array
     {
+        return $this->canonicalizeFromIndex($this->seatIndex($this->layout($fleetType)), $seats);
+    }
+
+    public function disabledSeatIds(FleetType $fleetType): array
+    {
+        return $this->layout($fleetType)['disabled_seat_ids'];
+    }
+
+    private function configuration(FleetType|array $fleetType): array
+    {
+        $seatLayout = (string) $this->value($fleetType, 'seat_layout', '');
+        $segments = array_map('intval', explode('x', str_replace(' ', '', strtolower($seatLayout))));
+        $groups = count($segments) === 3
+            ? ['left' => $segments[0] ?? 0, 'center' => $segments[1] ?? 0, 'right' => $segments[2] ?? 0]
+            : ['left' => $segments[0] ?? 0, 'right' => $segments[1] ?? 0];
+        $groups = array_filter($groups, fn (int $size) => $size > 0);
+
+        if (!$groups) {
+            $groups = ['left' => 1, 'right' => 1];
+        }
+
+        return [
+            'name' => (string) $this->value($fleetType, 'name', 'Fleet Type'),
+            'seat_layout' => $seatLayout,
+            'groups' => $groups,
+            'seats_per_row' => array_sum($groups),
+            'deck_seats' => array_map('intval', array_values((array) $this->value($fleetType, 'deck_seats', []))),
+            'last_row' => array_map('intval', array_values((array) $this->value($fleetType, 'last_row', []))),
+            'prefixes' => array_map(fn ($prefix) => strtoupper(trim((string) $prefix)), array_values((array) $this->value($fleetType, 'prefixes', []))),
+            'disabled_seats' => array_values((array) $this->value($fleetType, 'disabled_seats', [])),
+            'cr_position' => strtolower((string) $this->value($fleetType, 'cr_position', '')),
+            'cr_row' => max((int) $this->value($fleetType, 'cr_row', 0), 0),
+            'cr_row_covered' => max((int) $this->value($fleetType, 'cr_row_covered', 1), 1),
+            'cr_override_seat' => filter_var($this->value($fleetType, 'cr_override_seat', false), FILTER_VALIDATE_BOOL),
+        ];
+    }
+
+    private function buildDeck(array $config, int $deckIndex, int $seatCount): array
+    {
+        $prefix = $config['prefixes'][$deckIndex] ?? '';
+        $cells = [];
+
+        for ($number = 1; $number <= $seatCount; $number++) {
+            $label = $prefix . $number;
+            $cells[] = [
+                'type' => 'seat',
+                'label' => $label,
+                'seat_id' => ($deckIndex + 1) . '-' . $label,
+                'deck' => $deckIndex + 1,
+                'state' => 'available',
+            ];
+        }
+
+        $crSlot = $deckIndex === 0 ? $this->comfortRoomSlot($config) : null;
+
+        if ($crSlot && $crSlot <= $seatCount) {
+            $crCell = [
+                'type' => 'cr',
+                'label' => 'CR',
+                'seat_id' => null,
+                'deck' => $deckIndex + 1,
+                'state' => 'static',
+            ];
+
+            if ($config['cr_override_seat']) {
+                $coveredSlots = [];
+                for ($row = 0; $row < $config['cr_row_covered']; $row++) {
+                    $coveredSlot = $crSlot + ($row * $config['seats_per_row']);
+                    if ($coveredSlot <= $seatCount) {
+                        $coveredSlots[] = $coveredSlot;
+                    }
+                }
+
+                rsort($coveredSlots);
+                foreach ($coveredSlots as $coveredSlot) {
+                    array_splice($cells, $coveredSlot - 1, 1);
+                }
+            }
+
+            array_splice($cells, $crSlot - 1, 0, [$crCell]);
+        }
+
+        $lastRowCount = max($config['last_row'][$deckIndex] ?? 0, 0);
+        $lastRowCells = $this->extractLastRowSeats($cells, $lastRowCount);
+        $rows = [];
+
+        foreach (array_chunk($cells, $config['seats_per_row']) as $rowIndex => $rowCells) {
+            $isPartial = count($rowCells) < $config['seats_per_row'];
+            $rows[] = $this->layoutRow(
+                $rowCells,
+                $config['groups'],
+                $deckIndex,
+                $rowIndex,
+                $isPartial
+            );
+        }
+
+        if ($lastRowCells) {
+            $rows[] = $this->layoutRow(
+                $lastRowCells,
+                $config['groups'],
+                $deckIndex,
+                count($rows),
+                true
+            );
+        }
+
+        return [
+            'number' => $deckIndex + 1,
+            'name' => match ($deckIndex) {
+                0 => 'Lower Deck',
+                1 => 'Upper Deck',
+                default => 'Deck ' . ($deckIndex + 1),
+            },
+            'prefix' => $prefix,
+            'rows' => $rows,
+        ];
+    }
+
+    private function layoutRow(
+        array $cells,
+        array $groups,
+        int $deckIndex,
+        int $rowIndex,
+        bool $centered
+    ): array {
+        if ($centered) {
+            foreach ($cells as &$cell) {
+                $cell['row'] = $rowIndex + 1;
+                $cell['group'] = 'centered';
+                $cell['is_sc_pwd'] = $deckIndex === 0 && $rowIndex === 0 && $cell['type'] === 'seat';
+            }
+            unset($cell);
+
+            return [
+                'number' => $rowIndex + 1,
+                'centered' => true,
+                'is_front_row' => $deckIndex === 0 && $rowIndex === 0,
+                'groups' => [[
+                    'name' => 'centered',
+                    'cells' => $cells,
+                ]],
+            ];
+        }
+
+        $rowGroups = [];
+        $offset = 0;
+
+        foreach ($groups as $groupName => $groupSize) {
+            $groupCells = [];
+            for ($position = 0; $position < $groupSize; $position++) {
+                $cell = $cells[$offset] ?? [
+                    'type' => 'empty',
+                    'label' => '',
+                    'seat_id' => null,
+                    'deck' => $deckIndex + 1,
+                    'state' => 'static',
+                ];
+                $cell['row'] = $rowIndex + 1;
+                $cell['group'] = $groupName;
+                $cell['is_sc_pwd'] = $deckIndex === 0 && $rowIndex === 0 && $cell['type'] === 'seat';
+                $groupCells[] = $cell;
+                $offset++;
+            }
+
+            $rowGroups[] = [
+                'name' => $groupName,
+                'cells' => $groupCells,
+            ];
+        }
+
+        return [
+            'number' => $rowIndex + 1,
+            'centered' => false,
+            'is_front_row' => $deckIndex === 0 && $rowIndex === 0,
+            'groups' => $rowGroups,
+        ];
+    }
+
+    private function comfortRoomSlot(array $config): ?int
+    {
+        if (!$config['cr_row'] || !$config['cr_position']) {
+            return null;
+        }
+
+        $offset = 0;
+        foreach ($config['groups'] as $groupName => $groupSize) {
+            if ($groupName === $config['cr_position']) {
+                return (($config['cr_row'] - 1) * $config['seats_per_row']) + $offset + 1;
+            }
+            $offset += $groupSize;
+        }
+
+        return null;
+    }
+
+    private function extractLastRowSeats(array &$cells, int $count): array
+    {
+        if ($count <= 0) {
+            return [];
+        }
+
+        $lastRow = [];
+        for ($index = count($cells) - 1; $index >= 0 && count($lastRow) < $count; $index--) {
+            if (($cells[$index]['type'] ?? null) !== 'seat') {
+                continue;
+            }
+
+            array_unshift($lastRow, $cells[$index]);
+            unset($cells[$index]);
+        }
+        $cells = array_values($cells);
+
+        return $lastRow;
+    }
+
+    private function seatIndex(array $layout): Collection
+    {
+        return collect($layout['decks'])
+            ->flatMap(fn (array $deck) => collect($deck['rows'])->flatMap(
+                fn (array $row) => collect($row['groups'])->flatMap(fn (array $group) => $group['cells'])
+            ))
+            ->where('type', 'seat')
+            ->keyBy('seat_id');
+    }
+
+    private function canonicalizeFromIndex(Collection $seatIndex, array $seats): array
+    {
         return collect($seats)
-            ->map(fn ($seat) => $this->canonicalSeatId($fleetType, (string) $seat))
+            ->map(function ($seat) use ($seatIndex) {
+                $seat = strtoupper(trim(strip_tags((string) $seat)));
+                if ($seatIndex->has($seat)) {
+                    return $seat;
+                }
+
+                return $seatIndex->first(fn (array $cell) => $cell['label'] === $seat)['seat_id'] ?? null;
+            })
             ->filter()
             ->unique()
             ->values()
             ->all();
     }
 
-    public function disabledSeatIds(FleetType $fleetType): array
+    private function value(FleetType|array $fleetType, string $key, mixed $default = null): mixed
     {
-        return $this->canonicalizeSeats(
-            $fleetType,
-            array_values((array) ($fleetType->disabled_seats ?? []))
-        );
+        return is_array($fleetType)
+            ? ($fleetType[$key] ?? $default)
+            : ($fleetType->{$key} ?? $default);
     }
 }

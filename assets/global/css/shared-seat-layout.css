@@ -1,0 +1,237 @@
+.shared-seat-layout {
+    margin-inline: auto;
+    max-width: 560px;
+    width: 100%;
+}
+
+.shared-seat-layout__title {
+    color: #273142;
+    font-size: 18px;
+    font-weight: 800;
+    margin: 0 0 12px;
+    text-transform: uppercase;
+}
+
+.shared-seat-layout .seat-plan-inner {
+    margin-top: 24px;
+}
+
+.shared-seat-layout .seat-plan-inner .single {
+    background: #fff;
+    border: 1px solid #dfe3e8;
+    border-radius: 8px;
+    margin-bottom: 38px;
+    min-height: 150px;
+    padding: 72px 24px 28px;
+    position: relative;
+}
+
+.shared-seat-layout .seat-wrapper {
+    align-items: center;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 28px;
+    justify-content: space-between;
+    margin: 0 0 14px;
+    min-height: 48px;
+}
+
+.shared-seat-layout .seat-wrapper--centered {
+    justify-content: center;
+}
+
+.shared-seat-layout .seat-layout-group {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 10px;
+}
+
+.shared-seat-layout .seat-wrapper--centered .seat-layout-group {
+    justify-content: center;
+}
+
+.shared-seat-layout .seat-layout-cell {
+    flex: 0 0 38px;
+    height: 48px;
+    position: relative;
+    width: 38px;
+}
+
+.shared-seat-layout .seat-layout-cell--empty {
+    visibility: hidden;
+}
+
+.shared-seat-layout .seat-wrapper .seat {
+    align-items: center;
+    appearance: none;
+    background: #fff;
+    border: 1px solid #979da8;
+    border-radius: 8px;
+    color: #555d69;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    height: 48px;
+    justify-content: center;
+    line-height: 1;
+    margin: 0;
+    padding: 4px 3px 10px;
+    position: relative;
+    text-align: center;
+    width: 38px;
+}
+
+.shared-seat-layout .seat-wrapper .seat > span {
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    bottom: 5px;
+    height: 3px;
+    left: 6px;
+    opacity: .45;
+    position: absolute;
+    right: 6px;
+}
+
+.shared-seat-layout .seat-wrapper .seat small {
+    display: block;
+    font-size: 6px;
+    font-weight: 800;
+    line-height: 1;
+    margin-top: 4px;
+}
+
+.shared-seat-layout .is-sc-pwd:not(.is-booked):not(.disabled) .seat:not(.selected) {
+    background: #ffd60a;
+    border-color: #d6ad00;
+    color: #342b00;
+}
+
+.shared-seat-layout .is-sc-pwd .seat::after {
+    content: none !important;
+}
+
+.shared-seat-layout .seat-layout-cell.disabled .seat,
+.shared-seat-layout .seat-layout-cell.is-booked .seat,
+.shared-seat-layout .seat-layout-cell.is-booked .seat.selected {
+    background: #5142b8;
+    border-color: #5142b8;
+    color: #fff;
+    cursor: not-allowed;
+}
+
+.shared-seat-layout .seat-layout-cell .seat.disabled-seat,
+.shared-seat-layout .seat-layout-cell.is-disabled .seat {
+    background: #777 !important;
+    border-color: #777 !important;
+    color: #fff !important;
+    cursor: not-allowed;
+}
+
+.shared-seat-layout .seat-wrapper .seat.selected {
+    background: var(--booking-primary, #df2a82);
+    border-color: var(--booking-primary, #df2a82);
+    color: var(--booking-on-primary, #fff);
+}
+
+.shared-seat-layout .seat-wrapper .seat.comfort-room {
+    background: #eef3f7;
+    border-color: #cbd5dd;
+    color: #526474;
+    cursor: default;
+    height: 48px !important;
+    line-height: 1 !important;
+    padding: 0;
+    width: 38px !important;
+}
+
+.shared-seat-layout .front,
+.shared-seat-layout .rear {
+    align-items: center;
+    background: #f1f2f4;
+    color: #858b95;
+    display: flex;
+    font-size: 9px;
+    font-weight: 700;
+    height: 24px;
+    justify-content: center;
+    left: 50%;
+    letter-spacing: 0;
+    position: absolute;
+    text-transform: uppercase;
+    transform: translateX(-50%);
+    width: 60px;
+}
+
+.shared-seat-layout .front { top: -12px; }
+.shared-seat-layout .rear { bottom: -12px; }
+
+.shared-seat-layout .driver {
+    color: #737b87;
+    font-size: 10px;
+    left: 20px;
+    position: absolute;
+    top: 16px;
+}
+
+.shared-seat-layout .driver img {
+    height: 28px;
+    width: 28px;
+}
+
+.shared-seat-layout .lower {
+    align-items: center;
+    color: #737b87;
+    display: flex;
+    font-size: 10px;
+    font-weight: 700;
+    gap: 3px;
+    height: auto;
+    position: absolute;
+    right: 20px;
+    text-transform: uppercase;
+    top: 20px;
+    width: auto;
+}
+
+.shared-seat-layout--lock .seat-layout-cell.is-admin-locked .seat {
+    background: #fff0d9;
+    border-color: #efbd71;
+    color: #9a5500;
+    cursor: pointer;
+}
+
+.shared-seat-layout--lock .seat-layout-cell.is-admin-locked .seat > i {
+    font-size: 11px;
+    position: absolute;
+    right: 3px;
+    top: 3px;
+}
+
+.shared-seat-layout--lock .seat-layout-cell.is-booked:not(.is-admin-locked) .seat {
+    background: #dfe2e7;
+    border-color: #cbd0d7;
+    color: #69717f;
+}
+
+.shared-seat-layout--lock .seat-layout-cell:not(.disabled):not(.is-booked) .seat:hover,
+.shared-seat-layout--preview .seat-layout-cell:not(.disabled):not(.is-booked) .seat:hover {
+    border-color: var(--booking-primary, #df2a82);
+    box-shadow: 0 0 0 3px rgba(223, 42, 130, .10);
+}
+
+@media (max-width: 575px) {
+    .shared-seat-layout .seat-plan-inner .single {
+        padding-inline: 14px;
+    }
+
+    .shared-seat-layout .seat-wrapper {
+        gap: 16px;
+    }
+
+    .shared-seat-layout .seat-layout-group {
+        gap: 6px;
+    }
+}

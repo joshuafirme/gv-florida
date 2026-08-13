@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
-use App\Lib\BusLayout;
 use App\Models\BookedTicket;
 use App\Models\Trip;
 use App\Services\PendingPaymentExpirationService;
 use App\Services\SeatConflictService;
+use App\Services\SeatLayoutService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -30,10 +30,9 @@ class BookedTicketController extends Controller
         $tripId = $request->trip_id;
         $date = $request->date;
 
-        // 1. Fetch your Trip, FleetType, and BusLayout based on $tripId
+        // 1. Fetch the trip and its canonical fleet layout.
         $trip = Trip::findOrFail($tripId);
         $fleetType = $trip->fleetType;
-        $busLayout = new BusLayout($fleetType); // Or however you instantiate this in your system
 
         // 2. Check for seats already booked on this NEW date
         $bookedSeats = BookedTicket::query()
@@ -76,20 +75,16 @@ class BookedTicketController extends Controller
             ->map(fn ($seat) => preg_replace('/^\d+-/', '', (string) $seat));
         $lockedSeatLabels = collect(app(SeatConflictService::class)->lockedSeats($trip, $date))
             ->map(fn ($seat) => preg_replace('/^\d+-/', '', (string) $seat));
-        $disabled_seats = collect((array) ($fleetType->disabled_seats ?? []))
-            ->merge($bookedSeatLabels)
+        $seatLayout = app(SeatLayoutService::class)->layout($fleetType, [
+            'booked' => $bookedSeatLabels
             ->merge($lockedSeatLabels)
             ->unique()
             ->values()
-            ->all();
+            ->all(),
+        ]);
 
-        // 4. Render the Blade partial
-        // Note: Save the Blade code you provided in my prompt into a file called 'seat_layout_partial.blade.php'
-        $html = view('admin.partials.seat_layout_partial', compact(
-            'fleetType',
-            'busLayout',
-            'disabled_seats'
-        ))->render();
+        // 4. Render the same partial used by the passenger and admin seat maps.
+        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'seatLayout'))->render();
 
         return response()->json(['html' => $html]);
     }

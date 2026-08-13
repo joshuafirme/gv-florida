@@ -26,7 +26,6 @@ class AdminSeatLockController extends Controller
         $pageTitle = 'Manage Seats';
         $date = Carbon::parse($request->date ?: now())->startOfDay();
         $trip->load(['fleetType', 'route', 'schedule', 'startFrom', 'endTo']);
-        $decks = $seatLayoutService->decks($trip->fleetType);
         $seatIds = $seatLayoutService->seatIds($trip->fleetType);
         $bookedSeats = $seatLayoutService->canonicalizeSeats(
             $trip->fleetType,
@@ -43,8 +42,16 @@ class AdminSeatLockController extends Controller
             ->whereDate('date_of_journey', $date->format('Y-m-d'))
             ->with(['lockedBy:id,name,username', 'lockAuthorizedBy:id,name,username'])
             ->get()
-            ->keyBy('seat_no');
+            ->mapWithKeys(function (AdminSeatLock $lock) use ($trip, $seatLayoutService) {
+                $seatId = $seatLayoutService->canonicalSeatId($trip->fleetType, $lock->seat_no);
+
+                return $seatId ? [$seatId => $lock] : [];
+            });
         $disabledSeats = $seatLayoutService->disabledSeatIds($trip->fleetType);
+        $seatLayout = $seatLayoutService->layout($trip->fleetType, [
+            'booked' => $bookedSeats,
+            'locked' => $lockedSeats->keys()->all(),
+        ]);
         $unavailable = collect($bookedSeats)
             ->merge($lockedSeats->keys())
             ->merge($disabledSeats)
@@ -60,7 +67,7 @@ class AdminSeatLockController extends Controller
             'pageTitle',
             'trip',
             'date',
-            'decks',
+            'seatLayout',
             'bookedSeats',
             'lockedSeats',
             'disabledSeats',

@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
-use App\Lib\BusLayout;
 use Illuminate\Http\Request;
 use App\Models\SeatLayout;
 use App\Models\FleetType;
 use App\Models\Vehicle;
+use App\Services\SeatLayoutService;
 
 class ManageFleetController extends Controller
 {
@@ -19,13 +19,13 @@ class ManageFleetController extends Controller
         return view('admin.fleet.seat_layouts', compact('pageTitle', 'layouts'));
     }
 
-    public function seatLayoutDetails($id)
+    public function seatLayoutDetails($id, SeatLayoutService $seatLayoutService)
     {
         $pageTitle = 'Seat Layout Preview';
-        $fleetType = FleetType::find($id);
-        // return $fleetType;
-        $busLayout = new BusLayout(null, $fleetType);
-        return view('admin.fleet.seat_layout_details', compact('pageTitle', 'fleetType', 'busLayout'));
+        $fleetType = FleetType::findOrFail($id);
+        $seatLayout = $seatLayoutService->layout($fleetType);
+
+        return view('admin.fleet.seat_layout_details', compact('pageTitle', 'fleetType', 'seatLayout'));
     }
 
     public function layoutStore(Request $request, $id = 0)
@@ -135,6 +135,44 @@ class ManageFleetController extends Controller
         return response()->json([
             'message' => $message,
             'fleet_type' => $fleetType->fresh(),
+        ]);
+    }
+
+    public function typePreview(Request $request, SeatLayoutService $seatLayoutService)
+    {
+        $validated = $request->validate([
+            'name' => 'nullable|string|max:255',
+            'seat_layout' => ['required', 'string', 'regex:/^\s*\d+\s*x\s*\d+(?:\s*x\s*\d+)?\s*$/i'],
+            'deck_seats' => 'required|array|min:1',
+            'deck_seats.*' => 'required|integer|min:1',
+            'last_row' => 'nullable|array',
+            'last_row.*' => 'nullable|integer|min:0',
+            'prefixes' => 'nullable|array',
+            'prefixes.*' => 'nullable|string|max:10',
+            'disabled_seats' => 'nullable|array',
+            'disabled_seats.*' => 'string|max:30',
+            'cr_position' => 'nullable|in:Left,Center,Right',
+            'cr_row' => 'nullable|integer|min:1',
+            'cr_row_covered' => 'nullable|integer|min:1|max:3',
+            'cr_override_seat' => 'nullable|boolean',
+        ]);
+
+        $seatLayout = $seatLayoutService->layout([
+            ...$validated,
+            'name' => $validated['name'] ?? 'Fleet Type',
+            'last_row' => $validated['last_row'] ?? [],
+            'prefixes' => $validated['prefixes'] ?? [],
+            'disabled_seats' => $validated['disabled_seats'] ?? [],
+            'cr_override_seat' => $request->boolean('cr_override_seat'),
+        ]);
+
+        return response()->json([
+            'html' => view('templates.basic.partials.seat_layout', [
+                'fleetType' => $validated,
+                'seatLayout' => $seatLayout,
+                'seatLayoutMode' => 'preview',
+            ])->render(),
+            'seat_ids' => $seatLayout['seat_ids'],
         ]);
     }
 

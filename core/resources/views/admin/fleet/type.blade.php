@@ -325,7 +325,7 @@
              * @param {object} fleetType - The configuration object for the bus fleet.
              * @param {string} containerId - The ID of the HTML element to render the layout in.
              */
-            function renderBusLayout(fleetType, containerId) {
+            function renderLegacyBusLayout(fleetType, containerId) {
                 const $container = $(`#${containerId}`);
                 $container.empty(); // Clear previous layout
                 const busLayout = new BusLayout(fleetType);
@@ -513,6 +513,54 @@
                 });
             }
 
+            let seatPreviewRequest = null;
+
+            function renderBusLayout(fleetType, containerId) {
+                const $container = $(`#${containerId}`);
+
+                if (seatPreviewRequest) {
+                    seatPreviewRequest.abort();
+                }
+
+                $container.html('<div class="text-center text-muted py-5"><i class="las la-spinner la-spin"></i> Loading seat layout...</div>');
+                seatPreviewRequest = $.ajax({
+                    url: @json(route('admin.fleet.type.preview')),
+                    method: 'POST',
+                    dataType: 'json',
+                    data: {
+                        _token: @json(csrf_token()),
+                        ...fleetType,
+                        cr_override_seat: fleetType.cr_override_seat ? 1 : 0
+                    }
+                }).done(function(response) {
+                    $container.html(response.html);
+                    syncDisabledSeatOptions(response.seat_ids || []);
+                    $container.off('click.fleetPreview').on('click.fleetPreview',
+                        '.seat:not(.disabled-seat, .comfort-room)', function() {
+                            $(this).toggleClass('selected');
+                        });
+                }).fail(function(xhr) {
+                    if (xhr.statusText === 'abort') return;
+                    $container.html('<p class="text-danger small py-4 mb-0">Unable to preview this seat configuration.</p>');
+                }).always(function() {
+                    seatPreviewRequest = null;
+                });
+            }
+
+            function syncDisabledSeatOptions(seatIds) {
+                const $select = $('.disabled_seats');
+                const selected = arrayValue($select.val()).map(String);
+
+                $select.empty();
+                seatIds.forEach(seatId => {
+                    const value = String(seatId);
+                    const label = value.replace(/^\d+-/, '');
+                    const isSelected = selected.includes(value) || selected.includes(label);
+                    $select.append(new Option(label, value, false, isSelected));
+                });
+                $select.trigger('change.select2');
+            }
+
             function getCRHeight(row_covered) {
                 let height = (row_covered == 2) ? '40px' : '40px';
                 height = (row_covered == 3) ? '130px' : height;
@@ -577,13 +625,18 @@
                 fleetType.deck_seats.forEach((seatCount, deckIndex) => {
                     const prefix = fleetType.prefixes[deckIndex] || '';
                     for (let seat = 1; seat <= seatCount; seat++) {
-                        options.push(`${prefix}${seat}`);
+                        const label = `${prefix}${seat}`;
+                        options.push({
+                            label,
+                            value: `${deckIndex + 1}-${label}`
+                        });
                     }
                 });
 
                 $select.empty();
                 options.forEach(seat => {
-                    $select.append(new Option(seat, seat, false, selected.includes(seat)));
+                    const isSelected = selected.includes(seat.value) || selected.includes(seat.label);
+                    $select.append(new Option(seat.label, seat.value, false, isSelected));
                 });
                 $select.trigger('change.select2');
             }
