@@ -32,8 +32,13 @@
                                         @continue
                                     @endif
 
+                                    @if ($cell['type'] === 'covered')
+                                        @continue
+                                    @endif
+
                                     @if ($cell['type'] === 'cr')
-                                        <div class="seat-layout-cell is-static">
+                                        <div class="seat-layout-cell seat-layout-cell--span is-static"
+                                            style="--seat-span: {{ $cell['span'] ?? 1 }}; --seat-row-span: {{ $cell['row_span'] ?? 1 }};">
                                             <span class="seat comfort-room" aria-label="Comfort Room">CR</span>
                                         </div>
                                         @continue

@@ -705,16 +705,10 @@
                                     )
                                     ->count();
 
-                                $available_seats_ctr = 0;
-                                $deck_seats = $trip->fleetType->deck_seats;
-                                $deck_seats = (int) $deck_seats[0];
-                                if ($trip->fleetType->deck == 2) {
-                                    $deck_seats += (int) $trip->fleetType->deck_seats[1];
-                                }
+                                $deck_seats = app(App\Services\SeatLayoutService::class)
+                                    ->seatIds($trip->fleetType)
+                                    ->count();
                                 $available_seats_ctr = $deck_seats - $occupied_seats_ctr;
-                                if ($trip->fleetType->cr_position) {
-                                    $available_seats_ctr -= (int) $trip->fleetType->cr_row_covered;
-                                }
                                 $available_seats_ctr = max($available_seats_ctr, 0);
 
                                 $stoppageArr = $trip->route->stoppages ?? [];
