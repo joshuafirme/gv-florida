@@ -82,24 +82,27 @@
             .manifest-deck-title { font-size: 9px; padding: 5px 9px; }
             .manifest-seat-grid { overflow: visible; }
             .manifest-seat-row { min-width: 0; }
-            .manifest-aisle { flex-basis: 98px; }
+            .manifest-aisle { flex-basis: 54px; }
             .manifest-aisle::after { bottom: 5px; top: 5px; }
             .manifest-seat { break-inside: avoid; min-height: 76px; padding: 6px 9px; }
             .manifest-seat.comfort-room::before { height: calc(76px * var(--cr-row-span)); }
             .manifest-seat-empty { min-height: 76px; }
             .manifest-seat-number { font-size: 17px; }
             .manifest-seat-status { font-size: 7px; }
-            .manifest-passenger { gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(115px, .85fr); margin-top: 4px; }
+            .manifest-passenger { display: block; margin-top: 4px; }
             .manifest-reference { font-size: 20px; }
             .manifest-passenger-name { font-size: 10px; margin-top: 2px; }
-            .manifest-passenger-dropoff { font-size: 13px; }
+            .manifest-passenger-dropoff { font-size: 13px; margin-top: 3px; text-align: left; }
             .manifest-km-post { font-size: 17px; }
             .manifest-type { font-size: 7px; margin-top: 3px; padding: 2px 5px; }
             .manifest-lock-details { margin-top: 10px; }
             .manifest-lock-details strong { font-size: 9px; }
             .manifest-lock-details span { font-size: 8px; margin-top: 3px; }
             .manifest-seat.filtered { opacity: 1; }
-            @page { margin: 8mm; size: legal landscape; }
+            .manifest-deck { break-inside: avoid; page-break-inside: avoid; }
+            .manifest-deck + .manifest-deck { break-before: page; page-break-before: always; }
+            .manifest-deck-title { break-after: avoid; display: block !important; page-break-after: avoid; }
+            @page { margin: 7mm; size: legal portrait; }
         }
     </style>
 </head>

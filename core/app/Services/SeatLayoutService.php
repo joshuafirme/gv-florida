@@ -80,6 +80,76 @@ class SeatLayoutService
             ->all();
     }
 
+    /**
+     * Build manifest rows from the fleet's configured seat groups.
+     *
+     * Aisles and empty cells are explicit so the view can preserve the bus
+     * arrangement instead of flattening every fleet into the same grid.
+     */
+    public function manifestDecks(FleetType $fleetType): array
+    {
+        $layout = array_map('intval', explode('x', str_replace(' ', '', (string) $fleetType->seat_layout)));
+        $groups = count($layout) === 3
+            ? [$layout[0] ?? 0, $layout[1] ?? 0, $layout[2] ?? 0]
+            : [$layout[0] ?? 0, $layout[1] ?? 0];
+        $groups = array_values(array_filter($groups, fn (int $size) => $size > 0));
+
+        // Retain the former two-column fallback for incomplete legacy records.
+        if (!$groups) {
+            $groups = [1, 1];
+        }
+
+        $seatsPerRow = array_sum($groups);
+        $lastRows = array_values((array) ($fleetType->last_row ?? []));
+
+        return collect($this->decks($fleetType))
+            ->map(function (array $cells, int $deckIndex) use ($groups, $seatsPerRow, $lastRows) {
+                $lastRowCells = [];
+                $lastRowSeatCount = max((int) ($lastRows[$deckIndex] ?? 0), 0);
+
+                if ($lastRowSeatCount > 0) {
+                    for ($index = count($cells) - 1; $index >= 0 && count($lastRowCells) < $lastRowSeatCount; $index--) {
+                        if (($cells[$index]['type'] ?? null) !== 'seat') {
+                            continue;
+                        }
+
+                        array_unshift($lastRowCells, $cells[$index]);
+                        unset($cells[$index]);
+                    }
+
+                    $cells = array_values($cells);
+                }
+
+                $rows = collect(array_chunk($cells, $seatsPerRow))
+                    ->map(fn (array $row) => [
+                        'slots' => $this->manifestRowSlots($row, $groups),
+                        'centered' => false,
+                    ])
+                    ->values()
+                    ->all();
+
+                if ($lastRowCells) {
+                    $rows[] = [
+                        'slots' => $lastRowCells,
+                        'centered' => true,
+                    ];
+                }
+
+                return [
+                    'name' => match ($deckIndex) {
+                        0 => 'Lower Deck',
+                        1 => 'Upper Deck',
+                        default => 'Deck ' . ($deckIndex + 1),
+                    },
+                    'rows' => $rows,
+                    'seat_columns' => $seatsPerRow,
+                    'grid_template' => $this->manifestGridTemplate($groups),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
     public function seatIds(FleetType $fleetType): Collection
     {
         return collect($this->layout($fleetType)['seat_ids']);
@@ -409,5 +479,40 @@ class SeatLayoutService
         return is_array($fleetType)
             ? ($fleetType[$key] ?? $default)
             : ($fleetType->{$key} ?? $default);
+    }
+
+    private function manifestRowSlots(array $row, array $groups): array
+    {
+        $slots = [];
+        $offset = 0;
+        $emptyCell = ['type' => 'empty', 'label' => '', 'seat_id' => null];
+
+        foreach ($groups as $groupIndex => $groupSize) {
+            for ($column = 0; $column < $groupSize; $column++) {
+                $slots[] = $row[$offset] ?? $emptyCell;
+                $offset++;
+            }
+
+            if ($groupIndex < count($groups) - 1) {
+                $slots[] = ['type' => 'aisle', 'label' => '', 'seat_id' => null];
+            }
+        }
+
+        return $slots;
+    }
+
+    private function manifestGridTemplate(array $groups): string
+    {
+        $tracks = [];
+
+        foreach ($groups as $groupIndex => $groupSize) {
+            $tracks[] = "repeat({$groupSize}, minmax(0, 1fr))";
+
+            if ($groupIndex < count($groups) - 1) {
+                $tracks[] = 'minmax(20px, .18fr)';
+            }
+        }
+
+        return implode(' ', $tracks);
     }
 }
