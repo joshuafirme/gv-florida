@@ -919,7 +919,7 @@
                                                 <a href="javascript:void(0)" class="route-details__toggle"
                                                     onclick="toggleRouteStops('{{ $routeId }}')"
                                                     data-trip-card-ignore>
-                                                    <span id="text-{{ $routeId }}">@lang('View Stops')</span>
+                                                    <span id="text-{{ $routeId }}">@lang('View Route')</span>
                                                 </a>
                                             @endif
                                         </div>
@@ -937,7 +937,7 @@
                                                     @if ($shouldCollapse)
                                                         <span
                                                             class="badge bg-light text-muted border px-2 py-1 dots-{{ $routeId }}">
-                                                            +{{ $totalStops - 2 }} @lang('Stops')
+                                                            +{{ $totalStops - 2 }} @lang('Locations')
                                                         </span>
                                                         <i
                                                             class="las la-long-arrow-alt-right text-muted fs-6 dots-{{ $routeId }}"></i>
@@ -1000,12 +1000,12 @@
                 // Expand
                 stops.forEach(el => el.classList.remove('d-none'));
                 dots.forEach(el => el.classList.add('d-none'));
-                textElem.innerText = "@lang('Hide Stops')";
+                textElem.innerText = "@lang('Hide Route')";
             } else {
                 // Collapse
                 stops.forEach(el => el.classList.add('d-none'));
                 dots.forEach(el => el.classList.remove('d-none'));
-                textElem.innerText = "@lang('View Stops')";
+                textElem.innerText = "@lang('View Route')";
             }
         }
 
