@@ -26,6 +26,32 @@ class TransactionAuthorizationServiceTest extends TestCase
         );
     }
 
+    public function test_authorization_assignment_requires_both_secure_code_values(): void
+    {
+        $admin = new Admin();
+
+        $this->assertFalse($admin->has_authorization_code);
+
+        $admin->authorization_code_hash = 'hashed-code';
+        $this->assertFalse($admin->has_authorization_code);
+
+        $admin->authorization_code_lookup = 'private-lookup';
+        $this->assertFalse($admin->has_viewable_authorization_code);
+
+        $admin->authorization_code_encrypted = 'Visible-4821';
+        $this->assertTrue($admin->has_authorization_code);
+        $this->assertTrue($admin->has_viewable_authorization_code);
+        $this->assertSame('Visible-4821', $admin->authorization_code_encrypted);
+        $this->assertNotSame('Visible-4821', $admin->getAttributes()['authorization_code_encrypted']);
+
+        $serialized = $admin->toArray();
+        $this->assertTrue($serialized['has_authorization_code']);
+        $this->assertTrue($serialized['has_viewable_authorization_code']);
+        $this->assertArrayNotHasKey('authorization_code_hash', $serialized);
+        $this->assertArrayNotHasKey('authorization_code_lookup', $serialized);
+        $this->assertArrayNotHasKey('authorization_code_encrypted', $serialized);
+    }
+
     public function test_each_transaction_requires_its_assigned_authorization_permission(): void
     {
         $service = app(TransactionAuthorizationService::class);

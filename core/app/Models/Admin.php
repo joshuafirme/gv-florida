@@ -9,6 +9,7 @@ class Admin extends Authenticatable
 {
     protected $appends = [
         'has_authorization_code',
+        'has_viewable_authorization_code',
     ];
 
     protected $fillable = [
@@ -19,6 +20,7 @@ class Admin extends Authenticatable
         'passcode',
         'authorization_code_hash',
         'authorization_code_lookup',
+        'authorization_code_encrypted',
         'password'
     ];
     /**
@@ -30,7 +32,12 @@ class Admin extends Authenticatable
         'password',
         'authorization_code_hash',
         'authorization_code_lookup',
+        'authorization_code_encrypted',
         'remember_token'
+    ];
+
+    protected $casts = [
+        'authorization_code_encrypted' => 'encrypted',
     ];
 
     public function permissions()
@@ -78,6 +85,12 @@ class Admin extends Authenticatable
     {
         return filled($this->authorization_code_hash)
             && filled($this->authorization_code_lookup);
+    }
+
+    public function getHasViewableAuthorizationCodeAttribute(): bool
+    {
+        return $this->has_authorization_code
+            && filled($this->authorization_code_encrypted);
     }
 
 }
