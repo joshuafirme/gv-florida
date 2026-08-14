@@ -129,8 +129,28 @@
             font-weight: 700;
         }
 
-        .ticket-form .ticket-search-field>i {
-            top: 31px;
+        .ticket-form .ticket-search-field > i {
+            align-items: center;
+            bottom: 0;
+            display: flex;
+            height: 40px;
+            justify-content: center;
+            left: 8px;
+            line-height: 1;
+            padding: 0;
+            pointer-events: none;
+            top: auto;
+            width: 20px;
+        }
+
+        .ticket-form .ticket-search-field > .form--control,
+        .ticket-form .ticket-search-field .select2-selection--single {
+            padding-left: 38px !important;
+        }
+
+        .ticket-form .ticket-search-field .select2-selection__rendered {
+            margin-left: 0;
+            padding-left: 0;
         }
 
         .ticket-search-actions {
