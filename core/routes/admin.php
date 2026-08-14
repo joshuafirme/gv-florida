@@ -57,6 +57,7 @@ Route::middleware('admin')->group(function () {
     Route::controller('AdminUserController')->prefix('admin')->group(function () {
         Route::post('users/bulk-status', 'bulkStatus')->name('users.bulk');
         Route::get('users', 'index')->name('users');
+        Route::get('users/{id}/authorization-code', 'authorizationCode')->name('users.authorization.code');
         Route::post('users', 'store')->name('users.store');
         Route::post('users/{id}', 'update')->name('users.update');
         Route::post('users/remove/{id}', 'remove')->name('users.remove');

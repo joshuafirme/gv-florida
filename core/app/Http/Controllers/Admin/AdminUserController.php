@@ -86,19 +86,27 @@ class AdminUserController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge([
+            'authorization_code' => $this->normalizedAuthorizationCode($request),
+        ]);
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:admins,email',
             'username' => 'required|string|max:255|unique:admins,username',
             'role_id' => 'required|integer|exists:user_roles,id',
             'passcode' => 'nullable|string|max:100',
-            'authorization_code' => 'required|string|min:6|max:100',
+            'authorization_code' => 'nullable|string|min:6|max:100',
             'password' => 'required|string|min:5',
         ]);
 
-        $this->ensureUniqueAuthorizationCode($data['authorization_code']);
-        $data['authorization_code_hash'] = TransactionAuthorizationService::hash($data['authorization_code']);
-        $data['authorization_code_lookup'] = TransactionAuthorizationService::lookup($data['authorization_code']);
+        if (!empty($data['authorization_code'])) {
+            $this->ensureUniqueAuthorizationCode($data['authorization_code']);
+            $data['authorization_code_hash'] = TransactionAuthorizationService::hash($data['authorization_code']);
+            $data['authorization_code_lookup'] = TransactionAuthorizationService::lookup($data['authorization_code']);
+            $data['authorization_code_encrypted'] = $data['authorization_code'];
+        }
+
         $data['password'] = Hash::make($data['password']);
         unset($data['authorization_code']);
 
@@ -111,19 +119,18 @@ class AdminUserController extends Controller
     public function update(Request $request, $id)
     {
         $user = Admin::findOrFail($id);
+        $request->merge([
+            'authorization_code' => $this->normalizedAuthorizationCode($request),
+        ]);
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', 'max:255', Rule::unique('admins', 'email')->ignore($user->id)],
             'username' => ['required', 'string', 'max:255', Rule::unique('admins', 'username')->ignore($user->id)],
             'role_id' => 'required|integer|exists:user_roles,id',
             'passcode' => 'nullable|string|max:100',
-            'authorization_code' => [
-                Rule::requiredIf(!$user->has_authorization_code),
-                'nullable',
-                'string',
-                'min:6',
-                'max:100',
-            ],
+            'authorization_code' => 'nullable|string|min:6|max:100',
+            'remove_authorization_code' => 'nullable|boolean',
             'password' => 'nullable|string|min:5',
         ]);
 
@@ -139,6 +146,11 @@ class AdminUserController extends Controller
             $this->ensureUniqueAuthorizationCode($data['authorization_code'], $user->id);
             $user->authorization_code_hash = TransactionAuthorizationService::hash($data['authorization_code']);
             $user->authorization_code_lookup = TransactionAuthorizationService::lookup($data['authorization_code']);
+            $user->authorization_code_encrypted = $data['authorization_code'];
+        } elseif (!empty($data['remove_authorization_code'])) {
+            $user->authorization_code_hash = null;
+            $user->authorization_code_lookup = null;
+            $user->authorization_code_encrypted = null;
         }
 
         if (!empty($data['password'])) {
@@ -153,6 +165,27 @@ class AdminUserController extends Controller
         return back()->withNotify($notify);
     }
 
+    public function authorizationCode($id)
+    {
+        $user = Admin::findOrFail($id);
+
+        if (!$user->has_authorization_code) {
+            return response()->json([
+                'message' => 'This user does not have an Authorization Code assigned.',
+            ], 404);
+        }
+
+        if (!$user->authorization_code_encrypted) {
+            return response()->json([
+                'message' => 'This existing code was stored before secure viewing was available. Enter a new code once to make Show/Hide available.',
+            ], 409);
+        }
+
+        return response()->json([
+            'authorization_code' => $user->authorization_code_encrypted,
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
     private function ensureUniqueAuthorizationCode(string $code, ?int $exceptAdminId = null): void
     {
         $exists = Admin::query()
@@ -165,6 +198,13 @@ class AdminUserController extends Controller
                 'authorization_code' => 'This authorization code is already assigned to another user.',
             ]);
         }
+    }
+
+    private function normalizedAuthorizationCode(Request $request): ?string
+    {
+        $code = trim((string) $request->input('authorization_code'));
+
+        return $code !== '' ? $code : null;
     }
 
     public function remove($id)
