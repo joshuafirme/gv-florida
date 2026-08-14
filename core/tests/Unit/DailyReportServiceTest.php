@@ -70,6 +70,38 @@ class DailyReportServiceTest extends TestCase
         $this->assertSame(['Kiosk', 'Online'], $report['channel_collections']->pluck('channel')->all());
     }
 
+    public function test_it_filters_transactions_by_type_source_processor_and_payment_method(): void
+    {
+        $recorder = $this->createMock(CashierTransactionRecorder::class);
+        $service = new DailyReportService(
+            $recorder,
+            new CashierDashboardService($recorder)
+        );
+
+        $transactions = collect([
+            $this->transaction(1, 'Alice', 'Sold', 'Counter', 900, paymentMethod: 'Cash'),
+            $this->transaction(1, 'Alice', 'Refunded', 'Counter', -300, paymentMethod: 'Cash'),
+            $this->transaction(null, null, 'Sold', 'Online', 500, paymentMethod: 'GCash'),
+        ]);
+
+        $filtered = $service->filterTransactions($transactions, [
+            'transaction_type' => 'Sold',
+            'source' => 'Counter',
+            'processed_by' => 'admin:1',
+            'payment_method' => 'Cash',
+        ]);
+
+        $this->assertCount(1, $filtered);
+        $this->assertSame(900.0, $filtered->first()->amount);
+
+        $online = $service->filterTransactions($transactions, [
+            'processed_by' => 'channel:Online',
+        ]);
+
+        $this->assertCount(1, $online);
+        $this->assertSame('GCash', $online->first()->payment_method);
+    }
+
     private function transaction(
         ?int $adminId,
         ?string $cashier,
@@ -77,13 +109,16 @@ class DailyReportServiceTest extends TestCase
         string $source,
         float $amount,
         float $discount = 0,
-        float $surcharge = 0
+        float $surcharge = 0,
+        string $paymentMethod = 'Cash'
     ): object {
         return (object) [
             'admin_id' => $adminId,
             'admin' => $cashier ? (object) ['name' => $cashier, 'username' => strtolower($cashier)] : null,
             'status' => $status,
             'source' => $source,
+            'processed_by_label' => $cashier ?: $source,
+            'payment_method' => $paymentMethod,
             'amount' => $amount,
             'discount_amount' => $discount,
             'surcharge_amount' => $surcharge,

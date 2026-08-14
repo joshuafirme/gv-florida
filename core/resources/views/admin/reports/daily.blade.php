@@ -1,12 +1,95 @@
 @extends('admin.layouts.app')
 
 @section('panel')
+    @php
+        $pdfParameters = array_filter(
+            array_merge(['date' => $date->format('Y-m-d')], $filters),
+            fn ($value) => $value !== null && $value !== ''
+        );
+    @endphp
+
+    <div class="daily-report-filterbar">
+        <form action="{{ route('admin.report.daily') }}" method="GET" class="daily-report-filterbar__form">
+            <div class="daily-report-filterbar__field">
+                <label for="dailyReportDate">Date</label>
+                <input type="date" id="dailyReportDate" name="date" value="{{ $date->format('Y-m-d') }}"
+                    max="{{ now()->format('Y-m-d') }}">
+            </div>
+
+            <div class="daily-report-filterbar__field">
+                <label for="dailyReportTransactionType">Transaction Type</label>
+                <select id="dailyReportTransactionType" name="transaction_type">
+                    <option value="">All Transaction Types</option>
+                    @foreach ($filter_options['transaction_types'] as $transactionType)
+                        <option value="{{ $transactionType }}" @selected($filters['transaction_type'] === $transactionType)>
+                            {{ $transactionType }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="daily-report-filterbar__field">
+                <label for="dailyReportSource">Source</label>
+                <select id="dailyReportSource" name="source">
+                    <option value="">All Sources</option>
+                    @foreach ($filter_options['sources'] as $source)
+                        <option value="{{ $source }}" @selected($filters['source'] === $source)>{{ $source }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="daily-report-filterbar__field">
+                <label for="dailyReportProcessedBy">Processed By</label>
+                <select id="dailyReportProcessedBy" name="processed_by">
+                    <option value="">All Processors</option>
+                    @foreach ($filter_options['processed_by'] as $processor)
+                        <option value="{{ $processor['value'] }}" @selected($filters['processed_by'] === $processor['value'])>
+                            {{ $processor['label'] }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="daily-report-filterbar__field">
+                <label for="dailyReportPaymentMethod">Payment Method</label>
+                <select id="dailyReportPaymentMethod" name="payment_method">
+                    <option value="">All Payment Methods</option>
+                    @foreach ($filter_options['payment_methods'] as $paymentMethod)
+                        <option value="{{ $paymentMethod }}" @selected($filters['payment_method'] === $paymentMethod)>
+                            {{ $paymentMethod }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="daily-report-filterbar__actions">
+                <button type="submit" class="btn btn--primary">
+                    <i class="las la-filter"></i> Apply
+                </button>
+                <a href="{{ route('admin.report.daily') }}" class="btn btn-light" title="Clear filters">
+                    <i class="las la-times"></i> Clear
+                </a>
+            </div>
+        </form>
+
+        <a class="btn btn--primary daily-report-filterbar__print" target="_blank"
+            href="{{ route('admin.report.daily.pdf', $pdfParameters) }}">
+            <i class="las la-print"></i> Print Daily Report
+        </a>
+    </div>
+
     <div class="daily-report">
         <header class="daily-report__header">
             <img src="{{ siteLogo() }}" alt="{{ gs('site_name') }}" class="daily-report__logo">
             <h2>Daily Collection Report</h2>
             <p>Generated: {{ now()->format('F j, Y h:i A') }}</p>
             <strong>{{ $date->format('l, F j, Y') }}</strong>
+            @if ($active_filter_labels)
+                <p class="daily-report__active-filters">
+                    Filters:
+                    {{ collect($active_filter_labels)->map(fn ($value, $label) => $label . ': ' . $value)->implode(' | ') }}
+                </p>
+            @endif
         </header>
 
         <section class="daily-report__section">
@@ -251,49 +334,64 @@
     </div>
 @endsection
 
-@push('breadcrumb-plugins')
-    <div class="daily-report-controls">
-        <form action="{{ route('admin.report.daily') }}" method="GET" id="dailyReportDateForm">
-            <i class="las la-calendar"></i>
-            <input type="date" name="date" value="{{ $date->format('Y-m-d') }}"
-                max="{{ now()->format('Y-m-d') }}" aria-label="Business date">
-        </form>
-        <a class="btn btn--primary" target="_blank"
-            href="{{ route('admin.report.daily.pdf', ['date' => $date->format('Y-m-d')]) }}">
-            <i class="las la-print"></i> Print Daily Report
-        </a>
-    </div>
-@endpush
-
 @push('style')
     <style>
-        .daily-report-controls {
+        .daily-report-filterbar {
             display: flex;
             align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .daily-report-filterbar__form {
+            display: flex;
+            align-items: flex-end;
+            flex: 1 1 auto;
+            flex-wrap: wrap;
             gap: 10px;
+            min-width: 0;
         }
 
-        .daily-report-controls form {
-            position: relative;
+        .daily-report-filterbar__field {
+            flex: 1 1 150px;
+            min-width: 135px;
         }
 
-        .daily-report-controls form i {
-            position: absolute;
-            top: 50%;
-            left: 12px;
-            color: #d92378;
-            transform: translateY(-50%);
-            pointer-events: none;
+        .daily-report-filterbar__field label {
+            display: block;
+            margin-bottom: 5px;
+            color: #505766;
+            font-size: 11px;
+            font-weight: 600;
         }
 
-        .daily-report-controls input {
-            width: 165px;
+        .daily-report-filterbar__field input,
+        .daily-report-filterbar__field select {
+            width: 100%;
             height: 38px;
-            padding: 7px 10px 7px 35px;
+            padding: 7px 10px;
             background: #fff;
             border: 1px solid #d9dce3;
             border-radius: 7px;
+            color: #303642;
             font-size: 12px;
+        }
+
+        .daily-report-filterbar__actions {
+            display: flex;
+            flex: 0 0 auto;
+            gap: 8px;
+        }
+
+        .daily-report-filterbar__actions .btn,
+        .daily-report-filterbar__print {
+            align-items: center;
+            display: inline-flex;
+            gap: 5px;
+            height: 38px;
+            justify-content: center;
+            white-space: nowrap;
         }
 
         .daily-report {
@@ -335,6 +433,11 @@
         .daily-report__header strong {
             color: #303642;
             font-weight: 500;
+        }
+
+        .daily-report__header .daily-report__active-filters {
+            color: #8c315d;
+            font-weight: 600;
         }
 
         .daily-report__section {
@@ -448,15 +551,21 @@
         }
 
         @media (max-width: 767px) {
-            .daily-report-controls {
+            .daily-report-filterbar {
                 align-items: stretch;
                 flex-direction: column;
                 width: 100%;
             }
 
-            .daily-report-controls input,
-            .daily-report-controls .btn {
+            .daily-report-filterbar__form,
+            .daily-report-filterbar__actions,
+            .daily-report-filterbar__actions .btn,
+            .daily-report-filterbar__print {
                 width: 100%;
+            }
+
+            .daily-report-filterbar__field {
+                flex-basis: calc(50% - 5px);
             }
 
             .daily-report {
@@ -481,7 +590,7 @@
             .sidebar,
             .navbar-wrapper,
             .breadcrumb,
-            .daily-report-controls {
+            .daily-report-filterbar {
                 display: none !important;
             }
 
@@ -564,16 +673,4 @@
             }
         }
     </style>
-@endpush
-
-@push('script')
-    <script>
-        (function($) {
-            'use strict';
-
-            $('#dailyReportDateForm input[name="date"]').on('change', function() {
-                $('#dailyReportDateForm').trigger('submit');
-            });
-        })(jQuery);
-    </script>
 @endpush
