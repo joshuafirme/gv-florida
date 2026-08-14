@@ -1969,7 +1969,7 @@ class VehicleTicketController extends Controller
         array $newSeats,
         ?array $eligibility = null
     ): array {
-        $ticket->loadMissing(['trip.route', 'trip.schedule', 'trip.fleetType']);
+        $ticket->loadMissing(['trip.route', 'trip.schedule', 'trip.fleetType', 'drop']);
         $newTrip->loadMissing(['route', 'schedule', 'fleetType']);
         $slips = collect($targetSlips)->values();
         $oldSeats = $this->rebookingSeats($ticket, $slips)->all();
@@ -1997,6 +1997,8 @@ class VehicleTicketController extends Controller
                 'departure_at' => $previousDeparture->toIso8601String(),
                 'seats' => $oldSeats,
                 'seats_by_reference' => $previousSeatsByReference,
+                'drop_off' => $ticket->drop?->name,
+                'km_post' => $ticket->drop?->km_post,
             ],
             'new' => [
                 'trip_id' => $newTrip->id,
@@ -2006,6 +2008,8 @@ class VehicleTicketController extends Controller
                 'departure_at' => $newDeparture->toIso8601String(),
                 'seats' => array_values($newSeats),
                 'seats_by_reference' => $newSeatsByReference,
+                'drop_off' => $ticket->drop?->name,
+                'km_post' => $ticket->drop?->km_post,
             ],
         ];
 

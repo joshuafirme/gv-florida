@@ -163,6 +163,14 @@
             color: #737c8b;
             text-align: center;
         }
+
+        .transaction-reason span {
+            display: block;
+        }
+
+        .transaction-reason span + span {
+            margin-top: 1px;
+        }
     </style>
 </head>
 <body>
@@ -218,19 +226,19 @@
     <div class="section-title">Detail - Transactions</div>
     <table>
         <colgroup>
-            <col style="width: 7.5%">
-            <col style="width: 4.5%">
             <col style="width: 7%">
-            <col style="width: 5.5%">
-            <col style="width: 9%">
-            <col style="width: 7%">
-            <col style="width: 11.5%">
             <col style="width: 4%">
-            <col style="width: 7%">
             <col style="width: 6.5%">
+            <col style="width: 5%">
+            <col style="width: 8.5%">
+            <col style="width: 6.5%">
+            <col style="width: 10.5%">
+            <col style="width: 3.5%">
             <col style="width: 6.5%">
             <col style="width: 6%">
-            <col style="width: 18%">
+            <col style="width: 6%">
+            <col style="width: 5%">
+            <col style="width: 25%">
         </colgroup>
         <thead>
             <tr>
@@ -294,7 +302,7 @@
                         {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
                     </td>
                     <td><span class="status status-{{ $statusClass }}">{{ $transaction->status }}</span></td>
-                    <td>{{ $transaction->reason ?: '-' }}</td>
+                    <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                 </tr>
             @empty
                 <tr>

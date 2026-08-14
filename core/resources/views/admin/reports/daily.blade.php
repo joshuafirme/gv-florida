@@ -259,6 +259,12 @@
             <h3>Detail - Transactions</h3>
             <div class="table-responsive">
                 <table class="daily-table">
+                    <colgroup>
+                        <col style="width: 7%"><col style="width: 4%"><col style="width: 5%"><col style="width: 6%">
+                        <col style="width: 7%"><col style="width: 8%"><col style="width: 6%"><col style="width: 9%">
+                        <col style="width: 4%"><col style="width: 6%"><col style="width: 6%"><col style="width: 6%">
+                        <col style="width: 5%"><col style="width: 21%">
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>Transaction Date &amp; Time</th>
@@ -304,7 +310,7 @@
                                     {{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}
                                 </td>
                                 <td><span class="daily-status daily-status--{{ strtolower($transaction->status) }}">{{ $transaction->status }}</span></td>
-                                <td>{{ $transaction->reason ?: '-' }}</td>
+                                <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                             </tr>
                         @empty
                             <tr>
@@ -519,6 +525,14 @@
         .daily-report__transactions small {
             color: #7a818e;
             font-size: 8px;
+        }
+
+        .transaction-reason span {
+            display: block;
+        }
+
+        .transaction-reason span + span {
+            margin-top: 2px;
         }
 
         .daily-status {

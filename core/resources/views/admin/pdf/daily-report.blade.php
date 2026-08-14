@@ -129,6 +129,14 @@
             color: #737c8b;
             text-align: center;
         }
+
+        .transaction-reason span {
+            display: block;
+        }
+
+        .transaction-reason span + span {
+            margin-top: 1px;
+        }
     </style>
 </head>
 <body>
@@ -296,10 +304,10 @@
     <div class="section-title">Detail - Transactions</div>
     <table class="transactions-table">
         <colgroup>
-            <col style="width: 8%"><col style="width: 5%"><col style="width: 5%"><col style="width: 6%">
-            <col style="width: 8%"><col style="width: 9%"><col style="width: 6%"><col style="width: 10%">
-            <col style="width: 4%"><col style="width: 6%"><col style="width: 7%"><col style="width: 6%">
-            <col style="width: 5%"><col style="width: 9%">
+            <col style="width: 7%"><col style="width: 4%"><col style="width: 5%"><col style="width: 6%">
+            <col style="width: 7%"><col style="width: 8%"><col style="width: 6%"><col style="width: 9%">
+            <col style="width: 4%"><col style="width: 6%"><col style="width: 6%"><col style="width: 6%">
+            <col style="width: 5%"><col style="width: 21%">
         </colgroup>
         <thead>
             <tr>
@@ -326,7 +334,8 @@
                     <td>{{ $seat ?: '-' }}</td><td>{{ $transaction->km_post ? 'KM ' . $transaction->km_post : '-' }}<br><span class="subtle">{{ $transaction->drop_off ?: '' }}</span></td>
                     <td>{{ $transaction->payment_method ?: '-' }}</td>
                     <td class="right total {{ $transaction->amount < 0 ? 'negative' : '' }}">{{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}</td>
-                    <td>{{ $transaction->status }}</td><td>{{ $transaction->reason ?: '-' }}</td>
+                    <td>{{ $transaction->status }}</td>
+                    <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                 </tr>
             @empty
                 <tr><td colspan="14" class="empty">No transactions were recorded for this date.</td></tr>

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\TransactionReasonFormatter;
 use Illuminate\Database\Eloquent\Model;
 
 class CashierTransactionEvent extends Model
@@ -67,5 +68,10 @@ class CashierTransactionEvent extends Model
             'Online' => 'Online',
             default => 'Counter',
         };
+    }
+
+    public function getReportReasonAttribute(): string
+    {
+        return app(TransactionReasonFormatter::class)->format($this);
     }
 }
