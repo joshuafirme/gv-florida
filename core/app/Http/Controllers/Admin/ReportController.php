@@ -222,7 +222,7 @@ class ReportController extends Controller
                 'isRemoteEnabled' => true
             ])->loadView('admin.pdf.travel-manifest', ['data' => $data->get()]);
 
-            $pdf->setPaper('A4', 'portrait');
+            $pdf->setPaper('legal', 'portrait');
 
             if ($request->print) {
                 return $pdf->stream("$pageTitle.pdf");
