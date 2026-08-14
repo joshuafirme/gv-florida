@@ -68,38 +68,41 @@
         .manifest-seat.filtered { opacity: .18; }
         @media (max-width: 700px) { .manifest-toolbar { align-items: flex-start; flex-direction: column; } .manifest-page { border-radius: 0; margin: 0; padding: 22px 14px; } .manifest-info { grid-template-columns: repeat(2, 1fr); } .manifest-passenger { display: block; } .manifest-passenger-dropoff { font-size: 15px; margin-top: 7px; text-align: left; } .manifest-reference { font-size: 23px; } .manifest-km-post { font-size: 18px; } }
         @media print {
-            body { background: #fff; }
+            html, body { background: #fff; height: auto; width: auto; }
             .manifest-toolbar, .manifest-search-note { display: none !important; }
-            .manifest-page { border-radius: 0; margin: 0; max-width: none; min-height: 0; padding: 0; }
-            .manifest-header { padding-bottom: 9px; }
-            .manifest-header h1 { font-size: 18px; }
-            .manifest-header p { font-size: 11px; margin-top: 4px; }
-            .manifest-info { gap: 10px; padding: 10px 0 8px; }
-            .manifest-info strong { font-size: 11px; margin-top: 2px; }
-            .manifest-stats { gap: 6px; margin-bottom: 9px; }
-            .manifest-stat { font-size: 8px; padding: 3px 7px; }
-            .manifest-deck { margin-bottom: 8px; }
-            .manifest-deck-title { font-size: 9px; padding: 5px 9px; }
+            .manifest-page { border-radius: 0; margin: 0; max-width: none; min-height: 0; padding: 0; width: 100%; }
+            .manifest-header { padding-bottom: 6px; }
+            .manifest-header h1 { font-size: 15px; }
+            .manifest-header p { font-size: 9px; margin-top: 3px; }
+            .manifest-info { gap: 6px; grid-template-columns: 1.25fr .8fr 1.1fr .65fr; padding: 7px 0 6px; }
+            .manifest-label { font-size: 7px; }
+            .manifest-info strong { font-size: 9px; margin-top: 1px; }
+            .manifest-stats { gap: 4px; margin-bottom: 6px; }
+            .manifest-stat { font-size: 7px; padding: 2px 5px; }
+            .manifest-deck { border-radius: 0; break-inside: auto; margin-bottom: 6px; overflow: visible; page-break-inside: auto; width: 100%; }
+            .manifest-deck + .manifest-deck { break-before: page; page-break-before: always; }
+            .manifest-deck-title { background: #1d2939 !important; break-after: avoid; color: #fff !important; display: block !important; font-size: 10px; line-height: 1.2; padding: 5px 7px; page-break-after: avoid; position: relative; visibility: visible !important; }
             .manifest-seat-grid { overflow: visible; }
-            .manifest-seat-row { min-width: 0; }
-            .manifest-aisle { flex-basis: 98px; }
+            .manifest-seat-row { break-inside: avoid; min-width: 0; page-break-inside: avoid; width: 100%; }
+            .manifest-seat-group { min-width: 0; }
+            .manifest-aisle { flex-basis: 54px; }
             .manifest-aisle::after { bottom: 5px; top: 5px; }
-            .manifest-seat { break-inside: avoid; min-height: 76px; padding: 6px 9px; }
-            .manifest-seat.comfort-room::before { height: calc(76px * var(--cr-row-span)); }
-            .manifest-seat-empty { min-height: 76px; }
-            .manifest-seat-number { font-size: 17px; }
-            .manifest-seat-status { font-size: 7px; }
-            .manifest-passenger { gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(115px, .85fr); margin-top: 4px; }
-            .manifest-reference { font-size: 20px; }
-            .manifest-passenger-name { font-size: 10px; margin-top: 2px; }
-            .manifest-passenger-dropoff { font-size: 13px; }
-            .manifest-km-post { font-size: 17px; }
-            .manifest-type { font-size: 7px; margin-top: 3px; padding: 2px 5px; }
-            .manifest-lock-details { margin-top: 10px; }
-            .manifest-lock-details strong { font-size: 9px; }
-            .manifest-lock-details span { font-size: 8px; margin-top: 3px; }
+            .manifest-seat { break-inside: avoid; min-height: 66px; overflow-wrap: anywhere; padding: 5px 6px; page-break-inside: avoid; }
+            .manifest-seat.comfort-room::before { height: calc(66px * var(--cr-row-span)); }
+            .manifest-seat-empty { min-height: 66px; }
+            .manifest-seat-number { font-size: 15px; }
+            .manifest-seat-status { font-size: 6px; }
+            .manifest-passenger { display: block; margin-top: 3px; }
+            .manifest-reference { font-size: 15px; overflow-wrap: anywhere; }
+            .manifest-passenger-name { font-size: 8px; margin-top: 2px; }
+            .manifest-passenger-dropoff { font-size: 9px; margin-top: 3px; overflow-wrap: anywhere; text-align: left; }
+            .manifest-km-post { font-size: 12px; white-space: normal; }
+            .manifest-type { font-size: 6px; margin-top: 2px; padding: 1px 3px; }
+            .manifest-lock-details { margin-top: 6px; }
+            .manifest-lock-details strong { font-size: 7px; }
+            .manifest-lock-details span { font-size: 6px; margin-top: 2px; }
             .manifest-seat.filtered { opacity: 1; }
-            @page { margin: 8mm; size: legal landscape; }
+            @page { margin: 7mm; size: legal portrait; }
         }
     </style>
 </head>
