@@ -337,6 +337,11 @@
                                 autocapitalize="none" autocorrect="off" spellcheck="false"
                                 data-lpignore="true" data-1p-ignore>
                         </div>
+                        <div class="form-group mt-3 mb-0">
+                            <label for="rebookApprovalRemarks" class="rebook-label">Approval Remarks (optional)</label>
+                            <textarea id="rebookApprovalRemarks" class="form-control" rows="2" maxlength="1000"
+                                placeholder="Enter authorization or approval notes, if applicable."></textarea>
+                        </div>
                         <div class="rebook-success-alert mt-3">
                             <i class="las la-check"></i>
                             <span>Ticket stays paid — same PNR and reference number, with no new voucher required. The updated
@@ -1008,7 +1013,7 @@
                 rebookType = null;
                 rebookAvailability = null;
                 rebookSeats = [];
-                $('#rebookReason, #rebookAuthorizationCode').val('');
+                $('#rebookReason, #rebookAuthorizationCode, #rebookApprovalRemarks').val('');
                 $('.rebook-type-card').removeClass('selected');
                 $('.rebook-stage').addClass('d-none');
                 $('.rebook-stage[data-stage="loading"]').removeClass('d-none');
@@ -1249,6 +1254,7 @@
                     trip_id: rebookType === 'new_trip' ? $('#rebookTrip').val() : rebookData.booking.trip_id,
                     seats: rebookSeats,
                     reason: $('#rebookReason').val(),
+                    approval_remarks: $('#rebookApprovalRemarks').val(),
                     authorization_code: $('#rebookAuthorizationCode').val()
                 };
 

@@ -176,6 +176,11 @@
                                                 &middot; {{ \Carbon\Carbon::parse(data_get($authorization, 'authorized_at'))->format('M j, Y h:i A') }}
                                             @endif
                                         </small>
+                                        @if (data_get($authorization, 'approval_remarks'))
+                                            <small class="audit-details__reason">
+                                                Approval remarks: {{ data_get($authorization, 'approval_remarks') }}
+                                            </small>
+                                        @endif
                                     @endif
                                     @if ($isAuthorizationAttempt)
                                         <small class="audit-details__authorization audit-details__authorization--failed">
