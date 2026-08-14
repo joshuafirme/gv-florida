@@ -289,7 +289,14 @@ class ManageTripController extends Controller
             'end_at' => 'required',
         ]);
 
-        $check = Schedule::where('start_from', Carbon::parse($request->start_from)->format('H:i:s'))->where('end_at', Carbon::parse($request->end_at)->format('H:i:s'))->first();
+        $startFrom = Carbon::parse($request->start_from)->format('H:i:s');
+        $endAt = Carbon::parse($request->end_at)->format('H:i:s');
+        $check = Schedule::query()
+            ->where('start_from', $startFrom)
+            ->where('end_at', $endAt)
+            ->when($id, fn ($query) => $query->whereKeyNot($id))
+            ->exists();
+
         if ($check) {
             $notify[] = ['error', 'This schedule has already added'];
             return redirect()->back()->withNotify($notify);
@@ -303,8 +310,8 @@ class ManageTripController extends Controller
             $message = 'Schedule created successfully';
         }
 
-        $schedule->start_from = $request->start_from;
-        $schedule->end_at = $request->end_at;
+        $schedule->start_from = $startFrom;
+        $schedule->end_at = $endAt;
         $schedule->save();
 
         $notify[] = ['success', $message];
