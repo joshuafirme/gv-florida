@@ -597,7 +597,7 @@ class ManageTripController extends Controller
             'defaultFont' => 'DejaVu Sans',
             'isHtml5ParserEnabled' => true,
             'isPhpEnabled' => true,
-        ])->loadView('admin.pdf.reservation-slip', ['ticket' => $ticket, 'pageTitle' => "Reservation Slip", 'content' => $terms_content]);
+        ])->loadView('admin.pdf.reservation-slip-preview', ['ticket' => $ticket, 'pageTitle' => "Reservation Slip", 'content' => $terms_content]);
 
         $pdf->setPaper([0, 0, 144, 500], 'portrait');
 
