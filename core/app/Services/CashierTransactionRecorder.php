@@ -142,7 +142,8 @@ class CashierTransactionRecorder
         string $reason,
         string $batchKey,
         array $history = [],
-        ?Admin $authorizedBy = null
+        ?Admin $authorizedBy = null,
+        ?string $approvalRemarks = null
     ): void {
         $ticket->loadMissing($this->ticketRelations());
         $slips = $slips->values();
@@ -156,7 +157,8 @@ class CashierTransactionRecorder
                 $authorizedBy,
                 $performedBy,
                 TransactionAuthorizationService::REBOOKING,
-                now()
+                now(),
+                $approvalRemarks
             );
             $this->store(
                 "rebooked:{$batchKey}:booking",
@@ -179,7 +181,8 @@ class CashierTransactionRecorder
                 $authorizedBy,
                 $performedBy,
                 TransactionAuthorizationService::REBOOKING,
-                now()
+                now(),
+                $approvalRemarks
             );
             $this->store(
                 "rebooked:{$batchKey}:{$slip->id}",
@@ -206,7 +209,8 @@ class CashierTransactionRecorder
         ?Admin $authorizedBy,
         ?Admin $performedBy,
         string $transactionType,
-        $authorizedAt
+        $authorizedAt,
+        ?string $approvalRemarks = null
     ): array {
         if (!$authorizedBy) {
             return $snapshot;
@@ -222,6 +226,7 @@ class CashierTransactionRecorder
             'performed_by_admin_id' => $performedBy?->id,
             'performed_by_name' => $performedBy?->name,
             'authorized_at' => Carbon::parse($authorizedAt ?: now())->toIso8601String(),
+            'approval_remarks' => filled($approvalRemarks) ? trim($approvalRemarks) : null,
         ];
 
         return $snapshot;

@@ -63,7 +63,12 @@
                                         <td data-label="Booking Source">{{ $event['booking_source'] }}</td>
                                         <td data-label="Payment Method">{{ $event['payment_method'] }}</td>
                                         <td data-label="Processed By">{{ $event['processed_by'] }}</td>
-                                        <td data-label="Authorized By">{{ $event['authorized_by'] ?: '-' }}</td>
+                                        <td data-label="Authorized By">
+                                            <strong>{{ $event['authorized_by'] ?: '-' }}</strong>
+                                            @if ($event['authorized_at'])
+                                                <span class="rebooked-meta">{{ $event['authorized_at'] }}</span>
+                                            @endif
+                                        </td>
                                         <td data-label="Status">
                                             <span class="rebooked-status">Rebooked</span>
                                         </td>
@@ -209,6 +214,8 @@
                         detailRow('Timing', data.after_departure ? 'After original departure (within grace period)' : 'Before original departure'),
                         detailRow('Processed By', data.processed_by),
                         detailRow('Authorized By', data.authorized_by || '-'),
+                        detailRow('Authorization Date & Time', data.authorized_at || '-'),
+                        detailRow('Approval Remarks', data.approval_remarks || '-'),
                         detailRow('Reason', data.reason),
                         detailRow('Rebooked At', data.processed_at),
                         detailRow('Status', data.status)
