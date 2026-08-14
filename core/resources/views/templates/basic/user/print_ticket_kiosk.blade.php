@@ -164,6 +164,56 @@
 @endpush
 
 @push('script')
+    @php
+        $androidManifest = $ticket->passenger_manifest ?: [];
+        $androidPassengerNames = collect($androidManifest)
+            ->map(fn ($passenger) => trim((string) ($passenger['name'] ?? '')) ?: 'Guest')
+            ->implode(', ');
+        $androidPassengerTypes = collect($androidManifest)
+            ->map(fn ($passenger) => ($passenger['passenger_type'] ?? 'regular') === 'discounted'
+                ? ($passenger['discount_name'] ?? 'Discounted')
+                : 'Regular')
+            ->unique()
+            ->implode(', ');
+        $androidPickupAddress = collect([$ticket->pickup?->name, $ticket->pickup?->city])
+            ->map(fn ($part) => trim((string) $part))
+            ->filter()
+            ->unique(fn ($part) => strtolower($part))
+            ->implode(', ');
+        $androidExpiresAt = $ticket->deposit->created_at->copy()->addMinutes(15);
+        $androidIsPaid = (int) $ticket->deposit->status === \App\Constants\Status::PAYMENT_SUCCESS;
+        $androidPaymentMethod = $ticket->deposit->pchannel
+            ? getPaynamicsPChannel($ticket->deposit->pchannel, true)
+            : ($ticket->deposit->gateway?->name ?? $ticket->deposit->methodName());
+        $androidReceiptPayload = [
+            'company_name' => 'GV FLORIDA TRANSPORT, INC.',
+            'company_address' => strtoupper($androidPickupAddress),
+            'pnr' => $ticket->pnr_number,
+            'name' => $androidPassengerNames ?: 'Guest',
+            'passenger_name' => $androidPassengerNames ?: 'Guest',
+            'passenger_type' => $androidPassengerTypes ?: 'Regular',
+            'date' => showDateTime($ticket->date_of_journey, 'M j, Y'),
+            'destination' => $ticket->drop?->name ?? '',
+            'dropoff_point' => $ticket->drop?->km_post ? 'KM ' . $ticket->drop->km_post : '',
+            'source' => $ticket->kiosk_id ? 'Kiosk' : ($ticket->user_id ? 'Online' : 'Counter'),
+            'updated_at' => formatDate($ticket->deposit->updated_at, true),
+            'expired_at' => formatDate($androidExpiresAt, true),
+            'valid_until' => showDateTime($androidExpiresAt, 'M j, Y, g:i A'),
+            'seats' => formatSeatLabel($ticket->seats ?? []),
+            'departure_time' => date('g:i A', strtotime($ticket->trip->schedule->start_from)),
+            'bus_type' => $ticket->trip?->fleetType?->name ?? '',
+            'amount' => number_format((float) $ticket->deposit->amount, 2),
+            'discount_amount' => number_format((float) ($ticket->deposit->userDiscount?->amount ?? 0), 2),
+            'discount_description' => $ticket->deposit->userDiscount?->description ?? '',
+            'final_amount' => number_format((float) $ticket->deposit->final_amount, 2),
+            'method' => $androidPaymentMethod ?: 'Cash',
+            'status' => strip_tags($ticket->deposit->statusString),
+            'payment_status' => $androidIsPaid ? 'PAID' : 'PENDING',
+            'amount_label' => $androidIsPaid ? 'AMOUNT PAID' : 'AMOUNT TO BE PAID',
+            'is_paid' => $androidIsPaid,
+            'passengers' => $androidManifest,
+        ];
+    @endphp
     <script src="{{ asset('assets/admin/js/vendor/qz-tray.min.js') }}"></script>
     <script src="{{ asset('assets/admin/js/qz-printer.js') }}"></script>
     <script>
@@ -192,26 +242,7 @@
            printVouch()
 
             function printVouch() {
-
-                let discount_amount = "{{ $ticket->deposit?->userDiscount ? number_format($ticket->deposit->userDiscount->amount, 2) : '0.00' }}"
-
-                const data = {
-                    pnr: "{{ $ticket->pnr_number }}",
-                    name: "{{ $ticket->user->first_name ?? '' }}",
-                    date: "{{ showDateTime($ticket->date_of_journey, 'M d, Y') }}",
-                    destination: "{{ $ticket->drop->name }}",
-                    updated_at: "{{ formatDate($ticket->deposit->updated_at, true) }}",
-                    expired_at: "{{ formatDate(date('Y-m-d H:i:s', strtotime($ticket->deposit->updated_at . ' +15 minutes')), true) }}",
-                    seats: @json(formatSeatLabel($ticket->seats)),
-                    departure_time: "{{ date('h:i A', strtotime($ticket->trip->schedule->start_from)) }}",
-                    bus_type: "{{ $ticket->trip->fleetType->name }}",
-                    amount: "{{ number_format($ticket->deposit->amount, 2) }}",
-                    discount_amount: discount_amount,
-                    discount_description: "{{ $ticket->deposit?->userDiscount?->description }}",
-                    final_amount: "{{ number_format($ticket->deposit->final_amount, 2) }}",
-                    method: "{{ $ticket->deposit->gateway->name }}",
-                    status: "{{ $ticket->deposit->statusString }}"
-                };
+                const data = @json($androidReceiptPayload);
 
                 console.log('passing data to android: ', data)
 

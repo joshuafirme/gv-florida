@@ -35,27 +35,51 @@
                     $qr = base64_encode(QrCode::format('svg')->size(150)->generate($ticket->pnr_number));
                     $expiresAt = $deposit->created_at->copy()->addMinutes(15);
                     $manifest = $ticket->passenger_manifest ?: [];
+                    $passengerNames = collect($manifest)
+                        ->map(fn ($passenger) => trim((string) ($passenger['name'] ?? '')) ?: 'Guest')
+                        ->implode(', ');
+                    $passengerTypes = collect($manifest)
+                        ->map(fn ($passenger) => ($passenger['passenger_type'] ?? 'regular') === 'discounted'
+                            ? ($passenger['discount_name'] ?? 'Discounted')
+                            : 'Regular')
+                        ->unique()
+                        ->implode(', ');
+                    $pickupAddress = collect([$ticket->pickup?->name, $ticket->pickup?->city])
+                        ->map(fn ($part) => trim((string) $part))
+                        ->filter()
+                        ->unique(fn ($part) => strtolower($part))
+                        ->implode(', ');
                     $kioskReturnUrl = url('/tickets?' . urldecode(http_build_query([
                         'kiosk_id' => $ticket->kiosk_id,
                         'counter_id' => $ticket->trip->start_from,
                         'pickup' => $ticket->trip->start_from
                     ])));
                     $androidReceiptPayload = [
+                        'company_name' => 'GV FLORIDA TRANSPORT, INC.',
+                        'company_address' => strtoupper($pickupAddress),
                         'pnr' => $ticket->pnr_number,
-                        'name' => $ticket->user->first_name ?? ($ticket->user->fullname ?? ''),
-                        'date' => showDateTime($ticket->date_of_journey, 'M d, Y'),
+                        'name' => $passengerNames ?: 'Guest',
+                        'passenger_name' => $passengerNames ?: 'Guest',
+                        'passenger_type' => $passengerTypes ?: 'Regular',
+                        'date' => showDateTime($ticket->date_of_journey, 'M j, Y'),
                         'destination' => $ticket->drop?->name ?? '',
+                        'dropoff_point' => $ticket->drop?->km_post ? 'KM ' . $ticket->drop->km_post : '',
+                        'source' => $ticket->kiosk_id ? 'Kiosk' : ($ticket->user_id ? 'Online' : 'Counter'),
                         'updated_at' => formatDate($deposit->updated_at, true),
                         'expired_at' => formatDate($expiresAt, true),
+                        'valid_until' => showDateTime($expiresAt, 'M j, Y, g:i A'),
                         'seats' => formatSeatLabel($ticket->seats ?? []),
-                        'departure_time' => date('h:i A', strtotime($ticket->trip->schedule->start_from)),
+                        'departure_time' => date('g:i A', strtotime($ticket->trip->schedule->start_from)),
                         'bus_type' => $ticket->trip?->fleetType?->name ?? '',
                         'amount' => number_format((float) $deposit->amount, 2),
                         'discount_amount' => number_format((float) ($deposit->userDiscount?->amount ?? 0), 2),
                         'discount_description' => $deposit->userDiscount?->description ?? '',
                         'final_amount' => number_format((float) $deposit->final_amount, 2),
-                        'method' => $deposit->gateway?->name ?? $deposit->methodName(),
+                        'method' => $paymentMethod ?: 'Cash',
                         'status' => strip_tags($deposit->statusString),
+                        'payment_status' => $isPaid ? 'PAID' : 'PENDING',
+                        'amount_label' => $isPaid ? 'AMOUNT PAID' : 'AMOUNT TO BE PAID',
+                        'is_paid' => $isPaid,
                         'passengers' => $manifest,
                     ];
                 @endphp
