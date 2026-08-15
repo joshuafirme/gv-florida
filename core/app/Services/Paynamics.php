@@ -137,6 +137,10 @@ class Paynamics
                 echo "cURL Error: " . curl_error($ch);
             } else {
                 curl_close($ch);
+                Storage::put(
+                    "paynamics/responses/{$this->data->deposit->trx}.json",
+                    $response
+                );
                 $json_res = json_decode($response);
 
                 if ($json_res?->request_id) {

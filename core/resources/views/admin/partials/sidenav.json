@@ -744,5 +744,37 @@
             "admin.payment.settings.*",
             "admin.setting.app.purchase"
         ]
+    },
+    "developer": {
+        "keyword": [
+            "Developer",
+            "Payment Transactions",
+            "Webhook Logs",
+            "Paynamics"
+        ],
+        "title": "Developer",
+        "icon": "las la-code",
+        "menu_active": [
+            "admin.developer.payment.transactions",
+            "admin.developer.payment.transactions.export",
+            "admin.developer.webhook.logs"
+        ],
+        "submenu": [
+            {
+                "title": "Payment Transactions",
+                "route_name": "admin.developer.payment.transactions",
+                "menu_active": [
+                    "admin.developer.payment.transactions",
+                    "admin.developer.payment.transactions.export"
+                ],
+                "permission": "admin.developer.payment.transactions"
+            },
+            {
+                "title": "Webhook Logs",
+                "route_name": "admin.developer.webhook.logs",
+                "menu_active": "admin.developer.webhook.logs",
+                "permission": "admin.developer.webhook.logs"
+            }
+        ]
     }
 }
