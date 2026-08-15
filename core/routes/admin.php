@@ -256,6 +256,17 @@ Route::middleware('admin')->group(function () {
             Route::put('/', 'update')->name('update');
         });
 
+    Route::controller('DeveloperController')->prefix('developer')->name('developer.')->group(function () {
+        Route::middleware('role:admin.developer.payment.transactions')->group(function () {
+            Route::get('payment-transactions', 'paymentTransactions')->name('payment.transactions');
+            Route::get('payment-transactions/export', 'exportPaymentTransactions')->name('payment.transactions.export');
+        });
+
+        Route::get('webhook-logs', 'webhookLogs')
+            ->middleware('role:admin.developer.webhook.logs')
+            ->name('webhook.logs');
+    });
+
     Route::get('gateway/automatic/{path?}', function () {
         return to_route('admin.payment.settings.edit');
     })->where('path', '.*')->name('gateway.automatic.index');
