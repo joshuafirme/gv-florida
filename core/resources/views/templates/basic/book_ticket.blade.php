@@ -4,6 +4,8 @@
         $date_of_journey = request('date_of_journey') ? request('date_of_journey') : date('m/d/Y');
         $dateOfJourneyQuery = \Carbon\Carbon::parse($date_of_journey)->format('m/d/Y');
         $date_of_journey_formatted = formatDate($date_of_journey);
+        $selectedPickupPoint = request('start_from') ?: request('pickup') ?: $trip->startFrom->id;
+        $selectedDroppingPoint = request('dropping_point') ?: request('destination') ?: request('end_to') ?: $trip->endTo->id;
     @endphp
     @if ($kiosk_id)
         @php
@@ -19,9 +21,9 @@
             <a class="seat-back-link"
                 href="{{ url('/tickets?' . urldecode(http_build_query([
                     'kiosk_id' => $kiosk_id,
-                    'counter_id' => $trip->startFrom->id,
-                    'pickup' => $trip->startFrom->id,
-                    'destination' => $trip->endTo->id,
+                    'counter_id' => $selectedPickupPoint,
+                    'pickup' => $selectedPickupPoint,
+                    'destination' => $selectedDroppingPoint,
                     'date_of_journey' => $dateOfJourneyQuery,
                 ]))) }}">
                 <i class="las la-arrow-left"></i> Go Back
@@ -66,7 +68,7 @@
 
                             <input type="hidden" name="price" value="0">
                             <input type="hidden" name="date_of_journey" value="{{ $dateOfJourneyQuery }}">
-                            <input type="hidden" name="pickup_point" id="pickup_point" value="{{ $trip->startFrom->id }}">
+                            <input type="hidden" name="pickup_point" id="pickup_point" value="{{ $selectedPickupPoint }}">
                             <input type="hidden" name="seats">
 
                             <div class="card-body p-4">
@@ -621,6 +623,15 @@
 
                 // 2. Listen to Dropping Point changes
                 $('select[name="dropping_point"]').on('change', function() {
+                    const selectedDroppingPoint = String($(this).val() || '');
+                    const backLink = document.querySelector('.seat-back-link');
+
+                    if (selectedDroppingPoint && backLink) {
+                        const backUrl = new URL(backLink.href, window.location.origin);
+                        backUrl.searchParams.set('destination', selectedDroppingPoint);
+                        backLink.href = backUrl.toString();
+                    }
+
                     showBookedSeat();
                 });
 

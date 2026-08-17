@@ -366,7 +366,7 @@ class SiteController extends Controller
 
         if ($message = $this->bookingChannelError($trip, $request->kiosk_id)) {
             $notify[] = ['error', $message];
-            $query = array_filter($request->only('pickup', 'destination', 'date_of_journey', 'kiosk_id', 'counter_id'));
+            $query = $this->tripSelectionQuery($request, $trip);
 
             return redirect()->route('ticket', $query)->withNotify($notify);
         }
@@ -374,7 +374,7 @@ class SiteController extends Controller
         $journeyDate = $request->date_of_journey ?: now()->format('m/d/Y');
         if ($message = $this->bookingWindowError($trip, $journeyDate, $request->kiosk_id)) {
             $notify[] = ['error', $message];
-            $query = array_filter($request->only('pickup', 'destination', 'date_of_journey', 'kiosk_id', 'counter_id'));
+            $query = $this->tripSelectionQuery($request, $trip);
 
             return redirect()->route('ticket', $query)->withNotify($notify);
         }
@@ -391,8 +391,8 @@ class SiteController extends Controller
 
         $pickupPoint = $request->input('start_from', $request->input('pickup', $trip->start_from));
         $droppingPoint = $request->input(
-            'end_to',
-            $request->input('dropping_point', $request->input('destination', $trip->end_to))
+            'dropping_point',
+            $request->input('destination', $request->input('end_to', $trip->end_to))
         );
         $seatLayout = app(SeatLayoutService::class)->layout($trip->fleetType, [
             'booked' => app(SeatConflictService::class)->unavailableSeats(
@@ -417,6 +417,20 @@ class SiteController extends Controller
             'seatLayout',
             'layout'
         ));
+    }
+
+    private function tripSelectionQuery(Request $request, Trip $trip): array
+    {
+        return array_filter([
+            'pickup' => $request->input('start_from', $request->input('pickup', $trip->start_from)),
+            'destination' => $request->input(
+                'dropping_point',
+                $request->input('destination', $request->input('end_to', $trip->end_to))
+            ),
+            'date_of_journey' => $request->date_of_journey,
+            'kiosk_id' => $request->kiosk_id,
+            'counter_id' => $request->counter_id,
+        ], fn ($value) => $value !== null && $value !== '');
     }
 
     public function bookedQuery($request)
