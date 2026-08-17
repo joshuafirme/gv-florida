@@ -21,26 +21,7 @@
             line-height: 1.15;
         }
 
-        .brand {
-            margin: 0 0 5px;
-            color: #11151d;
-            font-size: 10px;
-            font-weight: 700;
-            text-align: center;
-            text-transform: uppercase;
-        }
-
-        h1 {
-            margin: 0 0 2px;
-            color: #d92378;
-            font-size: 15px;
-        }
-
-        .meta {
-            margin: 0 0 2px;
-            color: #586170;
-            font-size: 7px;
-        }
+        @include('admin.partials.report-document-header-styles', ['pdfHeader' => true])
 
         .section-title {
             margin: 7px 0 3px;
@@ -174,10 +155,12 @@
     </style>
 </head>
 <body>
-    <div class="brand">{{ strtoupper(gs('site_name') ?: 'GV FLORIDA TRANSPORT, INC.') }}</div>
-    <h1>Shift End Report</h1>
-    <p class="meta">Generated: {{ now()->format('F j, Y h:i A') }}</p>
-    <p class="meta"><strong>{{ $admin->name }}</strong> &middot; {{ $date->format('l, F j, Y') }}</p>
+    @include('admin.partials.report-document-header', [
+        'reportTitle' => 'Shift End Report',
+        'reportDate' => $date,
+        'reportDateLabel' => 'Shift date',
+        'reportSubject' => 'Cashier: ' . $admin->name,
+    ])
 
     <div class="section-title">Summary</div>
     <table class="summary">

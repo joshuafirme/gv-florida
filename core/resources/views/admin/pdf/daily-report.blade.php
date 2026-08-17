@@ -21,26 +21,7 @@
             line-height: 1.2;
         }
 
-        .brand {
-            margin: 0 0 10px;
-            color: #11151d;
-            font-size: 11px;
-            font-weight: 700;
-            text-align: center;
-            text-transform: uppercase;
-        }
-
-        h1 {
-            margin: 0 0 2px;
-            color: #d92378;
-            font-size: 17px;
-        }
-
-        .meta {
-            margin: 0 0 2px;
-            color: #586170;
-            font-size: 8px;
-        }
+        @include('admin.partials.report-document-header-styles', ['pdfHeader' => true])
 
         .section-title {
             margin: 10px 0 4px;
@@ -140,16 +121,12 @@
     </style>
 </head>
 <body>
-    <div class="brand">{{ strtoupper(gs('site_name') ?: 'GV FLORIDA TRANSPORT, INC.') }}</div>
-    <h1>Daily Collection Report</h1>
-    <p class="meta">Generated: {{ now()->format('F j, Y h:i A') }}</p>
-    <p class="meta"><strong>{{ $date->format('l, F j, Y') }}</strong></p>
-    @if ($active_filter_labels)
-        <p class="meta">
-            <strong>Filters:</strong>
-            {{ collect($active_filter_labels)->map(fn ($value, $label) => $label . ': ' . $value)->implode(' | ') }}
-        </p>
-    @endif
+    @include('admin.partials.report-document-header', [
+        'reportTitle' => 'Daily Collection Report',
+        'reportDate' => $date,
+        'reportDateLabel' => 'Business date',
+        'reportFilters' => $active_filter_labels,
+    ])
 
     <div class="section-title">Summary</div>
     <table>

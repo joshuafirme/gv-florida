@@ -79,18 +79,12 @@
     </div>
 
     <div class="daily-report">
-        <header class="daily-report__header">
-            <img src="{{ siteLogo() }}" alt="{{ gs('site_name') }}" class="daily-report__logo">
-            <h2>Daily Collection Report</h2>
-            <p>Generated: {{ now()->format('F j, Y h:i A') }}</p>
-            <strong>{{ $date->format('l, F j, Y') }}</strong>
-            @if ($active_filter_labels)
-                <p class="daily-report__active-filters">
-                    Filters:
-                    {{ collect($active_filter_labels)->map(fn ($value, $label) => $label . ': ' . $value)->implode(' | ') }}
-                </p>
-            @endif
-        </header>
+        @include('admin.partials.report-document-header', [
+            'reportTitle' => 'Daily Collection Report',
+            'reportDate' => $date,
+            'reportDateLabel' => 'Business date',
+            'reportFilters' => $active_filter_labels,
+        ])
 
         <section class="daily-report__section">
             <h3>Summary</h3>
@@ -401,50 +395,14 @@
         }
 
         .daily-report {
-            padding: 28px 24px 20px;
+            padding: 18px 20px;
             background: #fff;
             border: 1px solid #e1e3e8;
             border-radius: 8px;
             color: #222936;
         }
 
-        .daily-report__header {
-            margin-bottom: 14px;
-        }
-
-        .daily-report__logo {
-            display: block;
-            width: auto;
-            max-width: 240px;
-            height: 32px;
-            margin: 0 auto 16px;
-            object-fit: contain;
-        }
-
-        .daily-report__header h2 {
-            margin: 0 0 3px;
-            color: #d92378;
-            font-size: 21px;
-            font-weight: 700;
-        }
-
-        .daily-report__header p,
-        .daily-report__header strong {
-            display: block;
-            margin: 0 0 3px;
-            color: #666e7c;
-            font-size: 11px;
-        }
-
-        .daily-report__header strong {
-            color: #303642;
-            font-weight: 500;
-        }
-
-        .daily-report__header .daily-report__active-filters {
-            color: #8c315d;
-            font-weight: 600;
-        }
+        @include('admin.partials.report-document-header-styles')
 
         .daily-report__section {
             min-width: 0;
@@ -583,11 +541,7 @@
             }
 
             .daily-report {
-                padding: 26px 14px 20px;
-            }
-
-            .daily-report__logo {
-                margin-bottom: 28px;
+                padding: 16px 14px;
             }
         }
 
@@ -625,26 +579,6 @@
             .daily-report__columns {
                 grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
                 gap: 8px;
-            }
-
-            .daily-report__logo {
-                height: 22px;
-                margin-bottom: 7px;
-            }
-
-            .daily-report__header {
-                margin-bottom: 6px;
-            }
-
-            .daily-report__header h2 {
-                font-size: 14px;
-            }
-
-            .daily-report__header p,
-            .daily-report__header strong {
-                margin-bottom: 1px;
-                font-size: 8px;
-                line-height: 1.15;
             }
 
             .daily-report__section {
