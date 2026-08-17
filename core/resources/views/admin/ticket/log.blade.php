@@ -276,6 +276,7 @@
                                 <span>Same trip and travel date</span>
                             </button>
                         </div>
+                        <div class="rebook-type-notice d-none" id="rebookTypeNotice"></div>
                     </div>
 
                     <div class="rebook-stage d-none" data-stage="selection">
@@ -607,6 +608,9 @@
         .rebook-type-card span { color: #858a94; display: block; font-size: 10px; line-height: 1.35; margin-top: 6px; }
         .rebook-type-card:hover, .rebook-type-card.selected { background: #fff5f9; border-color: #e3196b; box-shadow: 0 0 0 1px #e3196b; }
         .rebook-type-card.selected i, .rebook-type-card.selected strong { color: #e3196b; }
+        .rebook-type-card:disabled { background: #f6f7f9; border-color: #e1e3e7; box-shadow: none; cursor: not-allowed; opacity: .62; }
+        .rebook-type-card:disabled i, .rebook-type-card:disabled strong { color: #8a909b; }
+        .rebook-type-notice { background: #fff8e8; border: 1px solid #f0d69b; border-radius: 8px; color: #795514; font-size: 11px; line-height: 1.4; margin-top: 12px; padding: 9px 11px; }
         .rebook-label { color: #555b66; font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
         .rebook-context { color: #6f7480; font-size: 12px; line-height: 1.45; }
         .rebook-seat-heading { align-items: center; display: flex; font-size: 12px; justify-content: space-between; margin: 18px 0 10px; text-transform: uppercase; }
@@ -1010,6 +1014,8 @@
                 rebookSeats = [];
                 $('#rebookReason, #rebookAuthorizationCode').val('');
                 $('.rebook-type-card').removeClass('selected');
+                $('.rebook-type-card[data-type="new_trip"]').prop('disabled', false);
+                $('#rebookTypeNotice').addClass('d-none').text('');
                 $('.rebook-stage').addClass('d-none');
                 $('.rebook-stage[data-stage="loading"]').removeClass('d-none');
                 $('#rebookPnr, #rebookReference').text('…');
@@ -1028,6 +1034,11 @@
                     $('#rebookTrip').html(data.trips.map(trip =>
                         `<option value="${trip.id}">${escapeHtml(trip.label)} · ${escapeHtml(trip.route)}</option>`
                     ).join(''));
+                    const hasAlternateTrips = data.trips.length > 0;
+                    $('.rebook-type-card[data-type="new_trip"]').prop('disabled', !hasAlternateTrips);
+                    $('#rebookTypeNotice')
+                        .toggleClass('d-none', !data.alternate_trip_message)
+                        .text(data.alternate_trip_message || '');
                     showStage('type');
                 }).fail(function(xhr) {
                     notify('error', validationMessage(xhr));
@@ -1123,7 +1134,10 @@
             }
 
             function seatId(element) {
-                const seat = $(element).text().trim();
+                const canonicalSeat = $(element).attr('data-seat');
+                if (canonicalSeat) return String(canonicalSeat).trim();
+
+                const seat = $(element).attr('data-label') || $(element).clone().children().remove().end().text().trim();
                 const deck = $(element).closest('.seat-plan-inner').data('deck');
                 return `${deck}-${seat}`;
             }
@@ -1135,12 +1149,13 @@
 
                 $('#rebookSeatMap .seat').each(function() {
                     if ($(this).hasClass('comfort-room')) return;
-                    const seat = $(this).text().trim();
+                    const seat = String($(this).attr('data-label') || '').trim();
                     const id = seatId(this);
-                    const unavailable = booked.includes(id) || disabled.includes(seat) || $(this).find('del').length;
+                    const isDisabled = disabled.includes(seat) || disabled.includes(id);
+                    const unavailable = booked.includes(id) || isDisabled || $(this).find('del').length;
 
                     $(this).removeClass('selected booked-seat disabled-seat');
-                    if (disabled.includes(seat) || $(this).find('del').length) {
+                    if (isDisabled || $(this).find('del').length) {
                         $(this).addClass('disabled-seat');
                     } else if (booked.includes(id)) {
                         $(this).addClass('booked-seat');
