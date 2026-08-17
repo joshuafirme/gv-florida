@@ -142,6 +142,21 @@ class SeatLayoutServiceTest extends TestCase
         $this->assertSame(['U13', 'U14', 'U15'], $this->seatLabels($upperLastRow));
     }
 
+    public function test_two_deck_manifest_rows_share_one_legal_portrait_page_budget(): void
+    {
+        $service = new SeatLayoutService();
+        $layout = $service->layout($this->sleeperFleet());
+        $print = $service->manifestPrintSizing($layout);
+
+        $this->assertSame(2, $print['deck_count']);
+        $this->assertSame(
+            collect($layout['decks'])->sum(fn (array $deck) => count($deck['rows'])),
+            $print['row_count']
+        );
+        $this->assertLessThanOrEqual(300.0, $print['row_height_mm'] * $print['row_count']);
+        $this->assertLessThanOrEqual(30.0, $print['row_height_mm']);
+    }
+
     private function sleeperFleet(): FleetType
     {
         $fleetType = new FleetType();

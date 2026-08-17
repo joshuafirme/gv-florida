@@ -686,6 +686,7 @@ class ManageTripController extends Controller
             'pending' => $seatManifest->where('blocked', true)->keys()->all(),
             'locked' => $lockedSeats->keys()->all(),
         ]);
+        $manifestPrint = $seatLayoutService->manifestPrintSizing($manifestLayout);
         $capacity = count($manifestLayout['seat_ids']);
         $bookedCount = $seatManifest->where('blocked', false)->count();
         $blockedCount = $seatManifest->where('blocked', true)->count();
@@ -712,6 +713,7 @@ class ManageTripController extends Controller
             'seatManifest' => $seatManifest,
             'lockedSeats' => $lockedSeats,
             'manifestLayout' => $manifestLayout,
+            'manifestPrint' => $manifestPrint,
             'disabledSeats' => $disabled,
             'stats' => $stats,
         ]);
