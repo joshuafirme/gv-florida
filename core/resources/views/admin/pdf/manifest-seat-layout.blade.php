@@ -80,7 +80,6 @@
             .manifest-stats { gap: 4px; margin-bottom: 6px; }
             .manifest-stat { font-size: 7px; padding: 2px 5px; }
             .manifest-deck { border-radius: 0; break-inside: auto; margin-bottom: 6px; overflow: visible; page-break-inside: auto; width: 100%; }
-            .manifest-deck + .manifest-deck { break-before: page; page-break-before: always; }
             .manifest-deck-title { background: #1d2939 !important; break-after: avoid; color: #fff !important; display: block !important; font-size: 10px; line-height: 1.2; padding: 5px 7px; page-break-after: avoid; position: relative; visibility: visible !important; }
             .manifest-seat-grid { overflow: visible; }
             .manifest-seat-row { break-inside: avoid; min-width: 0; page-break-inside: avoid; width: 100%; }
