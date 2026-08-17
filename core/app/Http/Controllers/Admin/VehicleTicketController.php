@@ -1153,6 +1153,9 @@ class VehicleTicketController extends Controller
             && (!$slip || (!$slip->refund && !$slip->cancellation && !$slip->voidRecord));
         $snapshot = $event->snapshot ?: [];
         $history = $snapshot['rebooking'] ?? [];
+        $authorization = is_array($snapshot['authorization'] ?? null)
+            ? $snapshot['authorization']
+            : [];
         $formatDeparture = static fn ($value) => $value
             ? Carbon::parse($value)->format('M d, Y g:i A')
             : null;
@@ -1201,7 +1204,16 @@ class VehicleTicketController extends Controller
             'booking_source' => $source,
             'payment_method' => $event->payment_method ?: ($snapshot['payment_method'] ?? '-'),
             'processed_by' => $event->admin?->name ?: $event->admin?->username ?: '-',
-            'authorized_by' => $snapshot['authorized_by_name'] ?? $snapshot['authorized_by'] ?? null,
+            'authorized_by' => $authorization['authorized_by_name']
+                ?? $snapshot['authorized_by_name']
+                ?? $snapshot['authorized_by']
+                ?? null,
+            'authorized_at' => $formatDeparture(
+                $authorization['authorized_at'] ?? $snapshot['authorized_at'] ?? null
+            ),
+            'approval_remarks' => $authorization['approval_remarks']
+                ?? $snapshot['approval_remarks']
+                ?? null,
             'status' => 'Rebooked',
             'sequence' => (int) ($history['sequence'] ?? $snapshot['rebooking_sequence'] ?? 1),
             'previous_trip' => $history['previous']['trip'] ?? '-',
@@ -1637,6 +1649,7 @@ class VehicleTicketController extends Controller
             'seats' => 'required|array|min:1',
             'seats.*' => 'required|string|max:30',
             'reason' => 'nullable|string|max:1000',
+            'approval_remarks' => 'nullable|string|max:1000',
             'authorization_code' => 'required|string|max:100',
         ]);
         $slipId = $request->integer('slip_id') ?: null;
@@ -1747,7 +1760,8 @@ class VehicleTicketController extends Controller
                 $reason,
                 Str::uuid()->toString(),
                 $history,
-                $authorizedBy
+                $authorizedBy,
+                $validated['approval_remarks'] ?? null
             );
 
             return $result;
