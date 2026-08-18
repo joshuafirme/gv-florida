@@ -349,28 +349,49 @@ class PaymentController extends Controller
     public function done()
     {
         $track = session()->get('Track');
-        $deposit = Deposit::where('trx', $track)->with(['bookedTicket.trip.fleetType', 'bookedTicket.pickup', 'bookedTicket.drop', 'userDiscount'])->firstOrFail();
+        $deposit = Deposit::where('trx', $track)->with([
+            'gateway',
+            'bookedTicket.user',
+            'bookedTicket.trip.schedule',
+            'bookedTicket.trip.fleetType',
+            'bookedTicket.pickup',
+            'bookedTicket.drop',
+            'userDiscount',
+        ])->firstOrFail();
 
         if (!in_array($deposit->status, [Status::PAYMENT_PENDING, Status::PAYMENT_SUCCESS])) {
             return to_route('user.deposit.confirm');
         }
 
-        if (auth()->user()) {
+        $ticket = $deposit->bookedTicket;
+
+        if ($ticket->isKioskBooking()) {
+            $layout = 'layouts.kiosk';
+        } elseif (auth()->user()) {
             $layout = 'layouts.master';
         } else {
             $layout = 'layouts.frontend';
         }
 
-        if (session('kiosk_id')) {
-            $layout = 'layouts.kiosk';
+        $paynamicsResponse = session('paynamics_callback_details');
+        if (
+            !is_array($paynamicsResponse)
+            || ($paynamicsResponse['request_id'] ?? null) !== $deposit->trx
+        ) {
+            $paynamicsResponse = null;
         }
 
-        $ticket = $deposit->bookedTicket;
         $pageTitle = (int) $deposit->status === Status::PAYMENT_SUCCESS
             ? 'Payment Confirmation'
             : 'Booking Voucher';
 
-        return view('Template::user.payment.done', compact('deposit', 'ticket', 'pageTitle', 'layout'));
+        return view('Template::user.payment.done', compact(
+            'deposit',
+            'ticket',
+            'paynamicsResponse',
+            'pageTitle',
+            'layout'
+        ));
     }
 
 

@@ -30,7 +30,6 @@ class Paynamics
                 "totalprice" => $final_amount
             ];
 
-            $base_url = config('app.url');
             $merchantid = config('paynamics.merchant_id');
             $mkey = config('paynamics.merchant_key');
             $basicUser = config('paynamics.basic_auth_user');
@@ -43,12 +42,14 @@ class Paynamics
                 $payment_action = "direct_otc";
             }
 
+            $callbackParameters = ['request_id' => $this->data->deposit->trx];
+
             $data = [
                 "transaction" => [
                     "request_id" => $this->data->deposit->trx,
-                    "notification_url" => "{$base_url}api/paynamics/notification",
-                    "response_url" => "{$base_url}user/paynamics/response",
-                    "cancel_url" => "{$base_url}user/paynamics/cancel",
+                    "notification_url" => route('api.paynamics.notification'),
+                    "response_url" => route('user.paynamics.response', $callbackParameters),
+                    "cancel_url" => route('user.paynamics.cancel', $callbackParameters),
                     "pmethod" => $pmethod,
                     "pchannel" => $pchannel,
                     "payment_action" => $payment_action,
@@ -155,15 +156,14 @@ class Paynamics
         }
     }
 
-    public function queryTransaction()
+    public function queryTransaction(?string $originalRequestId = null)
     {
         $merchantid = config('paynamics.merchant_id');
         $mkey = config('paynamics.merchant_key');
         $basicUser = config('paynamics.basic_auth_user');
         $basicPass = config('paynamics.basic_auth_pw');
 
-        $org_trxid2 = session('paynamics_request_id') ? session('paynamics_request_id') : '';
-        $date = date('Ymd');
+        $org_trxid2 = $originalRequestId ?: (string) session('paynamics_request_id', '');
         $req_id = generateReqID();
         $rawTrx = $merchantid . $req_id . $org_trxid2 . $mkey;
 
@@ -191,13 +191,15 @@ class Paynamics
         ]);
 
         $response = curl_exec($ch);
-
-        if (curl_errno($ch)) {
-            echo "cURL Error: " . curl_error($ch);
-        } else {
+        if ($response === false) {
+            $message = curl_error($ch);
             curl_close($ch);
-            $json_res = json_decode($response);
-            return $json_res;
+
+            throw new \RuntimeException('Unable to query Paynamics: ' . $message);
         }
+
+        curl_close($ch);
+
+        return json_decode($response);
     }
 }

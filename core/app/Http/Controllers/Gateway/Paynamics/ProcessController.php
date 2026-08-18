@@ -104,7 +104,22 @@ class ProcessController extends Controller
             if ($transaction && isset($transaction->payment_action_info)) {
                 return redirect()->to($transaction->payment_action_info);
             } else if ($transaction && isset($transaction->direct_otc_info)) {
-                return redirect()->to('/user/paynamics/response');
+                $ticket->deposit->status = Status::PAYMENT_PENDING;
+                $ticket->deposit->expiry_limit = $transaction->expiry_limit ?? $ticket->deposit->expiry_limit;
+                $ticket->deposit->pay_reference = $transaction->pay_reference ?? $ticket->deposit->pay_reference;
+                $ticket->deposit->save();
+
+                $ticket->status = Status::BOOKED_PENDING;
+                $ticket->save();
+
+                Storage::put(
+                    "paynamics/direct-otc/{$ticket->deposit->trx}.json",
+                    json_encode($transaction)
+                );
+
+                return to_route('user.paynamics.response', [
+                    'request_id' => $ticket->deposit->trx,
+                ]);
             }
             return $transaction;
         } catch (ValidationException $exception) {
@@ -118,67 +133,293 @@ class ProcessController extends Controller
 
     public function response(Request $request)
     {
-        $paynamics = new Paynamics($request->user());
+        $deposit = $this->callbackDeposit($request);
+        if (!$deposit) {
+            return $this->callbackUnavailable('response');
+        }
 
-        $booked_ticket_id = session()->get('booked_ticket_id');
-        $request_id = session('paynamics_request_id');
+        $ticket = $deposit->bookedTicket;
+        $this->restoreBookingSession($ticket, $deposit);
 
-        $pageTitle = "Payment Details";
+        $verifiedTransaction = null;
 
-        $ticket = BookedTicket::with('deposit')->findOrFail($booked_ticket_id);
+        try {
+            $verifiedTransaction = $this->getTransaction($deposit->trx);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
 
-        $transaction = $this->getTransaction($request_id);
+        $transaction = $verifiedTransaction;
 
-        $deposit = Deposit::where('trx', $ticket->deposit->trx)->orderBy('id', 'DESC')->firstOrFail();
-        $isSuccessfulResponse = ($transaction?->response_code ?? null) === 'GR001';
+        if (!$transaction && $request->filled('response_code')) {
+            $transaction = (object) $request->only([
+                'request_id',
+                'response_code',
+                'response_message',
+                'response_advise',
+                'pay_reference',
+                'pchannel',
+                'timestamp',
+            ]);
+        }
+
+        $isSuccessfulResponse = ($verifiedTransaction?->response_code ?? null) === 'GR001';
 
         if (
-            $deposit->status == Status::PAYMENT_INITIATE
+            in_array((int) $deposit->status, [Status::PAYMENT_INITIATE, Status::PAYMENT_PENDING], true)
             && $isSuccessfulResponse
-            && !isset($transaction->direct_otc_info)
+            && !isset($verifiedTransaction->direct_otc_info)
         ) {
             PaymentController::userDataUpdate($deposit);
-        } else if (isset($transaction->direct_otc_info) && $transaction->pay_reference != $deposit->pay_reference) {
-            $deposit->status = Status::PAYMENT_PENDING;
-            $deposit->expiry_limit = $transaction->expiry_limit;
-            $deposit->pay_reference = $transaction->pay_reference;
-            $deposit->save();
-
-            $bookedTicket = BookedTicket::find($deposit->booked_ticket_id);
-            $bookedTicket->status = Status::BOOKED_PENDING;
-            $bookedTicket->save();
         }
 
         $deposit->refresh();
-        session()->put('Track', $deposit->trx);
+        $ticket->refresh();
+        $callbackState = (int) $deposit->status === Status::PAYMENT_SUCCESS
+            ? 'success'
+            : ((int) $deposit->status === Status::PAYMENT_PENDING ? 'pending' : 'failed');
+        $callbackDetails = $this->callbackDetails($deposit, $transaction, $callbackState);
+        session()->put('paynamics_callback_details', $callbackDetails);
 
-        if ((int) $deposit->status === Status::PAYMENT_SUCCESS) {
+        if (
+            (int) $deposit->status === Status::PAYMENT_SUCCESS
+            || ($ticket->isKioskBooking() && (int) $deposit->status === Status::PAYMENT_PENDING)
+        ) {
             return to_route('user.deposit.done');
         }
 
-        if (auth()->user()) {
-            $layout = 'layouts.master';
-        } else {
-            $layout = 'layouts.frontend';
-        }
-        if (session('kiosk_id')) {
-            $layout = 'layouts.kiosk';
-        }
+        $layout = $this->bookingLayout($ticket);
+        $pageTitle = $callbackState === 'pending' ? 'Payment Pending' : 'Payment Response';
 
-        return view('templates/basic/user/payment/response/paynamics', compact('ticket', 'transaction', 'pageTitle', 'layout'));
+        return view('templates/basic/user/payment/response/paynamics', compact(
+            'ticket',
+            'deposit',
+            'transaction',
+            'callbackDetails',
+            'callbackState',
+            'pageTitle',
+            'layout'
+        ));
     }
 
-    public function getTransaction($request_id)
+    public function cancel(Request $request)
     {
-        $path = "paynamics/$request_id.json";
-        if (Storage::exists($path)) {
-            $transaction = json_decode(Storage::get($path));
-        } else {
-            $paynamics = new Paynamics(request()->user());
-            $transaction = $paynamics->queryTransaction();
-            Storage::put($path, json_encode($transaction));
+        $deposit = $this->callbackDeposit($request);
+        if (!$deposit) {
+            return $this->callbackUnavailable('cancelled');
         }
-        return $transaction;
+
+        $ticket = $deposit->bookedTicket;
+        $this->restoreBookingSession($ticket, $deposit);
+
+        if ((int) $deposit->status === Status::PAYMENT_SUCCESS) {
+            session()->put('paynamics_callback_details', $this->callbackDetails($deposit, null, 'success'));
+            return to_route('user.deposit.done');
+        }
+
+        $transaction = (object) $request->only([
+            'request_id',
+            'response_code',
+            'response_message',
+            'response_advise',
+            'pay_reference',
+            'pchannel',
+            'timestamp',
+        ]);
+        $callbackState = 'cancelled';
+        $callbackDetails = $this->callbackDetails($deposit, $transaction, $callbackState);
+        session()->put('paynamics_callback_details', $callbackDetails);
+        $layout = $this->bookingLayout($ticket);
+        $pageTitle = 'Payment Cancelled';
+
+        return view('templates/basic/user/payment/response/paynamics', compact(
+            'ticket',
+            'deposit',
+            'transaction',
+            'callbackDetails',
+            'callbackState',
+            'pageTitle',
+            'layout'
+        ));
+    }
+
+    public function getTransaction(?string $requestId)
+    {
+        if (!$requestId) {
+            return null;
+        }
+
+        $paynamics = new Paynamics(request()->user());
+        $transaction = $paynamics->queryTransaction($requestId);
+
+        if ($transaction) {
+            Storage::put("paynamics/{$requestId}.json", json_encode($transaction));
+            return $transaction;
+        }
+
+        $directOtcPath = "paynamics/direct-otc/{$requestId}.json";
+
+        return Storage::exists($directOtcPath)
+            ? json_decode(Storage::get($directOtcPath))
+            : null;
+    }
+
+    private function callbackDeposit(Request $request): ?Deposit
+    {
+        $transactionIds = collect([
+            $request->query('request_id'),
+            $request->input('request_id'),
+            $request->input('org_trxid'),
+            $request->input('org_trxid2'),
+            $request->input('original_transaction_id'),
+            session('paynamics_request_id'),
+            session('Track'),
+        ])->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $payReferences = collect([
+            $request->input('pay_reference'),
+        ])->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $query = Deposit::query()->with([
+            'gateway',
+            'userDiscount',
+            'bookedTicket.user',
+            'bookedTicket.trip.schedule',
+            'bookedTicket.trip.fleetType',
+            'bookedTicket.pickup',
+            'bookedTicket.drop',
+        ]);
+
+        if ($transactionIds->isNotEmpty() || $payReferences->isNotEmpty()) {
+            $deposit = (clone $query)
+                ->where(function ($lookup) use ($transactionIds, $payReferences) {
+                    if ($transactionIds->isNotEmpty()) {
+                        $lookup->whereIn('trx', $transactionIds->all());
+                    }
+
+                    if ($payReferences->isNotEmpty()) {
+                        $method = $transactionIds->isNotEmpty() ? 'orWhereIn' : 'whereIn';
+                        $lookup->{$method}('pay_reference', $payReferences->all());
+                    }
+                })
+                ->latest('id')
+                ->first();
+
+            if ($deposit?->bookedTicket) {
+                return $deposit;
+            }
+        }
+
+        $bookedTicketId = (int) session('booked_ticket_id');
+        if (!$bookedTicketId) {
+            return null;
+        }
+
+        return $query
+            ->where('booked_ticket_id', $bookedTicketId)
+            ->latest('id')
+            ->first();
+    }
+
+    private function restoreBookingSession(BookedTicket $ticket, Deposit $deposit): void
+    {
+        session()->put([
+            'Track' => $deposit->trx,
+            'booked_ticket_id' => $ticket->id,
+            'paynamics_request_id' => $deposit->trx,
+        ]);
+
+        if ($ticket->isKioskBooking()) {
+            session()->put('kiosk_id', $ticket->kiosk_id);
+        } else {
+            session()->forget('kiosk_id');
+        }
+    }
+
+    private function callbackDetails(Deposit $deposit, mixed $transaction, string $state): array
+    {
+        $channelCode = data_get($transaction, 'pchannel')
+            ?: data_get($transaction, 'direct_otc_info.0.pay_channel')
+            ?: $deposit->pchannel;
+        $channelName = $channelCode ?: 'Paynamics';
+
+        if ($channelCode) {
+            try {
+                $channelName = getPaynamicsPChannel($channelCode, true);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        $defaultMessage = match ($state) {
+            'success' => 'Payment successfully confirmed.',
+            'pending' => 'Your payment is pending confirmation.',
+            'cancelled' => 'The Paynamics payment was cancelled. No payment was confirmed.',
+            default => 'Paynamics could not confirm this payment.',
+        };
+        $providerMessage = trim((string) data_get($transaction, 'response_message'));
+
+        return [
+            'state' => $state,
+            'request_id' => $deposit->trx,
+            'response_code' => data_get($transaction, 'response_code'),
+            'message' => $state === 'cancelled' ? $defaultMessage : ($providerMessage ?: $defaultMessage),
+            'advice' => data_get($transaction, 'response_advise'),
+            'pay_reference' => data_get($transaction, 'pay_reference') ?: $deposit->pay_reference,
+            'payment_channel' => $channelName,
+            'payment_channel_code' => $channelCode,
+            'timestamp' => data_get($transaction, 'timestamp') ?: now()->format('M d, Y h:i A'),
+            'instructions' => data_get($transaction, 'direct_otc_info.0.pay_instructions'),
+            'amount' => (float) $deposit->final_amount,
+        ];
+    }
+
+    private function bookingLayout(BookedTicket $ticket): string
+    {
+        if ($ticket->isKioskBooking()) {
+            return 'layouts.kiosk';
+        }
+
+        return auth()->check() ? 'layouts.master' : 'layouts.frontend';
+    }
+
+    private function callbackUnavailable(string $state)
+    {
+        $callbackState = $state === 'cancelled' ? 'cancelled' : 'failed';
+        $callbackDetails = [
+            'state' => $callbackState,
+            'request_id' => request('request_id'),
+            'response_code' => request('response_code'),
+            'message' => 'We could not locate this payment transaction. Please return to the booking page or ask the cashier for assistance.',
+            'advice' => null,
+            'pay_reference' => request('pay_reference'),
+            'payment_channel' => 'Paynamics',
+            'payment_channel_code' => null,
+            'timestamp' => now()->format('M d, Y h:i A'),
+            'instructions' => null,
+            'amount' => null,
+        ];
+        $ticket = null;
+        $deposit = null;
+        $transaction = null;
+        $layout = 'layouts.frontend';
+        $pageTitle = $callbackState === 'cancelled' ? 'Payment Cancelled' : 'Payment Response';
+
+        return view('templates/basic/user/payment/response/paynamics', compact(
+            'ticket',
+            'deposit',
+            'transaction',
+            'callbackDetails',
+            'callbackState',
+            'pageTitle',
+            'layout'
+        ));
     }
 
     public function getPaymentDetails($request_id)
