@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
-use App\Lib\BusLayout;
+use App\Models\AdminSeatLock;
 use App\Models\AssignedVehicle;
 use App\Models\BookedTicket;
 use Illuminate\Http\Request;
@@ -16,6 +16,7 @@ use App\Models\Trip;
 use App\Models\Vehicle;
 use App\Services\ScheduleBoardBroadcaster;
 use App\Services\AdminSeatLockService;
+use App\Services\SeatLayoutService;
 use App\Services\TicketPassengerResolver;
 use App\Models\UserRole;
 use Carbon\Carbon;
@@ -248,8 +249,8 @@ class ManageTripController extends Controller
         }
 
         // 2. Dynamic Sorting
-        $sortField = $request->get('sort_field', 'id'); // Default sort field
-        $sortOrder = $request->get('sort_order', 'desc'); // Default sort order
+        $sortField = $request->get('sort_field', 'start_from'); // Default sort field
+        $sortOrder = $request->get('sort_order', 'asc'); // Default sort order
 
         // Define allowable sort fields to prevent SQL injection (Duration is computed in Blade, so we don't sort by it via SQL)
         $allowedSorts = ['start_from', 'end_at', 'status', 'id'];
@@ -288,7 +289,14 @@ class ManageTripController extends Controller
             'end_at' => 'required',
         ]);
 
-        $check = Schedule::where('start_from', Carbon::parse($request->start_from)->format('H:i:s'))->where('end_at', Carbon::parse($request->end_at)->format('H:i:s'))->first();
+        $startFrom = Carbon::parse($request->start_from)->format('H:i:s');
+        $endAt = Carbon::parse($request->end_at)->format('H:i:s');
+        $check = Schedule::query()
+            ->where('start_from', $startFrom)
+            ->where('end_at', $endAt)
+            ->when($id, fn ($query) => $query->whereKeyNot($id))
+            ->exists();
+
         if ($check) {
             $notify[] = ['error', 'This schedule has already added'];
             return redirect()->back()->withNotify($notify);
@@ -302,8 +310,8 @@ class ManageTripController extends Controller
             $message = 'Schedule created successfully';
         }
 
-        $schedule->start_from = $request->start_from;
-        $schedule->end_at = $request->end_at;
+        $schedule->start_from = $startFrom;
+        $schedule->end_at = $endAt;
         $schedule->save();
 
         $notify[] = ['success', $message];
@@ -394,10 +402,17 @@ class ManageTripController extends Controller
 
     public function tripStore(Request $request, $id = 0)
     {
+        $request->merge([
+            'online_booking_enabled' => $request->boolean('online_booking_enabled'),
+            'kiosk_booking_enabled' => $request->boolean('kiosk_booking_enabled'),
+        ]);
+
         $request->validate([
             'schedule_id' => 'required|integer|gt:0',
             'vehicle_route_id' => 'required|integer|gt:0',
             'fleet_type_id' => 'required|integer|gt:0',
+            'online_booking_enabled' => 'required|boolean',
+            'kiosk_booking_enabled' => 'required|boolean',
         ]);
 
         $route = VehicleRoute::findOrFail($request->vehicle_route_id);
@@ -421,6 +436,8 @@ class ManageTripController extends Controller
         $trip->schedule_id = $request->schedule_id;
         $trip->start_from = $route->start_from;
         $trip->end_to = $route->end_to;
+        $trip->online_booking_enabled = $request->boolean('online_booking_enabled');
+        $trip->kiosk_booking_enabled = $request->boolean('kiosk_booking_enabled');
         $trip->save();
 
         $notify[] = ['success', $message];
@@ -593,7 +610,7 @@ class ManageTripController extends Controller
         ]);
     }
 
-    public function manifestSeatLayout(Request $request, $trip_id)
+    public function manifestSeatLayout(Request $request, $trip_id, SeatLayoutService $seatLayoutService)
     {
         $request->validate([
             'date_of_journey' => 'nullable|date',
@@ -624,6 +641,8 @@ class ManageTripController extends Controller
         foreach ($bookings as $booking) {
             foreach ($booking->activeSlipSeriesNumbers as $slip) {
                 $passenger = $this->passengerResolver->forSeat($booking, (string) $slip->seat);
+                $seatId = $seatLayoutService->canonicalSeatId($trip->fleetType, (string) $slip->seat)
+                    ?: strtoupper(trim((string) $slip->seat));
                 $haystack = strtolower(implode(' ', [
                     $slip->seat,
                     $slip->id,
@@ -631,8 +650,8 @@ class ManageTripController extends Controller
                     $passenger['type'],
                     $passenger['id_number'],
                 ]));
-                $seatManifest->put($slip->seat, [
-                    'seat' => $slip->seat,
+                $seatManifest->put($seatId, [
+                    'seat' => $seatId,
                     'passenger_name' => $passenger['name'],
                     'passenger_type' => $passenger['type'],
                     'passenger_id' => $passenger['id_number'],
@@ -645,19 +664,49 @@ class ManageTripController extends Controller
             }
         }
 
-        $manifestDecks = $this->manifestDecks($trip->fleetType);
-        $capacity = collect($manifestDecks)
-            ->flatten(1)
-            ->where('type', 'seat')
-            ->count();
-        $disabled = array_values((array) ($trip->fleetType->disabled_seats ?? []));
+        $lockedSeats = AdminSeatLock::query()
+            ->active()
+            ->where('trip_id', $trip->id)
+            ->whereDate('date_of_journey', $date)
+            ->with('lockAuthorizedBy:id,name,username')
+            ->get()
+            ->mapWithKeys(function (AdminSeatLock $lock) use ($trip, $seatLayoutService) {
+                $seatId = $seatLayoutService->canonicalSeatId($trip->fleetType, $lock->seat_no);
+
+                if (!$seatId) {
+                    return [];
+                }
+
+                $authorizedBy = $lock->lockAuthorizedBy?->name
+                    ?: $lock->lockAuthorizedBy?->username;
+
+                return [$seatId => [
+                    'seat' => $seatId,
+                    'reason' => $lock->reason,
+                    'authorized_by' => $authorizedBy,
+                ]];
+            });
+
+        $disabled = $seatLayoutService->disabledSeatIds($trip->fleetType);
+        $manifestLayout = $seatLayoutService->layout($trip->fleetType, [
+            'booked' => $seatManifest->where('blocked', false)->keys()->all(),
+            'pending' => $seatManifest->where('blocked', true)->keys()->all(),
+            'locked' => $lockedSeats->keys()->all(),
+        ]);
+        $capacity = count($manifestLayout['seat_ids']);
         $bookedCount = $seatManifest->where('blocked', false)->count();
         $blockedCount = $seatManifest->where('blocked', true)->count();
+        $unavailableCount = $seatManifest->keys()
+            ->merge($lockedSeats->keys())
+            ->merge($disabled)
+            ->unique()
+            ->count();
         $stats = [
             'capacity' => $capacity,
             'booked' => $bookedCount,
             'blocked' => $blockedCount,
-            'vacant' => max($capacity - $bookedCount - $blockedCount - count($disabled), 0),
+            'locked' => $lockedSeats->count(),
+            'vacant' => max($capacity - $unavailableCount, 0),
             'discounted' => $seatManifest->filter(fn ($seat) => str_contains(strtolower($seat['passenger_type']), 'senior')
                 || str_contains(strtolower($seat['passenger_type']), 'pwd'))->count(),
             'matches' => $seatManifest->where('matches', true)->count(),
@@ -668,71 +717,11 @@ class ManageTripController extends Controller
             'date' => $date,
             'search' => $search,
             'seatManifest' => $seatManifest,
-            'manifestDecks' => $manifestDecks,
+            'lockedSeats' => $lockedSeats,
+            'manifestLayout' => $manifestLayout,
             'disabledSeats' => $disabled,
             'stats' => $stats,
         ]);
-    }
-
-    private function manifestDecks($fleetType): array
-    {
-        $layout = array_map('intval', explode('x', str_replace(' ', '', (string) $fleetType->seat_layout)));
-        $left = $layout[0] ?? 0;
-        $center = count($layout) === 3 ? ($layout[1] ?? 0) : 0;
-        $right = count($layout) === 2 ? ($layout[1] ?? 0) : ($layout[2] ?? 0);
-        $seatsPerRow = $left + $center + $right;
-        $crOffset = match (strtolower((string) $fleetType->cr_position)) {
-            'left' => $left > 0 ? 1 : null,
-            'center' => $center > 0 ? $left + 1 : null,
-            'right' => $right > 0 ? $left + $center + 1 : null,
-            default => null,
-        };
-        $crSlot = $seatsPerRow > 0 && $crOffset && (int) $fleetType->cr_row > 0
-            ? (((int) $fleetType->cr_row - 1) * $seatsPerRow) + $crOffset
-            : null;
-        $prefixes = array_values((array) ($fleetType->prefixes ?? []));
-        $decks = [];
-
-        foreach (array_values((array) $fleetType->deck_seats) as $deckIndex => $seatCount) {
-            $prefix = (string) ($prefixes[$deckIndex] ?? '');
-            $cells = [];
-
-            for ($number = 1; $number <= (int) $seatCount; $number++) {
-                $label = $prefix . $number;
-                $cells[] = [
-                    'type' => 'seat',
-                    'label' => $label,
-                    'seat_id' => ($deckIndex + 1) . '-' . $label,
-                ];
-            }
-
-            if ($deckIndex === 0 && $crSlot && $crSlot <= (int) $seatCount) {
-                $crCell = ['type' => 'cr', 'label' => 'CR', 'seat_id' => null];
-
-                if ($fleetType->cr_override_seat) {
-                    $coveredRows = max((int) $fleetType->cr_row_covered, 1);
-                    $coveredSlots = [];
-                    for ($row = 0; $row < $coveredRows; $row++) {
-                        $coveredSlot = $crSlot + ($row * $seatsPerRow);
-                        if ($coveredSlot <= (int) $seatCount) {
-                            $coveredSlots[] = $coveredSlot;
-                        }
-                    }
-
-                    rsort($coveredSlots);
-                    foreach ($coveredSlots as $coveredSlot) {
-                        array_splice($cells, $coveredSlot - 1, 1);
-                    }
-                    array_splice($cells, $crSlot - 1, 0, [$crCell]);
-                } else {
-                    array_splice($cells, $crSlot - 1, 0, [$crCell]);
-                }
-            }
-
-            $decks[] = $cells;
-        }
-
-        return $decks;
     }
 
     public function changeAllStatus(Request $request)

@@ -89,9 +89,12 @@
                                     'Refunded' => 'refunded',
                                     'Seat Locked' => 'seat-locked',
                                     'Seat Unlocked' => 'seat-unlocked',
+                                    'Authorization Failed' => 'authorization-failed',
                                     default => 'neutral',
                                 };
                                 $isSeatLockEvent = data_get($transaction->snapshot, 'audit_type') === 'admin_seat_lock';
+                                $isAuthorizationAttempt = data_get($transaction->snapshot, 'audit_type') === 'transaction_authorization';
+                                $authorization = data_get($transaction->snapshot, 'authorization');
                                 $amount = (float) $transaction->amount;
                                 if (in_array($transaction->status, ['Rebooked', 'Cancelled'], true) && abs($amount) < 0.01) {
                                     $amount = max((float) $transaction->base_fare - (float) $transaction->discount_amount, 0);
@@ -111,6 +114,9 @@
                                     @if ($isSeatLockEvent)
                                         <strong>Seat {{ formatSeatLabel($transaction->seat_no) }}</strong>
                                         <small>Administrative seat control</small>
+                                    @elseif ($isAuthorizationAttempt)
+                                        <strong>{{ data_get($transaction->snapshot, 'transaction_type', 'Transaction Authorization') }}</strong>
+                                        <small>Authorization attempt</small>
                                     @else
                                         <strong>{{ $transaction->passenger_name ?: 'Guest' }}</strong>
                                         <small>
@@ -122,7 +128,7 @@
                                     @endif
                                 </td>
                                 <td data-label="Amount" class="text-end audit-amount {{ $amount < 0 ? 'audit-amount--negative' : '' }}">
-                                    @if ($isSeatLockEvent)
+                                    @if ($isSeatLockEvent || $isAuthorizationAttempt)
                                         -
                                     @else
                                         {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
@@ -160,6 +166,26 @@
                                     @if ($isSeatLockEvent)
                                         <small class="audit-details__authorization">
                                             Authorized by {{ data_get($transaction->snapshot, 'authorized_by_name', 'Unknown personnel') }}
+                                        </small>
+                                    @endif
+                                    @if ($authorization)
+                                        <small class="audit-details__authorization">
+                                            Authorized by {{ data_get($authorization, 'authorized_by_name', 'Unknown personnel') }}
+                                            &middot; Code owner {{ data_get($authorization, 'authorization_code_owner_name', 'Unknown personnel') }}
+                                            @if (data_get($authorization, 'authorized_at'))
+                                                &middot; {{ \Carbon\Carbon::parse(data_get($authorization, 'authorized_at'))->format('M j, Y h:i A') }}
+                                            @endif
+                                        </small>
+                                        @if (data_get($authorization, 'approval_remarks'))
+                                            <small class="audit-details__reason">
+                                                Approval remarks: {{ data_get($authorization, 'approval_remarks') }}
+                                            </small>
+                                        @endif
+                                    @endif
+                                    @if ($isAuthorizationAttempt)
+                                        <small class="audit-details__authorization audit-details__authorization--failed">
+                                            {{ data_get($transaction->snapshot, 'failure', 'Authorization rejected') }}
+                                            &middot; Code owner {{ data_get($transaction->snapshot, 'authorization_code_owner_name', 'Not identified') }}
                                         </small>
                                     @endif
                                 </td>
@@ -370,6 +396,16 @@
             background: #faf5ff;
             border-color: #e9d5ff;
             color: #7e22ce;
+        }
+
+        .audit-status--authorization-failed {
+            background: #fff1f2;
+            border-color: #fecdd3;
+            color: #be123c;
+        }
+
+        .audit-details__authorization--failed {
+            color: #be123c;
         }
 
         .audit-status--seat-locked {

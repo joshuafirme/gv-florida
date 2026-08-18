@@ -3,11 +3,11 @@
 @section('panel')
     @php
         $metricUi = [
-            'sold' => ['title' => 'Booked / Sold', 'icon' => 'la-ticket-alt', 'class' => 'sold'],
-            'rebooked' => ['title' => 'Rebooked', 'icon' => 'la-exchange-alt', 'class' => 'rebooked'],
-            'refunded' => ['title' => 'Refunded', 'icon' => 'la-undo-alt', 'class' => 'refunded'],
-            'voided' => ['title' => 'Voided', 'icon' => 'la-ban', 'class' => 'voided'],
-            'cancelled' => ['title' => 'Cancelled', 'icon' => 'la-times-circle', 'class' => 'cancelled'],
+            'sold' => ['title' => 'Booked / Sold', 'icon' => 'la-ticket-alt', 'class' => 'sold', 'route' => 'admin.vehicle.ticket.booked'],
+            'rebooked' => ['title' => 'Rebooked', 'icon' => 'la-exchange-alt', 'class' => 'rebooked', 'route' => 'admin.vehicle.ticket.rebooked'],
+            'refunded' => ['title' => 'Refunded', 'icon' => 'la-undo-alt', 'class' => 'refunded', 'route' => 'admin.vehicle.ticket.refunded'],
+            'voided' => ['title' => 'Voided', 'icon' => 'la-ban', 'class' => 'voided', 'route' => 'admin.vehicle.ticket.voided'],
+            'cancelled' => ['title' => 'Cancelled', 'icon' => 'la-times-circle', 'class' => 'cancelled', 'route' => 'admin.vehicle.ticket.cancelled'],
         ];
     @endphp
 
@@ -34,7 +34,9 @@
     <div class="cashier-metrics">
         @foreach ($metricUi as $key => $ui)
             @php $metric = $statusMetrics[$key]; @endphp
-            <article class="cashier-metric cashier-metric--{{ $ui['class'] }}">
+            <a href="{{ route($ui['route']) }}"
+                class="cashier-metric cashier-metric--{{ $ui['class'] }}"
+                aria-label="Open {{ $ui['title'] }} tickets">
                 <div class="cashier-metric__icon"><i class="las {{ $ui['icon'] }}"></i></div>
                 <div>
                     <span>{{ $ui['title'] }}</span>
@@ -43,7 +45,8 @@
                         {{ in_array($key, ['refunded', 'voided']) ? '-' : '' }}{{ showAmount($metric['amount']) }}
                     </small>
                 </div>
-            </article>
+                <i class="las la-angle-right cashier-metric__arrow" aria-hidden="true"></i>
+            </a>
         @endforeach
     </div>
 
@@ -183,6 +186,22 @@
             gap: 12px;
             min-height: 104px;
             padding: 16px;
+            position: relative;
+            text-decoration: none;
+            transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+        }
+
+        .cashier-metric:hover,
+        .cashier-metric:focus-visible {
+            border-color: #d92378;
+            box-shadow: 0 6px 18px rgba(26, 32, 44, .09);
+            text-decoration: none;
+            transform: translateY(-1px);
+        }
+
+        .cashier-metric:focus-visible {
+            outline: 2px solid #d92378;
+            outline-offset: 2px;
         }
 
         .cashier-metric__icon {
@@ -210,6 +229,17 @@
             display: block;
             font-weight: 700;
             margin-top: 5px;
+        }
+
+        .cashier-metric__arrow {
+            color: #9aa1ad;
+            font-size: 14px;
+            margin-left: auto;
+        }
+
+        .cashier-metric:hover .cashier-metric__arrow,
+        .cashier-metric:focus-visible .cashier-metric__arrow {
+            color: #d92378;
         }
 
         .cashier-metric--rebooked .cashier-metric__icon { background: #eaf5ff; color: #1478b8; }

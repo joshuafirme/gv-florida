@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('cashier_transaction_events', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('admin_id')->constrained('admins');
+            $table->foreignId('admin_id')->nullable()->constrained('admins');
             $table->unsignedBigInteger('booked_ticket_id')->nullable()->index();
             $table->unsignedBigInteger('slip_series_number_id')->nullable()->index();
             $table->unsignedBigInteger('deposit_id')->nullable()->index();

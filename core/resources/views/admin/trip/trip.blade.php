@@ -145,40 +145,50 @@
                                             </td>
 
                                             <td>
-                                                <div class="button--group">
+                                                <div class="trip-action-group">
                                                     <button type="button"
-                                                        class="btn btn-sm btn-outline--primary cuModalBtn"
+                                                        class="btn btn-sm btn-outline--primary cuModalBtn trip-action-btn"
                                                         data-resource="{{ $item }}"
-                                                        data-modal_title="@lang('Edit Trip')">
-                                                        <i class="la la-pencil"></i>@lang('Edit')
+                                                        data-modal_title="@lang('Edit Trip')"
+                                                        data-bs-toggle="tooltip" data-bs-placement="top"
+                                                        title="@lang('Edit Trip')" aria-label="@lang('Edit Trip')">
+                                                        <i class="la la-pencil"></i>
                                                     </button>
 
-                                                    <button type="button" class="btn btn-sm btn-outline--info manifestDateBtn"
-                                                        data-manifest-url="{{ route('admin.trip.manifestSeatLayout', $item->id) }}">
-                                                        <i class="las la-clipboard-list"></i> Manifest
+                                                    <button type="button"
+                                                        class="btn btn-sm btn-outline--info manifestDateBtn trip-action-btn"
+                                                        data-manifest-url="{{ route('admin.trip.manifestSeatLayout', $item->id) }}"
+                                                        data-bs-toggle="tooltip" data-bs-placement="top"
+                                                        title="@lang('Open Manifest')" aria-label="@lang('Open Manifest')">
+                                                        <i class="las la-clipboard-list"></i>
                                                     </button>
 
                                                     @if ($canManageSeatLocks)
                                                         <a href="{{ route('admin.trip.seat-locks.index', $item->id) }}"
-                                                            class="btn btn-sm btn-outline--warning"
-                                                            title="Manage administrative seat locks">
-                                                            <i class="las la-lock"></i> Seats
+                                                            class="btn btn-sm btn-outline--warning trip-action-btn"
+                                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                                            title="@lang('Manage Seat Locks')" aria-label="@lang('Manage Seat Locks')">
+                                                            <i class="las la-lock"></i>
                                                         </a>
                                                     @endif
 
                                                     @if (!$item->status)
                                                         <button type="button"
-                                                            class="btn btn-sm btn-outline--success confirmationBtn"
+                                                            class="btn btn-sm btn-outline--success confirmationBtn trip-action-btn"
                                                             data-action="{{ route('admin.trip.status', $item->id) }}"
-                                                            data-question="@lang('Are you sure you want to enable this trip?')">
-                                                            <i class="la la-eye"></i>@lang('Enable')
+                                                            data-question="@lang('Are you sure you want to enable this trip?')"
+                                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                                            title="@lang('Enable Trip')" aria-label="@lang('Enable Trip')">
+                                                            <i class="la la-eye"></i>
                                                         </button>
                                                     @else
                                                         <button type="button"
-                                                            class="btn btn-sm btn-outline--danger confirmationBtn"
+                                                            class="btn btn-sm btn-outline--danger confirmationBtn trip-action-btn"
                                                             data-action="{{ route('admin.trip.status', $item->id) }}"
-                                                            data-question="@lang('Are you sure you want to disable this trip?')">
-                                                            <i class="la la-eye-slash"></i>@lang('Disable')
+                                                            data-question="@lang('Are you sure you want to disable this trip?')"
+                                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                                            title="@lang('Disable Trip')" aria-label="@lang('Disable Trip')">
+                                                            <i class="la la-eye-slash"></i>
                                                         </button>
                                                     @endif
                                                 </div>
@@ -286,6 +296,50 @@
                                         @endforeach
                                     </select>
                                 </div>
+
+                                <div class="col-12">
+                                    <div class="booking-channel-section">
+                                        <label class="booking-channel-heading">@lang('Booking Channels')</label>
+                                        <div class="booking-channel-controls">
+                                            <div class="booking-channel-control">
+                                                <div class="booking-channel-name">
+                                                    <i class="las la-globe"></i>
+                                                    <span>@lang('Online Booking')</span>
+                                                </div>
+                                                <div class="booking-channel-switch">
+                                                    <span class="booking-channel-state"
+                                                        data-channel-state="online_booking_enabled">@lang('Enabled')</span>
+                                                    <input type="hidden" name="online_booking_enabled" value="1">
+                                                    <div class="form-check form-switch m-0">
+                                                        <input type="checkbox"
+                                                            class="form-check-input booking-channel-toggle"
+                                                            id="onlineBookingEnabled"
+                                                            data-channel-field="online_booking_enabled"
+                                                            checked aria-label="@lang('Online Booking')">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="booking-channel-control">
+                                                <div class="booking-channel-name">
+                                                    <i class="las la-desktop"></i>
+                                                    <span>@lang('Kiosk Booking')</span>
+                                                </div>
+                                                <div class="booking-channel-switch">
+                                                    <span class="booking-channel-state"
+                                                        data-channel-state="kiosk_booking_enabled">@lang('Enabled')</span>
+                                                    <input type="hidden" name="kiosk_booking_enabled" value="1">
+                                                    <div class="form-check form-switch m-0">
+                                                        <input type="checkbox"
+                                                            class="form-check-input booking-channel-toggle"
+                                                            id="kioskBookingEnabled"
+                                                            data-channel-field="kiosk_booking_enabled"
+                                                            checked aria-label="@lang('Kiosk Booking')">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Dynamic Fare Preview -->
@@ -330,6 +384,94 @@
 
     @push('style')
         <style>
+            .trip-action-group {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            .trip-action-btn {
+                align-items: center;
+                display: inline-flex;
+                height: 34px;
+                justify-content: center;
+                padding: 0;
+                width: 34px;
+            }
+
+            .trip-action-btn i {
+                font-size: 17px;
+                margin: 0;
+            }
+
+            .booking-channel-section {
+                border-top: 1px solid #e5e7eb;
+                padding-top: 18px;
+            }
+
+            .booking-channel-heading {
+                color: #303642;
+                display: block;
+                font-size: 13px;
+                font-weight: 700;
+                margin-bottom: 6px;
+            }
+
+            .booking-channel-controls {
+                display: grid;
+                gap: 0 24px;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .booking-channel-control {
+                align-items: center;
+                border-bottom: 1px solid #edf0f3;
+                display: flex;
+                justify-content: space-between;
+                min-height: 50px;
+            }
+
+            .booking-channel-name,
+            .booking-channel-switch {
+                align-items: center;
+                display: flex;
+                gap: 8px;
+            }
+
+            .booking-channel-name {
+                color: #303642;
+                font-size: 13px;
+                font-weight: 600;
+            }
+
+            .booking-channel-name i {
+                color: #df2a82;
+                font-size: 18px;
+            }
+
+            .booking-channel-state {
+                color: #17834c;
+                font-size: 11px;
+                font-weight: 700;
+            }
+
+            .booking-channel-state.is-disabled {
+                color: #8a919e;
+            }
+
+            .booking-channel-control .form-check-input {
+                cursor: pointer;
+                height: 20px;
+                margin: 0;
+                width: 38px;
+            }
+
+            @media (max-width: 575px) {
+                .booking-channel-controls {
+                    grid-template-columns: 1fr;
+                }
+            }
+
             /* Dark Theme Modal Scoped Styles */
             .dark-trip-modal {
                 background-color: #1a1a1a;
@@ -440,8 +582,30 @@
                 // Attach listeners
                 $('#vehicle_route_id, #fleet_type_id').on('change', renderFarePreview);
 
+                function setBookingChannel(field, enabled) {
+                    const isEnabled = Boolean(enabled);
+                    $(`input[type="hidden"][name="${field}"]`).val(isEnabled ? '1' : '0');
+                    $(`.booking-channel-toggle[data-channel-field="${field}"]`).prop('checked', isEnabled);
+                    $(`[data-channel-state="${field}"]`)
+                        .toggleClass('is-disabled', !isEnabled)
+                        .text(isEnabled ? @json(__('Enabled')) : @json(__('Disabled')));
+                }
+
+                $('.booking-channel-toggle').on('change', function() {
+                    setBookingChannel($(this).data('channel-field'), $(this).is(':checked'));
+                });
+
                 // Delay to allow cuModal to auto-select fields on Edit, then fire preview
                 $('.cuModalBtn').on('click', function() {
+                    const resource = $(this).data('resource') || null;
+                    setBookingChannel(
+                        'online_booking_enabled',
+                        resource ? Number(resource.online_booking_enabled) === 1 : true
+                    );
+                    setBookingChannel(
+                        'kiosk_booking_enabled',
+                        resource ? Number(resource.kiosk_booking_enabled) === 1 : true
+                    );
                     setTimeout(renderFarePreview, 100);
                 });
 

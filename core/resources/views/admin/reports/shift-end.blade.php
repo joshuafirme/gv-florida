@@ -2,12 +2,12 @@
 
 @section('panel')
     <div class="shift-report-card">
-        <header class="shift-report-header">
-            <div class="shift-report-brand">{{ strtoupper(gs('site_name') ?: 'GV FLORIDA TRANSPORT, INC.') }}</div>
-            <h2>Shift End Report</h2>
-            <p>Generated: {{ now()->format('F j, Y h:i A') }}</p>
-            <strong>{{ $admin->name }} &middot; {{ $date->format('l, F j, Y') }}</strong>
-        </header>
+        @include('admin.partials.report-document-header', [
+            'reportTitle' => 'Shift End Report',
+            'reportDate' => $date,
+            'reportDateLabel' => 'Shift date',
+            'reportSubject' => 'Cashier: ' . $admin->name,
+        ])
 
         <section class="shift-report-section">
             <h3>Summary</h3>
@@ -49,6 +49,21 @@
             <h3>Detail &middot; Transactions</h3>
             <div class="table-responsive shift-detail-scroll">
                 <table class="shift-detail-table">
+                    <colgroup>
+                        <col style="width: 8.5%">
+                        <col style="width: 4%">
+                        <col style="width: 6.5%">
+                        <col style="width: 6%">
+                        <col style="width: 8.5%">
+                        <col style="width: 7.5%">
+                        <col style="width: 10%">
+                        <col style="width: 4.5%">
+                        <col style="width: 6.5%">
+                        <col style="width: 6.5%">
+                        <col style="width: 7%">
+                        <col style="width: 5%">
+                        <col style="width: 19.5%">
+                    </colgroup>
                     <thead>
                         <tr>
                             <th>Transaction Date &amp; Time</th>
@@ -56,7 +71,7 @@
                             <th>PNR</th>
                             <th>Reference No.</th>
                             <th>Passenger</th>
-                            <th>Journey</th>
+                            <th>Departure</th>
                             <th>Trip</th>
                             <th>Seat No.</th>
                             <th>Drop-Off</th>
@@ -85,8 +100,8 @@
                                     <small>{{ $transaction->processed_at->format('h:i A') }}</small>
                                 </td>
                                 <td>{{ $transaction->source ?: '-' }}</td>
-                                <td><strong class="shift-pnr">{{ $transaction->pnr ?: '-' }}</strong></td>
-                                <td class="shift-reference">{{ $transaction->reference_no ?: '-' }}</td>
+                                <td>{{ $transaction->pnr ?: '-' }}</td>
+                                <td><strong class="shift-pnr">{{ $transaction->reference_no ?: '-' }}</strong></td>
                                 <td>
                                     <strong>{{ $transaction->passenger_name ?: 'Guest' }}</strong>
                                     <small>
@@ -116,7 +131,7 @@
                                     {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
                                 </td>
                                 <td><span class="shift-status shift-status--{{ $statusClass }}">{{ $transaction->status }}</span></td>
-                                <td>{{ $transaction->reason ?: '-' }}</td>
+                                <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                             </tr>
                         @empty
                             <tr>
@@ -148,9 +163,10 @@
             <input type="date" name="date" value="{{ $date->format('Y-m-d') }}" max="{{ now()->format('Y-m-d') }}"
                 aria-label="Shift date">
         </form>
-        <button type="button" class="btn btn--primary" onclick="window.print()">
+        <a class="btn btn--primary" target="_blank"
+            href="{{ route('admin.report.shift.end.pdf', ['date' => $date->format('Y-m-d')]) }}">
             <i class="las la-print"></i> Print Shift Report
-        </button>
+        </a>
     </div>
 @endpush
 
@@ -186,51 +202,21 @@
         }
 
         .shift-report-card {
-            padding: 42px 28px 24px;
+            padding: 18px 20px;
             background: #fff;
             border: 1px solid #e1e3e8;
             border-radius: 8px;
             color: #222936;
         }
 
-        .shift-report-header {
-            margin-bottom: 25px;
-        }
-
-        .shift-report-brand {
-            margin-bottom: 34px;
-            color: #10131a;
-            font-size: 15px;
-            font-weight: 700;
-            text-align: center;
-        }
-
-        .shift-report-header h2 {
-            margin: 0 0 5px;
-            color: #d92378;
-            font-size: 20px;
-            font-weight: 700;
-        }
-
-        .shift-report-header p,
-        .shift-report-header strong {
-            display: block;
-            margin: 0 0 6px;
-            color: #5f6674;
-            font-size: 11px;
-        }
-
-        .shift-report-header strong {
-            color: #303642;
-            font-weight: 500;
-        }
+        @include('admin.partials.report-document-header-styles')
 
         .shift-report-section {
-            margin-top: 22px;
+            margin-top: 14px;
         }
 
         .shift-report-section h3 {
-            margin: 0 0 8px;
+            margin: 0 0 5px;
             color: #303642;
             font-size: 12px;
             font-weight: 700;
@@ -246,7 +232,7 @@
 
         .shift-summary-table th,
         .shift-detail-table th {
-            padding: 7px 8px;
+            padding: 4px 5px;
             color: #fff;
             background: #d92378;
             border: 1px solid #e26ba1;
@@ -256,13 +242,20 @@
 
         .shift-summary-table td,
         .shift-detail-table td {
-            padding: 7px 8px;
+            padding: 4px 5px;
             border: 1px solid #dfe2e7;
+            line-height: 1.2;
             vertical-align: top;
         }
 
         .shift-detail-table {
             min-width: 1500px;
+            table-layout: fixed;
+        }
+
+        .shift-detail-table th,
+        .shift-detail-table td {
+            overflow-wrap: anywhere;
         }
 
         .shift-detail-table tbody tr:nth-child(even) {
@@ -271,10 +264,18 @@
 
         .shift-detail-table td small {
             display: block;
-            margin-top: 3px;
+            margin-top: 1px;
             color: #78808e;
             font-size: 9px;
-            line-height: 1.35;
+            line-height: 1.15;
+        }
+
+        .transaction-reason span {
+            display: block;
+        }
+
+        .transaction-reason span + span {
+            margin-top: 2px;
         }
 
         .shift-detail-table tfoot td {
@@ -283,6 +284,7 @@
 
         .shift-pnr {
             color: #d92378;
+            font-size: 12px;
         }
 
         .shift-reference {
@@ -300,7 +302,7 @@
 
         .shift-status {
             display: inline-flex;
-            padding: 3px 6px;
+            padding: 2px 4px;
             border: 1px solid;
             border-radius: 4px;
             font-size: 9px;
@@ -320,7 +322,7 @@
         }
 
         .shift-report-footer {
-            margin-top: 18px;
+            margin-top: 12px;
             color: #8a919e;
             font-size: 9px;
         }
@@ -338,14 +340,14 @@
             }
 
             .shift-report-card {
-                padding: 26px 14px 20px;
+                padding: 16px 14px;
             }
         }
 
         @media print {
             @page {
-                size: landscape;
-                margin: 8mm;
+                size: legal landscape;
+                margin: 6mm;
             }
 
             body {
@@ -373,28 +375,51 @@
                 border: 0;
             }
 
+            .shift-report-section {
+                margin-top: 7px;
+            }
+
+            .shift-report-section h3 {
+                margin-bottom: 3px;
+                font-size: 8px;
+            }
+
             .shift-detail-scroll {
                 overflow: visible !important;
             }
 
             .shift-detail-table {
                 min-width: 0;
-                font-size: 7px;
+                font-size: 6.5px;
             }
 
             .shift-summary-table {
-                font-size: 8px;
+                font-size: 7px;
             }
 
             .shift-summary-table th,
             .shift-summary-table td,
             .shift-detail-table th,
             .shift-detail-table td {
-                padding: 4px;
+                padding: 2px 3px;
+                line-height: 1.1;
+            }
+
+            .shift-detail-table th {
+                white-space: normal;
             }
 
             .shift-detail-table td small,
             .shift-status {
+                font-size: 5.5px;
+            }
+
+            .shift-status {
+                padding: 1px 2px;
+            }
+
+            .shift-report-footer {
+                margin-top: 6px;
                 font-size: 6px;
             }
         }

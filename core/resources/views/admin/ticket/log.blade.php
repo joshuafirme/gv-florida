@@ -176,8 +176,9 @@
                                                     class="btn btn-sm btn-outline--primary ms-1">
                                                     <i class="fa-solid fa-receipt"></i>
                                                 </a>
+                                            @endif
 
-                                                {{-- @if (Carbon::parse($item->date_of_journey)->greaterThan(now()) && !$item->is_rebooked) --}}
+                                            @if (in_array((int) $item->status, [Status::BOOKED_APPROVED, Status::BOOKED_PENDING], true))
                                                 @php
                                                     $rebookOptionsUrl = $ticketSlip
                                                         ? route('admin.trip.ticket.rebook.options', [$item->id, 'slip_id' => $ticketSlip->id])
@@ -188,10 +189,12 @@
                                                     class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"
                                                     data-id="{{ $ticketSlip?->id ?? $item->id }}"
                                                     data-options-url="{{ $rebookOptionsUrl }}">
-                                                     <i class="fa-solid fa-calendar-day"></i>
-                                                 </button>
-                                                 @if ($ticketSlip)
-                                                     <button type="button" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                      <i class="fa-solid fa-calendar-day"></i>
+                                                  </button>
+                                            @endif
+
+                                            @if ($item->status == Status::BOOKED_APPROVED && $ticketSlip)
+                                                      <button type="button" data-bs-toggle="tooltip" data-bs-placement="bottom"
                                                          title="Refund Ticket"
                                                          class="btn btn-sm btn-outline--warning ms-1 refund-ticket-btn"
                                                          data-refund-url="{{ route('admin.vehicle.ticket.refund.options', $ticketSlip->id) }}">
@@ -207,10 +210,8 @@
                                                          title="Void Ticket"
                                                          class="btn btn-sm btn-outline--danger ms-1 void-ticket-btn"
                                                          data-void-url="{{ route('admin.vehicle.ticket.void.options', $ticketSlip->id) }}">
-                                                         <i class="las la-ban"></i>
-                                                     </button>
-                                                 @endif
-                                                {{-- @endif --}}
+                                                          <i class="las la-ban"></i>
+                                                      </button>
                                             @endif
                                         </td>
                                     </tr>
@@ -275,6 +276,7 @@
                                 <span>Same trip and travel date</span>
                             </button>
                         </div>
+                        <div class="rebook-type-notice d-none" id="rebookTypeNotice"></div>
                     </div>
 
                     <div class="rebook-stage d-none" data-stage="selection">
@@ -323,6 +325,23 @@
                                 <span>Seat</span><span id="reviewBeforeSeat"></span><strong class="text--primary"
                                     id="reviewAfterSeat"></strong>
                             </div>
+                        </div>
+                        <div class="form-group mt-3 mb-0">
+                            <label for="rebookReason" class="rebook-label">Reason (optional)</label>
+                            <textarea id="rebookReason" class="form-control" rows="2" maxlength="1000"
+                                placeholder="Enter a correction or operational reason, if applicable."></textarea>
+                        </div>
+                        <div class="form-group mt-3 mb-0">
+                            <label for="rebookAuthorizationCode" class="rebook-label">Authorization Code</label>
+                            <input type="password" id="rebookAuthorizationCode" class="form-control"
+                                placeholder="Enter authorization code" autocomplete="new-password"
+                                autocapitalize="none" autocorrect="off" spellcheck="false"
+                                data-lpignore="true" data-1p-ignore>
+                        </div>
+                        <div class="form-group mt-3 mb-0">
+                            <label for="rebookApprovalRemarks" class="rebook-label">Approval Remarks (optional)</label>
+                            <textarea id="rebookApprovalRemarks" class="form-control" rows="2" maxlength="1000"
+                                placeholder="Enter authorization or approval notes, if applicable."></textarea>
                         </div>
                         <div class="rebook-success-alert mt-3">
                             <i class="las la-check"></i>
@@ -379,12 +398,10 @@
                         </div>
                         <small class="text-danger" id="refundAmountError"></small>
 
-                        <label class="refund-label mt-3">Reason</label>
+                        <label class="refund-label mt-3" for="refundReason">Reason for Refund</label>
                         <div id="refundReasonChips" class="refund-reason-chips"></div>
-
-                        <label class="refund-label mt-3" for="refundRemarks">Refund remarks / explanation</label>
-                        <textarea id="refundRemarks" class="form-control refund-textarea" rows="3"
-                            placeholder="Provide the reason for this refund…" maxlength="1000"></textarea>
+                        <textarea id="refundReason" class="form-control refund-textarea mt-2" rows="3"
+                            placeholder="Select a reason above or enter a custom reason..." maxlength="100"></textarea>
 
                         <label class="refund-label mt-3" for="refundAuthorizationCode">Authorization Code</label>
                         <input type="password" id="refundAuthorizationCode" class="form-control"
@@ -407,7 +424,6 @@
                             <div><span>PNR / Ticket</span><strong id="refundReviewTicket"></strong></div>
                             <div><span>Passenger / Seat</span><strong id="refundReviewPassenger"></strong></div>
                             <div><span>Reason</span><strong id="refundReviewReason"></strong></div>
-                            <div><span>Remarks</span><strong id="refundReviewRemarks"></strong></div>
                             <div><span>Original Fare</span><strong id="refundReviewFare"></strong></div>
                             <div class="refund-review-total"><span>Refund Amount</span><strong id="refundReviewAmount"></strong></div>
                         </div>
@@ -475,7 +491,9 @@
                             <label class="cancel-label" for="cancelAuthorizationCode">Authorization Code</label>
                             <div class="cancel-auth-input">
                                 <input type="password" id="cancelAuthorizationCode" class="form-control"
-                                    placeholder="Enter staff code" autocomplete="off">
+                                    placeholder="Enter staff code" value="" autocomplete="new-password"
+                                    autocapitalize="none" autocorrect="off" spellcheck="false"
+                                    data-lpignore="true" data-1p-ignore>
                                 <button type="button" id="toggleCancelCode" aria-label="Show authorization code">
                                     <i class="las la-eye"></i>
                                 </button>
@@ -537,12 +555,10 @@
                             <strong id="voidFare"></strong>
                         </div>
 
-                        <label class="cancel-label mt-3">Reason for Voiding</label>
+                        <label class="cancel-label mt-3" for="voidReason">Reason for Voiding</label>
                         <div id="voidReasonChips" class="cancel-reason-chips"></div>
-
-                        <label class="cancel-label mt-3" for="voidRemarks">Void remarks / explanation</label>
-                        <textarea id="voidRemarks" class="form-control cancel-textarea" rows="3"
-                            placeholder="Reason for voiding..." maxlength="1000"></textarea>
+                        <textarea id="voidReason" class="form-control cancel-textarea mt-2" rows="3"
+                            placeholder="Select a reason above or enter a custom reason..." maxlength="100"></textarea>
 
                         <div class="void-info-note mt-3">
                             <i class="las la-exclamation-circle"></i>
@@ -597,6 +613,9 @@
         .rebook-type-card span { color: #858a94; display: block; font-size: 10px; line-height: 1.35; margin-top: 6px; }
         .rebook-type-card:hover, .rebook-type-card.selected { background: #fff5f9; border-color: #e3196b; box-shadow: 0 0 0 1px #e3196b; }
         .rebook-type-card.selected i, .rebook-type-card.selected strong { color: #e3196b; }
+        .rebook-type-card:disabled { background: #f6f7f9; border-color: #e1e3e7; box-shadow: none; cursor: not-allowed; opacity: .62; }
+        .rebook-type-card:disabled i, .rebook-type-card:disabled strong { color: #8a909b; }
+        .rebook-type-notice { background: #fff8e8; border: 1px solid #f0d69b; border-radius: 8px; color: #795514; font-size: 11px; line-height: 1.4; margin-top: 12px; padding: 9px 11px; }
         .rebook-label { color: #555b66; font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
         .rebook-context { color: #6f7480; font-size: 12px; line-height: 1.45; }
         .rebook-seat-heading { align-items: center; display: flex; font-size: 12px; justify-content: space-between; margin: 18px 0 10px; text-transform: uppercase; }
@@ -989,16 +1008,19 @@
                 $('#rebookBackBtn').text(stage === 'type' ? 'Cancel' : '← Back');
                 $('#rebookContinueBtn').toggleClass('d-none', stage === 'review');
                 $('#rebookConfirmBtn').toggleClass('d-none', stage !== 'review');
+                $('#rebookConfirmBtn').prop('disabled', stage === 'review' && !$('#rebookAuthorizationCode').val().trim());
                 $('#rebookContinueBtn').prop('disabled', stage === 'type' ? !rebookType : true);
             }
 
-            $(document).on('click', '.update-booking-date-btn', function(event) {
-                event.preventDefault();
+            function openRebooking(optionsUrl) {
                 rebookData = null;
                 rebookType = null;
                 rebookAvailability = null;
                 rebookSeats = [];
+                $('#rebookReason, #rebookAuthorizationCode, #rebookApprovalRemarks').val('');
                 $('.rebook-type-card').removeClass('selected');
+                $('.rebook-type-card[data-type="new_trip"]').prop('disabled', false);
+                $('#rebookTypeNotice').addClass('d-none').text('');
                 $('.rebook-stage').addClass('d-none');
                 $('.rebook-stage[data-stage="loading"]').removeClass('d-none');
                 $('#rebookPnr, #rebookReference').text('…');
@@ -1006,7 +1028,7 @@
                 $('#rebookConfirmBtn').addClass('d-none');
                 rebookModal.show();
 
-                $.getJSON($(this).data('options-url')).done(function(data) {
+                $.getJSON(optionsUrl).done(function(data) {
                     rebookData = data;
                     $('#rebookPnr').text(data.booking.pnr);
                     $('#rebookReference').text(data.booking.reference);
@@ -1017,12 +1039,40 @@
                     $('#rebookTrip').html(data.trips.map(trip =>
                         `<option value="${trip.id}">${escapeHtml(trip.label)} · ${escapeHtml(trip.route)}</option>`
                     ).join(''));
+                    const hasAlternateTrips = data.trips.length > 0;
+                    $('.rebook-type-card[data-type="new_trip"]').prop('disabled', !hasAlternateTrips);
+                    $('#rebookTypeNotice')
+                        .toggleClass('d-none', !data.alternate_trip_message)
+                        .text(data.alternate_trip_message || '');
                     showStage('type');
                 }).fail(function(xhr) {
                     notify('error', validationMessage(xhr));
                     rebookModal.hide();
                 });
+            }
+
+            $(document).on('click', '.update-booking-date-btn', function(event) {
+                event.preventDefault();
+                openRebooking($(this).data('options-url'));
             });
+
+            @php
+                $autoRebookUrl = null;
+                if (request('rebook_ticket')) {
+                    $autoRebookUrl = route('admin.trip.ticket.rebook.options', array_filter([
+                        request('rebook_ticket'),
+                        'slip_id' => request('slip_id'),
+                    ]));
+                }
+            @endphp
+            const autoRebookUrl = @json($autoRebookUrl);
+            if (autoRebookUrl) {
+                const cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete('rebook_ticket');
+                cleanUrl.searchParams.delete('slip_id');
+                window.history.replaceState({}, '', cleanUrl.toString());
+                openRebooking(autoRebookUrl);
+            }
 
             $('.rebook-type-card').on('click', function() {
                 rebookType = $(this).data('type');
@@ -1089,7 +1139,10 @@
             }
 
             function seatId(element) {
-                const seat = $(element).text().trim();
+                const canonicalSeat = $(element).attr('data-seat');
+                if (canonicalSeat) return String(canonicalSeat).trim();
+
+                const seat = $(element).attr('data-label') || $(element).clone().children().remove().end().text().trim();
                 const deck = $(element).closest('.seat-plan-inner').data('deck');
                 return `${deck}-${seat}`;
             }
@@ -1101,12 +1154,13 @@
 
                 $('#rebookSeatMap .seat').each(function() {
                     if ($(this).hasClass('comfort-room')) return;
-                    const seat = $(this).text().trim();
+                    const seat = String($(this).attr('data-label') || '').trim();
                     const id = seatId(this);
-                    const unavailable = booked.includes(id) || disabled.includes(seat) || $(this).find('del').length;
+                    const isDisabled = disabled.includes(seat) || disabled.includes(id);
+                    const unavailable = booked.includes(id) || isDisabled || $(this).find('del').length;
 
                     $(this).removeClass('selected booked-seat disabled-seat');
-                    if (disabled.includes(seat) || $(this).find('del').length) {
+                    if (isDisabled || $(this).find('del').length) {
                         $(this).addClass('disabled-seat');
                     } else if (booked.includes(id)) {
                         $(this).addClass('booked-seat');
@@ -1194,9 +1248,14 @@
                 } else if (rebookStage === 'selection') {
                     showStage('type');
                 } else {
+                    $('#rebookAuthorizationCode').val('');
                     showStage('selection');
                     updateSeatAssignment();
                 }
+            });
+
+            $('#rebookAuthorizationCode').on('input', function() {
+                $('#rebookConfirmBtn').prop('disabled', !$(this).val().trim());
             });
 
             $('#rebookConfirmBtn').on('click', function() {
@@ -1208,7 +1267,10 @@
                     type: rebookType,
                     date: rebookType === 'change_seat' ? rebookData.booking.date : $('#rebookDate').val(),
                     trip_id: rebookType === 'new_trip' ? $('#rebookTrip').val() : rebookData.booking.trip_id,
-                    seats: rebookSeats
+                    seats: rebookSeats,
+                    reason: $('#rebookReason').val(),
+                    approval_remarks: $('#rebookApprovalRemarks').val(),
+                    authorization_code: $('#rebookAuthorizationCode').val()
                 };
 
                 button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Confirming…');
@@ -1230,9 +1292,14 @@
                     if (printWindow) printWindow.close();
                     notify('error', validationMessage(xhr));
                     button.prop('disabled', false).html(originalLabel);
+                    $('#rebookAuthorizationCode').val('').attr('type', 'password');
                     showStage('selection');
                     loadAvailability();
                 });
+            });
+
+            $('#rebookModal').on('hide.bs.modal hidden.bs.modal', function() {
+                $('#rebookAuthorizationCode').val('').attr('type', 'password');
             });
         })(jQuery);
 
@@ -1240,9 +1307,9 @@
             const refundModal = new bootstrap.Modal(document.getElementById('refundTicketModal'));
             const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
             let refundData = null;
-            let refundReason = '';
 
             const formatMoney = value => currency.format(Number(value) || 0);
+            const escapeHtml = value => $('<div>').text(value ?? '').html();
 
             function refundError(xhr) {
                 const errors = xhr.responseJSON?.errors;
@@ -1266,8 +1333,9 @@
             function validateRefundForm() {
                 if (!refundData) return false;
                 const amount = Number($('#refundAmount').val()) || 0;
-                const valid = refundReason && amount > 0 && amount <= Number(refundData.fare) &&
-                    $('#refundRemarks').val().trim() && $('#refundAuthorizationCode').val().trim();
+                const valid = $('#refundReason').val().trim() &&
+                    amount > 0 && amount <= Number(refundData.fare) &&
+                    $('#refundAuthorizationCode').val().trim();
                 $('#refundReviewBtn').prop('disabled', !valid);
                 return Boolean(valid);
             }
@@ -1275,7 +1343,6 @@
             $(document).on('click', '.refund-ticket-btn', function(event) {
                 event.preventDefault();
                 refundData = null;
-                refundReason = '';
                 $('#refundLoading').removeClass('d-none');
                 $('#refundFormStage, #refundReviewStage').addClass('d-none');
                 $('#refundReviewBtn, #refundCancelBtn').removeClass('d-none');
@@ -1290,9 +1357,9 @@
                     $('#refundTicketMeta').text(`${data.passenger_type} · Seat ${formatSeatLabel(data.seat)} · Fare ${formatMoney(data.fare)}`);
                     $('#refundFareLabel').text(formatMoney(data.fare));
                     $('#refundCashier').text(data.processed_by);
-                    $('#refundRemarks, #refundAuthorizationCode').val('');
+                    $('#refundReason, #refundAuthorizationCode').val('');
                     $('#refundReasonChips').html(data.reasons.map(reason =>
-                        `<button type="button" class="refund-reason-chip" data-reason="${$('<div>').text(reason).html()}">${$('<div>').text(reason).html()}</button>`
+                        `<button type="button" class="refund-reason-chip" data-reason="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`
                     ).join(''));
                     $('#refundAmount').attr('max', data.fare).val(data.default_refund);
                     $('.refund-chip').removeClass('active').filter('[data-refund-percent="50"]').addClass('active');
@@ -1306,10 +1373,9 @@
             });
 
             $(document).on('click', '.refund-reason-chip', function() {
-                refundReason = $(this).data('reason');
+                $('#refundReason').val($(this).data('reason')).trigger('input').focus();
                 $('.refund-reason-chip').removeClass('active');
                 $(this).addClass('active');
-                validateRefundForm();
             });
 
             $('.refund-chip').on('click', function() {
@@ -1324,14 +1390,20 @@
                 $('.refund-chip').removeClass('active');
                 updateRefundAmount();
             });
-            $('#refundRemarks, #refundAuthorizationCode').on('input', validateRefundForm);
+            $('#refundReason').on('input', function() {
+                const reason = $(this).val().trim();
+                $('.refund-reason-chip').each(function() {
+                    $(this).toggleClass('active', $(this).data('reason') === reason);
+                });
+                validateRefundForm();
+            });
+            $('#refundAuthorizationCode').on('input', validateRefundForm);
 
             $('#refundReviewBtn').on('click', function() {
                 if (!validateRefundForm()) return;
                 $('#refundReviewTicket').text(`${refundData.pnr} / ${refundData.reference}`);
                 $('#refundReviewPassenger').text(`${refundData.passenger_name} / ${formatSeatLabel(refundData.seat)}`);
-                $('#refundReviewReason').text(refundReason);
-                $('#refundReviewRemarks').text($('#refundRemarks').val().trim());
+                $('#refundReviewReason').text($('#refundReason').val().trim());
                 $('#refundReviewFare').text(formatMoney(refundData.fare));
                 $('#refundReviewAmount').text(formatMoney($('#refundAmount').val()));
                 $('#refundFormStage, #refundReviewBtn, #refundCancelBtn').addClass('d-none');
@@ -1355,9 +1427,8 @@
                     dataType: 'json',
                     data: {
                         _token: "{{ csrf_token() }}",
-                        reason: refundReason,
+                        reason: $('#refundReason').val().trim(),
                         refund_amount: $('#refundAmount').val(),
-                        remarks: $('#refundRemarks').val().trim(),
                         authorization_code: $('#refundAuthorizationCode').val()
                     }
                 }).done(function(result) {
@@ -1377,6 +1448,7 @@
             const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
             let cancelData = null;
             let cancelAuthorizationInFlight = false;
+            let cancelAuthorizationRequest = null;
 
             const formatMoney = value => currency.format(Number(value) || 0);
             const escapeHtml = value => $('<div>').text(value ?? '').html();
@@ -1399,8 +1471,19 @@
                 $('#cancelFormStage, #cancelKeepBtn, #cancelReviewBtn').removeClass('d-none');
             }
 
-            function resetCancelAuthorization() {
+            function resetCancelAuthorizationStatus() {
                 $('#cancelAuthorizationStatus').removeClass('is-success is-error').empty();
+            }
+
+            function clearCancelAuthorization() {
+                $('#cancelAuthorizationCode').val('').attr('type', 'password');
+                $('#toggleCancelCode')
+                    .attr('aria-label', 'Show authorization code')
+                    .find('i')
+                    .attr('class', 'las la-eye');
+                $('#cancelReviewAuthorizedBy').empty();
+                resetCancelAuthorizationStatus();
+                validateCancelForm();
             }
 
             $(document).on('click', '.cancel-ticket-btn', function(event) {
@@ -1411,8 +1494,7 @@
                 $('#cancelKeepBtn, #cancelReviewBtn').removeClass('d-none');
                 $('#cancelBackBtn, #cancelConfirmBtn').addClass('d-none');
                 $('#cancelReviewBtn').prop('disabled', true);
-                $('#cancelAuthorizationCode').attr('type', 'password');
-                resetCancelAuthorization();
+                clearCancelAuthorization();
                 cancelModal.show();
 
                 $.getJSON($(this).data('cancel-url')).done(function(data) {
@@ -1421,7 +1503,7 @@
                     $('#cancelPassenger').text(data.passenger_name);
                     $('#cancelTicketMeta').text(`${data.passenger_type} - Seat ${formatSeatLabel(data.seat)} - Ref. ${data.reference}`);
                     $('#cancelFare').text(formatMoney(data.fare));
-                    $('#cancelReason, #cancelAuthorizationCode').val('');
+                    $('#cancelReason').val('');
                     $('#cancelReasonChips').html(data.reasons.map(reason =>
                         `<button type="button" class="cancel-reason-chip" data-reason="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`
                     ).join(''));
@@ -1448,13 +1530,18 @@
             });
 
             $('#cancelAuthorizationCode').on('input', function() {
-                resetCancelAuthorization();
+                resetCancelAuthorizationStatus();
                 validateCancelForm();
             });
 
             $('#toggleCancelCode').on('click', function() {
                 const input = $('#cancelAuthorizationCode');
-                input.attr('type', input.attr('type') === 'password' ? 'text' : 'password');
+                const showCode = input.attr('type') === 'password';
+                input.attr('type', showCode ? 'text' : 'password');
+                $(this)
+                    .attr('aria-label', showCode ? 'Hide authorization code' : 'Show authorization code')
+                    .find('i')
+                    .attr('class', showCode ? 'las la-eye-slash' : 'las la-eye');
             });
 
             $('#cancelReviewBtn').on('click', function() {
@@ -1464,15 +1551,16 @@
                 const originalLabel = button.html();
                 cancelAuthorizationInFlight = true;
                 button.prop('disabled', true).html('<i class="las la-spinner la-spin me-1"></i> Validating...');
-                resetCancelAuthorization();
+                resetCancelAuthorizationStatus();
 
-                $.ajax({
+                cancelAuthorizationRequest = $.ajax({
                     url: cancelData.authorization_url,
                     method: 'POST',
                     dataType: 'json',
                     data: {
                         _token: "{{ csrf_token() }}",
-                        authorization_code: $('#cancelAuthorizationCode').val()
+                        authorization_code: $('#cancelAuthorizationCode').val(),
+                        reason: $('#cancelReason').val().trim()
                     }
                 }).done(function(result) {
                     const authorizedName = result.authorized_by?.name || 'Authorized personnel';
@@ -1487,18 +1575,24 @@
                     $('#cancelFormStage, #cancelKeepBtn, #cancelReviewBtn').addClass('d-none');
                     $('#cancelReviewStage, #cancelBackBtn, #cancelConfirmBtn').removeClass('d-none');
                 }).fail(function(xhr) {
+                    if (xhr.statusText === 'abort') return;
+
                     $('#cancelAuthorizationStatus')
                         .addClass('is-error')
                         .html(`<i class="las la-times-circle"></i> ${escapeHtml(cancelError(xhr))}`);
                     $('#cancelAuthorizationCode').trigger('focus').select();
                 }).always(function() {
+                    cancelAuthorizationRequest = null;
                     cancelAuthorizationInFlight = false;
                     button.html(originalLabel);
                     validateCancelForm();
                 });
             });
 
-            $('#cancelBackBtn').on('click', showCancelForm);
+            $('#cancelBackBtn').on('click', function() {
+                clearCancelAuthorization();
+                showCancelForm();
+            });
 
             $('#cancelConfirmBtn').on('click', function() {
                 if (!cancelData) return;
@@ -1529,8 +1623,21 @@
                     if (acknowledgmentWindow) acknowledgmentWindow.close();
                     notify('error', cancelError(xhr));
                     button.prop('disabled', false).html(originalLabel);
+                    clearCancelAuthorization();
                     showCancelForm();
                 });
+            });
+
+            $('#cancelTicketModal').on('show.bs.modal', clearCancelAuthorization);
+
+            $('#cancelTicketModal').on('hide.bs.modal hidden.bs.modal', function() {
+                if (cancelAuthorizationRequest) {
+                    cancelAuthorizationRequest.abort();
+                    cancelAuthorizationRequest = null;
+                }
+                clearCancelAuthorization();
+                cancelData = null;
+                cancelAuthorizationInFlight = false;
             });
         })(jQuery);
 
@@ -1538,7 +1645,6 @@
             const voidModal = new bootstrap.Modal(document.getElementById('voidTicketModal'));
             const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
             let voidData = null;
-            let voidReason = '';
 
             const formatMoney = value => currency.format(Number(value) || 0);
             const escapeHtml = value => $('<div>').text(value ?? '').html();
@@ -1550,7 +1656,7 @@
             }
 
             function validateVoidForm() {
-                const valid = voidData && voidReason && $('#voidRemarks').val().trim() &&
+                const valid = voidData && $('#voidReason').val().trim() &&
                     $('#voidAuthorizationCode').val().trim();
                 $('#voidConfirmBtn').prop('disabled', !valid);
                 return Boolean(valid);
@@ -1559,7 +1665,6 @@
             $(document).on('click', '.void-ticket-btn', function(event) {
                 event.preventDefault();
                 voidData = null;
-                voidReason = '';
                 $('#voidLoading').removeClass('d-none');
                 $('#voidFormStage').addClass('d-none');
                 $('#voidConfirmBtn').prop('disabled', true).html('<i class="las la-ban me-1"></i> Void (1)');
@@ -1572,7 +1677,7 @@
                     $('#voidPassenger').text(data.passenger_name);
                     $('#voidTicketMeta').text(`${data.passenger_type} - Seat ${formatSeatLabel(data.seat)} - Ref. ${data.reference}`);
                     $('#voidFare, #voidReturnAmount').text(formatMoney(data.fare));
-                    $('#voidRemarks, #voidAuthorizationCode').val('');
+                    $('#voidReason, #voidAuthorizationCode').val('');
                     $('#voidReasonChips').html(data.reasons.map(reason =>
                         `<button type="button" class="cancel-reason-chip void-reason-chip" data-reason="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`
                     ).join(''));
@@ -1585,13 +1690,19 @@
             });
 
             $(document).on('click', '.void-reason-chip', function() {
-                voidReason = $(this).data('reason');
+                $('#voidReason').val($(this).data('reason')).trigger('input').focus();
                 $('.void-reason-chip').removeClass('active');
                 $(this).addClass('active');
-                validateVoidForm();
             });
 
-            $('#voidRemarks, #voidAuthorizationCode').on('input', validateVoidForm);
+            $('#voidReason').on('input', function() {
+                const reason = $(this).val().trim();
+                $('.void-reason-chip').each(function() {
+                    $(this).toggleClass('active', $(this).data('reason') === reason);
+                });
+                validateVoidForm();
+            });
+            $('#voidAuthorizationCode').on('input', validateVoidForm);
 
             $('#toggleVoidCode').on('click', function() {
                 const input = $('#voidAuthorizationCode');
@@ -1610,8 +1721,7 @@
                     dataType: 'json',
                     data: {
                         _token: "{{ csrf_token() }}",
-                        reason: voidReason,
-                        remarks: $('#voidRemarks').val().trim(),
+                        reason: $('#voidReason').val().trim(),
                         authorization_code: $('#voidAuthorizationCode').val()
                     }
                 }).done(function(result) {
@@ -1623,6 +1733,45 @@
                     button.prop('disabled', false).html(originalLabel);
                 });
             });
+        })(jQuery);
+
+        @php
+            $autoTicketAction = in_array(request('ticket_action'), ['refund', 'cancel', 'void'], true)
+                ? request('ticket_action')
+                : null;
+            $autoActionSlipId = request()->integer('slip_id');
+            $autoTicketActionUrl = $autoTicketAction && $autoActionSlipId
+                ? match ($autoTicketAction) {
+                    'refund' => route('admin.vehicle.ticket.refund.options', $autoActionSlipId),
+                    'cancel' => route('admin.vehicle.ticket.cancel.options', $autoActionSlipId),
+                    'void' => route('admin.vehicle.ticket.void.options', $autoActionSlipId),
+                }
+                : null;
+        @endphp
+        (function($) {
+            const action = @json($autoTicketAction);
+            const actionUrl = @json($autoTicketActionUrl);
+
+            if (!action || !actionUrl) return;
+
+            const config = {
+                refund: { className: 'refund-ticket-btn', attribute: 'data-refund-url' },
+                cancel: { className: 'cancel-ticket-btn', attribute: 'data-cancel-url' },
+                void: { className: 'void-ticket-btn', attribute: 'data-void-url' }
+            }[action];
+
+            if (!config) return;
+
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete('ticket_action');
+            cleanUrl.searchParams.delete('slip_id');
+            window.history.replaceState({}, '', cleanUrl.toString());
+
+            const trigger = $('<button type="button">')
+                .addClass(config.className)
+                .attr(config.attribute, actionUrl)
+                .appendTo(document.body);
+            trigger.trigger('click').remove();
         })(jQuery);
     </script>
 @endpush

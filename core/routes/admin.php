@@ -57,6 +57,7 @@ Route::middleware('admin')->group(function () {
     Route::controller('AdminUserController')->prefix('admin')->group(function () {
         Route::post('users/bulk-status', 'bulkStatus')->name('users.bulk');
         Route::get('users', 'index')->name('users');
+        Route::get('users/{id}/authorization-code', 'authorizationCode')->name('users.authorization.code');
         Route::post('users', 'store')->name('users.store');
         Route::post('users/{id}', 'update')->name('users.update');
         Route::post('users/remove/{id}', 'remove')->name('users.remove');
@@ -114,6 +115,7 @@ Route::middleware('admin')->group(function () {
         Route::prefix('type')->name('type.')->group(function () {
             Route::get('', 'type')->name('index');
             Route::get('details/{id}', 'seatLayoutDetails')->name('seatLayoutDetails');
+            Route::post('preview', 'typePreview')->name('preview');
             Route::post('store/{id?}', 'typeStore')->name('store');
             Route::post('status/{id}', 'typeStatus')->name('status');
         });
@@ -196,6 +198,8 @@ Route::middleware('admin')->group(function () {
 
     Route::controller('VehicleTicketController')->prefix('tickets')->name('vehicle.ticket.')->group(function () {
         Route::get('booked', 'booked')->name('booked');
+        Route::get('rebooked', 'rebooked')->name('rebooked');
+        Route::get('rebooked/{event}/details', 'rebookedDetails')->name('rebooked.details');
         Route::get('refunded', 'refunded')->name('refunded');
         Route::get('refund/{slip}/options', 'refundOptions')->name('refund.options');
         Route::post('refund/{slip}/confirm', 'confirmRefund')->name('refund.confirm');
@@ -284,7 +288,9 @@ Route::middleware('admin')->group(function () {
     Route::controller('ReportController')->prefix('report')->name('report.')->group(function () {
         Route::get('audit-trail', 'auditTrail')->name('audit.trail');
         Route::get('shift-end', 'shiftEnd')->name('shift.end');
+        Route::get('shift-end/pdf', 'shiftEndPdf')->name('shift.end.pdf');
         Route::get('daily', 'daily')->name('daily');
+        Route::get('daily/pdf', 'dailyPdf')->name('daily.pdf');
         Route::get('transaction/{user_id?}', 'transaction')->name('transaction');
         Route::get('login/history', 'loginHistory')->name('login.history');
         Route::get('travel-manifest', 'travelManifest')->name('travelManifest');

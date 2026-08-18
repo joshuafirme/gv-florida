@@ -4,7 +4,6 @@
     <div class="row">
         <div class="col-12">
             <div class="mb-3">
-                <h4 class="mb-1">Cancelled Ticket</h4>
                 <span class="text-muted">{{ $cancellations->total() }} {{ \Illuminate\Support\Str::plural('record', $cancellations->total()) }}</span>
             </div>
             <div class="card">
@@ -65,7 +64,7 @@
                                         <td data-label="Payment">{{ $payment }}</td>
                                         <td data-label="Processed By">
                                             <div>{{ $cancellation->processedBy->name }}</div>
-                                            <small class="text-muted">Cancelled by {{ $cancellation->authorizedBy->name }}</small>
+                                            <small class="text-muted">Authorized by {{ $cancellation->authorizedBy->name }}</small>
                                         </td>
                                         <td data-label="Rebooked">
                                             @if ($ticket->is_rebooked)

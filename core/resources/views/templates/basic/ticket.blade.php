@@ -4,6 +4,7 @@
         use Carbon\Carbon;
         $kiosk_id = request()->kiosk_id;
         $allowed_advance_booking_days = getAllowedAdvanceBookingDays($kiosk_id);
+        $advance_window_end = now()->startOfDay()->addDays($allowed_advance_booking_days);
     @endphp
     @if ($kiosk_id)
         @php
@@ -29,6 +30,146 @@
             top: 0;
             z-index: 1000;
             background: #fff;
+        }
+
+        .kiosk-navbar {
+            z-index: 1030;
+        }
+
+        .ticket-search-bar--kiosk {
+            top: 97px;
+            z-index: 1020;
+        }
+
+        .kiosk-advance-window {
+            padding: 16px 0 10px;
+            background-position: left center;
+            background-size: cover;
+        }
+
+        .kiosk-advance-window__card {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) 1px minmax(280px, .8fr);
+            align-items: center;
+            gap: 28px;
+            padding: 15px 15px;
+            background: #fff7fb;
+            background: color-mix(in srgb, var(--booking-primary) 5%, #fff);
+            border: 1px solid var(--booking-primary-border);
+            border-radius: 8px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, .08);
+            margin: 10px 0;
+        }
+
+        .kiosk-advance-window__primary,
+        .kiosk-advance-window__example {
+            display: flex;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .kiosk-advance-window__icon,
+        .kiosk-advance-window__info-icon {
+            display: inline-flex;
+            flex: 0 0 auto;
+            align-items: center;
+            justify-content: center;
+            color: var(--booking-primary);
+            border: 2px solid var(--booking-primary);
+            border-radius: 50%;
+        }
+
+        .kiosk-advance-window__icon {
+            width: 66px;
+            height: 66px;
+            margin-right: 20px;
+            font-size: 36px;
+        }
+
+        .kiosk-advance-window__info-icon {
+            width: 42px;
+            height: 42px;
+            margin-right: 16px;
+            font-size: 25px;
+        }
+
+        .kiosk-advance-window__eyebrow,
+        .kiosk-advance-window__example p {
+            margin: 0;
+            color: #29303d;
+            font-size: 15px;
+            line-height: 1.45;
+        }
+
+        .kiosk-advance-window__limit {
+            margin: 2px 0 0;
+            color: #111827;
+            font-size: 25px;
+            font-weight: 800;
+            line-height: 1.2;
+            text-transform: uppercase;
+        }
+
+        .kiosk-advance-window__limit strong,
+        .kiosk-advance-window__example strong {
+            color: var(--booking-primary);
+        }
+
+        .kiosk-advance-window__divider {
+            width: 1px;
+            height: 58px;
+            background: var(--booking-primary-border);
+        }
+
+        .trip-search-label {
+            display: block;
+            margin: 0 0 7px;
+            color: #1f2937;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .ticket-form .ticket-search-field > i {
+            align-items: center;
+            bottom: 0;
+            display: flex;
+            height: 40px;
+            justify-content: center;
+            left: 8px;
+            line-height: 1;
+            padding: 0;
+            pointer-events: none;
+            top: auto;
+            width: 20px;
+        }
+
+        .ticket-form .ticket-search-field > .form--control,
+        .ticket-form .ticket-search-field .select2-selection--single {
+            padding-left: 38px !important;
+        }
+
+        .ticket-form .ticket-search-field .select2-selection__rendered {
+            margin-left: 0;
+            padding-left: 0;
+        }
+
+        .ticket-search-actions {
+            padding-top: 27px;
+        }
+
+        @media screen and (max-width: 991px) {
+            .kiosk-advance-window__card {
+                gap: 13px;
+            }
+
+            .kiosk-advance-window__divider {
+                width: 100%;
+                height: 1px;
+            }
+
+            .ticket-search-actions {
+                padding-top: 0;
+            }
         }
 
 
@@ -342,6 +483,37 @@
         }
 
         @media screen and (max-width: 767px) {
+            .kiosk-advance-window {
+                padding: 10px 0 6px;
+            }
+
+            .kiosk-advance-window__card {
+                padding: 16px;
+            }
+
+            .kiosk-advance-window__icon {
+                width: 52px;
+                height: 52px;
+                margin-right: 14px;
+                font-size: 29px;
+            }
+
+            .kiosk-advance-window__info-icon {
+                width: 34px;
+                height: 34px;
+                margin-right: 12px;
+                font-size: 20px;
+            }
+
+            .kiosk-advance-window__limit {
+                font-size: 19px;
+            }
+
+            .kiosk-advance-window__eyebrow,
+            .kiosk-advance-window__example p {
+                font-size: 13px;
+            }
+
             .ticket-item {
                 padding: 15px;
             }
@@ -381,10 +553,45 @@
             }
         }
     </style>
-
-    <div class="ticket-search-bar bg_img padding-top"
+    <div class="ticket-search-bar {{ $kiosk_id ? 'ticket-search-bar--kiosk' : '' }} bg_img"
         style="background: url({{ getImage('assets/templates/basic/images/search_bg.jpg') }}) left center;">
         <div class="container">
+            @if ($kiosk_id)
+                <div class="kiosk-advance-window__card" aria-label="Kiosk advance booking period">
+                    <div class="kiosk-advance-window__primary">
+                        <span class="kiosk-advance-window__icon" aria-hidden="true">
+                            <i class="las la-calendar-check"></i>
+                        </span>
+                        <div>
+                            <p class="kiosk-advance-window__eyebrow">@lang('You can book trips')</p>
+                            <p class="kiosk-advance-window__limit">
+                                @if ($allowed_advance_booking_days === 0)
+                                    <strong>@lang('Today')</strong> @lang('only')
+                                @else
+                                    @lang('Up to') <strong>{{ $allowed_advance_booking_days }}
+                                        {{ trans_choice('day|days', $allowed_advance_booking_days) }}</strong>
+                                    @lang('in advance only')
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                    <span class="kiosk-advance-window__divider" aria-hidden="true"></span>
+                    <div class="kiosk-advance-window__example">
+                        <span class="kiosk-advance-window__info-icon" aria-hidden="true">
+                            <i class="las la-info"></i>
+                        </span>
+                        <p>
+                            @lang('Today is') {{ now()->format('F j, Y') }}.<br>
+                            @if ($allowed_advance_booking_days === 0)
+                                @lang('Trips can only be booked for today.')
+                            @else
+                                @lang('You can book trips until') <strong>{{ $advance_window_end->format('F j, Y') }}</strong>
+                                @lang('only').
+                            @endif
+                        </p>
+                    </div>
+                </div>
+            @endif
             <div class="bus-search-header">
                 <form action="{{ route('ticket') }}" method="GET"
                     class="ticket-form ticket-form-two row g-3 justify-content-center">
@@ -397,9 +604,10 @@
                     @endif
 
                     <div class="col-md-4 col-lg-3">
-                        <div class="form--group">
+                        <div class="form--group ticket-search-field">
+                            <label class="trip-search-label" for="ticket-pickup">@lang('From')</label>
                             <i class="las la-location-arrow"></i>
-                            <select name="pickup" class="form--control select2">
+                            <select name="pickup" id="ticket-pickup" class="form--control select2">
                                 <option value="">@lang('Pickup Point')</option>
                                 @foreach ($counters as $counter)
                                     <option value="{{ $counter->id }}" @selected(request('pickup', $selected_counter ?? '') == $counter->id)>
@@ -411,9 +619,10 @@
                     </div>
 
                     <div class="col-md-4 col-lg-3">
-                        <div class="form--group">
+                        <div class="form--group ticket-search-field">
+                            <label class="trip-search-label" for="ticket-destination">@lang('To')</label>
                             <i class="las la-map-marker"></i>
-                            <select name="destination" class="form--control select2"
+                            <select name="destination" id="ticket-destination" class="form--control select2"
                                 data-default-option="@lang('All Destination')">
                                 <option value="">@lang('All Destination')</option>
                             </select>
@@ -421,15 +630,17 @@
                     </div>
 
                     <div class="col-md-4 col-lg-3">
-                        <div class="form--group">
+                        <div class="form--group ticket-search-field">
+                            <label class="trip-search-label" for="ticket-travel-date">@lang('Travel Date')</label>
                             <i class="las la-calendar-check"></i>
-                            <input type="text" name="date_of_journey" class="form--control date-range"
-                                placeholder="@lang('Date of Journey')" autocomplete="off" value="{{ $dateOfJourneyQuery }}">
+                            <input type="text" name="date_of_journey" id="ticket-travel-date"
+                                class="form--control date-range" placeholder="@lang('Date of Journey')" autocomplete="off"
+                                value="{{ $dateOfJourneyQuery }}">
                         </div>
                     </div>
 
                     <div class="col-md-6 col-lg-3">
-                        <div class="form--group d-flex gap-2">
+                        <div class="form--group ticket-search-actions d-flex gap-2">
                             <button type="submit" class="btn btn--base w-100">@lang('Find Tickets')</button>
                             <a href="{{ route('ticket', ['kiosk_id' => request()->kiosk_id, 'counter_id' => request()->counter_id]) }}"
                                 class="btn btn-dark w-100 d-flex align-items-center justify-content-center">
@@ -438,7 +649,7 @@
                         </div>
                     </div>
                 </form>
-                <div class="d-lg-none row d-flex justify-content-center">
+                {{-- <div class="d-lg-none row d-flex justify-content-center">
                     <div class="col-md-6">
                         <button class="btn btn--base w-100" data-bs-toggle="offcanvas" data-bs-target="#filterPanel">
                             @php
@@ -448,7 +659,7 @@
                             <i class="las la-filter"></i> Filters {{ $count ? "($count)" : '' }}
                         </button>
                     </div>
-                </div>
+                </div> --}}
             </div>
         </div>
     </div>
@@ -460,7 +671,7 @@
         <div class="offcanvas-body">
 
 
-            @include('templates.basic.partials.ticket-filter')
+            @include('templates.basic.partials.ticket-filter', ['filterFormId' => 'mobileFilterForm'])
 
         </div>
     </div>
@@ -514,40 +725,45 @@
                                     )
                                     ->count();
 
-                                $available_seats_ctr = 0;
-                                $deck_seats = $trip->fleetType->deck_seats;
-                                $deck_seats = (int) $deck_seats[0];
-                                if ($trip->fleetType->deck == 2) {
-                                    $deck_seats += (int) $trip->fleetType->deck_seats[1];
-                                }
+                                $deck_seats = app(App\Services\SeatLayoutService::class)
+                                    ->seatIds($trip->fleetType)
+                                    ->count();
                                 $available_seats_ctr = $deck_seats - $occupied_seats_ctr;
-                                if ($trip->fleetType->cr_position) {
-                                    $available_seats_ctr -= (int) $trip->fleetType->cr_row_covered;
-                                }
                                 $available_seats_ctr = max($available_seats_ctr, 0);
 
                                 $stoppageArr = $trip->route->stoppages ?? [];
                                 $routeSequence = App\Models\Counter::routeStoppages($stoppageArr);
                                 $isFullyBooked = $available_seats_ctr < 1;
-                                $requestedPickupId = (string) (request('pickup') ?: request('counter_id') ?: $trip->start_from);
-                                $requestedDestinationId = (string) (request('destination') ?: request('selected_destination') ?: '');
-                                $routeStopIds = $routeSequence->pluck('id')->map(fn ($id) => (string) $id)->values();
+                                $requestedPickupId =
+                                    (string) (request('pickup') ?: request('counter_id') ?: $trip->start_from);
+                                $requestedDestinationId =
+                                    (string) (request('destination') ?: request('selected_destination') ?: '');
+                                $routeStopIds = $routeSequence->pluck('id')->map(fn($id) => (string) $id)->values();
                                 $displayDrop = $requestedDestinationId
-                                    ? $routeSequence->first(fn ($counter) => (string) $counter->id === $requestedDestinationId)
+                                    ? $routeSequence->first(
+                                        fn($counter) => (string) $counter->id === $requestedDestinationId,
+                                    )
                                     : null;
                                 $displayDrop = $displayDrop ?: $trip->endTo;
                                 $displayDropId = (string) $displayDrop->id;
 
-                                $ticket_price = $ticketPrices->get($trip->vehicle_route_id . ':' . $trip->fleet_type_id);
+                                $ticket_price = $ticketPrices->get(
+                                    $trip->vehicle_route_id . ':' . $trip->fleet_type_id,
+                                );
                                 $prices = $ticket_price?->prices ?? collect();
                                 $segmentPrice = null;
 
                                 if ($requestedDestinationId) {
-                                    $segmentPrice = $prices->first(function ($price) use ($requestedPickupId, $displayDropId) {
-                                        $segment = array_values(array_map('strval', (array) ($price->source_destination ?? [])));
+                                    $segmentPrice = $prices->first(function ($price) use (
+                                        $requestedPickupId,
+                                        $displayDropId,
+                                    ) {
+                                        $segment = array_values(
+                                            array_map('strval', (array) ($price->source_destination ?? [])),
+                                        );
 
-                                        return $segment === [$requestedPickupId, $displayDropId]
-                                            || $segment === [$displayDropId, $requestedPickupId];
+                                        return $segment === [$requestedPickupId, $displayDropId] ||
+                                            $segment === [$displayDropId, $requestedPickupId];
                                     });
                                 }
 
@@ -566,21 +782,30 @@
                                 if ($tripStartIndex !== false && $tripEndIndex !== false && $dropIndex !== false) {
                                     $totalLegs = abs($tripEndIndex - $tripStartIndex);
                                     if ($totalLegs > 0) {
-                                        $arrivalMinutes = (int) round($fullTripMinutes * abs($dropIndex - $tripStartIndex) / $totalLegs);
+                                        $arrivalMinutes = (int) round(
+                                            ($fullTripMinutes * abs($dropIndex - $tripStartIndex)) / $totalLegs,
+                                        );
                                         if ($pickupIndex !== false) {
-                                            $displayDurationMinutes = (int) round($fullTripMinutes * abs($dropIndex - $pickupIndex) / $totalLegs);
+                                            $displayDurationMinutes = (int) round(
+                                                ($fullTripMinutes * abs($dropIndex - $pickupIndex)) / $totalLegs,
+                                            );
                                         }
                                     }
                                 }
 
                                 $durationHours = intdiv($displayDurationMinutes, 60);
                                 $durationRemainder = $displayDurationMinutes % 60;
-                                $displayDurationLabel = trim(
-                                    ($durationHours ? $durationHours . ' ' . ($durationHours === 1 ? 'hr' : 'hrs') : '')
-                                    . ($durationRemainder ? ' ' . $durationRemainder . ' mins' : '')
-                                ) ?: '0 mins';
+                                $displayDurationLabel =
+                                    trim(
+                                        ($durationHours
+                                            ? $durationHours . ' ' . ($durationHours === 1 ? 'hr' : 'hrs')
+                                            : '') . ($durationRemainder ? ' ' . $durationRemainder . ' mins' : ''),
+                                    ) ?:
+                                    '0 mins';
                                 $departureAt = Carbon::parse(
-                                    Carbon::parse($date_of_journey)->format('Y-m-d') . ' ' . $trip->schedule->start_from
+                                    Carbon::parse($date_of_journey)->format('Y-m-d') .
+                                        ' ' .
+                                        $trip->schedule->start_from,
                                 );
                                 $estimatedArrivalAt = $departureAt->copy()->addMinutes($arrivalMinutes);
                                 $selectSeatUrl = route('ticket.seats', [
@@ -604,7 +829,8 @@
                                 <div class="trip-card-top">
                                     <div>
                                         <h5 class="trip-route-title">{{ __($trip->route->name) }}</h5>
-                                        <p class="trip-time-main">{{ showDateTime($trip->schedule->start_from, 'h:i A') }}</p>
+                                        <p class="trip-time-main">{{ showDateTime($trip->schedule->start_from, 'h:i A') }}
+                                        </p>
                                         <div class="trip-duration">
                                             <span class="trip-duration__item">
                                                 <i class="las la-calendar-alt"></i>
@@ -635,7 +861,8 @@
                                             @endif
                                         </p>
                                         @if (!$requestedDestinationId && $minPrice > 0 && $minPrice != $maxPrice)
-                                            <div class="trip-price-range">{{ showAmount($minPrice) }} - {{ showAmount($maxPrice) }}</div>
+                                            <div class="trip-price-range">{{ showAmount($minPrice) }} -
+                                                {{ showAmount($maxPrice) }}</div>
                                         @endif
                                     </div>
                                 </div>
@@ -692,7 +919,7 @@
                                                 <a href="javascript:void(0)" class="route-details__toggle"
                                                     onclick="toggleRouteStops('{{ $routeId }}')"
                                                     data-trip-card-ignore>
-                                                    <span id="text-{{ $routeId }}">@lang('View Stops')</span>
+                                                    <span id="text-{{ $routeId }}">@lang('View Route')</span>
                                                 </a>
                                             @endif
                                         </div>
@@ -710,7 +937,7 @@
                                                     @if ($shouldCollapse)
                                                         <span
                                                             class="badge bg-light text-muted border px-2 py-1 dots-{{ $routeId }}">
-                                                            +{{ $totalStops - 2 }} @lang('Stops')
+                                                            +{{ $totalStops - 2 }} @lang('Locations')
                                                         </span>
                                                         <i
                                                             class="las la-long-arrow-alt-right text-muted fs-6 dots-{{ $routeId }}"></i>
@@ -773,12 +1000,12 @@
                 // Expand
                 stops.forEach(el => el.classList.remove('d-none'));
                 dots.forEach(el => el.classList.add('d-none'));
-                textElem.innerText = "@lang('Hide Stops')";
+                textElem.innerText = "@lang('Hide Route')";
             } else {
                 // Collapse
                 stops.forEach(el => el.classList.add('d-none'));
                 dots.forEach(el => el.classList.remove('d-none'));
-                textElem.innerText = "@lang('View Stops')";
+                textElem.innerText = "@lang('View Route')";
             }
         }
 
@@ -865,9 +1092,10 @@
 
 
             $('.reset-button').on('click', function() {
-                $('.search').attr('checked', false);
-                $('.search').val(null).trigger('change');
-                $('#filterForm').submit();
+                const form = $(this).closest('form');
+                form.find('.search').prop('checked', false);
+                form.find('.search').val(null).trigger('change');
+                form.trigger('submit');
             })
 
         })(jQuery)

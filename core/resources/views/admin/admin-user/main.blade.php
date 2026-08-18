@@ -94,6 +94,7 @@
                                         <th>
                                             <a href="{{ $sortUrl('status') }}" class="text--dark">@lang('Status') {!! $sortIcon('status') !!}</a>
                                         </th>
+                                        <th>@lang('Authorization')</th>
                                         <th>@lang('Action')</th>
                                     </tr>
                                 </thead>
@@ -116,9 +117,22 @@
                                                 @endif
                                             </td>
                                             <td>
+                                                @if ($item->has_authorization_code)
+                                                    <span class="badge badge--success">
+                                                        <i class="las la-shield-alt"></i> @lang('Assigned')
+                                                    </span>
+                                                @else
+                                                    <span class="badge badge--dark">
+                                                        <i class="las la-minus-circle"></i> @lang('Not Assigned')
+                                                    </span>
+                                                @endif
+                                            </td>
+                                            <td>
                                                 <div class="button--group">
                                                     <button type="button" class="btn btn-sm btn-outline--primary cuModalBtn"
-                                                        data-resource="{{ $item }}" data-modal_title="@lang('Edit User')">
+                                                        data-resource="{{ $item }}"
+                                                        data-authorization-url="{{ route('admin.users.authorization.code', $item->id) }}"
+                                                        data-modal_title="@lang('Edit User')">
                                                         <i class="la la-pencil"></i>@lang('Edit')
                                                     </button>
 
@@ -191,6 +205,28 @@
                             <label> @lang('Discount Passcode')</label>
                             <input type="text" class="form-control" name="passcode">
                         </div>
+                        <div class="form-group">
+                            <label for="adminAuthorizationCode">@lang('Authorization Code')</label>
+                            <div class="authorization-code-input">
+                                <input type="password" class="form-control" id="adminAuthorizationCode"
+                                    name="authorization_code" minlength="6" maxlength="100"
+                                    placeholder="Optional Authorization Code"
+                                    autocomplete="new-password" autocapitalize="none" autocorrect="off"
+                                    spellcheck="false" data-lpignore="true" data-1p-ignore>
+                                <button type="button" class="authorization-code-toggle" id="authorizationCodeToggle"
+                                    title="Show authorization code" aria-label="Show authorization code">
+                                    <i class="las la-eye"></i>
+                                </button>
+                            </div>
+                            <div class="authorization-code-status mt-2" id="authorizationCodeStatus"></div>
+                            <small class="form-text text-muted authorization-code-help">
+                                @lang('Optional. Enter a code to assign or replace it; leave blank to keep the current setting.')
+                            </small>
+                            <label class="authorization-code-remove mt-2 d-none" id="authorizationCodeRemove">
+                                <input type="checkbox" name="remove_authorization_code" value="1">
+                                <span>@lang('Remove the assigned Authorization Code')</span>
+                            </label>
+                        </div>
 
                     </div>
                     <div class="modal-footer">
@@ -212,11 +248,44 @@
     <script src="{{ asset('assets/admin/js/cu-modal.js?v=' . buildVer()) }}"></script>
 @endpush
 
+@push('style')
+    <style>
+        .authorization-code-input { position: relative; }
+        .authorization-code-input .form-control { padding-right: 44px; }
+        .authorization-code-toggle { align-items: center; background: transparent; border: 0; color: #667085; display: flex; font-size: 19px; height: 100%; justify-content: center; padding: 0; position: absolute; right: 0; top: 0; width: 42px; }
+        .authorization-code-toggle:focus { color: var(--base-color); outline: 0; }
+        .authorization-code-status { align-items: center; display: flex; font-size: 12px; font-weight: 600; gap: 5px; }
+        .authorization-code-status.is-assigned { color: #198754; }
+        .authorization-code-status.is-unassigned { color: #667085; }
+        .authorization-code-status.is-pending { color: #b54708; }
+        .authorization-code-status.is-removal { color: #b42318; }
+        .authorization-code-remove { align-items: center; color: #b42318; cursor: pointer; display: flex; font-size: 12px; gap: 7px; }
+        .authorization-code-remove input { margin: 0; }
+    </style>
+@endpush
+
 @push('script')
     <script>
         (function($) {
 
             "use strict";
+
+            function setAuthorizationStatus(state) {
+                const states = {
+                    assigned: ['is-assigned', 'las la-check-circle', 'Authorization Code assigned'],
+                    legacy: ['is-pending', 'las la-lock', 'Assigned code must be replaced once before it can be securely displayed'],
+                    unassigned: ['is-unassigned', 'las la-info-circle', 'No Authorization Code assigned'],
+                    replacement: ['is-pending', 'las la-sync', 'Authorization Code will be replaced when saved'],
+                    assignment: ['is-pending', 'las la-plus-circle', 'Authorization Code will be assigned when saved'],
+                    removal: ['is-removal', 'las la-exclamation-circle', 'Authorization Code will be removed when saved']
+                };
+                const status = states[state];
+
+                $('#authorizationCodeStatus')
+                    .removeClass('is-assigned is-unassigned is-pending is-removal')
+                    .addClass(status[0])
+                    .html(`<i class="${status[1]}"></i> ${status[2]}`);
+            }
 
             // Existing logic
             $('input[name=deck]').on('input', function() {
@@ -234,6 +303,33 @@
             $('.cuModalBtn').on('click', function() {
                 let modal = $('#cuModal');
                 let data = $(this).data('resource');
+                const hasAuthorizationCode = Boolean(data && data.has_authorization_code);
+                const canRevealAuthorizationCode = Boolean(data && data.has_viewable_authorization_code);
+                const authorizationInput = modal.find('[name="authorization_code"]');
+                const removeAuthorizationCode = modal.find('[name="remove_authorization_code"]');
+                const authorizationUrl = $(this).data('authorization-url') || null;
+
+                authorizationInput
+                    .val('')
+                    .attr('type', 'password')
+                    .attr('placeholder', hasAuthorizationCode ? '********' : 'Optional Authorization Code')
+                    .data('reveal-url', canRevealAuthorizationCode ? authorizationUrl : null)
+                    .data('loaded', false)
+                    .prop('required', false);
+                removeAuthorizationCode.prop('checked', false);
+                $('#authorizationCodeToggle')
+                    .prop('disabled', hasAuthorizationCode && !canRevealAuthorizationCode)
+                    .attr({ title: 'Show authorization code', 'aria-label': 'Show authorization code' })
+                    .find('i').attr('class', 'las la-eye');
+                $('#authorizationCodeStatus')
+                    .data('assigned', hasAuthorizationCode)
+                    .data('viewable', canRevealAuthorizationCode);
+                setAuthorizationStatus(
+                    hasAuthorizationCode
+                        ? (canRevealAuthorizationCode ? 'assigned' : 'legacy')
+                        : 'unassigned'
+                );
+                $('#authorizationCodeRemove').toggleClass('d-none', !hasAuthorizationCode);
                 $('#change-password').remove()
                 if (data) {
                     let change_pass_html = '<div class="d-block" id="change-password">';
@@ -253,6 +349,81 @@
                 password_container += '</div>';
 
                 modal.find('.modal-body').append(password_container);
+            });
+
+            $('#authorizationCodeToggle').on('click', function() {
+                const input = $('#adminAuthorizationCode');
+                const showCode = input.attr('type') === 'password';
+                const toggle = $(this);
+
+                if (showCode && !input.val() && input.data('reveal-url')) {
+                    toggle.prop('disabled', true).find('i').attr('class', 'las la-spinner la-spin');
+                    $.getJSON(input.data('reveal-url')).done(function(response) {
+                        input.val(response.authorization_code).attr('type', 'text').data('loaded', true);
+                        toggle
+                            .attr({ title: 'Hide authorization code', 'aria-label': 'Hide authorization code' })
+                            .find('i').attr('class', 'las la-eye-slash');
+                    }).fail(function(xhr) {
+                        notify('error', xhr.responseJSON?.message || 'Unable to display the Authorization Code.');
+                        input.attr('type', 'password');
+                        toggle
+                            .attr({ title: 'Show authorization code', 'aria-label': 'Show authorization code' })
+                            .find('i').attr('class', 'las la-eye');
+                    }).always(function() {
+                        toggle.prop('disabled', false);
+                    });
+                    return;
+                }
+
+                input.attr('type', showCode ? 'text' : 'password');
+                toggle
+                    .attr({
+                        title: showCode ? 'Hide authorization code' : 'Show authorization code',
+                        'aria-label': showCode ? 'Hide authorization code' : 'Show authorization code'
+                    })
+                    .find('i').attr('class', showCode ? 'las la-eye-slash' : 'las la-eye');
+            });
+
+            $('#adminAuthorizationCode').on('input', function() {
+                if ($(this).val()) {
+                    $('[name="remove_authorization_code"]').prop('checked', false);
+                    $('#authorizationCodeToggle').prop('disabled', false);
+                    setAuthorizationStatus(
+                        $('#authorizationCodeStatus').data('assigned') ? 'replacement' : 'assignment'
+                    );
+                } else {
+                    const assigned = $('#authorizationCodeStatus').data('assigned');
+                    const viewable = $('#authorizationCodeStatus').data('viewable');
+                    $('#authorizationCodeToggle').prop('disabled', assigned && !viewable);
+                    setAuthorizationStatus(assigned ? (viewable ? 'assigned' : 'legacy') : 'unassigned');
+                }
+            });
+
+            $('[name="remove_authorization_code"]').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#adminAuthorizationCode').val('').attr('type', 'password');
+                    $('#authorizationCodeToggle')
+                        .attr({ title: 'Show authorization code', 'aria-label': 'Show authorization code' })
+                        .find('i').attr('class', 'las la-eye');
+                    setAuthorizationStatus('removal');
+                } else {
+                    const assigned = $('#authorizationCodeStatus').data('assigned');
+                    const viewable = $('#authorizationCodeStatus').data('viewable');
+                    $('#authorizationCodeToggle').prop('disabled', assigned && !viewable);
+                    setAuthorizationStatus(assigned ? (viewable ? 'assigned' : 'legacy') : 'unassigned');
+                }
+            });
+
+            $('#cuModal').on('hidden.bs.modal', function() {
+                $('#adminAuthorizationCode')
+                    .val('')
+                    .attr('type', 'password')
+                    .data('reveal-url', null)
+                    .data('loaded', false);
+                $('#authorizationCodeToggle')
+                    .prop('disabled', false)
+                    .attr({ title: 'Show authorization code', 'aria-label': 'Show authorization code' })
+                    .find('i').attr('class', 'las la-eye');
             });
 
             $(document).on('click', '#change-password .btn-change-pass', function() {

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Constants\Status;
-use App\Lib\BusLayout;
 use App\Models\AdminNotification;
 use App\Models\FleetType;
 use App\Models\Frontend;
@@ -19,6 +18,7 @@ use App\Models\Page;
 use App\Models\SupportMessage;
 use App\Models\SupportTicket;
 use App\Services\SeatConflictService;
+use App\Services\SeatLayoutService;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -158,6 +158,11 @@ class SiteController extends Controller
         return view('Template::cookie', compact('pageTitle', 'cookie'));
     }
 
+    public function ticketSearch(Request $request)
+    {
+        return redirect()->route('ticket', $request->query());
+    }
+
     public function ticket(Request $request)
     {
         if ($request->filled('date_of_journey')) {
@@ -197,7 +202,9 @@ class SiteController extends Controller
 
         // Set dynamic title
         $pageTitle = ($request->pickup || $request->destination || $request->date_of_journey) ? 'Search Result' : 'Book Ticket';
-        $emptyMessage = 'There is no trip available';
+        $emptyMessage = $this->onlineBookingDisabled($request->kiosk_id)
+            ? 'Online booking is currently unavailable.'
+            : 'There is no trip available';
 
         // -------------------------------
         // 2. KIOSK FILTER
@@ -357,10 +364,17 @@ class SiteController extends Controller
             'bookedTickets'
         ])->where('status', Status::ENABLE)->where('id', $id)->firstOrFail();
 
+        if ($message = $this->bookingChannelError($trip, $request->kiosk_id)) {
+            $notify[] = ['error', $message];
+            $query = $this->tripSelectionQuery($request, $trip);
+
+            return redirect()->route('ticket', $query)->withNotify($notify);
+        }
+
         $journeyDate = $request->date_of_journey ?: now()->format('m/d/Y');
         if ($message = $this->bookingWindowError($trip, $journeyDate, $request->kiosk_id)) {
             $notify[] = ['error', $message];
-            $query = array_filter($request->only('pickup', 'destination', 'date_of_journey', 'kiosk_id', 'counter_id'));
+            $query = $this->tripSelectionQuery($request, $trip);
 
             return redirect()->route('ticket', $query)->withNotify($notify);
         }
@@ -375,7 +389,19 @@ class SiteController extends Controller
         // Define routeSequence for the JavaScript Fare Preview & Dropping Points Engine
         $routeSequence = Counter::routeStoppages($stoppageArr);
 
-        $busLayout = new BusLayout($trip);
+        $pickupPoint = $request->input('start_from', $request->input('pickup', $trip->start_from));
+        $droppingPoint = $request->input(
+            'dropping_point',
+            $request->input('destination', $request->input('end_to', $trip->end_to))
+        );
+        $seatLayout = app(SeatLayoutService::class)->layout($trip->fleetType, [
+            'booked' => app(SeatConflictService::class)->unavailableSeats(
+                $trip,
+                $journeyDate,
+                $pickupPoint,
+                $droppingPoint
+            ),
+        ]);
 
         if (auth()->user()) {
             $layout = 'layouts.master';
@@ -388,9 +414,23 @@ class SiteController extends Controller
             'trip',
             'stoppages',
             'routeSequence', // Added here
-            'busLayout',
+            'seatLayout',
             'layout'
         ));
+    }
+
+    private function tripSelectionQuery(Request $request, Trip $trip): array
+    {
+        return array_filter([
+            'pickup' => $request->input('start_from', $request->input('pickup', $trip->start_from)),
+            'destination' => $request->input(
+                'dropping_point',
+                $request->input('destination', $request->input('end_to', $trip->end_to))
+            ),
+            'date_of_journey' => $request->date_of_journey,
+            'kiosk_id' => $request->kiosk_id,
+            'counter_id' => $request->counter_id,
+        ], fn ($value) => $value !== null && $value !== '');
     }
 
     public function bookedQuery($request)
@@ -456,6 +496,13 @@ class SiteController extends Controller
         $reverse = false;
 
         if ($trip) {
+            if ($message = $this->bookingChannelError($trip, $request->kiosk_id)) {
+                return response()->json([
+                    'error' => $message,
+                    'price' => ['error' => $message],
+                ]);
+            }
+
             $startIndex = array_search((string) $trip->start_from, $stoppages);
             $endIndex = array_search((string) $trip->end_to, $stoppages);
 
@@ -511,6 +558,13 @@ class SiteController extends Controller
         ]);
 
         $trip = Trip::with(['route', 'schedule'])->where('status', Status::ENABLE)->findOrFail($id);
+        if ($message = $this->bookingChannelError($trip, $request->kiosk_id)) {
+            return response()->json([
+                'available' => false,
+                'message' => $message,
+            ], 422);
+        }
+
         if ($message = $this->bookingWindowError($trip, $request->date_of_journey, $request->kiosk_id)) {
             return response()->json([
                 'available' => false,
@@ -565,12 +619,12 @@ class SiteController extends Controller
     public function bookTicket(Request $request, $id)
     {
         try {
-            if (app()->isProduction() && !$request->kiosk_id) {
-                $notify[] = ['error', 'This feature is currently unavailable.'];
+            $trip = Trip::with('schedule')->findOrFail($id);
+            if ($message = $this->bookingChannelError($trip, $request->kiosk_id)) {
+                $notify[] = ['error', $message];
                 return redirect()->back()->withNotify($notify);
             }
 
-            $trip = Trip::with('schedule')->findOrFail($id);
             if ($message = $this->bookingWindowError($trip, $request->date_of_journey, $request->kiosk_id)) {
                 $notify[] = ['error', $message];
                 return redirect()->back()->withNotify($notify);
@@ -647,6 +701,12 @@ class SiteController extends Controller
             DB::beginTransaction();
 
             $lockedTrip = Trip::with('route')->whereKey($id)->lockForUpdate()->firstOrFail();
+            if ($message = $this->bookingChannelError($lockedTrip, $request->kiosk_id)) {
+                DB::rollBack();
+                $notify[] = ['error', $message];
+                return redirect()->back()->withNotify($notify);
+            }
+
             $unavailableSeats = array_values(array_intersect(
                 $seats,
                 $seatConflicts->unavailableSeats(
@@ -703,8 +763,9 @@ class SiteController extends Controller
         $request = request();
         $cutoffMinutes = getBookingCutoffMinutes($request->kiosk_id);
 
-        return Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])
+        $query = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])
             ->withMin('schedule as earliest_start', 'start_from')
+            ->forBookingChannel($request->kiosk_id)
             ->whereHas('schedule', function ($q) use ($now, $request, $cutoffMinutes) {
                 $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey) : Carbon::now();
                 if ($date->isToday()) {
@@ -719,6 +780,12 @@ class SiteController extends Controller
             ->orderBy('earliest_start')
             ->orderBy('id')
             ->active();
+
+        if ($this->onlineBookingDisabled($request->kiosk_id)) {
+            $query->whereRaw('1 = 0');
+        }
+
+        return $query;
     }
 
     public function filterTrip($trips)
@@ -798,10 +865,38 @@ class SiteController extends Controller
         return null;
     }
 
-    public function getDroppingPoints($counter_id)
+    private function bookingChannelError(Trip $trip, $kioskId = null): ?string
+    {
+        if ($this->onlineBookingDisabled($kioskId)) {
+            return 'Online booking is currently unavailable.';
+        }
+
+        if ($trip->bookingEnabledFor($kioskId)) {
+            return null;
+        }
+
+        $channel = $kioskId ? 'kiosk' : 'online';
+
+        return "This trip is not available for {$channel} booking.";
+    }
+
+    private function onlineBookingDisabled($kioskId = null): bool
+    {
+        return !$kioskId && app()->environment('production');
+    }
+
+    public function getDroppingPoints(Request $request, $counter_id)
     {
         // Fetch active trips to map exact travel sequences
-        $trips = Trip::with('route')->active()->get();
+        $tripsQuery = Trip::with('route')
+            ->active()
+            ->forBookingChannel($request->kiosk_id);
+
+        if ($this->onlineBookingDisabled($request->kiosk_id)) {
+            $tripsQuery->whereRaw('1 = 0');
+        }
+
+        $trips = $tripsQuery->get();
         $validDroppingIds = [];
 
         foreach ($trips as $trip) {

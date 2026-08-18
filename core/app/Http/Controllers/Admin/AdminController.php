@@ -104,7 +104,12 @@ class AdminController extends Controller
         })->count();
         $widget['total_vehicle'] = Vehicle::count();
 
-        $soldTickets = BookedTicket::with('user')->where('status', Status::BOOKED_APPROVED)->latest()->take(5)->get();
+        $soldTickets = BookedTicket::with([
+            'user',
+            'kiosk',
+            'deposit.userDiscount',
+            'paymentSourceDeposit.userDiscount',
+        ])->where('status', Status::BOOKED_APPROVED)->latest()->take(5)->get();
 
         return view('admin.dashboard', compact('pageTitle', 'widget', 'chart', 'deposit', 'soldTickets'));
     }

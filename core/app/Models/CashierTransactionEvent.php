@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\TransactionReasonFormatter;
 use Illuminate\Database\Eloquent\Model;
 
 class CashierTransactionEvent extends Model
@@ -31,8 +32,46 @@ class CashierTransactionEvent extends Model
         return $this->belongsTo(Admin::class);
     }
 
+    public function bookedTicket()
+    {
+        return $this->belongsTo(BookedTicket::class);
+    }
+
+    public function slipSeriesNumber()
+    {
+        return $this->belongsTo(SlipSeriesNumber::class);
+    }
+
     public function scopeBookingTransactions($query)
     {
         return $query->whereIn('status', self::BOOKING_TRANSACTION_STATUSES);
+    }
+
+    public function getProcessedByLabelAttribute(): string
+    {
+        if ($this->admin?->name) {
+            return $this->admin->name;
+        }
+
+        if ($this->admin?->username) {
+            return $this->admin->username;
+        }
+
+        $snapshot = $this->snapshot ?: [];
+
+        if (!empty($snapshot['processed_by'])) {
+            return (string) $snapshot['processed_by'];
+        }
+
+        return match ($this->source) {
+            'Kiosk' => 'Kiosk',
+            'Online' => 'Online',
+            default => 'Counter',
+        };
+    }
+
+    public function getReportReasonAttribute(): string
+    {
+        return app(TransactionReasonFormatter::class)->format($this);
     }
 }

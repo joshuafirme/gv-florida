@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
-use App\Lib\BusLayout;
 use Illuminate\Http\Request;
 use App\Models\SeatLayout;
 use App\Models\FleetType;
 use App\Models\Vehicle;
+use App\Services\SeatLayoutService;
 
 class ManageFleetController extends Controller
 {
@@ -19,13 +19,13 @@ class ManageFleetController extends Controller
         return view('admin.fleet.seat_layouts', compact('pageTitle', 'layouts'));
     }
 
-    public function seatLayoutDetails($id)
+    public function seatLayoutDetails($id, SeatLayoutService $seatLayoutService)
     {
         $pageTitle = 'Seat Layout Preview';
-        $fleetType = FleetType::find($id);
-        // return $fleetType;
-        $busLayout = new BusLayout(null, $fleetType);
-        return view('admin.fleet.seat_layout_details', compact('pageTitle', 'fleetType', 'busLayout'));
+        $fleetType = FleetType::findOrFail($id);
+        $seatLayout = $seatLayoutService->layout($fleetType);
+
+        return view('admin.fleet.seat_layout_details', compact('pageTitle', 'fleetType', 'seatLayout'));
     }
 
     public function layoutStore(Request $request, $id = 0)
@@ -71,24 +71,50 @@ class ManageFleetController extends Controller
 
     public function typeStore(Request $request, $id = 0)
     {
+        $crColumnLimit = $this->comfortRoomColumnLimit($request);
+        $crRowLimit = $this->comfortRoomRowLimit($request);
+        $crInsertRowLimit = $this->comfortRoomInsertRowLimit($request);
         $request->validate(
             [
                 'name' => 'required|unique:fleet_types,name,' . $id,
                 'seat_layout' => 'required',
-                'deck' => 'required|numeric|gt:0',
-                'deck_seats' => 'required|array|min:1',
-                'deck_seats.*' => 'required|numeric|gt:0',
-                'last_row.*' => 'numeric',
-                'prefixes' => 'array',
-                'facilities.*' => 'string'
+                'deck' => 'required|integer|min:1',
+                'deck_seats' => 'required|array|size:' . $request->integer('deck'),
+                'deck_seats.*' => 'required|integer|min:1',
+                'last_row' => 'nullable|array|size:' . $request->integer('deck'),
+                'last_row.*' => [
+                    'nullable',
+                    'integer',
+                    'min:0',
+                    function (string $attribute, mixed $value, \Closure $fail) use ($request) {
+                        $deckIndex = (int) str($attribute)->afterLast('.')->toString();
+                        $seatCount = (int) $request->input("deck_seats.{$deckIndex}", 0);
+                        if ((int) $value > $seatCount) {
+                            $fail('Last Row of Deck cannot exceed the number of seats on that deck.');
+                        }
+                    },
+                ],
+                'prefixes' => 'nullable|array|size:' . $request->integer('deck'),
+                'prefixes.*' => 'nullable|string|max:10',
+                'cr_position' => 'nullable|in:Left,Center,Right',
+                'cr_row' => 'nullable|required_with:cr_position|integer|min:1|max:' . $crInsertRowLimit,
+                'cr_row_covered' => 'nullable|required_with:cr_position|integer|min:1|max:' . $crRowLimit,
+                'cr_column_covered' => 'nullable|required_with:cr_position|integer|min:1|max:' . $crColumnLimit,
+                'facilities' => 'nullable|array',
+                'facilities.*' => 'string',
+                'disabled_seats' => 'nullable|array',
+                'disabled_seats.*' => 'string|max:30',
             ],
             [
                 'deck_seats.*.required' => 'Seat number for all deck is required',
-                'deck_seats.*.numeric' => 'Seat number for all deck is must be a number',
-                'deck_seats.*.gt:0' => 'Seat number for all deck is must be greater than 0',
-            ],
-            [
-                'last_row.*.numeric' => 'Last Row number for all deck is must be a number',
+                'deck_seats.*.integer' => 'Seat number for all decks must be a number',
+                'deck_seats.*.min' => 'Seat number for all decks must be greater than 0',
+                'deck_seats.size' => 'Seat details are required for every deck',
+                'last_row.size' => 'Last-row details are required for every deck',
+                'prefixes.size' => 'A prefix value is required for every deck',
+                'cr_row.max' => "Row Insert cannot exceed {$crInsertRowLimit} for the lower deck.",
+                'cr_row_covered.max' => "Row Covered cannot exceed {$crRowLimit} from the selected row.",
+                'cr_column_covered.max' => "Column Covered cannot exceed {$crColumnLimit} for the selected CR position.",
             ],
         );
 
@@ -102,26 +128,112 @@ class ManageFleetController extends Controller
 
         $fleetType->name = $request->name;
         $fleetType->seat_layout = $request->seat_layout;
-        $fleetType->deck = $request->deck;
-        $fleetType->deck_seats = $request->deck_seats;
-        $fleetType->last_row = $request->last_row;
-        $fleetType->cr_row = $request->cr_row;
+        $fleetType->deck = $request->integer('deck');
+        $fleetType->deck_seats = array_map('intval', array_values($request->deck_seats));
+        $fleetType->last_row = array_map(
+            fn ($value) => max((int) ($value ?: 0), 0),
+            array_values($request->last_row ?? array_fill(0, $request->integer('deck'), 0))
+        );
+        $fleetType->cr_row = $request->cr_position ? $request->integer('cr_row') : null;
         $fleetType->cr_position = $request->cr_position;
-        $fleetType->cr_override_seat = $request->cr_override_seat ? 1 : 0;
-        $fleetType->cr_row_covered = $request->cr_row_covered;
-        $fleetType->prefixes = $request->prefixes;
-        $fleetType->has_ac = $request->has_ac ? Status::ENABLE : Status::DISABLE;
+        $fleetType->cr_override_seat = $request->boolean('cr_override_seat');
+        $fleetType->cr_row_covered = $request->cr_position ? $request->integer('cr_row_covered') : null;
+        $fleetType->cr_column_covered = $request->cr_position ? $request->integer('cr_column_covered') : null;
+        $fleetType->prefixes = array_map(
+            fn ($value) => trim((string) $value),
+            array_values($request->prefixes ?? array_fill(0, $request->integer('deck'), ''))
+        );
+        $fleetType->has_ac = $request->boolean('has_ac') ? Status::ENABLE : Status::DISABLE;
         $fleetType->facilities = $request->facilities ?? null;
         $fleetType->disabled_seats = $request->disabled_seats ?? null;
-        $fleetType->status = Status::ENABLE;
+        if (!$fleetType->exists) {
+            $fleetType->status = Status::ENABLE;
+        }
         $fleetType->save();
 
-        return $fleetType;
+        return response()->json([
+            'message' => $message,
+            'fleet_type' => $fleetType->fresh(),
+        ]);
+    }
+
+    public function typePreview(Request $request, SeatLayoutService $seatLayoutService)
+    {
+        $crColumnLimit = $this->comfortRoomColumnLimit($request);
+        $crRowLimit = $this->comfortRoomRowLimit($request);
+        $crInsertRowLimit = $this->comfortRoomInsertRowLimit($request);
+        $validated = $request->validate([
+            'name' => 'nullable|string|max:255',
+            'seat_layout' => ['required', 'string', 'regex:/^\s*\d+\s*x\s*\d+(?:\s*x\s*\d+)?\s*$/i'],
+            'deck_seats' => 'required|array|min:1',
+            'deck_seats.*' => 'required|integer|min:1',
+            'last_row' => 'nullable|array',
+            'last_row.*' => 'nullable|integer|min:0',
+            'prefixes' => 'nullable|array',
+            'prefixes.*' => 'nullable|string|max:10',
+            'disabled_seats' => 'nullable|array',
+            'disabled_seats.*' => 'string|max:30',
+            'cr_position' => 'nullable|in:Left,Center,Right',
+            'cr_row' => 'nullable|integer|min:1|max:' . $crInsertRowLimit,
+            'cr_row_covered' => 'nullable|integer|min:1|max:' . $crRowLimit,
+            'cr_column_covered' => 'nullable|integer|min:1|max:' . $crColumnLimit,
+            'cr_override_seat' => 'nullable|boolean',
+        ]);
+
+        $seatLayout = $seatLayoutService->layout([
+            ...$validated,
+            'name' => $validated['name'] ?? 'Fleet Type',
+            'last_row' => $validated['last_row'] ?? [],
+            'prefixes' => $validated['prefixes'] ?? [],
+            'disabled_seats' => $validated['disabled_seats'] ?? [],
+            'cr_override_seat' => $request->boolean('cr_override_seat'),
+        ]);
+
+        return response()->json([
+            'html' => view('templates.basic.partials.seat_layout', [
+                'fleetType' => $validated,
+                'seatLayout' => $seatLayout,
+                'seatLayoutMode' => 'preview',
+            ])->render(),
+            'seat_ids' => $seatLayout['seat_ids'],
+        ]);
     }
 
     public function typeStatus($id)
     {
         return FleetType::changeStatus($id);
+    }
+
+    private function comfortRoomColumnLimit(Request $request): int
+    {
+        $segments = array_map(
+            'intval',
+            explode('x', str_replace(' ', '', strtolower((string) $request->seat_layout)))
+        );
+        $groups = count($segments) === 3
+            ? ['left' => $segments[0] ?? 0, 'center' => $segments[1] ?? 0, 'right' => $segments[2] ?? 0]
+            : ['left' => $segments[0] ?? 0, 'right' => $segments[1] ?? 0];
+
+        return max($groups[strtolower((string) $request->cr_position)] ?? 1, 1);
+    }
+
+    private function comfortRoomRowLimit(Request $request): int
+    {
+        return max(
+            $this->comfortRoomInsertRowLimit($request) - max($request->integer('cr_row'), 1) + 1,
+            1
+        );
+    }
+
+    private function comfortRoomInsertRowLimit(Request $request): int
+    {
+        $seatsPerRow = array_sum(array_map(
+            'intval',
+            explode('x', str_replace(' ', '', strtolower((string) $request->seat_layout)))
+        ));
+        $lowerDeckSeats = max((int) ($request->input('deck_seats.0') ?? 1), 1);
+
+        return max((int) ceil($lowerDeckSeats / max($seatsPerRow, 1)), 1);
     }
 
 

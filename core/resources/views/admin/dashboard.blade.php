@@ -83,6 +83,11 @@
                                 </thead>
                                 <tbody>
                                     @foreach ($soldTickets as $item)
+                                        @php
+                                            $paymentRecord = $item->payment_record;
+                                            $paymentAmount = (float) ($paymentRecord?->final_amount ?? $item->sub_total ?? 0);
+                                            $discountAmount = (float) ($paymentRecord?->userDiscount?->amount ?? 0);
+                                        @endphp
                                         <tr>
                                             <td data-label="@lang('User')">
                                                 @if ($item->user)
@@ -93,8 +98,10 @@
                                                             href="{{ route('admin.users.detail', $item->user_id) }}"><span>@</span>{{ $item->user->username }}</a>
                                                     </span>
                                                 @else
-                                                    {{ $item->kiosk->name }}
-                                                    <div>{{ $item->kiosk->uid }}</div>
+                                                    {{ $item->kiosk?->name ?: 'Counter' }}
+                                                    @if ($item->kiosk?->uid)
+                                                        <div>{{ $item->kiosk->uid }}</div>
+                                                    @endif
                                                 @endif
                                             </td>
                                             <td data-label="@lang('PNR Number')">
@@ -104,7 +111,7 @@
                                                 <strong>{{ $item->seats ? __(sizeof($item->seats)) : '' }}</strong>
                                             </td>
                                             <td data-label="@lang('Amount')">
-                                                {{ showAmount($item->deposit->final_amount - $item->deposit?->userDiscount?->amount ?: 0) }}
+                                                {{ showAmount(max($paymentAmount - $discountAmount, 0)) }}
                                             </td>
                                             <td data-label="@lang('Action')">
                                                 <a href="{{ route('admin.vehicle.ticket.booked') }}"
