@@ -726,6 +726,32 @@ class ManageTripController extends Controller
         ]);
     }
 
+    public function manifestSeatLayoutPdf(Request $request, $trip_id, SeatLayoutService $seatLayoutService)
+    {
+        $manifestView = $this->manifestSeatLayout($request, $trip_id, $seatLayoutService);
+        $data = $manifestView->getData();
+        $filename = sprintf(
+            'travel-manifest-%s-%s.pdf',
+            $data['trip']->id,
+            Carbon::parse($data['date'])->format('Y-m-d')
+        );
+
+        $pdf = Pdf::setOptions([
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+            'defaultFont' => 'DejaVu Sans',
+        ])->loadView('admin.pdf.manifest-seat-layout-pdf', $data)
+            ->setPaper('legal', 'portrait');
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
+    }
+
     public function changeAllStatus(Request $request)
     {
         $trip = Trip::whereNot('status', $request->status)->update(['status' => $request->status]);

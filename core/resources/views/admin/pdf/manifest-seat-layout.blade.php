@@ -19,7 +19,8 @@
         .manifest-filters { align-items: end; display: flex; flex-wrap: wrap; gap: 10px; }
         .manifest-filters label { color: #626a76; display: block; font-size: 11px; margin-bottom: 3px; text-transform: uppercase; }
         .manifest-filters input { border: 1px solid #d4d8de; border-radius: 7px; height: 40px; padding: 8px 10px; }
-        .manifest-btn { background: var(--pink); border: 0; border-radius: 7px; color: #fff; cursor: pointer; font-weight: 600; height: 40px; padding: 0 16px; }
+        .manifest-btn { align-items: center; background: var(--pink); border: 0; border-radius: 7px; color: #fff; cursor: pointer; display: inline-flex; font-weight: 600; gap: 6px; height: 40px; justify-content: center; padding: 0 16px; text-decoration: none; }
+        .manifest-btn:hover, .manifest-btn:focus { color: #fff; text-decoration: none; }
         .manifest-page { background: #fff; border-radius: 14px; margin: 24px auto; max-width: 1480px; min-height: 900px; padding: 36px; }
         .manifest-header { border-bottom: 1px solid #253044; padding-bottom: 22px; text-align: center; }
         .manifest-header h1 { font-size: 25px; font-weight: 800; letter-spacing: .02em; margin: 0; }
@@ -42,7 +43,7 @@
         .manifest-seat-row:last-child { border-bottom: 0; }
         .manifest-seat-row.is-centered { justify-content: center; }
         .manifest-seat-group { display: grid; flex: var(--manifest-group-size) 1 0; grid-template-columns: repeat(var(--manifest-group-size), minmax(0, 1fr)); }
-        .manifest-seat-row.is-centered .manifest-seat-group { flex: 0 1 calc(100% * var(--manifest-group-size) / var(--manifest-seat-columns)); }
+        .manifest-seat-row.is-centered .manifest-seat-group { flex: 0 1 var(--manifest-centered-width); max-width: 100%; }
         .manifest-aisle { background: #fff; border-left: 1px solid #edf0f3; border-right: 1px solid #edf0f3; flex: 0 0 152px; position: relative; }
         .manifest-aisle::after { border-left: 1px dashed #d9dde3; bottom: 8px; content: ''; left: 50%; position: absolute; top: 8px; }
         .manifest-seat { border-right: 1px solid var(--line); min-height: 108px; padding: 10px 12px; position: relative; }
@@ -72,8 +73,9 @@
         @media (max-width: 700px) { .manifest-toolbar { align-items: flex-start; flex-direction: column; } .manifest-page { border-radius: 0; margin: 0; padding: 22px 14px; } .manifest-info { grid-template-columns: repeat(2, 1fr); } .manifest-passenger { display: block; } .manifest-passenger-dropoff { font-size: 15px; margin-top: 7px; text-align: left; } .manifest-reference { font-size: 23px; } .manifest-km-post { font-size: 18px; } }
         @media print {
             html, body { background: #fff; height: 100%; width: 100%; }
+            body { padding: 10mm; }
             .manifest-toolbar, .manifest-search-note { display: none !important; }
-            .manifest-page { border-radius: 0; height: 340mm; margin: 0; max-width: none; min-height: 0; overflow: hidden; padding: 0; width: 100%; }
+            .manifest-page { border-radius: 0; height: auto; margin: 0; max-width: none; min-height: 0; overflow: visible; padding: 0; width: 100%; }
             .manifest-header { padding-bottom: 6px; }
             .manifest-header h1 { font-size: 15px; }
             .manifest-header p { font-size: 9px; margin-top: 3px; }
@@ -124,7 +126,7 @@
             .manifest-page--compact .manifest-lock-details { margin-top: 2px; }
             .manifest-page--compact .manifest-lock-details strong,
             .manifest-page--compact .manifest-lock-details span { font-size: 5px; margin-top: 1px; }
-            @page { margin: 5mm; size: legal portrait; }
+            @page { margin: 0; size: legal portrait; }
         }
     </style>
 </head>
@@ -143,7 +145,13 @@
                 <input id="manifestDate" type="date" name="date_of_journey" value="{{ $date }}" required>
             </div>
             <button class="manifest-btn" type="submit"><i class="fas fa-search"></i> View</button>
-            <button class="manifest-btn" type="button" onclick="window.print()"><i class="fas fa-print"></i> Print Manifest</button>
+            <a class="manifest-btn" href="{{ route('admin.trip.manifestSeatLayoutPdf', [
+                    'trip_id' => $trip->id,
+                    'date_of_journey' => $date,
+                    'search' => $search,
+                ]) }}" target="_blank" rel="noopener">
+                <i class="fas fa-file-pdf"></i> Print Manifest
+            </a>
         </form>
     </div>
 
@@ -182,7 +190,16 @@
                     <div class="manifest-deck-title">{{ $deck['name'] }}</div>
                     <div class="manifest-seat-grid" style="--manifest-seat-columns: {{ $manifestLayout['seats_per_row'] }};">
                     @foreach ($deck['rows'] as $row)
-                        <div class="manifest-seat-row {{ $row['centered'] ? 'is-centered' : '' }}">
+                        @php
+                            $centeredSeatCount = $row['centered']
+                                ? collect($row['groups'])->sum(fn (array $group) => count($group['cells']))
+                                : 0;
+                            $centeredWidth = $row['centered']
+                                ? min(($centeredSeatCount / max($manifestLayout['seats_per_row'], 1)) * 100, 100)
+                                : 100;
+                        @endphp
+                        <div class="manifest-seat-row {{ $row['centered'] ? 'is-centered' : '' }}"
+                            style="--manifest-centered-width: {{ number_format($centeredWidth, 2, '.', '') }}%;">
                             @foreach ($row['groups'] as $group)
                                 @if (!$loop->first)
                                     <div class="manifest-aisle" aria-hidden="true"></div>

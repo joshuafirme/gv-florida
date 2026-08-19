@@ -192,6 +192,29 @@ class SeatLayoutServiceTest extends TestCase
         $this->assertTrue($deck['rows'][1]['centered']);
     }
 
+    public function test_custom_back_row_can_exceed_the_standard_row_width_without_losing_seats(): void
+    {
+        $fleetType = new FleetType();
+        $fleetType->seat_layout = '2x1';
+        $fleetType->deck_seats = [29];
+        $fleetType->prefixes = [''];
+        $fleetType->last_row = [4];
+        $fleetType->disabled_seats = [];
+        $fleetType->cr_position = 'Right';
+        $fleetType->cr_row = 5;
+        $fleetType->cr_row_covered = 2;
+        $fleetType->cr_column_covered = 1;
+        $fleetType->cr_override_seat = false;
+
+        $layout = (new SeatLayoutService())->layout($fleetType);
+        $lastRow = collect($layout['decks'][0]['rows'])->last();
+
+        $this->assertSame(3, $layout['seats_per_row']);
+        $this->assertTrue($lastRow['centered']);
+        $this->assertSame(['26', '27', '28', '29'], $this->seatLabels($lastRow));
+        $this->assertContains('1-29', $layout['seat_ids']);
+    }
+
     public function test_two_deck_manifest_rows_share_one_legal_portrait_page_budget(): void
     {
         $service = new SeatLayoutService();
@@ -203,7 +226,7 @@ class SeatLayoutServiceTest extends TestCase
             collect($layout['decks'])->sum(fn (array $deck) => count($deck['rows'])),
             $print['row_count']
         );
-        $this->assertLessThanOrEqual(300.0, $print['row_height_mm'] * $print['row_count']);
+        $this->assertLessThanOrEqual(281.0, $print['row_height_mm'] * $print['row_count']);
         $this->assertLessThanOrEqual(30.0, $print['row_height_mm']);
     }
 
