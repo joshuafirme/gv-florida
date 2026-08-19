@@ -1,6 +1,26 @@
 {
     "pmethod": [
         {
+            "name": "Credit Card",
+            "value": "creditcard",
+            "types": [
+                { "name": "BDO Credit Card", "value": "bdo_cc_ph" },
+                { "name": "GPAP Credit Card", "value": "gpap_cc_ph" },
+                { "name": "Metrobank Credit Card", "value": "metrobank_cc_ph" },
+                { "name": "Maybank Credit Card", "value": "maybank_cc_ph" },
+                { "name": "PayMaya Credit Card", "value": "paymaya_cc_ph" },
+                { "name": "PayTabs Credit Card", "value": "paytabs_cc_ph" },
+                { "name": "WDBank Germany", "value": "wdbank_de" },
+                { "name": "EMP Bulgaria", "value": "emp_bg" },
+                { "name": "PC21 Cyprus", "value": "pc21_cy" },
+                { "name": "Sberbank Russia", "value": "sberbank_ru" },
+                { "name": "Integra Australia", "value": "integra_au" },
+                { "name": "iCard Bulgaria", "value": "icard_bg" },
+                { "name": "UnionBank", "value": "ubp_ph" },
+                { "name": "Robinsons Bank", "value": "rob_ph" }
+            ]
+        },
+        {
             "name": "E-Wallet",
             "value": "wallet",
             "types": [
