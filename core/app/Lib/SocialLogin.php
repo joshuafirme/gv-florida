@@ -26,7 +26,13 @@ class SocialLogin
 
     public function redirectDriver()
     {
-        return Socialite::driver($this->provider)->redirect();
+        $driver = Socialite::driver($this->provider);
+
+        if ($this->provider === 'google' && app()->isProduction()) {
+            $driver->with(['response_mode' => 'form_post']);
+        }
+
+        return $driver->redirect();
     }
 
     private function configuration()

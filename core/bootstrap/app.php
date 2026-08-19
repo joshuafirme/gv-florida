@@ -75,7 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->validateCsrfTokens(
-            except: ['user/deposit','ipn*']
+            except: ['user/deposit', 'user/social-login/callback/google', 'ipn*']
         );
     })
     ->withExceptions(function (Exceptions $exceptions) {

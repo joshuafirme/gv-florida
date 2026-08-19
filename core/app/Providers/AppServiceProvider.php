@@ -38,6 +38,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (
+            $this->app->isProduction()
+            && request()->is('user/social-login/google', 'user/social-login/callback/google')
+        ) {
+            config([
+                'session.same_site' => 'none',
+                'session.secure' => true,
+            ]);
+        }
+
         foreach ([
             Trip::class,
             Schedule::class,
