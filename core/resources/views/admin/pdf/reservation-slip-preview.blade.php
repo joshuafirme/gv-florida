@@ -7,7 +7,7 @@
     <title>Reservation Slip</title>
     <style>
         @page {
-            margin: 7px;
+            margin: 8px;
         }
 
         * {
@@ -17,7 +17,7 @@
         body {
             color: #121c2b;
             font-family: "DejaVu Sans", Arial, sans-serif;
-            margin: 0;
+            margin: 0 8px;
             padding: 0;
         }
 
@@ -28,12 +28,13 @@
         }
 
         .company-name {
-            font-size: 10px;
+            font-size: 7px;
             font-weight: 800;
             line-height: 1.1;
             margin: 0;
             text-align: center;
             text-transform: uppercase;
+            white-space: nowrap;
         }
 
         .company-address {
@@ -318,7 +319,7 @@
 
             <section class="reference">
                 <span class="reference-label">Reference No.</span>
-                <span class="reference-value">{{ $isPaid ? 'No. ' . $slipSeries->id : '' }}</span>
+                <span class="reference-value">{{ $isPaid ? $slipSeries->id : '' }}</span>
             </section>
         </main>
 
