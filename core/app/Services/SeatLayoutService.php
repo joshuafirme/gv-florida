@@ -182,9 +182,12 @@ class SeatLayoutService
         $decks = collect($layout['decks'] ?? []);
         $deckCount = max($decks->count(), 1);
         $rowCount = max($decks->sum(fn (array $deck) => count($deck['rows'] ?? [])), 1);
-        $rowBudgetMm = 300.0;
+        // Legal portrait with 10 mm printer-safe margins leaves 335.6 mm of
+        // usable height. Reserve the remaining space for manifest metadata,
+        // statistics, deck headings, and borders.
+        $rowBudgetMm = 281.0;
         $maxRowHeightMm = 30.0;
-        $rowHeightMm = round(min($maxRowHeightMm, $rowBudgetMm / $rowCount), 2);
+        $rowHeightMm = floor(min($maxRowHeightMm, $rowBudgetMm / $rowCount) * 100) / 100;
 
         return [
             'deck_count' => $deckCount,

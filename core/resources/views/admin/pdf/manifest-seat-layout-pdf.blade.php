@@ -5,10 +5,10 @@
     <meta charset="UTF-8">
     <title>Travel Manifest - {{ $trip->startFrom->name }} to {{ $trip->endTo->name }}</title>
     <style>
-        @page { margin: 5mm; size: legal portrait; }
+        @page { margin: 0; size: legal portrait; }
         * { box-sizing: border-box; }
         html, body { color: #17202d; font-family: DejaVu Sans, sans-serif; margin: 0; padding: 0; }
-        body { font-size: 7px; }
+        body { font-size: 7px; padding: 10mm; }
         .manifest-page { background: #fff; margin: 0; padding: 0; width: 100%; }
         .manifest-header { border-bottom: .8pt solid #253044; padding-bottom: 4px; text-align: center; }
         .manifest-header h1 { font-size: 14px; font-weight: 800; margin: 0; }
@@ -118,7 +118,10 @@
                                 @if ($row['centered'])
                                     @php
                                         $centerCells = collect($row['groups'])->flatMap(fn (array $group) => $group['cells'])->all();
-                                        $centerWidth = max((count($centerCells) / max($manifestLayout['seats_per_row'], 1)) * 100, 1);
+                                        $centerWidth = min(
+                                            max((count($centerCells) / max($manifestLayout['seats_per_row'], 1)) * 100, 1),
+                                            100
+                                        );
                                     @endphp
                                     <tr class="manifest-seat-row" style="height: {{ number_format($rowHeightMm, 2, '.', '') }}mm;">
                                         <td class="manifest-centered-wrap" colspan="{{ $pdfColumnCount }}">
