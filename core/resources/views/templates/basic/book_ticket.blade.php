@@ -58,7 +58,7 @@
                 </div>
             </div>
             <div class="row gx-xl-5 gy-4 gy-sm-5 justify-content-center">
-                <div class="col-md-6">
+                <div class="col-md-6 seat-overview-column">
                     <div class="seat-overview-wrapper card border-0 shadow-sm rounded-4" style="overflow: hidden;">
                         <form action="{{ route('ticket.book', $trip->id) }}" method="POST" id="bookingForm">
                             @csrf
@@ -72,7 +72,7 @@
                             <input type="hidden" name="seats">
 
                             <div class="card-body p-4">
-                                <div class="d-flex align-items-center mb-4">
+                                <div class="d-flex align-items-center mb-4 seat-overview-item">
                                     <div class="overview-icon-box me-3">
                                         <i class="las la-calendar-alt"></i>
                                     </div>
@@ -83,7 +83,7 @@
                                     </div>
                                 </div>
 
-                                <div class="d-flex align-items-center mb-4">
+                                <div class="d-flex align-items-center mb-4 seat-overview-item">
                                     <div class="overview-icon-box me-3">
                                         <i class="las la-clock"></i>
                                     </div>
@@ -94,7 +94,7 @@
                                     </div>
                                 </div>
 
-                                <div class="d-flex align-items-center mb-4">
+                                <div class="d-flex align-items-center mb-4 seat-overview-item">
                                     <div class="overview-icon-box me-3">
                                         <i class="las la-map-marker"></i>
                                     </div>
@@ -104,7 +104,7 @@
                                     </div>
                                 </div>
 
-                                <div class="d-flex align-items-center">
+                                <div class="d-flex align-items-center seat-overview-item seat-overview-item--dropoff">
                                     <div class="overview-icon-box me-3">
                                         <i class="las la-map-marker"></i>
                                     </div>
@@ -138,7 +138,7 @@
                         </form>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-6 seat-map-column">
                     <h6 class="title">@lang('Click on Seat to select or deselect')</h6>
                     @if ($trip->day_off)
                         <span class="fs--14px">
@@ -244,6 +244,7 @@
 
         <style>
             .booking-seat-flow {
+                --seat-overview-sticky-top: 173px;
                 padding-bottom: 24px !important;
                 padding-top: 8px !important;
             }
@@ -257,6 +258,17 @@
 
             .booking-seat-flow .container {
                 max-width: 1240px;
+            }
+
+            .seat-overview-column {
+                align-self: flex-start;
+                position: sticky;
+                top: var(--seat-overview-sticky-top);
+                z-index: 1025;
+            }
+
+            .seat-overview-wrapper {
+                scroll-margin-top: var(--seat-overview-sticky-top);
             }
 
             .seat-back-link {
@@ -586,6 +598,112 @@
                     grid-template-columns: 1fr;
                 }
             }
+
+            @media (max-width: 767px) {
+                .seat-back-link {
+                    font-size: 12px;
+                    margin-bottom: 5px;
+                }
+
+                .trip-header-banner {
+                    margin-bottom: 8px !important;
+                }
+
+                .trip-header-banner .card-body {
+                    flex-wrap: nowrap !important;
+                    gap: 8px !important;
+                    padding: 10px 12px !important;
+                }
+
+                .trip-header-banner .header-left,
+                .trip-header-banner .header-right {
+                    min-width: 0;
+                }
+
+                .trip-header-banner .header-right {
+                    flex: 0 0 auto;
+                    text-align: right !important;
+                }
+
+                .trip-route-title {
+                    font-size: 14px;
+                    line-height: 1.15;
+                    overflow-wrap: anywhere;
+                }
+
+                .trip-fleet-type,
+                .trip-date-duration {
+                    font-size: 10px;
+                    line-height: 1.2;
+                }
+
+                .trip-time {
+                    font-size: 17px;
+                }
+
+                .booking-seat-flow .seat-overview-wrapper .card-body,
+                .booking-seat-flow .seat-overview-wrapper .card-footer {
+                    padding: 10px 12px !important;
+                }
+
+                .seat-overview-item:not(.seat-overview-item--dropoff) {
+                    display: none !important;
+                }
+
+                .seat-overview-item--dropoff .overview-icon-box {
+                    height: 30px;
+                    width: 30px;
+                }
+
+                .seat-overview-wrapper .card-footer > .d-flex {
+                    margin-bottom: 8px !important;
+                }
+
+                .seat-overview-wrapper .book-bus-btn {
+                    min-height: 40px;
+                }
+
+                .booking-seat-flow .row {
+                    --bs-gutter-y: .75rem;
+                }
+            }
+
+            @media (max-height: 760px) and (min-width: 768px) {
+                .booking-seat-flow .seat-overview-wrapper .card-body,
+                .booking-seat-flow .seat-overview-wrapper .card-footer {
+                    padding: 9px 12px !important;
+                }
+
+                .seat-overview-item {
+                    margin-bottom: 7px !important;
+                }
+
+                .seat-overview-item:last-child {
+                    margin-bottom: 0 !important;
+                }
+
+                .seat-overview-item .overview-icon-box {
+                    height: 29px;
+                    width: 29px;
+                }
+
+                .seat-overview-item .small {
+                    font-size: 10px;
+                    margin-bottom: 0 !important;
+                }
+
+                .seat-overview-item h6 {
+                    font-size: 12px;
+                }
+
+                .seat-overview-wrapper .card-footer > .d-flex {
+                    margin-bottom: 6px !important;
+                }
+
+                .seat-overview-wrapper .book-bus-btn {
+                    min-height: 38px;
+                }
+            }
         </style>
     @endpush
 
@@ -599,6 +717,29 @@
         <script>
             (function($) {
                 "use strict";
+
+                const bookingFlow = document.querySelector('.booking-seat-flow');
+                const bookingStepper = document.querySelector('.booking-flow-stepper');
+
+                function synchronizeStickySeatSections() {
+                    if (!bookingFlow) return;
+
+                    const stepperBottom = bookingStepper
+                        ? Math.max(Math.ceil(bookingStepper.getBoundingClientRect().bottom), 0)
+                        : 0;
+                    const overviewTop = stepperBottom + 8;
+
+                    bookingFlow.style.setProperty('--seat-overview-sticky-top', `${overviewTop}px`);
+                }
+
+                window.addEventListener('load', synchronizeStickySeatSections);
+                window.addEventListener('resize', synchronizeStickySeatSections);
+                requestAnimationFrame(synchronizeStickySeatSections);
+
+                if ('ResizeObserver' in window && bookingStepper) {
+                    const stickySeatObserver = new ResizeObserver(synchronizeStickySeatSections);
+                    stickySeatObserver.observe(bookingStepper);
+                }
 
                 // ==========================================
                 // INITIALIZATION
