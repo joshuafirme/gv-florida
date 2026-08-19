@@ -736,13 +736,20 @@ class ManageTripController extends Controller
             Carbon::parse($data['date'])->format('Y-m-d')
         );
 
-        return Pdf::setOptions([
+        $pdf = Pdf::setOptions([
             'isHtml5ParserEnabled' => true,
             'isRemoteEnabled' => true,
             'defaultFont' => 'DejaVu Sans',
         ])->loadView('admin.pdf.manifest-seat-layout-pdf', $data)
-            ->setPaper('legal', 'portrait')
-            ->stream($filename);
+            ->setPaper('legal', 'portrait');
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     public function changeAllStatus(Request $request)
