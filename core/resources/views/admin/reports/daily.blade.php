@@ -286,7 +286,10 @@
                                     : null;
                             @endphp
                             <tr>
-                                <td>{{ $transaction->processed_at?->format('M j, Y') }}<br><small>{{ $transaction->processed_at?->format('h:i A') }}</small></td>
+                                <td>
+                                    <strong>{{ $transaction->processed_at->format('M j, Y') }}</strong>
+                                    <small>{{ $transaction->processed_at->format('h:i A') }}</small>
+                                </td>
                                 <td>{{ $transaction->source ?: '-' }}</td>
                                 <td><span class="daily-data--pnr">{{ $transaction->pnr ?: '-' }}</span></td>
                                 <td><strong class="daily-data--reference">{{ $transaction->reference_no ?: '-' }}</strong></td>
