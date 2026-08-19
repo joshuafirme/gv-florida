@@ -3,7 +3,14 @@
     @stack('fbComment')
 
     @include($activeTemplate . 'partials.header')
-    @if (!request()->routeIs('home') && !request()->routeIs('ticket') && !request()->routeIs('search'))
+    @if (!request()->routeIs([
+        'home',
+        'ticket',
+        'search',
+        'ticket.seats',
+        'user.deposit.index',
+        'user.deposit.done',
+    ]))
         @include($activeTemplate . 'partials.breadcrumb')
     @endif
 

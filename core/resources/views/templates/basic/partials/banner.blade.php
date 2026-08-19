@@ -64,6 +64,67 @@
     </div>
 </section>
 
+@push('style')
+    <style>
+        @media (max-width: 575px) {
+            .banner-section {
+                padding: 32px 0 104px;
+            }
+
+            .banner-content {
+                margin-bottom: 18px;
+                width: 100%;
+            }
+
+            .banner-content .title {
+                font-size: 24px;
+                line-height: 1.22;
+            }
+
+            .banner-content .cmn--btn {
+                margin-top: 16px;
+                padding: 12px 18px;
+            }
+
+            .ticket-form-wrapper {
+                margin: 0;
+                max-width: 100%;
+                width: 100%;
+            }
+
+            .ticket-form-wrapper .ticket-header {
+                margin-bottom: 16px;
+            }
+
+            .ticket-form-wrapper .ticket-header .title {
+                font-size: 20px;
+            }
+
+            .banner-section .shape {
+                bottom: 10px;
+                filter: drop-shadow(0 4px 5px rgba(15, 23, 42, .22));
+                width: 170px;
+                z-index: 4;
+            }
+
+            .banner-section .shape img {
+                min-height: 58px;
+                object-fit: contain;
+            }
+        }
+
+        @media (max-width: 374px) {
+            .banner-content .title {
+                font-size: 22px;
+            }
+
+            .banner-section .shape {
+                width: 150px;
+            }
+        }
+    </style>
+@endpush
+
 
 @push('style-lib')
     <link rel="stylesheet" href="{{ asset('assets/global/css/select2.min.css') }}">

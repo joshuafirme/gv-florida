@@ -10,9 +10,13 @@
     $currentIndex = array_search($currentStep, $stepKeys, true);
     $currentIndex = $currentIndex === false ? 0 : $currentIndex;
     $progress = count($stepKeys) > 1 ? $currentIndex / (count($stepKeys) - 1) : 0;
+    $isKioskFlow = $isKioskFlow
+        ?? ($isKioskBooking ?? false)
+        || ($layout ?? null) === 'layouts.kiosk'
+        || request()->filled('kiosk_id');
 @endphp
 
-<div class="booking-flow-stepper-shell">
+<div class="booking-flow-stepper-shell {{ $isKioskFlow ? 'is-kiosk' : 'is-online' }}">
     <div class="booking-flow-stepper" style="--booking-flow-progress: {{ $progress }};">
         @foreach ($steps as $key => $label)
             @php
@@ -56,6 +60,10 @@
                 right: 0;
                 top: 97px;
                 z-index: 1045;
+            }
+
+            .booking-flow-stepper-shell.is-online .booking-flow-stepper {
+                top: var(--booking-online-stepper-top, 64px);
             }
 
             .booking-flow-stepper::before,
@@ -141,5 +149,42 @@
                 }
             }
         </style>
+    @endpush
+
+    @push('script')
+        <script>
+            (function() {
+                "use strict";
+
+                const shell = document.querySelector('.booking-flow-stepper-shell.is-online');
+                const header = document.querySelector('.header-bottom');
+
+                if (!shell || !header) return;
+
+                let updateQueued = false;
+
+                function positionOnlineStepper() {
+                    const headerBottom = Math.max(0, Math.round(header.getBoundingClientRect().bottom));
+                    shell.style.setProperty('--booking-online-stepper-top', `${headerBottom}px`);
+                    updateQueued = false;
+                }
+
+                function queueStepperPosition() {
+                    if (updateQueued) return;
+                    updateQueued = true;
+                    window.requestAnimationFrame(positionOnlineStepper);
+                }
+
+                window.addEventListener('load', queueStepperPosition, { once: true });
+                window.addEventListener('resize', queueStepperPosition);
+                window.addEventListener('scroll', queueStepperPosition, { passive: true });
+
+                if (typeof ResizeObserver !== 'undefined') {
+                    new ResizeObserver(queueStepperPosition).observe(header);
+                }
+
+                queueStepperPosition();
+            })();
+        </script>
     @endpush
 @endonce
