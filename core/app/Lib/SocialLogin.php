@@ -34,11 +34,13 @@ class SocialLogin
         $provider = $this->provider;
         $configuration = gs('socialite_credentials')->$provider;
         $provider = $this->fromApi && $provider == 'linkedin' ? 'linkedin-openid' : $provider;
+        $callbackUrl = rtrim((string) config('app.url'), '/')
+            . '/user/social-login/callback/' . rawurlencode($provider);
 
         Config::set('services.' . $provider, [
             'client_id' => $configuration->client_id,
             'client_secret' => $configuration->client_secret,
-            'redirect' => route('user.social.login.callback', $provider),
+            'redirect' => $callbackUrl,
         ]);
     }
 
@@ -46,10 +48,10 @@ class SocialLogin
     {
         $provider = $this->provider;
         $provider = $this->fromApi && $provider == 'linkedin' ? 'linkedin-openid' : $provider;
-        $driver = Socialite::driver($provider)->stateless()->setHttpClient(
+        $driver = Socialite::driver($provider)->setHttpClient(
             new \GuzzleHttp\Client(['verify' => env('VERIFY_SSL')])
         );
-        ;
+
         if ($this->fromApi) {
             try {
                 $user = (object) $driver->userFromToken(request()->token)->user;

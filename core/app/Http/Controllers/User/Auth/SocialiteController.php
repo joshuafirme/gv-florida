@@ -17,11 +17,12 @@ class SocialiteController extends Controller
 
     public function callback($provider)
     {
-        $socialLogin = new SocialLogin($provider);
         try {
+            $socialLogin = new SocialLogin($provider);
             return $socialLogin->login();
-        } catch (\Exception $e) {
-            $notify[] = ['error', $e->getMessage()];
+        } catch (\Throwable $e) {
+            report($e);
+            $notify[] = ['error', 'Unable to complete social login. Please try again.'];
             return to_route('home')->withNotify($notify);
         }
     }
