@@ -173,6 +173,34 @@ class SeatLayoutService
         return $this->layout($fleetType)['disabled_seat_ids'];
     }
 
+    /**
+     * Size every manifest row against one Legal portrait page. Both decks
+     * share the same row height so their geometry stays visually consistent.
+     */
+    public function manifestPrintSizing(array $layout): array
+    {
+        $decks = collect($layout['decks'] ?? []);
+        $deckCount = max($decks->count(), 1);
+        $rowCount = max($decks->sum(fn (array $deck) => count($deck['rows'] ?? [])), 1);
+        // Legal portrait with 10 mm printer-safe margins leaves 335.6 mm of
+        // usable height. Reserve the remaining space for manifest metadata,
+        // statistics, deck headings, and borders.
+        $rowBudgetMm = 281.0;
+        $maxRowHeightMm = 30.0;
+        $rowHeightMm = floor(min($maxRowHeightMm, $rowBudgetMm / $rowCount) * 100) / 100;
+
+        return [
+            'deck_count' => $deckCount,
+            'row_count' => $rowCount,
+            'row_height_mm' => $rowHeightMm,
+            'density' => match (true) {
+                $rowHeightMm < 14 => 'compact',
+                $rowHeightMm < 17 => 'dense',
+                default => 'standard',
+            },
+        ];
+    }
+
     private function configuration(FleetType|array $fleetType): array
     {
         $seatLayout = (string) $this->value($fleetType, 'seat_layout', '');

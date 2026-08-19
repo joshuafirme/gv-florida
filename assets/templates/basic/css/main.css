@@ -1694,13 +1694,11 @@ i {
 
 @media (max-width: 767px) {
     .inner-banner .inner-banner-content .title {
-        font-size: 34px;
-    }
-}
-
-@media (max-width: 767px) {
-    .inner-banner .inner-banner-content .title {
         font-size: 30px;
+        margin-top: 30px;
+    }
+    .booking-flow-stepper-shell {
+        height: 0 !important;
     }
 }
 

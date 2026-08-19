@@ -6,6 +6,7 @@ use App\Constants\Status;
 use App\Models\BookedTicket;
 use App\Models\Deposit;
 use App\Http\Controllers\Gateway\PaymentController;
+use App\Models\PaynamicsWebhookLog;
 use App\Services\Paynamics;
 use App\Services\PaymentGatewayService;
 use Illuminate\Http\Request;
@@ -440,31 +441,101 @@ class ProcessController extends Controller
     public function notification(Request $request)
     {
         $payload = $request->all();
-        $uid = null;
-        $deposit = Deposit::orderBy('id', 'DESC');
-        if (isset($payload['request_id'])) {
-            $uid = $payload['request_id'];
-            $deposit->where('trx', $uid);
-        } else if (isset($payload['pay_reference'])) {
-            $uid = $payload['pay_reference'];
-            $deposit->where('pay_reference', $uid);
-        }
+        $requestId = data_get($payload, 'request_id');
+        $originalTransactionId = data_get($payload, 'org_trxid')
+            ?? data_get($payload, 'org_trxid2')
+            ?? data_get($payload, 'original_transaction_id');
+        $payReference = data_get($payload, 'pay_reference');
 
-        $deposit = $deposit->first();
-
-        if ($payload['response_code'] == 'GR001' && $uid) {
-            PaymentController::userDataUpdate($deposit);
-        } else {
-            $uid = now()->format('Y-m-d_H-i-s');
-        }
-
-        $fileName = 'paynamics/webhooks/' . $uid . '.json';
-
-        Storage::put($fileName, json_encode($payload, JSON_PRETTY_PRINT));
-
-        return response()->json([
-            'status' => 'success',
-            'payload' => $payload
+        $log = PaynamicsWebhookLog::create([
+            'provider' => 'Paynamics',
+            'event_type' => data_get($payload, 'event_type')
+                ?? data_get($payload, 'payment_status')
+                ?? data_get($payload, 'response_code'),
+            'request_id' => $requestId,
+            'original_transaction_id' => $originalTransactionId,
+            'pay_reference' => $payReference,
+            'status' => 'received',
+            'payload' => $payload,
+            'headers' => $this->safeWebhookHeaders($request),
+            'ip_address' => $request->ip(),
+            'received_at' => now(),
         ]);
+
+        try {
+            $deposit = null;
+            if ($requestId || $originalTransactionId || $payReference) {
+                $deposit = Deposit::query()
+                    ->where(function ($query) use ($requestId, $originalTransactionId, $payReference) {
+                        $query->when($requestId, fn ($query) => $query->where('trx', $requestId))
+                            ->when($originalTransactionId, fn ($query) => $query->orWhere('trx', $originalTransactionId))
+                            ->when($payReference, fn ($query) => $query->orWhere('pay_reference', $payReference));
+                    })
+                    ->latest('id')
+                    ->first();
+            }
+
+            $log->deposit_id = $deposit?->id;
+
+            if (data_get($payload, 'response_code') === 'GR001') {
+                if (! $deposit) {
+                    throw new \RuntimeException('No payment transaction matches this Paynamics webhook.');
+                }
+
+                PaymentController::userDataUpdate($deposit);
+            }
+
+            $responsePayload = [
+                'status' => 'success',
+                'payload' => $payload,
+            ];
+
+            $log->fill([
+                'status' => 'processed',
+                'http_status' => 200,
+                'response' => $responsePayload,
+                'processed_at' => now(),
+            ])->save();
+
+            $uid = $requestId ?: $originalTransactionId ?: $payReference ?: now()->format('Y-m-d_H-i-s');
+            try {
+                Storage::put(
+                    'paynamics/webhooks/'.$uid.'-'.$log->id.'.json',
+                    json_encode($payload, JSON_PRETTY_PRINT)
+                );
+            } catch (\Throwable $storageException) {
+                report($storageException);
+            }
+
+            return response()->json($responsePayload);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            $responsePayload = [
+                'status' => 'error',
+                'message' => $exception instanceof \RuntimeException
+                    ? $exception->getMessage()
+                    : 'Unable to process Paynamics webhook.',
+            ];
+            $httpStatus = $exception instanceof \RuntimeException ? 422 : 500;
+
+            $log->fill([
+                'status' => 'failed',
+                'http_status' => $httpStatus,
+                'response' => $responsePayload,
+                'error_message' => $exception->getMessage(),
+                'processed_at' => now(),
+            ])->save();
+
+            return response()->json($responsePayload, $httpStatus);
+        }
+    }
+
+    private function safeWebhookHeaders(Request $request): array
+    {
+        return collect($request->headers->all())
+            ->except(['authorization', 'cookie', 'x-csrf-token', 'x-xsrf-token'])
+            ->map(fn ($value) => is_array($value) && count($value) === 1 ? $value[0] : $value)
+            ->all();
     }
 }

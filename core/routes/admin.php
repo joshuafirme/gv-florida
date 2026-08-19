@@ -136,6 +136,7 @@ Route::middleware('admin')->group(function () {
             Route::post('/change-all-status', 'changeAllStatus')->name('changeAllStatus');
             Route::get('reservation-slip/{id}', 'reservationSlip')->name('reservationSlip');
             Route::get('manifest-seat-layout/{trip_id}', 'manifestSeatLayout')->name('manifestSeatLayout');
+            Route::get('manifest-seat-layout/{trip_id}/pdf', 'manifestSeatLayoutPdf')->name('manifestSeatLayoutPdf');
             Route::post('bulk-status', 'bulkTripStatus')->name('bulk');
 
         });
@@ -256,6 +257,17 @@ Route::middleware('admin')->group(function () {
             Route::get('/', 'edit')->name('edit');
             Route::put('/', 'update')->name('update');
         });
+
+    Route::controller('DeveloperController')->prefix('developer')->name('developer.')->group(function () {
+        Route::middleware('role:admin.developer.payment.transactions')->group(function () {
+            Route::get('payment-transactions', 'paymentTransactions')->name('payment.transactions');
+            Route::get('payment-transactions/export', 'exportPaymentTransactions')->name('payment.transactions.export');
+        });
+
+        Route::get('webhook-logs', 'webhookLogs')
+            ->middleware('role:admin.developer.webhook.logs')
+            ->name('webhook.logs');
+    });
 
     Route::get('gateway/automatic/{path?}', function () {
         return to_route('admin.payment.settings.edit');
