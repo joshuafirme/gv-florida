@@ -347,11 +347,13 @@
         @media print {
             @page {
                 size: legal landscape;
-                margin: 6mm;
+                margin: 0;
             }
 
             body {
                 background: #fff !important;
+                box-sizing: border-box;
+                padding: 10mm 14mm 12mm !important;
             }
 
             .sidebar,

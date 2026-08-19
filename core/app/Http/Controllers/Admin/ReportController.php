@@ -115,10 +115,17 @@ class ReportController extends Controller
         $report = $this->shiftEndData($admin, $date);
         $filename = 'shift-end-report-' . $date->format('Y-m-d') . '.pdf';
 
-        return Pdf::setOptions($this->reportPdfOptions())
+        $pdf = Pdf::setOptions($this->reportPdfOptions())
             ->loadView('admin.pdf.shift-end-report', compact('admin', 'date') + $report)
-            ->setPaper('legal', 'landscape')
-            ->stream($filename);
+            ->setPaper('legal', 'landscape');
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     public function daily(Request $request, DailyReportService $dailyReportService)

@@ -6,7 +6,7 @@
     <style>
         @page {
             size: legal landscape;
-            margin: 7mm 8mm 9mm;
+            margin: 0;
         }
 
         * {
@@ -15,6 +15,7 @@
 
         body {
             margin: 0;
+            padding: 10mm 14mm 12mm;
             color: #222936;
             font-family: "DejaVu Sans", sans-serif;
             font-size: 7px;
@@ -33,6 +34,7 @@
 
         table {
             width: 100%;
+            max-width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
         }
