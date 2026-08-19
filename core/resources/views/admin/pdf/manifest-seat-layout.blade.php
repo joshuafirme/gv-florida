@@ -19,7 +19,8 @@
         .manifest-filters { align-items: end; display: flex; flex-wrap: wrap; gap: 10px; }
         .manifest-filters label { color: #626a76; display: block; font-size: 11px; margin-bottom: 3px; text-transform: uppercase; }
         .manifest-filters input { border: 1px solid #d4d8de; border-radius: 7px; height: 40px; padding: 8px 10px; }
-        .manifest-btn { background: var(--pink); border: 0; border-radius: 7px; color: #fff; cursor: pointer; font-weight: 600; height: 40px; padding: 0 16px; }
+        .manifest-btn { align-items: center; background: var(--pink); border: 0; border-radius: 7px; color: #fff; cursor: pointer; display: inline-flex; font-weight: 600; gap: 6px; height: 40px; justify-content: center; padding: 0 16px; text-decoration: none; }
+        .manifest-btn:hover, .manifest-btn:focus { color: #fff; text-decoration: none; }
         .manifest-page { background: #fff; border-radius: 14px; margin: 24px auto; max-width: 1480px; min-height: 900px; padding: 36px; }
         .manifest-header { border-bottom: 1px solid #253044; padding-bottom: 22px; text-align: center; }
         .manifest-header h1 { font-size: 25px; font-weight: 800; letter-spacing: .02em; margin: 0; }
@@ -143,7 +144,13 @@
                 <input id="manifestDate" type="date" name="date_of_journey" value="{{ $date }}" required>
             </div>
             <button class="manifest-btn" type="submit"><i class="fas fa-search"></i> View</button>
-            <button class="manifest-btn" type="button" onclick="window.print()"><i class="fas fa-print"></i> Print Manifest</button>
+            <a class="manifest-btn" href="{{ route('admin.trip.manifestSeatLayoutPdf', [
+                    'trip_id' => $trip->id,
+                    'date_of_journey' => $date,
+                    'search' => $search,
+                ]) }}" target="_blank" rel="noopener">
+                <i class="fas fa-file-pdf"></i> Print Manifest
+            </a>
         </form>
     </div>
 

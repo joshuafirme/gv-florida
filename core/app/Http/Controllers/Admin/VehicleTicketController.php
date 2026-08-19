@@ -1598,6 +1598,9 @@ class VehicleTicketController extends Controller
         return response()->json([
             'booking' => $this->bookingSummary($ticket, null, null, $targetSlips),
             'trips' => $trips,
+            'alternate_trip_message' => $trips->isEmpty()
+                ? 'No different active trip currently matches this booking\'s route, stoppages, and fare. Change Date and Change Seat are still available.'
+                : null,
             'max_date' => now()->addDays(getAllowedAdvanceBookingDays(true))->format('Y-m-d'),
             'grace_ends_at' => $eligibility['grace_ends_at']->toIso8601String(),
             'after_departure' => $eligibility['after_departure'],
@@ -1676,7 +1679,18 @@ class VehicleTicketController extends Controller
             $eligibility = $this->assertAdminRebookingEligible($ticket, $targetSlips);
             [$trip, $date] = $this->resolveRebookingTarget($ticket, $validated, true);
 
-            $requestedSeats = array_values(array_unique($validated['seats']));
+            $submittedSeats = array_values(array_unique($validated['seats']));
+            $requestedSeats = app(SeatLayoutService::class)->canonicalizeSeats(
+                $trip->fleetType,
+                $submittedSeats
+            );
+
+            if (count($requestedSeats) !== count($submittedSeats)) {
+                throw ValidationException::withMessages([
+                    'seats' => 'One or more selected seats are not valid for this fleet layout. Reload the seat map and try again.',
+                ]);
+            }
+
             $requiredSeats = $this->rebookingSeatCount($ticket, $targetSlips);
 
             if (count($requestedSeats) !== $requiredSeats) {
