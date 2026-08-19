@@ -159,7 +159,8 @@
 
         @media screen and (max-width: 991px) {
             .kiosk-advance-window__card {
-                gap: 13px;
+                gap: 12px;
+                grid-template-columns: minmax(0, 1fr);
             }
 
             .kiosk-advance-window__divider {
@@ -488,30 +489,37 @@
             }
 
             .kiosk-advance-window__card {
-                padding: 16px;
+                gap: 10px;
+                padding: 14px;
             }
 
             .kiosk-advance-window__icon {
-                width: 52px;
-                height: 52px;
-                margin-right: 14px;
-                font-size: 29px;
+                width: 44px;
+                height: 44px;
+                margin-right: 12px;
+                font-size: 24px;
             }
 
             .kiosk-advance-window__info-icon {
-                width: 34px;
-                height: 34px;
-                margin-right: 12px;
-                font-size: 20px;
+                width: 30px;
+                height: 30px;
+                margin-right: 10px;
+                font-size: 18px;
             }
 
             .kiosk-advance-window__limit {
-                font-size: 19px;
+                font-size: 16px;
+                line-height: 1.25;
             }
 
             .kiosk-advance-window__eyebrow,
             .kiosk-advance-window__example p {
-                font-size: 13px;
+                font-size: 12px;
+                line-height: 1.35;
+            }
+
+            .kiosk-advance-window__limit strong {
+                white-space: nowrap;
             }
 
             .ticket-item {
