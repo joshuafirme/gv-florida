@@ -20,19 +20,29 @@
                     $paymentMethod = $deposit->pchannel
                         ? getPaynamicsPChannel($deposit->pchannel, true)
                         : ($deposit->gateway?->name ?? $deposit->methodName());
+                    $paymentResponse = $paynamicsResponse ?: [
+                        'state' => $isPaid ? 'success' : 'pending',
+                        'message' => 'Your payment is pending confirmation.',
+                        'payment_channel' => $paymentMethod ?: 'Paynamics',
+                        'pay_reference' => null,
+                        'request_id' => $deposit->trx,
+                        'response_code' => null,
+                        'timestamp' => formatDate($deposit->updated_at, true),
+                        'instructions' => null,
+                    ];
                 @endphp
-                <div class="done-icon {{ $isPaid ? 'is-paid' : '' }}">
+                <div class="done-icon {{ $isPaid ? 'is-paid' : '' }}" id="paymentStatusIcon">
                     <i class="las {{ $isPaid ? 'la-check' : 'la-clock' }}"></i>
                 </div>
                 @if ($isPaid)
-                    <h3>Payment Successful &mdash; {{ $seatCount }} {{ $seatWord }} Confirmed</h3>
-                    <p>Your payment has been confirmed. Present this voucher at the <strong>Cashier Window</strong> for ticket issuance or verification.</p>
+                    <h3 id="paymentStatusTitle">Payment Successful &mdash; {{ $seatCount }} {{ $seatWord }} Confirmed</h3>
+                    <p id="paymentStatusMessage">Your payment has been confirmed. Present this voucher at the <strong>Cashier Window</strong> for ticket issuance or verification.</p>
                 @elseif ($isPaynamicsPayment)
-                    <h3>Online Payment Pending &mdash; {{ $seatCount }} {{ $seatWord }} Reserved</h3>
-                    <p>Your booking is reserved while Paynamics confirms the payment. Follow the payment instructions below when applicable.</p>
+                    <h3 id="paymentStatusTitle">Online Payment Pending &mdash; {{ $seatCount }} {{ $seatWord }} Reserved</h3>
+                    <p id="paymentStatusMessage">Your booking is reserved while Paynamics confirms the payment. Follow the payment instructions below when applicable.</p>
                 @else
-                    <h3>{{ $seatCount }} {{ $seatWord }} Reserved &mdash; Pay at Counter</h3>
-                    <p>Present this booking voucher at the <strong>Cashier Window</strong> for ticket issuance or verification.</p>
+                    <h3 id="paymentStatusTitle">{{ $seatCount }} {{ $seatWord }} Reserved &mdash; Pay at Counter</h3>
+                    <p id="paymentStatusMessage">Present this booking voucher at the <strong>Cashier Window</strong> for ticket issuance or verification.</p>
                 @endif
 
                 @php
@@ -131,36 +141,47 @@
                     </div>
                 @endif
 
-                @if (!empty($paynamicsResponse))
+                @if ($isPaynamicsPayment)
                     <div class="online-payment-response">
                         <div class="online-payment-response__head">
                             <i class="las la-credit-card"></i>
                             <div>
                                 <span>Online Payment Response</span>
-                                <strong>{{ $paynamicsResponse['message'] }}</strong>
+                                <strong id="providerPaymentMessage">{{ $paymentResponse['message'] }}</strong>
+                                @if ($paynamicsRealtime['enabled'])
+                                    <small class="payment-live-status" id="paymentLiveStatus">Connecting to live payment updates...</small>
+                                @endif
                             </div>
                         </div>
                         <div class="online-payment-response__grid">
                             <div>
                                 <span>Payment Channel</span>
-                                <strong>{{ $paynamicsResponse['payment_channel'] ?: 'Paynamics' }}</strong>
+                                <strong id="providerPaymentChannel">{{ $paymentResponse['payment_channel'] ?: 'Paynamics' }}</strong>
                             </div>
                             <div>
                                 <span>Provider Reference</span>
-                                <strong>{{ $paynamicsResponse['pay_reference'] ?: 'Pending' }}</strong>
+                                <strong id="providerPaymentReference">{{ $paymentResponse['pay_reference'] ?: 'Pending' }}</strong>
                             </div>
                             <div>
                                 <span>Request ID</span>
-                                <strong>{{ $paynamicsResponse['request_id'] }}</strong>
+                                <strong id="providerRequestId">{{ $paymentResponse['request_id'] }}</strong>
                             </div>
                             <div>
                                 <span>Response Code</span>
-                                <strong>{{ $paynamicsResponse['response_code'] ?: 'Pending' }}</strong>
+                                <strong id="providerResponseCode">{{ $paymentResponse['response_code'] ?: 'Pending' }}</strong>
+                            </div>
+                            <div>
+                                <span>Payment Status</span>
+                                <strong id="providerPaymentStatus">{{ ucfirst($paymentResponse['state'] ?? ($isPaid ? 'success' : 'pending')) }}</strong>
+                            </div>
+                            <div>
+                                <span>Last Updated</span>
+                                <strong id="providerPaymentUpdated">{{ $paymentResponse['timestamp'] ?? formatDate($deposit->updated_at, true) }}</strong>
                             </div>
                         </div>
-                        @if (!empty($paynamicsResponse['instructions']))
-                            <div class="online-payment-response__instructions">
-                                {!! nl2br(e($paynamicsResponse['instructions'])) !!}
+                        @if (!empty($paymentResponse['instructions']))
+                            <div class="online-payment-response__instructions" id="providerPaymentInstructions">
+                                {!! nl2br(e($paymentResponse['instructions'])) !!}
                             </div>
                         @endif
                     </div>
@@ -373,6 +394,21 @@
             overflow-wrap: anywhere;
         }
 
+        .payment-live-status {
+            color: #64748b;
+            display: block;
+            font-size: 12px;
+            margin-top: 3px;
+        }
+
+        .payment-live-status.is-connected {
+            color: #15803d;
+        }
+
+        .payment-live-status.is-error {
+            color: #b45309;
+        }
+
         .online-payment-response__grid {
             border-top: 1px solid #e2e8f0;
             display: grid;
@@ -517,11 +553,15 @@
 @endpush
 
 @push('script')
+    @if ($paynamicsRealtime['enabled'])
+        <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+    @endif
     <script>
         (function() {
             "use strict";
 
             const androidReceiptPayload = @json($androidReceiptPayload);
+            const paymentRealtime = @json($paynamicsRealtime);
 
             function printViaAndroidBridge() {
                 if (!window.Android || typeof window.Android.printReceipt !== 'function') {
@@ -541,6 +581,109 @@
                 printViaAndroidBridge();
             } else {
                 window.addEventListener('load', printViaAndroidBridge, { once: true });
+            }
+
+            if (paymentRealtime.enabled) {
+                let statusRequested = false;
+                let isReloading = false;
+                const liveStatus = document.getElementById('paymentLiveStatus');
+
+                function setLiveStatus(message, state) {
+                    if (!liveStatus) return;
+
+                    liveStatus.textContent = message;
+                    liveStatus.classList.toggle('is-connected', state === 'connected');
+                    liveStatus.classList.toggle('is-error', state === 'error');
+                }
+
+                function setText(id, value, fallback) {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value || fallback;
+                    }
+                }
+
+                function applyPaymentUpdate(payload) {
+                    if (!payload || !payload.state || isReloading) return;
+
+                    const details = payload.details || {};
+                    setText('providerPaymentMessage', details.message, 'Payment status updated.');
+                    setText('providerPaymentChannel', details.payment_channel, 'Paynamics');
+                    setText('providerPaymentReference', details.pay_reference, 'Pending');
+                    setText('providerRequestId', details.request_id, paymentRealtime.transaction_id);
+                    setText('providerResponseCode', details.response_code, 'Pending');
+                    setText('providerPaymentStatus', payload.state.charAt(0).toUpperCase() + payload.state.slice(1), 'Pending');
+                    setText('providerPaymentUpdated', details.timestamp, payload.updated_at);
+
+                    if (payload.is_paid || payload.state === 'success') {
+                        isReloading = true;
+                        setLiveStatus('Payment confirmed. Updating your voucher...', 'connected');
+                        window.location.reload();
+                        return;
+                    }
+
+                    if (payload.state === 'expired' || payload.state === 'failed') {
+                        setText('paymentStatusTitle', payload.state === 'expired' ? 'Payment Expired' : 'Payment Not Confirmed');
+                        setText('paymentStatusMessage', details.message, 'The payment could not be confirmed.');
+                        setLiveStatus('Payment status updated.', 'error');
+                        return;
+                    }
+
+                    setLiveStatus('Live payment updates connected.', 'connected');
+                }
+
+                async function reconcilePayment() {
+                    if (statusRequested) return;
+                    statusRequested = true;
+                    setLiveStatus('Checking the latest payment status...');
+
+                    try {
+                        const response = await fetch(paymentRealtime.endpoint, {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': @json(csrf_token()),
+                            },
+                            body: JSON.stringify({}),
+                        });
+                        const result = await response.json();
+
+                        if (!response.ok) {
+                            throw new Error(result.message || 'Unable to refresh payment status.');
+                        }
+
+                        applyPaymentUpdate(result.data);
+                    } catch (error) {
+                        console.error('Paynamics status check failed:', error);
+                        setLiveStatus('Automatic status check is temporarily unavailable. Live updates remain active.', 'error');
+                    }
+                }
+
+                if (paymentRealtime.key && typeof window.Pusher !== 'undefined') {
+                    const pusher = new Pusher(paymentRealtime.key, {
+                        cluster: paymentRealtime.cluster || 'ap1'
+                    });
+                    const channel = pusher.subscribe(paymentRealtime.channel);
+
+                    channel.bind('pusher:subscription_succeeded', function() {
+                        setLiveStatus('Live payment updates connected.', 'connected');
+                        reconcilePayment();
+                    });
+                    channel.bind(paymentRealtime.event, applyPaymentUpdate);
+                    pusher.connection.bind('unavailable', function() {
+                        setLiveStatus('Live updates are reconnecting...', 'error');
+                    });
+                    pusher.connection.bind('failed', function() {
+                        setLiveStatus('Live updates are unavailable. Checking directly...', 'error');
+                        reconcilePayment();
+                    });
+
+                    window.setTimeout(reconcilePayment, 1500);
+                } else {
+                    reconcilePayment();
+                }
             }
 
             const countdown = document.getElementById('payCountdown');

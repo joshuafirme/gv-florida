@@ -8,6 +8,7 @@ use App\Models\Deposit;
 use App\Http\Controllers\Gateway\PaymentController;
 use App\Models\PaynamicsWebhookLog;
 use App\Services\Paynamics;
+use App\Services\PaynamicsPaymentBroadcaster;
 use App\Services\PaymentGatewayService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -265,6 +266,50 @@ class ProcessController extends Controller
             : null;
     }
 
+    public function status(Request $request)
+    {
+        $transactionId = trim((string) session('Track'));
+        $bookedTicketId = (int) session('booked_ticket_id');
+
+        abort_unless($transactionId !== '' && $bookedTicketId > 0, 404);
+
+        $deposit = Deposit::query()
+            ->with(['gateway', 'bookedTicket'])
+            ->where('trx', $transactionId)
+            ->where('booked_ticket_id', $bookedTicketId)
+            ->latest('id')
+            ->firstOrFail();
+
+        abort_unless($this->isPaynamicsDeposit($deposit), 404);
+
+        $transaction = null;
+
+        if (in_array((int) $deposit->status, [Status::PAYMENT_INITIATE, Status::PAYMENT_PENDING], true)) {
+            try {
+                $transaction = $this->getTransaction($deposit->trx);
+                $this->syncProviderDetails($deposit, $transaction);
+
+                if (data_get($transaction, 'response_code') === 'GR001') {
+                    PaymentController::userDataUpdate($deposit);
+                }
+            } catch (\Throwable $exception) {
+                report($exception);
+
+                return response()->json([
+                    'message' => 'Payment status could not be refreshed yet. Live updates will remain active.',
+                ], 503);
+            }
+        }
+
+        $deposit->refresh()->loadMissing(['gateway', 'bookedTicket']);
+        $payload = $this->paymentStatusPayload($deposit, $transaction);
+
+        session()->put('paynamics_callback_details', $payload['details']);
+        app(PaynamicsPaymentBroadcaster::class)->paymentUpdated($deposit->trx, $payload);
+
+        return response()->json(['data' => $payload]);
+    }
+
     private function callbackDeposit(Request $request): ?Deposit
     {
         $transactionIds = collect([
@@ -326,6 +371,64 @@ class ProcessController extends Controller
             ->where('booked_ticket_id', $bookedTicketId)
             ->latest('id')
             ->first();
+    }
+
+    private function isPaynamicsDeposit(Deposit $deposit): bool
+    {
+        return filled($deposit->pchannel)
+            || strtolower((string) $deposit->gateway?->alias) === PaymentGatewayService::PAYNAMICS;
+    }
+
+    private function syncProviderDetails(Deposit $deposit, mixed $transaction): void
+    {
+        if (!$transaction) {
+            return;
+        }
+
+        $payReference = trim((string) data_get($transaction, 'pay_reference'));
+        $channel = trim((string) (
+            data_get($transaction, 'pchannel')
+            ?: data_get($transaction, 'direct_otc_info.0.pay_channel')
+        ));
+        $expiryLimit = data_get($transaction, 'expiry_limit');
+
+        if ($payReference !== '') {
+            $deposit->pay_reference = $payReference;
+        }
+
+        if ($channel !== '') {
+            $deposit->pchannel = $channel;
+        }
+
+        if ($expiryLimit) {
+            $deposit->expiry_limit = $expiryLimit;
+        }
+
+        if ($deposit->isDirty()) {
+            $deposit->save();
+        }
+    }
+
+    private function paymentStatusPayload(Deposit $deposit, mixed $transaction): array
+    {
+        $state = match ((int) $deposit->status) {
+            Status::PAYMENT_SUCCESS => 'success',
+            Status::PAYMENT_REJECT => 'failed',
+            Status::PAYMENT_EXPIRED => 'expired',
+            default => 'pending',
+        };
+        $details = $this->callbackDetails($deposit, $transaction, $state);
+
+        return [
+            'state' => $state,
+            'is_paid' => $state === 'success',
+            'transaction_id' => $deposit->trx,
+            'payment_method' => $details['payment_channel'] ?: 'Paynamics',
+            'amount' => (float) $deposit->final_amount,
+            'amount_display' => showAmount($deposit->final_amount),
+            'updated_at' => $deposit->updated_at?->toIso8601String(),
+            'details' => $details,
+        ];
     }
 
     private function restoreBookingSession(BookedTicket $ticket, Deposit $deposit): void
@@ -483,6 +586,15 @@ class ProcessController extends Controller
                 }
 
                 PaymentController::userDataUpdate($deposit);
+            }
+
+            if ($deposit) {
+                $this->syncProviderDetails($deposit, (object) $payload);
+                $deposit->refresh();
+                app(PaynamicsPaymentBroadcaster::class)->paymentUpdated(
+                    $deposit->trx,
+                    $this->paymentStatusPayload($deposit, (object) $payload)
+                );
             }
 
             $responsePayload = [

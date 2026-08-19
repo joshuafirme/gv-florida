@@ -14,6 +14,7 @@ use App\Models\GeneralSetting;
 use App\Models\User;
 use App\Models\UserDiscount;
 use App\Services\CashierTransactionRecorder;
+use App\Services\PaynamicsPaymentBroadcaster;
 use App\Services\PaymentGatewayService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -384,11 +385,23 @@ class PaymentController extends Controller
         $pageTitle = (int) $deposit->status === Status::PAYMENT_SUCCESS
             ? 'Payment Confirmation'
             : 'Booking Voucher';
+        $paynamicsRealtime = [
+            'enabled' => (int) $deposit->status === Status::PAYMENT_PENDING
+                && (!empty($deposit->pchannel)
+                    || strtolower((string) $deposit->gateway?->alias) === PaymentGatewayService::PAYNAMICS),
+            'endpoint' => route('user.paynamics.status'),
+            'transaction_id' => $deposit->trx,
+            'channel' => PaynamicsPaymentBroadcaster::channelFor($deposit->trx),
+            'event' => PaynamicsPaymentBroadcaster::EVENT,
+            'key' => config('services.pusher.key'),
+            'cluster' => config('services.pusher.cluster', 'ap1'),
+        ];
 
         return view('Template::user.payment.done', compact(
             'deposit',
             'ticket',
             'paynamicsResponse',
+            'paynamicsRealtime',
             'pageTitle',
             'layout'
         ));

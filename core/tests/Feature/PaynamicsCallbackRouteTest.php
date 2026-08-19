@@ -21,4 +21,13 @@ class PaynamicsCallbackRouteTest extends TestCase
             $this->assertSame($requestId, $query['request_id'] ?? null);
         }
     }
+
+    public function test_payment_status_reconciliation_is_post_only_and_requires_the_active_booking_session(): void
+    {
+        $route = app('router')->getRoutes()->getByName('user.paynamics.status');
+
+        $this->assertNotNull($route);
+        $this->assertSame(['POST'], $route->methods());
+        $this->postJson(route('user.paynamics.status'))->assertNotFound();
+    }
 }
