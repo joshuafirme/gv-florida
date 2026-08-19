@@ -4,6 +4,8 @@
         $date_of_journey = request('date_of_journey') ? request('date_of_journey') : date('m/d/Y');
         $dateOfJourneyQuery = \Carbon\Carbon::parse($date_of_journey)->format('m/d/Y');
         $date_of_journey_formatted = formatDate($date_of_journey);
+        $selectedPickupPoint = request('start_from') ?: request('pickup') ?: $trip->startFrom->id;
+        $selectedDroppingPoint = request('dropping_point') ?: request('destination') ?: request('end_to') ?: $trip->endTo->id;
     @endphp
     @if ($kiosk_id)
         @php
@@ -19,9 +21,9 @@
             <a class="seat-back-link"
                 href="{{ url('/tickets?' . urldecode(http_build_query([
                     'kiosk_id' => $kiosk_id,
-                    'counter_id' => $trip->startFrom->id,
-                    'pickup' => $trip->startFrom->id,
-                    'destination' => $trip->endTo->id,
+                    'counter_id' => $selectedPickupPoint,
+                    'pickup' => $selectedPickupPoint,
+                    'destination' => $selectedDroppingPoint,
                     'date_of_journey' => $dateOfJourneyQuery,
                 ]))) }}">
                 <i class="las la-arrow-left"></i> Go Back
@@ -66,7 +68,7 @@
 
                             <input type="hidden" name="price" value="0">
                             <input type="hidden" name="date_of_journey" value="{{ $dateOfJourneyQuery }}">
-                            <input type="hidden" name="pickup_point" id="pickup_point" value="{{ $trip->startFrom->id }}">
+                            <input type="hidden" name="pickup_point" id="pickup_point" value="{{ $selectedPickupPoint }}">
                             <input type="hidden" name="seats">
 
                             <div class="card-body p-4">
@@ -313,9 +315,9 @@
 
             .booking-seat-flow .seat-plan-inner .seat-wrapper .seat.comfort-room {
                 border-radius: 8px;
-                height: 40px !important;
+                height: calc((var(--seat-cell-height) * var(--seat-row-span)) + (var(--seat-row-gap) * (var(--seat-row-span) - 1))) !important;
                 line-height: 1 !important;
-                width: 30px !important;
+                width: 100% !important;
             }
 
             .booking-seat-flow .seat-for-reserved .seat {
@@ -364,10 +366,15 @@
                 width: 48px;
             }
 
+            .booking-seat-flow.is-kiosk .shared-seat-layout {
+                --seat-cell-height: 56px;
+                --seat-cell-width: 48px;
+                --seat-row-gap: 18px;
+            }
+
             .booking-seat-flow.is-kiosk .seat-plan-inner .seat-wrapper .seat.comfort-room {
-                height: 56px !important;
-                margin-right: 10px;
-                width: 48px !important;
+                height: calc((var(--seat-cell-height) * var(--seat-row-span)) + (var(--seat-row-gap) * (var(--seat-row-span) - 1))) !important;
+                width: 100% !important;
             }
 
             .booking-seat-flow.is-kiosk .seat-plan-inner .seat-wrapper {
@@ -566,9 +573,13 @@
                 }
 
                 .booking-seat-flow.is-kiosk .seat-plan-inner .seat-wrapper .seat.comfort-room {
-                    height: 52px !important;
-                    margin-right: 5px;
-                    width: 42px !important;
+                    height: calc((var(--seat-cell-height) * var(--seat-row-span)) + (var(--seat-row-gap) * (var(--seat-row-span) - 1))) !important;
+                    width: 100% !important;
+                }
+
+                .booking-seat-flow.is-kiosk .shared-seat-layout {
+                    --seat-cell-height: 52px;
+                    --seat-cell-width: 42px;
                 }
 
                 .seat-confirm-actions {
@@ -612,6 +623,15 @@
 
                 // 2. Listen to Dropping Point changes
                 $('select[name="dropping_point"]').on('change', function() {
+                    const selectedDroppingPoint = String($(this).val() || '');
+                    const backLink = document.querySelector('.seat-back-link');
+
+                    if (selectedDroppingPoint && backLink) {
+                        const backUrl = new URL(backLink.href, window.location.origin);
+                        backUrl.searchParams.set('destination', selectedDroppingPoint);
+                        backLink.href = backUrl.toString();
+                    }
+
                     showBookedSeat();
                 });
 

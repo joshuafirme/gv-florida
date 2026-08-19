@@ -21,26 +21,7 @@
             line-height: 1.15;
         }
 
-        .brand {
-            margin: 0 0 5px;
-            color: #11151d;
-            font-size: 10px;
-            font-weight: 700;
-            text-align: center;
-            text-transform: uppercase;
-        }
-
-        h1 {
-            margin: 0 0 2px;
-            color: #d92378;
-            font-size: 15px;
-        }
-
-        .meta {
-            margin: 0 0 2px;
-            color: #586170;
-            font-size: 7px;
-        }
+        @include('admin.partials.report-document-header-styles', ['pdfHeader' => true])
 
         .section-title {
             margin: 7px 0 3px;
@@ -163,13 +144,23 @@
             color: #737c8b;
             text-align: center;
         }
+
+        .transaction-reason span {
+            display: block;
+        }
+
+        .transaction-reason span + span {
+            margin-top: 1px;
+        }
     </style>
 </head>
 <body>
-    <div class="brand">{{ strtoupper(gs('site_name') ?: 'GV FLORIDA TRANSPORT, INC.') }}</div>
-    <h1>Shift End Report</h1>
-    <p class="meta">Generated: {{ now()->format('F j, Y h:i A') }}</p>
-    <p class="meta"><strong>{{ $admin->name }}</strong> &middot; {{ $date->format('l, F j, Y') }}</p>
+    @include('admin.partials.report-document-header', [
+        'reportTitle' => 'Shift End Report',
+        'reportDate' => $date,
+        'reportDateLabel' => 'Shift date',
+        'reportSubject' => 'Cashier: ' . $admin->name,
+    ])
 
     <div class="section-title">Summary</div>
     <table class="summary">
@@ -218,19 +209,19 @@
     <div class="section-title">Detail - Transactions</div>
     <table>
         <colgroup>
-            <col style="width: 7.5%">
-            <col style="width: 4.5%">
             <col style="width: 7%">
-            <col style="width: 5.5%">
-            <col style="width: 9%">
-            <col style="width: 7%">
-            <col style="width: 11.5%">
             <col style="width: 4%">
-            <col style="width: 7%">
             <col style="width: 6.5%">
+            <col style="width: 5%">
+            <col style="width: 8.5%">
+            <col style="width: 6.5%">
+            <col style="width: 10.5%">
+            <col style="width: 3.5%">
             <col style="width: 6.5%">
             <col style="width: 6%">
-            <col style="width: 18%">
+            <col style="width: 6%">
+            <col style="width: 5%">
+            <col style="width: 25%">
         </colgroup>
         <thead>
             <tr>
@@ -294,7 +285,7 @@
                         {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
                     </td>
                     <td><span class="status status-{{ $statusClass }}">{{ $transaction->status }}</span></td>
-                    <td>{{ $transaction->reason ?: '-' }}</td>
+                    <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                 </tr>
             @empty
                 <tr>

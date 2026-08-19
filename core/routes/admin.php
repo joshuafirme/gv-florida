@@ -57,6 +57,7 @@ Route::middleware('admin')->group(function () {
     Route::controller('AdminUserController')->prefix('admin')->group(function () {
         Route::post('users/bulk-status', 'bulkStatus')->name('users.bulk');
         Route::get('users', 'index')->name('users');
+        Route::get('users/{id}/authorization-code', 'authorizationCode')->name('users.authorization.code');
         Route::post('users', 'store')->name('users.store');
         Route::post('users/{id}', 'update')->name('users.update');
         Route::post('users/remove/{id}', 'remove')->name('users.remove');
@@ -114,6 +115,7 @@ Route::middleware('admin')->group(function () {
         Route::prefix('type')->name('type.')->group(function () {
             Route::get('', 'type')->name('index');
             Route::get('details/{id}', 'seatLayoutDetails')->name('seatLayoutDetails');
+            Route::post('preview', 'typePreview')->name('preview');
             Route::post('store/{id?}', 'typeStore')->name('store');
             Route::post('status/{id}', 'typeStatus')->name('status');
         });
@@ -254,6 +256,17 @@ Route::middleware('admin')->group(function () {
             Route::get('/', 'edit')->name('edit');
             Route::put('/', 'update')->name('update');
         });
+
+    Route::controller('DeveloperController')->prefix('developer')->name('developer.')->group(function () {
+        Route::middleware('role:admin.developer.payment.transactions')->group(function () {
+            Route::get('payment-transactions', 'paymentTransactions')->name('payment.transactions');
+            Route::get('payment-transactions/export', 'exportPaymentTransactions')->name('payment.transactions.export');
+        });
+
+        Route::get('webhook-logs', 'webhookLogs')
+            ->middleware('role:admin.developer.webhook.logs')
+            ->name('webhook.logs');
+    });
 
     Route::get('gateway/automatic/{path?}', function () {
         return to_route('admin.payment.settings.edit');

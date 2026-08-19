@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Constants\Status;
 use App\Http\Controllers\Controller;
-use App\Lib\BusLayout;
 use App\Models\Admin;
 use App\Models\BookedTicket;
 use App\Models\CashierTransactionEvent;
@@ -21,6 +20,8 @@ use App\Models\TicketVoid;
 use App\Services\CashierTransactionRecorder;
 use App\Services\RebookingPolicy;
 use App\Services\SeatConflictService;
+use App\Services\SeatLayoutService;
+use App\Services\TransactionAuthorizationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -229,15 +230,11 @@ class VehicleTicketController extends Controller
             'authorization_code' => 'required|string|max:100',
         ]);
 
-        $authorizedBy = Admin::where('status', Status::ENABLE)
-            ->where('passcode', $validated['authorization_code'])
-            ->first();
-
-        if (!$authorizedBy) {
-            throw ValidationException::withMessages([
-                'authorization_code' => 'The authorization code is invalid or belongs to an inactive administrator.',
-            ]);
-        }
+        $authorizedBy = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::REFUND,
+            $this->authorizationContextForSlip($slip, $validated['reason'])
+        );
 
         $refund = DB::transaction(function () use ($slip, $validated, $authorizedBy) {
             $slip = SlipSeriesNumber::whereDoesntHave('refund')
@@ -329,18 +326,15 @@ class VehicleTicketController extends Controller
     {
         $validated = $request->validate([
             'authorization_code' => 'required|string|max:100',
+            'reason' => 'nullable|string|max:1000',
         ]);
 
         $this->cancellableSlip($slip);
-        $authorizedBy = Admin::where('status', Status::ENABLE)
-            ->where('passcode', $validated['authorization_code'])
-            ->first();
-
-        if (!$authorizedBy) {
-            throw ValidationException::withMessages([
-                'authorization_code' => 'The authorization code is invalid or belongs to an inactive administrator.',
-            ]);
-        }
+        $authorizedBy = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::CANCELLATION,
+            $this->authorizationContextForSlip($slip, $validated['reason'] ?? null)
+        );
 
         return response()->json([
             'authorized' => true,
@@ -358,15 +352,11 @@ class VehicleTicketController extends Controller
             'authorization_code' => 'required|string|max:100',
         ]);
 
-        $authorizedBy = Admin::where('status', Status::ENABLE)
-            ->where('passcode', $validated['authorization_code'])
-            ->first();
-
-        if (!$authorizedBy) {
-            throw ValidationException::withMessages([
-                'authorization_code' => 'The authorization code is invalid or belongs to an inactive administrator.',
-            ]);
-        }
+        $authorizedBy = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::CANCELLATION,
+            $this->authorizationContextForSlip($slip, $validated['reason'])
+        );
 
         $cancellation = DB::transaction(function () use ($slip, $validated, $authorizedBy) {
             $slip = SlipSeriesNumber::whereDoesntHave('refund')
@@ -445,15 +435,11 @@ class VehicleTicketController extends Controller
             'authorization_code' => 'required|string|max:100',
         ]);
 
-        $authorizedBy = Admin::where('status', Status::ENABLE)
-            ->where('passcode', $validated['authorization_code'])
-            ->first();
-
-        if (!$authorizedBy) {
-            throw ValidationException::withMessages([
-                'authorization_code' => 'The authorization code is invalid or belongs to an inactive administrator.',
-            ]);
-        }
+        $authorizedBy = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::VOID,
+            $this->authorizationContextForSlip($slip, $validated['reason'])
+        );
 
         $ticketVoid = DB::transaction(function () use ($slip, $validated, $authorizedBy) {
             $slip = SlipSeriesNumber::whereDoesntHave('refund')
@@ -1033,8 +1019,108 @@ class VehicleTicketController extends Controller
             'status' => $status,
             'reason' => $statusRecord?->reason,
             'updated_at' => ($statusRecord?->processed_at ?? $statusRecord?->created_at ?? $slip->updated_at)?->format('M d, Y g:i A'),
-            'view_url' => route('admin.trip.reservationSlip', $ticket->id),
+            'actions' => $this->allTicketActions($slip, $status),
         ];
+    }
+
+    private function allTicketActions(SlipSeriesNumber $slip, string $status): array
+    {
+        $ticket = $slip->bookedTicket;
+        $canRebook = in_array((int) $ticket->status, [Status::BOOKED_APPROVED, Status::BOOKED_PENDING], true)
+            && !$slip->refund
+            && !$slip->cancellation
+            && !$slip->voidRecord;
+        $bookedActionUrl = fn (string $action) => route('admin.vehicle.ticket.booked', [
+            'ticket_action' => $action,
+            'slip_id' => $slip->id,
+        ]);
+        $rebookUrl = route('admin.vehicle.ticket.booked', [
+            'rebook_ticket' => $ticket->id,
+            'slip_id' => $slip->id,
+        ]);
+
+        return match ($status) {
+            'Booked' => [
+                [
+                    'label' => 'Reservation slip',
+                    'icon' => 'fa-solid fa-receipt',
+                    'class' => 'btn-outline--primary',
+                    'url' => route('admin.trip.reservationSlip', $ticket->id),
+                    'target' => '_blank',
+                ],
+                [
+                    'label' => 'Rebook ticket',
+                    'icon' => 'fa-solid fa-calendar-day',
+                    'class' => 'btn-outline--primary',
+                    'url' => $rebookUrl,
+                ],
+                [
+                    'label' => 'Refund ticket',
+                    'icon' => 'las la-undo-alt',
+                    'class' => 'btn-outline--warning',
+                    'url' => $bookedActionUrl('refund'),
+                ],
+                [
+                    'label' => 'Cancel ticket',
+                    'icon' => 'fa-solid fa-circle-xmark',
+                    'class' => 'btn-outline--danger',
+                    'url' => $bookedActionUrl('cancel'),
+                ],
+                [
+                    'label' => 'Void ticket',
+                    'icon' => 'las la-ban',
+                    'class' => 'btn-outline--danger',
+                    'url' => $bookedActionUrl('void'),
+                ],
+            ],
+            'Pending' => $canRebook ? [[
+                'label' => 'Rebook pending ticket',
+                'icon' => 'fa-solid fa-calendar-day',
+                'class' => 'btn-outline--primary',
+                'url' => $rebookUrl,
+            ]] : [],
+            'Rebooked' => array_values(array_filter([
+                [
+                    'label' => 'View rebooking history',
+                    'icon' => 'las la-eye',
+                    'class' => 'btn-outline--primary',
+                    'url' => route('admin.vehicle.ticket.rebooked', ['search' => $slip->id]),
+                ],
+                [
+                    'label' => 'Print current ticket',
+                    'icon' => 'las la-print',
+                    'class' => 'btn-outline--primary',
+                    'url' => route('admin.trip.reservationSlip', $ticket->id),
+                    'target' => '_blank',
+                ],
+                $canRebook ? [
+                    'label' => 'Rebook this ticket again',
+                    'icon' => 'las la-exchange-alt',
+                    'class' => 'btn-outline--primary',
+                    'url' => $rebookUrl,
+                ] : null,
+            ])),
+            'Refunded' => $slip->refund ? [[
+                'label' => 'View refund record',
+                'icon' => 'las la-eye',
+                'class' => 'btn-outline--primary',
+                'url' => route('admin.vehicle.ticket.refunded', ['search' => $slip->id]),
+            ]] : [],
+            'Cancelled' => $slip->cancellation ? [[
+                'label' => 'View cancellation acknowledgment',
+                'icon' => 'las la-eye',
+                'class' => 'btn-outline--primary',
+                'url' => route('admin.vehicle.ticket.cancel.acknowledgment', $slip->cancellation->id),
+                'target' => '_blank',
+            ]] : [],
+            'Voided' => $slip->voidRecord ? [[
+                'label' => 'View void transaction',
+                'icon' => 'las la-eye',
+                'class' => 'btn-outline--primary',
+                'url' => route('admin.vehicle.ticket.voided', ['search' => $slip->id]),
+            ]] : [],
+            default => [],
+        };
     }
 
     private function rebookedTicketRelations(): array
@@ -1067,6 +1153,9 @@ class VehicleTicketController extends Controller
             && (!$slip || (!$slip->refund && !$slip->cancellation && !$slip->voidRecord));
         $snapshot = $event->snapshot ?: [];
         $history = $snapshot['rebooking'] ?? [];
+        $authorization = is_array($snapshot['authorization'] ?? null)
+            ? $snapshot['authorization']
+            : [];
         $formatDeparture = static fn ($value) => $value
             ? Carbon::parse($value)->format('M d, Y g:i A')
             : null;
@@ -1115,7 +1204,16 @@ class VehicleTicketController extends Controller
             'booking_source' => $source,
             'payment_method' => $event->payment_method ?: ($snapshot['payment_method'] ?? '-'),
             'processed_by' => $event->admin?->name ?: $event->admin?->username ?: '-',
-            'authorized_by' => $snapshot['authorized_by_name'] ?? $snapshot['authorized_by'] ?? null,
+            'authorized_by' => $authorization['authorized_by_name']
+                ?? $snapshot['authorized_by_name']
+                ?? $snapshot['authorized_by']
+                ?? null,
+            'authorized_at' => $formatDeparture(
+                $authorization['authorized_at'] ?? $snapshot['authorized_at'] ?? null
+            ),
+            'approval_remarks' => $authorization['approval_remarks']
+                ?? $snapshot['approval_remarks']
+                ?? null,
             'status' => 'Rebooked',
             'sequence' => (int) ($history['sequence'] ?? $snapshot['rebooking_sequence'] ?? 1),
             'previous_trip' => $history['previous']['trip'] ?? '-',
@@ -1352,25 +1450,17 @@ class VehicleTicketController extends Controller
 
     public function updateBookingDate(Request $request, $id)
     {
-
-        $admin = Admin::where('username', $request->username)
-            ->where('passcode', $request->passcode)
-            ->first();
-
-        $is_authorized = isset($admin->id) ? true : false;
-        $message = $is_authorized ? 'Authorization success!' : 'Invalid username or passcode!';
-
-        if ($is_authorized) {
-            $request->validate([
-                'date_of_journey' => 'required|date|after_or_equal:today',
-            ]);
-        } else {
-            return redirect()->back()->withErrors(['authorization' => $message]);
-        }
-        $request->validate([
+        $validated = $request->validate([
             'date_of_journey' => 'required|date|after_or_equal:today',
             'seats' => 'required|string', // Comma-separated string from JS hidden input
+            'authorization_code' => 'required|string|max:100',
         ]);
+
+        $admin = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::REBOOKING,
+            $this->authorizationContextForBooking($id, null, 'Booking schedule updated')
+        );
 
         $data = BookedTicket::with([
             'trip.schedule',
@@ -1469,7 +1559,8 @@ class VehicleTicketController extends Controller
             (int) auth('admin')->id(),
             implode('; ', $reasonParts) ?: 'Booking schedule updated',
             Str::uuid()->toString(),
-            $rebookingHistory
+            $rebookingHistory,
+            $admin
         );
 
         $notify[] = ['success', "Booking Date and Seats Updated Successfully"];
@@ -1507,6 +1598,9 @@ class VehicleTicketController extends Controller
         return response()->json([
             'booking' => $this->bookingSummary($ticket, null, null, $targetSlips),
             'trips' => $trips,
+            'alternate_trip_message' => $trips->isEmpty()
+                ? 'No different active trip currently matches this booking\'s route, stoppages, and fare. Change Date and Change Seat are still available.'
+                : null,
             'max_date' => now()->addDays(getAllowedAdvanceBookingDays(true))->format('Y-m-d'),
             'grace_ends_at' => $eligibility['grace_ends_at']->toIso8601String(),
             'after_departure' => $eligibility['after_departure'],
@@ -1530,8 +1624,10 @@ class VehicleTicketController extends Controller
         $availability = $this->seatAvailability($ticket, $trip, $date, false, $targetSlips);
 
         $fleetType = $trip->fleetType;
-        $busLayout = new BusLayout($trip);
-        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'busLayout'))->render();
+        $seatLayout = app(SeatLayoutService::class)->layout($fleetType, [
+            'booked' => $availability['booked'],
+        ]);
+        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'seatLayout'))->render();
 
         return response()->json([
             'html' => $html,
@@ -1553,10 +1649,18 @@ class VehicleTicketController extends Controller
             'seats' => 'required|array|min:1',
             'seats.*' => 'required|string|max:30',
             'reason' => 'nullable|string|max:1000',
+            'approval_remarks' => 'nullable|string|max:1000',
+            'authorization_code' => 'required|string|max:100',
         ]);
         $slipId = $request->integer('slip_id') ?: null;
 
-        $result = DB::transaction(function () use ($id, $validated, $slipId) {
+        $authorizedBy = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::REBOOKING,
+            $this->authorizationContextForBooking($id, $slipId, $validated['reason'] ?? null)
+        );
+
+        $result = DB::transaction(function () use ($id, $validated, $slipId, $authorizedBy) {
             $ticket = BookedTicket::query()
                 ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
                 ->with([
@@ -1575,7 +1679,18 @@ class VehicleTicketController extends Controller
             $eligibility = $this->assertAdminRebookingEligible($ticket, $targetSlips);
             [$trip, $date] = $this->resolveRebookingTarget($ticket, $validated, true);
 
-            $requestedSeats = array_values(array_unique($validated['seats']));
+            $submittedSeats = array_values(array_unique($validated['seats']));
+            $requestedSeats = app(SeatLayoutService::class)->canonicalizeSeats(
+                $trip->fleetType,
+                $submittedSeats
+            );
+
+            if (count($requestedSeats) !== count($submittedSeats)) {
+                throw ValidationException::withMessages([
+                    'seats' => 'One or more selected seats are not valid for this fleet layout. Reload the seat map and try again.',
+                ]);
+            }
+
             $requiredSeats = $this->rebookingSeatCount($ticket, $targetSlips);
 
             if (count($requestedSeats) !== $requiredSeats) {
@@ -1644,7 +1759,9 @@ class VehicleTicketController extends Controller
                 (int) auth('admin')->id(),
                 $reason,
                 Str::uuid()->toString(),
-                $history
+                $history,
+                $authorizedBy,
+                $validated['approval_remarks'] ?? null
             );
 
             return $result;
@@ -1880,7 +1997,7 @@ class VehicleTicketController extends Controller
         array $newSeats,
         ?array $eligibility = null
     ): array {
-        $ticket->loadMissing(['trip.route', 'trip.schedule', 'trip.fleetType']);
+        $ticket->loadMissing(['trip.route', 'trip.schedule', 'trip.fleetType', 'drop']);
         $newTrip->loadMissing(['route', 'schedule', 'fleetType']);
         $slips = collect($targetSlips)->values();
         $oldSeats = $this->rebookingSeats($ticket, $slips)->all();
@@ -1908,6 +2025,8 @@ class VehicleTicketController extends Controller
                 'departure_at' => $previousDeparture->toIso8601String(),
                 'seats' => $oldSeats,
                 'seats_by_reference' => $previousSeatsByReference,
+                'drop_off' => $ticket->drop?->name,
+                'km_post' => $ticket->drop?->km_post,
             ],
             'new' => [
                 'trip_id' => $newTrip->id,
@@ -1917,6 +2036,8 @@ class VehicleTicketController extends Controller
                 'departure_at' => $newDeparture->toIso8601String(),
                 'seats' => array_values($newSeats),
                 'seats_by_reference' => $newSeatsByReference,
+                'drop_off' => $ticket->drop?->name,
+                'km_post' => $ticket->drop?->km_post,
             ],
         ];
 
@@ -2263,9 +2384,10 @@ class VehicleTicketController extends Controller
         );
         $fleetType = $trip->fleetType;
 
-        $busLayout = new BusLayout($trip);
-
-        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'busLayout'))->render();
+        $seatLayout = app(SeatLayoutService::class)->layout($fleetType, [
+            'booked' => $bookedSeatsArray,
+        ]);
+        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'seatLayout'))->render();
 
         $disabled_seats = $fleetType->disabled_seats ? $fleetType->disabled_seats : [];
         $seats = [];
@@ -2286,6 +2408,40 @@ class VehicleTicketController extends Controller
             'disabled_seats' => $disabled_seats,
             'required_seats' => $requiredSeatsCount
         ]);
+    }
+
+    private function authorizationContextForSlip($slipId, ?string $reason = null): array
+    {
+        $slip = SlipSeriesNumber::with('bookedTicket:id,pnr_number')->find($slipId);
+
+        return [
+            'booked_ticket_id' => $slip?->booked_ticket_id,
+            'slip_series_number_id' => $slip?->id,
+            'pnr' => $slip?->bookedTicket?->pnr_number,
+            'reference_no' => $slip?->id ? (string) $slip->id : null,
+            'seat_no' => $slip?->seat,
+            'reason' => $reason,
+        ];
+    }
+
+    private function authorizationContextForBooking(
+        $bookingId,
+        ?int $slipId = null,
+        ?string $reason = null
+    ): array {
+        $ticket = BookedTicket::with('activeSlipSeriesNumbers:id,booked_ticket_id,seat')->find($bookingId);
+        $slip = $slipId
+            ? $ticket?->activeSlipSeriesNumbers->firstWhere('id', $slipId)
+            : $ticket?->activeSlipSeriesNumbers->first();
+
+        return [
+            'booked_ticket_id' => $ticket?->id,
+            'slip_series_number_id' => $slip?->id,
+            'pnr' => $ticket?->pnr_number,
+            'reference_no' => $slip?->id ? (string) $slip->id : null,
+            'seat_no' => $slip?->seat,
+            'reason' => $reason,
+        ];
     }
 
     public function checkTicketPrice(Request $request)

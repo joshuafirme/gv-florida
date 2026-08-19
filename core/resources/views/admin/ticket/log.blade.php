@@ -276,6 +276,7 @@
                                 <span>Same trip and travel date</span>
                             </button>
                         </div>
+                        <div class="rebook-type-notice d-none" id="rebookTypeNotice"></div>
                     </div>
 
                     <div class="rebook-stage d-none" data-stage="selection">
@@ -329,6 +330,18 @@
                             <label for="rebookReason" class="rebook-label">Reason (optional)</label>
                             <textarea id="rebookReason" class="form-control" rows="2" maxlength="1000"
                                 placeholder="Enter a correction or operational reason, if applicable."></textarea>
+                        </div>
+                        <div class="form-group mt-3 mb-0">
+                            <label for="rebookAuthorizationCode" class="rebook-label">Authorization Code</label>
+                            <input type="password" id="rebookAuthorizationCode" class="form-control"
+                                placeholder="Enter authorization code" autocomplete="new-password"
+                                autocapitalize="none" autocorrect="off" spellcheck="false"
+                                data-lpignore="true" data-1p-ignore>
+                        </div>
+                        <div class="form-group mt-3 mb-0">
+                            <label for="rebookApprovalRemarks" class="rebook-label">Approval Remarks (optional)</label>
+                            <textarea id="rebookApprovalRemarks" class="form-control" rows="2" maxlength="1000"
+                                placeholder="Enter authorization or approval notes, if applicable."></textarea>
                         </div>
                         <div class="rebook-success-alert mt-3">
                             <i class="las la-check"></i>
@@ -600,6 +613,9 @@
         .rebook-type-card span { color: #858a94; display: block; font-size: 10px; line-height: 1.35; margin-top: 6px; }
         .rebook-type-card:hover, .rebook-type-card.selected { background: #fff5f9; border-color: #e3196b; box-shadow: 0 0 0 1px #e3196b; }
         .rebook-type-card.selected i, .rebook-type-card.selected strong { color: #e3196b; }
+        .rebook-type-card:disabled { background: #f6f7f9; border-color: #e1e3e7; box-shadow: none; cursor: not-allowed; opacity: .62; }
+        .rebook-type-card:disabled i, .rebook-type-card:disabled strong { color: #8a909b; }
+        .rebook-type-notice { background: #fff8e8; border: 1px solid #f0d69b; border-radius: 8px; color: #795514; font-size: 11px; line-height: 1.4; margin-top: 12px; padding: 9px 11px; }
         .rebook-label { color: #555b66; font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
         .rebook-context { color: #6f7480; font-size: 12px; line-height: 1.45; }
         .rebook-seat-heading { align-items: center; display: flex; font-size: 12px; justify-content: space-between; margin: 18px 0 10px; text-transform: uppercase; }
@@ -992,6 +1008,7 @@
                 $('#rebookBackBtn').text(stage === 'type' ? 'Cancel' : '← Back');
                 $('#rebookContinueBtn').toggleClass('d-none', stage === 'review');
                 $('#rebookConfirmBtn').toggleClass('d-none', stage !== 'review');
+                $('#rebookConfirmBtn').prop('disabled', stage === 'review' && !$('#rebookAuthorizationCode').val().trim());
                 $('#rebookContinueBtn').prop('disabled', stage === 'type' ? !rebookType : true);
             }
 
@@ -1000,8 +1017,10 @@
                 rebookType = null;
                 rebookAvailability = null;
                 rebookSeats = [];
-                $('#rebookReason').val('');
+                $('#rebookReason, #rebookAuthorizationCode, #rebookApprovalRemarks').val('');
                 $('.rebook-type-card').removeClass('selected');
+                $('.rebook-type-card[data-type="new_trip"]').prop('disabled', false);
+                $('#rebookTypeNotice').addClass('d-none').text('');
                 $('.rebook-stage').addClass('d-none');
                 $('.rebook-stage[data-stage="loading"]').removeClass('d-none');
                 $('#rebookPnr, #rebookReference').text('…');
@@ -1020,6 +1039,11 @@
                     $('#rebookTrip').html(data.trips.map(trip =>
                         `<option value="${trip.id}">${escapeHtml(trip.label)} · ${escapeHtml(trip.route)}</option>`
                     ).join(''));
+                    const hasAlternateTrips = data.trips.length > 0;
+                    $('.rebook-type-card[data-type="new_trip"]').prop('disabled', !hasAlternateTrips);
+                    $('#rebookTypeNotice')
+                        .toggleClass('d-none', !data.alternate_trip_message)
+                        .text(data.alternate_trip_message || '');
                     showStage('type');
                 }).fail(function(xhr) {
                     notify('error', validationMessage(xhr));
@@ -1115,7 +1139,10 @@
             }
 
             function seatId(element) {
-                const seat = $(element).text().trim();
+                const canonicalSeat = $(element).attr('data-seat');
+                if (canonicalSeat) return String(canonicalSeat).trim();
+
+                const seat = $(element).attr('data-label') || $(element).clone().children().remove().end().text().trim();
                 const deck = $(element).closest('.seat-plan-inner').data('deck');
                 return `${deck}-${seat}`;
             }
@@ -1127,12 +1154,13 @@
 
                 $('#rebookSeatMap .seat').each(function() {
                     if ($(this).hasClass('comfort-room')) return;
-                    const seat = $(this).text().trim();
+                    const seat = String($(this).attr('data-label') || '').trim();
                     const id = seatId(this);
-                    const unavailable = booked.includes(id) || disabled.includes(seat) || $(this).find('del').length;
+                    const isDisabled = disabled.includes(seat) || disabled.includes(id);
+                    const unavailable = booked.includes(id) || isDisabled || $(this).find('del').length;
 
                     $(this).removeClass('selected booked-seat disabled-seat');
-                    if (disabled.includes(seat) || $(this).find('del').length) {
+                    if (isDisabled || $(this).find('del').length) {
                         $(this).addClass('disabled-seat');
                     } else if (booked.includes(id)) {
                         $(this).addClass('booked-seat');
@@ -1220,9 +1248,14 @@
                 } else if (rebookStage === 'selection') {
                     showStage('type');
                 } else {
+                    $('#rebookAuthorizationCode').val('');
                     showStage('selection');
                     updateSeatAssignment();
                 }
+            });
+
+            $('#rebookAuthorizationCode').on('input', function() {
+                $('#rebookConfirmBtn').prop('disabled', !$(this).val().trim());
             });
 
             $('#rebookConfirmBtn').on('click', function() {
@@ -1235,7 +1268,9 @@
                     date: rebookType === 'change_seat' ? rebookData.booking.date : $('#rebookDate').val(),
                     trip_id: rebookType === 'new_trip' ? $('#rebookTrip').val() : rebookData.booking.trip_id,
                     seats: rebookSeats,
-                    reason: $('#rebookReason').val()
+                    reason: $('#rebookReason').val(),
+                    approval_remarks: $('#rebookApprovalRemarks').val(),
+                    authorization_code: $('#rebookAuthorizationCode').val()
                 };
 
                 button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Confirming…');
@@ -1257,9 +1292,14 @@
                     if (printWindow) printWindow.close();
                     notify('error', validationMessage(xhr));
                     button.prop('disabled', false).html(originalLabel);
+                    $('#rebookAuthorizationCode').val('').attr('type', 'password');
                     showStage('selection');
                     loadAvailability();
                 });
+            });
+
+            $('#rebookModal').on('hide.bs.modal hidden.bs.modal', function() {
+                $('#rebookAuthorizationCode').val('').attr('type', 'password');
             });
         })(jQuery);
 
@@ -1519,7 +1559,8 @@
                     dataType: 'json',
                     data: {
                         _token: "{{ csrf_token() }}",
-                        authorization_code: $('#cancelAuthorizationCode').val()
+                        authorization_code: $('#cancelAuthorizationCode').val(),
+                        reason: $('#cancelReason').val().trim()
                     }
                 }).done(function(result) {
                     const authorizedName = result.authorized_by?.name || 'Authorized personnel';
@@ -1692,6 +1733,45 @@
                     button.prop('disabled', false).html(originalLabel);
                 });
             });
+        })(jQuery);
+
+        @php
+            $autoTicketAction = in_array(request('ticket_action'), ['refund', 'cancel', 'void'], true)
+                ? request('ticket_action')
+                : null;
+            $autoActionSlipId = request()->integer('slip_id');
+            $autoTicketActionUrl = $autoTicketAction && $autoActionSlipId
+                ? match ($autoTicketAction) {
+                    'refund' => route('admin.vehicle.ticket.refund.options', $autoActionSlipId),
+                    'cancel' => route('admin.vehicle.ticket.cancel.options', $autoActionSlipId),
+                    'void' => route('admin.vehicle.ticket.void.options', $autoActionSlipId),
+                }
+                : null;
+        @endphp
+        (function($) {
+            const action = @json($autoTicketAction);
+            const actionUrl = @json($autoTicketActionUrl);
+
+            if (!action || !actionUrl) return;
+
+            const config = {
+                refund: { className: 'refund-ticket-btn', attribute: 'data-refund-url' },
+                cancel: { className: 'cancel-ticket-btn', attribute: 'data-cancel-url' },
+                void: { className: 'void-ticket-btn', attribute: 'data-void-url' }
+            }[action];
+
+            if (!config) return;
+
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete('ticket_action');
+            cleanUrl.searchParams.delete('slip_id');
+            window.history.replaceState({}, '', cleanUrl.toString());
+
+            const trigger = $('<button type="button">')
+                .addClass(config.className)
+                .attr(config.attribute, actionUrl)
+                .appendTo(document.body);
+            trigger.trigger('click').remove();
         })(jQuery);
     </script>
 @endpush

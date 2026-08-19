@@ -2,12 +2,12 @@
 
 @section('panel')
     <div class="shift-report-card">
-        <header class="shift-report-header">
-            <div class="shift-report-brand">{{ strtoupper(gs('site_name') ?: 'GV FLORIDA TRANSPORT, INC.') }}</div>
-            <h2>Shift End Report</h2>
-            <p>Generated: {{ now()->format('F j, Y h:i A') }}</p>
-            <strong>{{ $admin->name }} &middot; {{ $date->format('l, F j, Y') }}</strong>
-        </header>
+        @include('admin.partials.report-document-header', [
+            'reportTitle' => 'Shift End Report',
+            'reportDate' => $date,
+            'reportDateLabel' => 'Shift date',
+            'reportSubject' => 'Cashier: ' . $admin->name,
+        ])
 
         <section class="shift-report-section">
             <h3>Summary</h3>
@@ -50,19 +50,19 @@
             <div class="table-responsive shift-detail-scroll">
                 <table class="shift-detail-table">
                     <colgroup>
-                        <col style="width: 9.5%">
-                        <col style="width: 5%">
-                        <col style="width: 7.5%">
-                        <col style="width: 7%">
-                        <col style="width: 9.5%">
                         <col style="width: 8.5%">
-                        <col style="width: 12%">
-                        <col style="width: 5%">
-                        <col style="width: 7%">
+                        <col style="width: 4%">
+                        <col style="width: 6.5%">
+                        <col style="width: 6%">
+                        <col style="width: 8.5%">
                         <col style="width: 7.5%">
-                        <col style="width: 8%">
-                        <col style="width: 5.5%">
-                        <col style="width: 8%">
+                        <col style="width: 10%">
+                        <col style="width: 4.5%">
+                        <col style="width: 6.5%">
+                        <col style="width: 6.5%">
+                        <col style="width: 7%">
+                        <col style="width: 5%">
+                        <col style="width: 19.5%">
                     </colgroup>
                     <thead>
                         <tr>
@@ -131,7 +131,7 @@
                                     {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
                                 </td>
                                 <td><span class="shift-status shift-status--{{ $statusClass }}">{{ $transaction->status }}</span></td>
-                                <td>{{ $transaction->reason ?: '-' }}</td>
+                                <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                             </tr>
                         @empty
                             <tr>
@@ -202,44 +202,14 @@
         }
 
         .shift-report-card {
-            padding: 28px 24px 20px;
+            padding: 18px 20px;
             background: #fff;
             border: 1px solid #e1e3e8;
             border-radius: 8px;
             color: #222936;
         }
 
-        .shift-report-header {
-            margin-bottom: 14px;
-        }
-
-        .shift-report-brand {
-            margin-bottom: 14px;
-            color: #10131a;
-            font-size: 15px;
-            font-weight: 700;
-            text-align: center;
-        }
-
-        .shift-report-header h2 {
-            margin: 0 0 3px;
-            color: #d92378;
-            font-size: 20px;
-            font-weight: 700;
-        }
-
-        .shift-report-header p,
-        .shift-report-header strong {
-            display: block;
-            margin: 0 0 3px;
-            color: #5f6674;
-            font-size: 11px;
-        }
-
-        .shift-report-header strong {
-            color: #303642;
-            font-weight: 500;
-        }
+        @include('admin.partials.report-document-header-styles')
 
         .shift-report-section {
             margin-top: 14px;
@@ -298,6 +268,14 @@
             color: #78808e;
             font-size: 9px;
             line-height: 1.15;
+        }
+
+        .transaction-reason span {
+            display: block;
+        }
+
+        .transaction-reason span + span {
+            margin-top: 2px;
         }
 
         .shift-detail-table tfoot td {
@@ -362,7 +340,7 @@
             }
 
             .shift-report-card {
-                padding: 26px 14px 20px;
+                padding: 16px 14px;
             }
         }
 
@@ -395,26 +373,6 @@
             .shift-report-card {
                 padding: 0;
                 border: 0;
-            }
-
-            .shift-report-header {
-                margin-bottom: 6px;
-            }
-
-            .shift-report-brand {
-                margin-bottom: 6px;
-                font-size: 11px;
-            }
-
-            .shift-report-header h2 {
-                font-size: 14px;
-            }
-
-            .shift-report-header p,
-            .shift-report-header strong {
-                margin-bottom: 1px;
-                font-size: 8px;
-                line-height: 1.15;
             }
 
             .shift-report-section {

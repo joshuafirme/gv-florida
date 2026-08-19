@@ -4296,7 +4296,7 @@ i {
 }
 
 .bus-search-header {
-    padding: 40px 30px;
+    padding: 15px 15px;
     border-radius: 10px 10px 0 0;
     background: #fff;
     -webkit-box-pack: justify;
@@ -4398,7 +4398,6 @@ i {
 .bus-search-header .ticket-form-two {
     padding: 0;
     background: transparent;
-    margin-bottom: 30px;
     -webkit-box-shadow: none;
     box-shadow: none;
 }

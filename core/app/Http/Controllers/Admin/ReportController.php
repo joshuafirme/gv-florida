@@ -14,6 +14,7 @@ use App\Models\UserLogin;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use App\Services\CashierTransactionRecorder;
 use App\Services\CashierDashboardService;
 use App\Services\DailyReportService;
@@ -123,25 +124,50 @@ class ReportController extends Controller
     public function daily(Request $request, DailyReportService $dailyReportService)
     {
         $pageTitle = 'Daily Report';
-        $date = $this->reportDate($request);
-        $report = $dailyReportService->forDate($date);
+        [$date, $filters] = $this->dailyReportParameters($request);
+        $report = $dailyReportService->forDate($date, $filters);
 
         return view('admin.reports.daily', array_merge(
-            compact('pageTitle', 'date'),
+            compact('pageTitle', 'date', 'filters'),
             $report
         ));
     }
 
     public function dailyPdf(Request $request, DailyReportService $dailyReportService)
     {
-        $date = $this->reportDate($request);
-        $report = $dailyReportService->forDate($date);
+        [$date, $filters] = $this->dailyReportParameters($request);
+        $report = $dailyReportService->forDate($date, $filters);
         $filename = 'daily-report-' . $date->format('Y-m-d') . '.pdf';
 
         return Pdf::setOptions($this->reportPdfOptions())
-            ->loadView('admin.pdf.daily-report', compact('date') + $report)
+            ->loadView('admin.pdf.daily-report', compact('date', 'filters') + $report)
             ->setPaper('legal', 'landscape')
             ->stream($filename);
+    }
+
+    private function dailyReportParameters(Request $request): array
+    {
+        $validated = $request->validate([
+            'date' => 'nullable|date|before_or_equal:today',
+            'transaction_type' => [
+                'nullable',
+                'string',
+                Rule::in(CashierTransactionEvent::BOOKING_TRANSACTION_STATUSES),
+            ],
+            'source' => 'nullable|string|max:30',
+            'processed_by' => 'nullable|string|max:255',
+            'payment_method' => 'nullable|string|max:100',
+        ]);
+
+        $date = Carbon::parse($validated['date'] ?? now())->startOfDay();
+        $filters = collect($validated)->only([
+            'transaction_type',
+            'source',
+            'processed_by',
+            'payment_method',
+        ])->all();
+
+        return [$date, $filters];
     }
 
     private function reportDate(Request $request): Carbon
@@ -222,7 +248,7 @@ class ReportController extends Controller
                 'isRemoteEnabled' => true
             ])->loadView('admin.pdf.travel-manifest', ['data' => $data->get()]);
 
-            $pdf->setPaper('A4', 'portrait');
+            $pdf->setPaper('legal', 'portrait');
 
             if ($request->print) {
                 return $pdf->stream("$pageTitle.pdf");

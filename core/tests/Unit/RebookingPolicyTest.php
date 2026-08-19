@@ -113,6 +113,23 @@ class RebookingPolicyTest extends TestCase
         $this->assertFalse($eligibility['after_departure']);
     }
 
+    public function test_booking_later_this_evening_is_rebookable_until_its_exact_departure_time(): void
+    {
+        $ticket = $this->ticket('2026-08-17', '9:05 PM');
+
+        $eligibility = $this->policy->assertAdminEligible(
+            $ticket,
+            null,
+            Carbon::parse('2026-08-17 8:49 PM')
+        );
+
+        $this->assertFalse($eligibility['after_departure']);
+        $this->assertSame(
+            '2026-08-17 21:05:00',
+            $eligibility['departure_at']->format('Y-m-d H:i:s')
+        );
+    }
+
     public function test_paid_booking_is_rebookable_within_the_post_departure_grace_period(): void
     {
         $ticket = $this->ticket('2026-08-03', '5:00 PM');

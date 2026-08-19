@@ -1,3 +1,6 @@
+@php
+    $manifestPrint ??= app(\App\Services\SeatLayoutService::class)->manifestPrintSizing($manifestLayout);
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 
@@ -17,7 +20,7 @@
         .manifest-filters label { color: #626a76; display: block; font-size: 11px; margin-bottom: 3px; text-transform: uppercase; }
         .manifest-filters input { border: 1px solid #d4d8de; border-radius: 7px; height: 40px; padding: 8px 10px; }
         .manifest-btn { background: var(--pink); border: 0; border-radius: 7px; color: #fff; cursor: pointer; font-weight: 600; height: 40px; padding: 0 16px; }
-        .manifest-page { background: #fff; border-radius: 14px; margin: 24px auto; max-width: 1120px; min-height: 900px; padding: 36px; }
+        .manifest-page { background: #fff; border-radius: 14px; margin: 24px auto; max-width: 1480px; min-height: 900px; padding: 36px; }
         .manifest-header { border-bottom: 1px solid #253044; padding-bottom: 22px; text-align: center; }
         .manifest-header h1 { font-size: 25px; font-weight: 800; letter-spacing: .02em; margin: 0; }
         .manifest-header p { font-size: 14px; margin: 8px 0 0; text-transform: uppercase; }
@@ -34,9 +37,17 @@
         .manifest-search-note { background: #fff5f9; border: 1px solid #f1a2c3; border-radius: 8px; color: #9d1751; font-size: 12px; margin-bottom: 18px; padding: 10px 12px; }
         .manifest-deck { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 18px; overflow: hidden; }
         .manifest-deck-title { background: var(--navy); color: #fff; font-size: 13px; font-weight: 700; padding: 9px 14px; text-transform: uppercase; }
-        .manifest-seat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .manifest-seat { border-bottom: 1px solid var(--line); min-height: 108px; padding: 10px 14px; position: relative; }
-        .manifest-seat:nth-child(odd) { border-right: 1px solid var(--line); }
+        .manifest-seat-grid { overflow-x: auto; }
+        .manifest-seat-row { border-bottom: 1px solid var(--line); display: flex; min-width: calc(var(--manifest-seat-columns) * 210px); }
+        .manifest-seat-row:last-child { border-bottom: 0; }
+        .manifest-seat-row.is-centered { justify-content: center; }
+        .manifest-seat-group { display: grid; flex: var(--manifest-group-size) 1 0; grid-template-columns: repeat(var(--manifest-group-size), minmax(0, 1fr)); }
+        .manifest-seat-row.is-centered .manifest-seat-group { flex: 0 1 calc(100% * var(--manifest-group-size) / var(--manifest-seat-columns)); }
+        .manifest-aisle { background: #fff; border-left: 1px solid #edf0f3; border-right: 1px solid #edf0f3; flex: 0 0 152px; position: relative; }
+        .manifest-aisle::after { border-left: 1px dashed #d9dde3; bottom: 8px; content: ''; left: 50%; position: absolute; top: 8px; }
+        .manifest-seat { border-right: 1px solid var(--line); min-height: 108px; padding: 10px 12px; position: relative; }
+        .manifest-seat-group .manifest-seat:last-child { border-right: 0; }
+        .manifest-seat-empty { min-height: 108px; }
         .manifest-seat-number { color: #bdc4ce; font-size: 24px; font-weight: 800; line-height: 1; }
         .manifest-seat-status { color: #a2a8b0; float: right; font-size: 10px; font-style: italic; font-weight: 700; text-transform: uppercase; }
         .manifest-seat.occupied .manifest-seat-number { color: #0f1825; }
@@ -45,7 +56,8 @@
         .manifest-seat.admin-locked .manifest-seat-number,
         .manifest-seat.admin-locked .manifest-seat-status { color: #955400; }
         .manifest-seat.disabled { background: #f2f3f5; color: #9ba2ad; }
-        .manifest-seat.comfort-room { background: #eef3f7; }
+        .manifest-seat.comfort-room { background: transparent; z-index: 2; }
+        .manifest-seat.comfort-room::before { background: #eef3f7; bottom: auto; content: ''; height: calc(108px * var(--cr-row-span)); left: 0; position: absolute; right: 0; top: 0; z-index: -1; }
         .manifest-seat.comfort-room .manifest-seat-number { color: #526474; }
         .manifest-passenger { align-items: start; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) minmax(155px, .9fr); margin-top: 7px; }
         .manifest-reference { color: var(--pink); display: block; font-size: 28px; font-weight: 800; line-height: 1.05; }
@@ -57,34 +69,62 @@
         .manifest-lock-details strong { display: block; font-size: 13px; text-transform: uppercase; }
         .manifest-lock-details span { display: block; font-size: 11px; margin-top: 5px; }
         .manifest-seat.filtered { opacity: .18; }
-        @media (max-width: 700px) { .manifest-toolbar { align-items: flex-start; flex-direction: column; } .manifest-page { border-radius: 0; margin: 0; padding: 22px 14px; } .manifest-info { grid-template-columns: repeat(2, 1fr); } .manifest-seat-grid { grid-template-columns: 1fr; } .manifest-seat:nth-child(odd) { border-right: 0; } .manifest-passenger { grid-template-columns: minmax(0, 1fr) minmax(130px, .8fr); } .manifest-reference { font-size: 23px; } .manifest-passenger-dropoff { font-size: 15px; } .manifest-km-post { font-size: 18px; } }
+        @media (max-width: 700px) { .manifest-toolbar { align-items: flex-start; flex-direction: column; } .manifest-page { border-radius: 0; margin: 0; padding: 22px 14px; } .manifest-info { grid-template-columns: repeat(2, 1fr); } .manifest-passenger { display: block; } .manifest-passenger-dropoff { font-size: 15px; margin-top: 7px; text-align: left; } .manifest-reference { font-size: 23px; } .manifest-km-post { font-size: 18px; } }
         @media print {
-            body { background: #fff; }
+            html, body { background: #fff; height: 100%; width: 100%; }
             .manifest-toolbar, .manifest-search-note { display: none !important; }
-            .manifest-page { border-radius: 0; margin: 0; max-width: none; min-height: 0; padding: 0; }
-            .manifest-header { padding-bottom: 9px; }
-            .manifest-header h1 { font-size: 18px; }
-            .manifest-header p { font-size: 11px; margin-top: 4px; }
-            .manifest-info { gap: 10px; padding: 10px 0 8px; }
-            .manifest-info strong { font-size: 11px; margin-top: 2px; }
-            .manifest-stats { gap: 6px; margin-bottom: 9px; }
-            .manifest-stat { font-size: 8px; padding: 3px 7px; }
-            .manifest-deck { margin-bottom: 8px; }
-            .manifest-deck-title { font-size: 9px; padding: 5px 9px; }
-            .manifest-seat { break-inside: avoid; min-height: 76px; padding: 6px 9px; }
-            .manifest-seat-number { font-size: 17px; }
-            .manifest-seat-status { font-size: 7px; }
-            .manifest-passenger { gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(115px, .85fr); margin-top: 4px; }
-            .manifest-reference { font-size: 20px; }
-            .manifest-passenger-name { font-size: 10px; margin-top: 2px; }
-            .manifest-passenger-dropoff { font-size: 13px; }
-            .manifest-km-post { font-size: 17px; }
-            .manifest-type { font-size: 7px; margin-top: 3px; padding: 2px 5px; }
-            .manifest-lock-details { margin-top: 10px; }
-            .manifest-lock-details strong { font-size: 9px; }
-            .manifest-lock-details span { font-size: 8px; margin-top: 3px; }
+            .manifest-page { border-radius: 0; height: 340mm; margin: 0; max-width: none; min-height: 0; overflow: hidden; padding: 0; width: 100%; }
+            .manifest-header { padding-bottom: 6px; }
+            .manifest-header h1 { font-size: 15px; }
+            .manifest-header p { font-size: 9px; margin-top: 3px; }
+            .manifest-info { gap: 6px; grid-template-columns: 1.25fr .8fr 1.1fr .65fr; padding: 7px 0 6px; }
+            .manifest-label { font-size: 7px; }
+            .manifest-info strong { font-size: 9px; margin-top: 1px; }
+            .manifest-stats { gap: 4px; margin-bottom: 6px; }
+            .manifest-stat { font-size: 7px; padding: 2px 5px; }
+            .manifest-decks { break-inside: avoid; page-break-inside: avoid; width: 100%; }
+            .manifest-deck { border-radius: 0; break-inside: avoid; margin-bottom: 5px; overflow: hidden; page-break-inside: avoid; width: 100%; }
+            .manifest-deck:last-child { margin-bottom: 0; }
+            .manifest-deck-title { background: #1d2939 !important; break-after: avoid; color: #fff !important; display: block !important; font-size: 10px; line-height: 1.2; padding: 5px 7px; page-break-after: avoid; position: relative; visibility: visible !important; }
+            .manifest-seat-grid { overflow: visible; }
+            .manifest-seat-row { break-inside: avoid; height: var(--manifest-print-row-height); min-height: var(--manifest-print-row-height); min-width: 0; page-break-inside: avoid; width: 100%; }
+            .manifest-seat-group { min-width: 0; }
+            .manifest-aisle { flex-basis: 54px; }
+            .manifest-aisle::after { bottom: 5px; top: 5px; }
+            .manifest-seat { break-inside: avoid; height: 100%; min-height: 0; overflow: hidden; overflow-wrap: anywhere; padding: 5px 6px; page-break-inside: avoid; }
+            .manifest-seat.comfort-room::before { height: calc(var(--manifest-print-row-height) * var(--cr-row-span)); }
+            .manifest-seat-empty { height: 100%; min-height: 0; }
+            .manifest-seat-number { font-size: 15px; }
+            .manifest-seat-status { font-size: 6px; }
+            .manifest-passenger { display: block; margin-top: 3px; }
+            .manifest-reference { font-size: 15px; overflow-wrap: anywhere; }
+            .manifest-passenger-name { font-size: 8px; margin-top: 2px; }
+            .manifest-passenger-dropoff { font-size: 9px; margin-top: 3px; overflow-wrap: anywhere; text-align: left; }
+            .manifest-km-post { font-size: 12px; white-space: normal; }
+            .manifest-type { font-size: 6px; margin-top: 2px; padding: 1px 3px; }
+            .manifest-lock-details { margin-top: 6px; }
+            .manifest-lock-details strong { font-size: 7px; }
+            .manifest-lock-details span { font-size: 6px; margin-top: 2px; }
             .manifest-seat.filtered { opacity: 1; }
-            @page { margin: 8mm; size: legal portrait; }
+            .manifest-page--dense .manifest-seat { padding: 3px 4px; }
+            .manifest-page--dense .manifest-seat-number { font-size: 13px; }
+            .manifest-page--dense .manifest-reference { font-size: 13px; }
+            .manifest-page--dense .manifest-passenger-name { font-size: 7px; }
+            .manifest-page--dense .manifest-passenger-dropoff { font-size: 8px; margin-top: 2px; }
+            .manifest-page--dense .manifest-km-post { font-size: 10px; }
+            .manifest-page--compact .manifest-seat { padding: 2px 3px; }
+            .manifest-page--compact .manifest-seat-number { font-size: 11px; }
+            .manifest-page--compact .manifest-seat-status { font-size: 5px; }
+            .manifest-page--compact .manifest-passenger { margin-top: 1px; }
+            .manifest-page--compact .manifest-reference { font-size: 11px; }
+            .manifest-page--compact .manifest-passenger-name { font-size: 6px; margin-top: 1px; }
+            .manifest-page--compact .manifest-passenger-dropoff { font-size: 7px; margin-top: 1px; }
+            .manifest-page--compact .manifest-km-post { font-size: 9px; }
+            .manifest-page--compact .manifest-type { font-size: 5px; margin-top: 1px; }
+            .manifest-page--compact .manifest-lock-details { margin-top: 2px; }
+            .manifest-page--compact .manifest-lock-details strong,
+            .manifest-page--compact .manifest-lock-details span { font-size: 5px; margin-top: 1px; }
+            @page { margin: 5mm; size: legal portrait; }
         }
     </style>
 </head>
@@ -107,7 +147,8 @@
         </form>
     </div>
 
-    <main class="manifest-page">
+    <main class="manifest-page manifest-page--{{ $manifestPrint['density'] }}"
+        style="--manifest-print-row-height: {{ number_format($manifestPrint['row_height_mm'], 2, '.', '') }}mm;">
         <header class="manifest-header">
             <h1>GV FLORIDA TRANSPORT INC.</h1>
             <p>{{ $trip->fleetType->name }} — Travel Manifest</p>
@@ -135,58 +176,81 @@
             </div>
         @endif
 
-        @foreach ($manifestDecks as $deckIndex => $cells)
-            <section class="manifest-deck">
-                <div class="manifest-deck-title">{{ $loop->first ? 'Lower Deck' : 'Upper Deck' }}</div>
-                <div class="manifest-seat-grid">
-                    @foreach ($cells as $cell)
-                        @php
-                            $isComfortRoom = $cell['type'] === 'cr';
-                            $manifest = $isComfortRoom ? null : $seatManifest->get($cell['seat_id']);
-                            $lockedSeat = $isComfortRoom ? null : $lockedSeats->get($cell['seat_id']);
-                            $isDisabled = !$isComfortRoom && in_array($cell['seat_id'], $disabledSeats, true);
-                            $isFiltered = $manifest && !$manifest['matches'];
-                        @endphp
-                        <article class="manifest-seat {{ $isComfortRoom ? 'comfort-room' : '' }} {{ $manifest ? 'occupied' : '' }} {{ $manifest && $manifest['blocked'] ? 'blocked' : '' }} {{ $lockedSeat ? 'admin-locked' : '' }} {{ $isDisabled ? 'disabled' : '' }} {{ $isFiltered ? 'filtered' : '' }}">
-                            <span class="manifest-seat-number">{{ $cell['label'] }}</span>
-                            @if ($isComfortRoom)
-                                <span class="manifest-seat-status">Comfort Room</span>
-                            @elseif ($isDisabled)
-                                <span class="manifest-seat-status">Unavailable</span>
-                            @elseif ($lockedSeat)
-                                <span class="manifest-seat-status"><i class="fas fa-lock"></i> Admin Locked</span>
-                                <div class="manifest-lock-details">
-                                    <strong>Reserved for internal use</strong>
-                                    <span>Reason: {{ $lockedSeat['reason'] }}</span>
-                                    @if ($lockedSeat['authorized_by'])
-                                        <span>Authorized by: {{ $lockedSeat['authorized_by'] }}</span>
-                                    @endif
-                                </div>
-                            @elseif ($manifest)
-                                <span class="manifest-seat-status">{{ $manifest['blocked'] ? 'Blocked' : 'Occupied' }}</span>
-                                <div class="manifest-passenger">
-                                    <div>
-                                        <span class="manifest-reference">No. {{ $manifest['reference'] }}</span>
-                                        <span class="manifest-passenger-name">{{ $manifest['passenger_name'] }}</span>
-                                    </div>
-                                    <div class="manifest-passenger-dropoff">
-                                        <div>
-                                            {{ $manifest['destination'] ?: '-' }}
-                                            @if ($manifest['km_post'])
-                                                <span class="manifest-km-post">- KM {{ $manifest['km_post'] }}</span>
+        <div class="manifest-decks">
+            @foreach ($manifestLayout['decks'] as $deck)
+                <section class="manifest-deck">
+                    <div class="manifest-deck-title">{{ $deck['name'] }}</div>
+                    <div class="manifest-seat-grid" style="--manifest-seat-columns: {{ $manifestLayout['seats_per_row'] }};">
+                    @foreach ($deck['rows'] as $row)
+                        <div class="manifest-seat-row {{ $row['centered'] ? 'is-centered' : '' }}">
+                            @foreach ($row['groups'] as $group)
+                                @if (!$loop->first)
+                                    <div class="manifest-aisle" aria-hidden="true"></div>
+                                @endif
+                                <div class="manifest-seat-group" style="--manifest-group-size: {{ count($group['cells']) }};">
+                                    @foreach ($group['cells'] as $cell)
+                                        @if ($cell['type'] === 'covered')
+                                            @continue
+                                        @endif
+
+                                        @if ($cell['type'] === 'empty')
+                                            <div class="manifest-seat-empty" aria-hidden="true"></div>
+                                            @continue
+                                        @endif
+
+                                        @php
+                                            $isComfortRoom = $cell['type'] === 'cr';
+                                            $manifest = $isComfortRoom ? null : $seatManifest->get($cell['seat_id']);
+                                            $lockedSeat = $isComfortRoom ? null : $lockedSeats->get($cell['seat_id']);
+                                            $isDisabled = !$isComfortRoom && $cell['state'] === 'disabled';
+                                            $isFiltered = $manifest && !$manifest['matches'];
+                                        @endphp
+                                        <article class="manifest-seat {{ $isComfortRoom ? 'comfort-room' : '' }} {{ $manifest ? 'occupied' : '' }} {{ $manifest && $manifest['blocked'] ? 'blocked' : '' }} {{ $lockedSeat ? 'admin-locked' : '' }} {{ $isDisabled ? 'disabled' : '' }} {{ $isFiltered ? 'filtered' : '' }}"
+                                            @if ($isComfortRoom) style="--cr-row-span: {{ $cell['row_span'] ?? 1 }}; grid-column: span {{ $cell['span'] ?? 1 }};" @endif>
+                                            <span class="manifest-seat-number">{{ $cell['label'] }}</span>
+                                            @if ($isComfortRoom)
+                                                <span class="manifest-seat-status">Comfort Room</span>
+                                            @elseif ($isDisabled)
+                                                <span class="manifest-seat-status">Unavailable</span>
+                                            @elseif ($lockedSeat)
+                                                <span class="manifest-seat-status"><i class="fas fa-lock"></i> Admin Locked</span>
+                                                <div class="manifest-lock-details">
+                                                    <strong>Reserved for internal use</strong>
+                                                    <span>Reason: {{ $lockedSeat['reason'] }}</span>
+                                                    @if ($lockedSeat['authorized_by'])
+                                                        <span>Authorized by: {{ $lockedSeat['authorized_by'] }}</span>
+                                                    @endif
+                                                </div>
+                                            @elseif ($manifest)
+                                                <span class="manifest-seat-status">{{ $manifest['blocked'] ? 'Blocked' : 'Occupied' }}</span>
+                                                <div class="manifest-passenger">
+                                                    <div>
+                                                        <span class="manifest-reference">No. {{ $manifest['reference'] }}</span>
+                                                        <span class="manifest-passenger-name">{{ $manifest['passenger_name'] }}</span>
+                                                    </div>
+                                                    <div class="manifest-passenger-dropoff">
+                                                        <div>
+                                                            {{ $manifest['destination'] ?: '-' }}
+                                                            @if ($manifest['km_post'])
+                                                                <span class="manifest-km-post">- KM {{ $manifest['km_post'] }}</span>
+                                                            @endif
+                                                        </div>
+                                                        <span class="manifest-type">{{ $manifest['passenger_type'] }}</span>
+                                                    </div>
+                                                </div>
+                                            @else
+                                                <span class="manifest-seat-status">Vacant</span>
                                             @endif
-                                        </div>
-                                        <span class="manifest-type">{{ $manifest['passenger_type'] }}</span>
-                                    </div>
+                                        </article>
+                                    @endforeach
                                 </div>
-                            @else
-                                <span class="manifest-seat-status">Vacant</span>
-                            @endif
-                        </article>
+                            @endforeach
+                        </div>
                     @endforeach
-                </div>
-            </section>
-        @endforeach
+                    </div>
+                </section>
+            @endforeach
+        </div>
     </main>
 </body>
 

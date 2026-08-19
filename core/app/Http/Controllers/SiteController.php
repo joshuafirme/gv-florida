@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Constants\Status;
-use App\Lib\BusLayout;
 use App\Models\AdminNotification;
 use App\Models\FleetType;
 use App\Models\Frontend;
@@ -19,6 +18,7 @@ use App\Models\Page;
 use App\Models\SupportMessage;
 use App\Models\SupportTicket;
 use App\Services\SeatConflictService;
+use App\Services\SeatLayoutService;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -156,6 +156,11 @@ class SiteController extends Controller
         $pageTitle = 'Cookie Policy';
         $cookie = Frontend::where('data_keys', 'cookie.data')->first();
         return view('Template::cookie', compact('pageTitle', 'cookie'));
+    }
+
+    public function ticketSearch(Request $request)
+    {
+        return redirect()->route('ticket', $request->query());
     }
 
     public function ticket(Request $request)
@@ -361,7 +366,7 @@ class SiteController extends Controller
 
         if ($message = $this->bookingChannelError($trip, $request->kiosk_id)) {
             $notify[] = ['error', $message];
-            $query = array_filter($request->only('pickup', 'destination', 'date_of_journey', 'kiosk_id', 'counter_id'));
+            $query = $this->tripSelectionQuery($request, $trip);
 
             return redirect()->route('ticket', $query)->withNotify($notify);
         }
@@ -369,7 +374,7 @@ class SiteController extends Controller
         $journeyDate = $request->date_of_journey ?: now()->format('m/d/Y');
         if ($message = $this->bookingWindowError($trip, $journeyDate, $request->kiosk_id)) {
             $notify[] = ['error', $message];
-            $query = array_filter($request->only('pickup', 'destination', 'date_of_journey', 'kiosk_id', 'counter_id'));
+            $query = $this->tripSelectionQuery($request, $trip);
 
             return redirect()->route('ticket', $query)->withNotify($notify);
         }
@@ -384,7 +389,19 @@ class SiteController extends Controller
         // Define routeSequence for the JavaScript Fare Preview & Dropping Points Engine
         $routeSequence = Counter::routeStoppages($stoppageArr);
 
-        $busLayout = new BusLayout($trip);
+        $pickupPoint = $request->input('start_from', $request->input('pickup', $trip->start_from));
+        $droppingPoint = $request->input(
+            'dropping_point',
+            $request->input('destination', $request->input('end_to', $trip->end_to))
+        );
+        $seatLayout = app(SeatLayoutService::class)->layout($trip->fleetType, [
+            'booked' => app(SeatConflictService::class)->unavailableSeats(
+                $trip,
+                $journeyDate,
+                $pickupPoint,
+                $droppingPoint
+            ),
+        ]);
 
         if (auth()->user()) {
             $layout = 'layouts.master';
@@ -397,9 +414,23 @@ class SiteController extends Controller
             'trip',
             'stoppages',
             'routeSequence', // Added here
-            'busLayout',
+            'seatLayout',
             'layout'
         ));
+    }
+
+    private function tripSelectionQuery(Request $request, Trip $trip): array
+    {
+        return array_filter([
+            'pickup' => $request->input('start_from', $request->input('pickup', $trip->start_from)),
+            'destination' => $request->input(
+                'dropping_point',
+                $request->input('destination', $request->input('end_to', $trip->end_to))
+            ),
+            'date_of_journey' => $request->date_of_journey,
+            'kiosk_id' => $request->kiosk_id,
+            'counter_id' => $request->counter_id,
+        ], fn ($value) => $value !== null && $value !== '');
     }
 
     public function bookedQuery($request)

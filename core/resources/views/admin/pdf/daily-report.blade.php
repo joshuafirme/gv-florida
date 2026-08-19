@@ -21,26 +21,7 @@
             line-height: 1.2;
         }
 
-        .brand {
-            margin: 0 0 10px;
-            color: #11151d;
-            font-size: 11px;
-            font-weight: 700;
-            text-align: center;
-            text-transform: uppercase;
-        }
-
-        h1 {
-            margin: 0 0 2px;
-            color: #d92378;
-            font-size: 17px;
-        }
-
-        .meta {
-            margin: 0 0 2px;
-            color: #586170;
-            font-size: 8px;
-        }
+        @include('admin.partials.report-document-header-styles', ['pdfHeader' => true])
 
         .section-title {
             margin: 10px 0 4px;
@@ -167,13 +148,23 @@
             color: #737c8b;
             text-align: center;
         }
+
+        .transaction-reason span {
+            display: block;
+        }
+
+        .transaction-reason span + span {
+            margin-top: 1px;
+        }
     </style>
 </head>
 <body>
-    <div class="brand">{{ strtoupper(gs('site_name') ?: 'GV FLORIDA TRANSPORT, INC.') }}</div>
-    <h1>Daily Collection Report</h1>
-    <p class="meta">Generated: {{ now()->format('F j, Y h:i A') }}</p>
-    <p class="meta"><strong>{{ $date->format('l, F j, Y') }}</strong></p>
+    @include('admin.partials.report-document-header', [
+        'reportTitle' => 'Daily Collection Report',
+        'reportDate' => $date,
+        'reportDateLabel' => 'Business date',
+        'reportFilters' => $active_filter_labels,
+    ])
 
     <div class="section-title">Summary</div>
     <table>
@@ -328,10 +319,10 @@
     <div class="section-title">Detail - Transactions</div>
     <table class="transactions-table">
         <colgroup>
-            <col style="width: 8%"><col style="width: 5%"><col style="width: 5%"><col style="width: 6%">
-            <col style="width: 8%"><col style="width: 9%"><col style="width: 6%"><col style="width: 10%">
-            <col style="width: 4%"><col style="width: 6%"><col style="width: 7%"><col style="width: 6%">
-            <col style="width: 5%"><col style="width: 9%">
+            <col style="width: 7%"><col style="width: 4%"><col style="width: 5%"><col style="width: 6%">
+            <col style="width: 7%"><col style="width: 8%"><col style="width: 6%"><col style="width: 9%">
+            <col style="width: 4%"><col style="width: 6%"><col style="width: 6%"><col style="width: 6%">
+            <col style="width: 5%"><col style="width: 21%">
         </colgroup>
         <thead>
             <tr>

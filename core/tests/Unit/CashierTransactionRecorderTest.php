@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Models\Admin;
 use App\Models\CashierTransactionEvent;
 use App\Services\CashierTransactionRecorder;
 use App\Services\TicketPassengerResolver;
@@ -150,6 +151,32 @@ class CashierTransactionRecorderTest extends TestCase
         $this->assertSame('2026-07-31', $sold->journey_date->format('Y-m-d'));
         $this->assertSame('1-D1', $sold->seat_no);
         $this->assertSame(2100.0, (float) $sold->amount);
+    }
+
+    public function test_authorization_snapshot_records_authorizer_time_and_optional_remarks(): void
+    {
+        $recorder = new CashierTransactionRecorder(new TicketPassengerResolver());
+        $method = new ReflectionMethod($recorder, 'withAuthorizationAudit');
+        $authorizer = (new Admin())->forceFill(['id' => 17, 'name' => 'Authorized Supervisor']);
+        $cashier = (new Admin())->forceFill(['id' => 9, 'name' => 'Counter Cashier']);
+
+        $snapshot = $method->invoke(
+            $recorder,
+            [],
+            $authorizer,
+            $cashier,
+            'Ticket Rebooking',
+            Carbon::parse('2026-08-14 14:35:10', 'Asia/Manila'),
+            'Approved as an operational correction.'
+        );
+
+        $authorization = $snapshot['authorization'];
+
+        $this->assertSame('Authorized Supervisor', $authorization['authorized_by_name']);
+        $this->assertSame(17, $authorization['authorization_code_owner_id']);
+        $this->assertSame('Counter Cashier', $authorization['performed_by_name']);
+        $this->assertSame('2026-08-14T14:35:10+08:00', $authorization['authorized_at']);
+        $this->assertSame('Approved as an operational correction.', $authorization['approval_remarks']);
     }
 
     private function snapshot(string $date, string $seat, string $route): array

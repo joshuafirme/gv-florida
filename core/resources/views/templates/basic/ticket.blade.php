@@ -52,7 +52,7 @@
             grid-template-columns: minmax(0, 1.35fr) 1px minmax(280px, .8fr);
             align-items: center;
             gap: 28px;
-            padding: 18px 28px;
+            padding: 15px 15px;
             background: #fff7fb;
             background: color-mix(in srgb, var(--booking-primary) 5%, #fff);
             border: 1px solid var(--booking-primary-border);
@@ -129,8 +129,28 @@
             font-weight: 700;
         }
 
-        .ticket-form .ticket-search-field>i {
-            top: 31px;
+        .ticket-form .ticket-search-field > i {
+            align-items: center;
+            bottom: 0;
+            display: flex;
+            height: 40px;
+            justify-content: center;
+            left: 8px;
+            line-height: 1;
+            padding: 0;
+            pointer-events: none;
+            top: auto;
+            width: 20px;
+        }
+
+        .ticket-form .ticket-search-field > .form--control,
+        .ticket-form .ticket-search-field .select2-selection--single {
+            padding-left: 38px !important;
+        }
+
+        .ticket-form .ticket-search-field .select2-selection__rendered {
+            margin-left: 0;
+            padding-left: 0;
         }
 
         .ticket-search-actions {
@@ -629,7 +649,7 @@
                         </div>
                     </div>
                 </form>
-                <div class="d-lg-none row d-flex justify-content-center">
+                {{-- <div class="d-lg-none row d-flex justify-content-center">
                     <div class="col-md-6">
                         <button class="btn btn--base w-100" data-bs-toggle="offcanvas" data-bs-target="#filterPanel">
                             @php
@@ -639,7 +659,7 @@
                             <i class="las la-filter"></i> Filters {{ $count ? "($count)" : '' }}
                         </button>
                     </div>
-                </div>
+                </div> --}}
             </div>
         </div>
     </div>
@@ -651,7 +671,7 @@
         <div class="offcanvas-body">
 
 
-            @include('templates.basic.partials.ticket-filter')
+            @include('templates.basic.partials.ticket-filter', ['filterFormId' => 'mobileFilterForm'])
 
         </div>
     </div>
@@ -705,16 +725,10 @@
                                     )
                                     ->count();
 
-                                $available_seats_ctr = 0;
-                                $deck_seats = $trip->fleetType->deck_seats;
-                                $deck_seats = (int) $deck_seats[0];
-                                if ($trip->fleetType->deck == 2) {
-                                    $deck_seats += (int) $trip->fleetType->deck_seats[1];
-                                }
+                                $deck_seats = app(App\Services\SeatLayoutService::class)
+                                    ->seatIds($trip->fleetType)
+                                    ->count();
                                 $available_seats_ctr = $deck_seats - $occupied_seats_ctr;
-                                if ($trip->fleetType->cr_position) {
-                                    $available_seats_ctr -= (int) $trip->fleetType->cr_row_covered;
-                                }
                                 $available_seats_ctr = max($available_seats_ctr, 0);
 
                                 $stoppageArr = $trip->route->stoppages ?? [];
@@ -905,7 +919,7 @@
                                                 <a href="javascript:void(0)" class="route-details__toggle"
                                                     onclick="toggleRouteStops('{{ $routeId }}')"
                                                     data-trip-card-ignore>
-                                                    <span id="text-{{ $routeId }}">@lang('View Stops')</span>
+                                                    <span id="text-{{ $routeId }}">@lang('View Route')</span>
                                                 </a>
                                             @endif
                                         </div>
@@ -923,7 +937,7 @@
                                                     @if ($shouldCollapse)
                                                         <span
                                                             class="badge bg-light text-muted border px-2 py-1 dots-{{ $routeId }}">
-                                                            +{{ $totalStops - 2 }} @lang('Stops')
+                                                            +{{ $totalStops - 2 }} @lang('Locations')
                                                         </span>
                                                         <i
                                                             class="las la-long-arrow-alt-right text-muted fs-6 dots-{{ $routeId }}"></i>
@@ -986,12 +1000,12 @@
                 // Expand
                 stops.forEach(el => el.classList.remove('d-none'));
                 dots.forEach(el => el.classList.add('d-none'));
-                textElem.innerText = "@lang('Hide Stops')";
+                textElem.innerText = "@lang('Hide Route')";
             } else {
                 // Collapse
                 stops.forEach(el => el.classList.add('d-none'));
                 dots.forEach(el => el.classList.remove('d-none'));
-                textElem.innerText = "@lang('View Stops')";
+                textElem.innerText = "@lang('View Route')";
             }
         }
 
@@ -1078,9 +1092,10 @@
 
 
             $('.reset-button').on('click', function() {
-                $('.search').attr('checked', false);
-                $('.search').val(null).trigger('change');
-                $('#filterForm').submit();
+                const form = $(this).closest('form');
+                form.find('.search').prop('checked', false);
+                form.find('.search').val(null).trigger('change');
+                form.trigger('submit');
             })
 
         })(jQuery)

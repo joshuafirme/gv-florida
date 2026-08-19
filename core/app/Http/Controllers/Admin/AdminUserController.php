@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\UserRole;
+use App\Services\TransactionAuthorizationService;
 use Hash;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AdminUserController extends Controller
 {
@@ -83,10 +86,31 @@ class AdminUserController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->all();
-        $data['password'] = Hash::make($request->password);
+        $request->merge([
+            'authorization_code' => $this->normalizedAuthorizationCode($request),
+        ]);
 
-        $user = Admin::create($data);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:admins,email',
+            'username' => 'required|string|max:255|unique:admins,username',
+            'role_id' => 'required|integer|exists:user_roles,id',
+            'passcode' => 'nullable|string|max:100',
+            'authorization_code' => 'nullable|string|min:6|max:100',
+            'password' => 'required|string|min:5',
+        ]);
+
+        if (!empty($data['authorization_code'])) {
+            $this->ensureUniqueAuthorizationCode($data['authorization_code']);
+            $data['authorization_code_hash'] = TransactionAuthorizationService::hash($data['authorization_code']);
+            $data['authorization_code_lookup'] = TransactionAuthorizationService::lookup($data['authorization_code']);
+            $data['authorization_code_encrypted'] = $data['authorization_code'];
+        }
+
+        $data['password'] = Hash::make($data['password']);
+        unset($data['authorization_code']);
+
+        Admin::create($data);
 
         $notify[] = ['success', 'User was added.'];
         return back()->withNotify($notify);
@@ -94,15 +118,43 @@ class AdminUserController extends Controller
 
     public function update(Request $request, $id)
     {
-        $user = Admin::find($id);
-        $user->name = $request->name;
-        $user->username = $request->username;
-        $user->email = $request->email;
-        $user->role_id = $request->role_id;
-        $user->passcode = $request->passcode;
+        $user = Admin::findOrFail($id);
+        $request->merge([
+            'authorization_code' => $this->normalizedAuthorizationCode($request),
+        ]);
 
-        if ($request->password) {
-            $user->password = Hash::make($request->password);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', 'max:255', Rule::unique('admins', 'email')->ignore($user->id)],
+            'username' => ['required', 'string', 'max:255', Rule::unique('admins', 'username')->ignore($user->id)],
+            'role_id' => 'required|integer|exists:user_roles,id',
+            'passcode' => 'nullable|string|max:100',
+            'authorization_code' => 'nullable|string|min:6|max:100',
+            'remove_authorization_code' => 'nullable|boolean',
+            'password' => 'nullable|string|min:5',
+        ]);
+
+        $user->fill(collect($data)->only([
+            'name',
+            'username',
+            'email',
+            'role_id',
+            'passcode',
+        ])->all());
+
+        if (!empty($data['authorization_code'])) {
+            $this->ensureUniqueAuthorizationCode($data['authorization_code'], $user->id);
+            $user->authorization_code_hash = TransactionAuthorizationService::hash($data['authorization_code']);
+            $user->authorization_code_lookup = TransactionAuthorizationService::lookup($data['authorization_code']);
+            $user->authorization_code_encrypted = $data['authorization_code'];
+        } elseif (!empty($data['remove_authorization_code'])) {
+            $user->authorization_code_hash = null;
+            $user->authorization_code_lookup = null;
+            $user->authorization_code_encrypted = null;
+        }
+
+        if (!empty($data['password'])) {
+            $user->password = Hash::make($data['password']);
         }
 
         if ($user->save()) {
@@ -111,6 +163,48 @@ class AdminUserController extends Controller
         }
         $notify[] = ['error', 'Posting failed.'];
         return back()->withNotify($notify);
+    }
+
+    public function authorizationCode($id)
+    {
+        $user = Admin::findOrFail($id);
+
+        if (!$user->has_authorization_code) {
+            return response()->json([
+                'message' => 'This user does not have an Authorization Code assigned.',
+            ], 404);
+        }
+
+        if (!$user->authorization_code_encrypted) {
+            return response()->json([
+                'message' => 'This existing code was stored before secure viewing was available. Enter a new code once to make Show/Hide available.',
+            ], 409);
+        }
+
+        return response()->json([
+            'authorization_code' => $user->authorization_code_encrypted,
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
+    private function ensureUniqueAuthorizationCode(string $code, ?int $exceptAdminId = null): void
+    {
+        $exists = Admin::query()
+            ->where('authorization_code_lookup', TransactionAuthorizationService::lookup($code))
+            ->when($exceptAdminId, fn ($query) => $query->where('id', '!=', $exceptAdminId))
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'authorization_code' => 'This authorization code is already assigned to another user.',
+            ]);
+        }
+    }
+
+    private function normalizedAuthorizationCode(Request $request): ?string
+    {
+        $code = trim((string) $request->input('authorization_code'));
+
+        return $code !== '' ? $code : null;
     }
 
     public function remove($id)
