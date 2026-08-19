@@ -136,6 +136,7 @@ Route::middleware('admin')->group(function () {
             Route::post('/change-all-status', 'changeAllStatus')->name('changeAllStatus');
             Route::get('reservation-slip/{id}', 'reservationSlip')->name('reservationSlip');
             Route::get('manifest-seat-layout/{trip_id}', 'manifestSeatLayout')->name('manifestSeatLayout');
+            Route::get('manifest-seat-layout/{trip_id}/pdf', 'manifestSeatLayoutPdf')->name('manifestSeatLayoutPdf');
             Route::post('bulk-status', 'bulkTripStatus')->name('bulk');
 
         });
