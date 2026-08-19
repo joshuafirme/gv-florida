@@ -24,9 +24,3 @@
         Deny from all
     </Files>
 </IfModule>
-
-<!-- <IfModule mod_security2.c>
-    # Google returns canonical https:// scope values in the OAuth callback.
-    # Limit the WAF exception to this state-validated callback only.
-    SecRule REQUEST_FILENAME "@streq /user/social-login/callback/google" "id:10001,phase:1,pass,nolog,ctl:ruleEngine=Off"
-</IfModule> -->
