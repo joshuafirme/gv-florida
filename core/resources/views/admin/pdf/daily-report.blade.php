@@ -118,6 +118,44 @@
             line-height: 1.1;
         }
 
+        .transaction-pnr {
+            color: #737c8b;
+            font-size: 5.2px;
+            font-weight: 400;
+        }
+
+        .transaction-reference,
+        .transaction-travel-date,
+        .transaction-departure-time,
+        .transaction-km-post,
+        .transaction-amount {
+            color: #17202d;
+            font-size: 7.2px;
+            font-weight: 800;
+        }
+
+        .transaction-reference,
+        .transaction-travel-date,
+        .transaction-departure-time,
+        .transaction-km-post,
+        .transaction-amount {
+            white-space: nowrap;
+        }
+
+        .transaction-travel-date,
+        .transaction-departure-time {
+            display: block;
+            line-height: 1.1;
+        }
+
+        .transaction-departure-time {
+            margin-top: 1px;
+        }
+
+        .negative .transaction-amount {
+            color: inherit;
+        }
+
         .note {
             margin-top: 10px;
             color: #737c8b;
@@ -298,7 +336,7 @@
         <thead>
             <tr>
                 <th>Transaction Date &amp; Time</th><th>Source</th><th>PNR</th><th>Reference No.</th>
-                <th>Processed By</th><th>Passenger</th><th>Journey</th><th>Trip</th><th>Seat No.</th>
+                <th>Processed By</th><th>Passenger</th><th>Departure</th><th>Trip</th><th>Seat No.</th>
                 <th>Drop-Off</th><th>Payment Method</th><th class="right">Amount</th><th>Status</th><th>Reason</th>
             </tr>
         </thead>
@@ -312,15 +350,16 @@
                 @endphp
                 <tr>
                     <td>{{ $transaction->processed_at?->format('M j, Y') }}<br><span class="subtle">{{ $transaction->processed_at?->format('h:i A') }}</span></td>
-                    <td>{{ $transaction->source ?: '-' }}</td><td>{{ $transaction->pnr ?: '-' }}</td><td>{{ $transaction->reference_no ?: '-' }}</td>
+                    <td>{{ $transaction->source ?: '-' }}</td><td><span class="transaction-pnr">{{ $transaction->pnr ?: '-' }}</span></td><td><strong class="transaction-reference">{{ $transaction->reference_no ?: '-' }}</strong></td>
                     <td>{{ $transaction->processed_by_label }}</td>
                     <td><strong>{{ $transaction->passenger_name ?: 'Guest' }}</strong><br><span class="subtle">{{ $transaction->passenger_type ?: 'Regular' }}{{ $transaction->passenger_id ? ' - ID ' . $transaction->passenger_id : '' }}</span></td>
-                    <td>{{ $transaction->journey_date?->format('M j, Y') ?: '-' }}<br><span class="subtle">{{ $departureTime ?: '-' }}</span></td>
+                    <td><strong class="transaction-travel-date">{{ $transaction->journey_date?->format('M j, Y') ?: '-' }}</strong><span class="transaction-departure-time">{{ $departureTime ?: '-' }}</span></td>
                     <td><strong>{{ $transaction->trip_class ?: '-' }}</strong><br><span class="subtle">{{ $transaction->trip_route ?: '-' }}</span></td>
-                    <td>{{ $seat ?: '-' }}</td><td>{{ $transaction->km_post ? 'KM ' . $transaction->km_post : '-' }}<br><span class="subtle">{{ $transaction->drop_off ?: '' }}</span></td>
+                    <td>{{ $seat ?: '-' }}</td><td><strong class="transaction-km-post">{{ $transaction->km_post ? 'KM ' . $transaction->km_post : '-' }}</strong><br><span class="subtle">{{ $transaction->drop_off ?: '' }}</span></td>
                     <td>{{ $transaction->payment_method ?: '-' }}</td>
-                    <td class="right total {{ $transaction->amount < 0 ? 'negative' : '' }}">{{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}</td>
-                    <td>{{ $transaction->status }}</td><td>{{ $transaction->reason ?: '-' }}</td>
+                    <td class="right total {{ $transaction->amount < 0 ? 'negative' : '' }}"><strong class="transaction-amount">{{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}</strong></td>
+                    <td>{{ $transaction->status }}</td>
+                    <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                 </tr>
             @empty
                 <tr><td colspan="14" class="empty">No transactions were recorded for this date.</td></tr>
