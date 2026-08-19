@@ -1,3 +1,6 @@
+@php
+    $manifestPrint ??= app(\App\Services\SeatLayoutService::class)->manifestPrintSizing($manifestLayout);
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 
@@ -68,41 +71,60 @@
         .manifest-seat.filtered { opacity: .18; }
         @media (max-width: 700px) { .manifest-toolbar { align-items: flex-start; flex-direction: column; } .manifest-page { border-radius: 0; margin: 0; padding: 22px 14px; } .manifest-info { grid-template-columns: repeat(2, 1fr); } .manifest-passenger { display: block; } .manifest-passenger-dropoff { font-size: 15px; margin-top: 7px; text-align: left; } .manifest-reference { font-size: 23px; } .manifest-km-post { font-size: 18px; } }
         @media print {
-            body { background: #fff; }
+            html, body { background: #fff; height: 100%; width: 100%; }
             .manifest-toolbar, .manifest-search-note { display: none !important; }
-            .manifest-page { border-radius: 0; margin: 0; max-width: none; min-height: 0; padding: 0; }
-            .manifest-header { padding-bottom: 9px; }
-            .manifest-header h1 { font-size: 18px; }
-            .manifest-header p { font-size: 11px; margin-top: 4px; }
-            .manifest-info { gap: 10px; padding: 10px 0 8px; }
-            .manifest-info strong { font-size: 11px; margin-top: 2px; }
-            .manifest-stats { gap: 6px; margin-bottom: 9px; }
-            .manifest-stat { font-size: 8px; padding: 3px 7px; }
-            .manifest-deck { margin-bottom: 8px; }
-            .manifest-deck-title { font-size: 9px; padding: 5px 9px; }
+            .manifest-page { border-radius: 0; height: 340mm; margin: 0; max-width: none; min-height: 0; overflow: hidden; padding: 0; width: 100%; }
+            .manifest-header { padding-bottom: 6px; }
+            .manifest-header h1 { font-size: 15px; }
+            .manifest-header p { font-size: 9px; margin-top: 3px; }
+            .manifest-info { gap: 6px; grid-template-columns: 1.25fr .8fr 1.1fr .65fr; padding: 7px 0 6px; }
+            .manifest-label { font-size: 7px; }
+            .manifest-info strong { font-size: 9px; margin-top: 1px; }
+            .manifest-stats { gap: 4px; margin-bottom: 6px; }
+            .manifest-stat { font-size: 7px; padding: 2px 5px; }
+            .manifest-decks { break-inside: avoid; page-break-inside: avoid; width: 100%; }
+            .manifest-deck { border-radius: 0; break-inside: avoid; margin-bottom: 5px; overflow: hidden; page-break-inside: avoid; width: 100%; }
+            .manifest-deck:last-child { margin-bottom: 0; }
+            .manifest-deck-title { background: #1d2939 !important; break-after: avoid; color: #fff !important; display: block !important; font-size: 10px; line-height: 1.2; padding: 5px 7px; page-break-after: avoid; position: relative; visibility: visible !important; }
             .manifest-seat-grid { overflow: visible; }
-            .manifest-seat-row { min-width: 0; }
+            .manifest-seat-row { break-inside: avoid; height: var(--manifest-print-row-height); min-height: var(--manifest-print-row-height); min-width: 0; page-break-inside: avoid; width: 100%; }
+            .manifest-seat-group { min-width: 0; }
             .manifest-aisle { flex-basis: 54px; }
             .manifest-aisle::after { bottom: 5px; top: 5px; }
-            .manifest-seat { break-inside: avoid; min-height: 76px; padding: 6px 9px; }
-            .manifest-seat.comfort-room::before { height: calc(76px * var(--cr-row-span)); }
-            .manifest-seat-empty { min-height: 76px; }
-            .manifest-seat-number { font-size: 17px; }
-            .manifest-seat-status { font-size: 7px; }
-            .manifest-passenger { display: block; margin-top: 4px; }
-            .manifest-reference { font-size: 20px; }
-            .manifest-passenger-name { font-size: 10px; margin-top: 2px; }
-            .manifest-passenger-dropoff { font-size: 13px; margin-top: 3px; text-align: left; }
-            .manifest-km-post { font-size: 17px; }
-            .manifest-type { font-size: 7px; margin-top: 3px; padding: 2px 5px; }
-            .manifest-lock-details { margin-top: 10px; }
-            .manifest-lock-details strong { font-size: 9px; }
-            .manifest-lock-details span { font-size: 8px; margin-top: 3px; }
+            .manifest-seat { break-inside: avoid; height: 100%; min-height: 0; overflow: hidden; overflow-wrap: anywhere; padding: 5px 6px; page-break-inside: avoid; }
+            .manifest-seat.comfort-room::before { height: calc(var(--manifest-print-row-height) * var(--cr-row-span)); }
+            .manifest-seat-empty { height: 100%; min-height: 0; }
+            .manifest-seat-number { font-size: 15px; }
+            .manifest-seat-status { font-size: 6px; }
+            .manifest-passenger { display: block; margin-top: 3px; }
+            .manifest-reference { font-size: 15px; overflow-wrap: anywhere; }
+            .manifest-passenger-name { font-size: 8px; margin-top: 2px; }
+            .manifest-passenger-dropoff { font-size: 9px; margin-top: 3px; overflow-wrap: anywhere; text-align: left; }
+            .manifest-km-post { font-size: 12px; white-space: normal; }
+            .manifest-type { font-size: 6px; margin-top: 2px; padding: 1px 3px; }
+            .manifest-lock-details { margin-top: 6px; }
+            .manifest-lock-details strong { font-size: 7px; }
+            .manifest-lock-details span { font-size: 6px; margin-top: 2px; }
             .manifest-seat.filtered { opacity: 1; }
-            .manifest-deck { break-inside: avoid; page-break-inside: avoid; }
-            .manifest-deck + .manifest-deck { break-before: page; page-break-before: always; }
-            .manifest-deck-title { break-after: avoid; display: block !important; page-break-after: avoid; }
-            @page { margin: 7mm; size: legal portrait; }
+            .manifest-page--dense .manifest-seat { padding: 3px 4px; }
+            .manifest-page--dense .manifest-seat-number { font-size: 13px; }
+            .manifest-page--dense .manifest-reference { font-size: 13px; }
+            .manifest-page--dense .manifest-passenger-name { font-size: 7px; }
+            .manifest-page--dense .manifest-passenger-dropoff { font-size: 8px; margin-top: 2px; }
+            .manifest-page--dense .manifest-km-post { font-size: 10px; }
+            .manifest-page--compact .manifest-seat { padding: 2px 3px; }
+            .manifest-page--compact .manifest-seat-number { font-size: 11px; }
+            .manifest-page--compact .manifest-seat-status { font-size: 5px; }
+            .manifest-page--compact .manifest-passenger { margin-top: 1px; }
+            .manifest-page--compact .manifest-reference { font-size: 11px; }
+            .manifest-page--compact .manifest-passenger-name { font-size: 6px; margin-top: 1px; }
+            .manifest-page--compact .manifest-passenger-dropoff { font-size: 7px; margin-top: 1px; }
+            .manifest-page--compact .manifest-km-post { font-size: 9px; }
+            .manifest-page--compact .manifest-type { font-size: 5px; margin-top: 1px; }
+            .manifest-page--compact .manifest-lock-details { margin-top: 2px; }
+            .manifest-page--compact .manifest-lock-details strong,
+            .manifest-page--compact .manifest-lock-details span { font-size: 5px; margin-top: 1px; }
+            @page { margin: 5mm; size: legal portrait; }
         }
     </style>
 </head>
@@ -125,7 +147,8 @@
         </form>
     </div>
 
-    <main class="manifest-page">
+    <main class="manifest-page manifest-page--{{ $manifestPrint['density'] }}"
+        style="--manifest-print-row-height: {{ number_format($manifestPrint['row_height_mm'], 2, '.', '') }}mm;">
         <header class="manifest-header">
             <h1>GV FLORIDA TRANSPORT INC.</h1>
             <p>{{ $trip->fleetType->name }} — Travel Manifest</p>
@@ -153,10 +176,11 @@
             </div>
         @endif
 
-        @foreach ($manifestLayout['decks'] as $deck)
-            <section class="manifest-deck">
-                <div class="manifest-deck-title">{{ $deck['name'] }}</div>
-                <div class="manifest-seat-grid" style="--manifest-seat-columns: {{ $manifestLayout['seats_per_row'] }};">
+        <div class="manifest-decks">
+            @foreach ($manifestLayout['decks'] as $deck)
+                <section class="manifest-deck">
+                    <div class="manifest-deck-title">{{ $deck['name'] }}</div>
+                    <div class="manifest-seat-grid" style="--manifest-seat-columns: {{ $manifestLayout['seats_per_row'] }};">
                     @foreach ($deck['rows'] as $row)
                         <div class="manifest-seat-row {{ $row['centered'] ? 'is-centered' : '' }}">
                             @foreach ($row['groups'] as $group)
@@ -223,9 +247,10 @@
                             @endforeach
                         </div>
                     @endforeach
-                </div>
-            </section>
-        @endforeach
+                    </div>
+                </section>
+            @endforeach
+        </div>
     </main>
 </body>
 
