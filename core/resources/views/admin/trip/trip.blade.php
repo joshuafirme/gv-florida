@@ -248,7 +248,7 @@
                         </button>
                     </div>
 
-                    <form action="{{ route('admin.trip.store') }}" method="POST">
+                    <form action="{{ route('admin.trip.store') }}" method="POST" class="trip-modal-form">
                         @csrf
                         <div class="modal-body p-4">
                             <div class="row gy-4">
@@ -466,9 +466,68 @@
                 width: 38px;
             }
 
+            #cuModal .modal-content {
+                max-height: calc(100vh - 32px);
+                max-height: calc(100dvh - 32px);
+            }
+
+            #cuModal .modal-body {
+                min-height: 0;
+                overscroll-behavior: contain;
+            }
+
+            #cuModal .trip-modal-form {
+                display: flex;
+                flex: 1 1 auto;
+                flex-direction: column;
+                min-height: 0;
+                overflow: hidden;
+            }
+
+            #cuModal .trip-modal-form > .modal-body {
+                flex: 1 1 auto;
+            }
+
+            #cuModal .fare-preview-wrapper {
+                overflow: hidden;
+            }
+
+            #cuModal .fare-preview-wrapper .table-responsive {
+                max-height: 320px;
+                max-height: min(34vh, 320px);
+                overflow-y: auto;
+                overscroll-behavior: contain;
+            }
+
+            #cuModal .fare-preview-wrapper thead {
+                position: sticky;
+                top: 0;
+                z-index: 2;
+            }
+
+            #cuModal .modal-footer {
+                background: #fff;
+                flex-shrink: 0;
+                position: relative;
+                z-index: 3;
+            }
+
             @media (max-width: 575px) {
                 .booking-channel-controls {
                     grid-template-columns: 1fr;
+                }
+
+                #cuModal .modal-dialog {
+                    margin: 8px;
+                }
+
+                #cuModal .modal-content {
+                    max-height: calc(100vh - 16px);
+                    max-height: calc(100dvh - 16px);
+                }
+
+                #cuModal .fare-preview-wrapper .table-responsive {
+                    max-height: 28vh;
                 }
             }
 
