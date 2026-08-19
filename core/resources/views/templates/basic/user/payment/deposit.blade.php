@@ -54,64 +54,60 @@
                     <input type="hidden" name="authorization_reference">
                 @endif
 
-                <section class="flow-panel js-step-panel" data-panel="details">
-                    <div class="flow-title-row">
-                        <div class="flow-title-icon"><i class="las la-users"></i></div>
-                        <div class="flow-title-copy">
-                            <h4>Passenger Details</h4>
-                            <div class="trip-meta">
-                                <span><i class="las la-bus"></i>{{ $bookedTicket->pickup->name ?? $bookedTicket->trip->startFrom->name }} &rarr; {{ $bookedTicket->drop->name ?? $bookedTicket->trip->endTo->name }}</span>
-                                <span><i class="las la-calendar"></i>{{ showDateTime($bookedTicket->date_of_journey, 'M d, Y') }}</span>
-                                <span><i class="las la-clock"></i>{{ showDateTime($bookedTicket->trip->schedule->start_from, 'h:i A') }}</span>
+                <section class="passenger-details-step js-step-panel" data-panel="details">
+                    <div class="flow-panel passenger-details-header">
+                        <div class="flow-title-row">
+                            <div class="flow-title-icon"><i class="las la-users"></i></div>
+                            <div class="flow-title-copy">
+                                <h4>Passenger Details</h4>
+                                <div class="trip-meta">
+                                    <span><i class="las la-bus"></i>{{ $bookedTicket->pickup->name ?? $bookedTicket->trip->startFrom->name }} &rarr; {{ $bookedTicket->drop->name ?? $bookedTicket->trip->endTo->name }}</span>
+                                    <span><i class="las la-calendar"></i>{{ showDateTime($bookedTicket->date_of_journey, 'M d, Y') }}</span>
+                                    <span><i class="las la-clock"></i>{{ showDateTime($bookedTicket->trip->schedule->start_from, 'h:i A') }}</span>
+                                </div>
                             </div>
+                            <span class="passenger-count">{{ $seatCount }} {{ $seatCount === 1 ? 'Passenger' : 'Passengers' }}</span>
                         </div>
-                        <span class="passenger-count">{{ $seatCount }} {{ $seatCount === 1 ? 'Passenger' : 'Passengers' }}</span>
                     </div>
 
                     @foreach ($seats as $index => $seat)
                         <div class="passenger-card" data-seat="{{ $seat }}">
                             <div class="passenger-card__head">
-                                <span class="passenger-number">{{ $index + 1 }}</span>
-                                <strong>Seat {{ formatSeatLabel($seat) }}</strong>
+                                <span>Passenger {{ $index + 1 }}</span>
+                                <strong>{{ formatSeatLabel($seat) }}</strong>
                             </div>
 
-                            <label class="flow-label">Full Name <span class="js-name-note">(optional)</span></label>
-                            <input type="text" class="flow-input js-passenger-name" placeholder="Guest">
+                            <div class="passenger-card__body">
+                                <div class="passenger-primary-fields">
+                                    <div>
+                                        <label class="flow-label">Full Name <span class="js-name-note">(optional)</span></label>
+                                        <input type="text" class="flow-input js-passenger-name" placeholder="Enter passenger name">
+                                    </div>
+                                    <div>
+                                        <label class="flow-label">Passenger Type</label>
+                                        <select class="flow-input passenger-type-select">
+                                            <option value="regular" data-type="regular" data-discount-id="">Regular</option>
+                                            @if ($isKioskBooking)
+                                                @foreach ($discountOptions as $discount)
+                                                    <option value="discounted-{{ $discount['id'] }}" data-type="discounted"
+                                                        data-discount-id="{{ $discount['id'] }}"
+                                                        data-discount-name="{{ $discount['name'] }}"
+                                                        data-percentage="{{ $discount['percentage'] }}">
+                                                        {{ $discount['name'] }}
+                                                    </option>
+                                                @endforeach
+                                            @endif
+                                        </select>
+                                    </div>
+                                </div>
 
-                            @if ($isKioskBooking)
                                 <div class="discount-fields d-none">
-                                    <label class="flow-label">ID Number <span>(required for discounted passengers)</span></label>
+                                    <label class="flow-label"><span class="js-id-label">ID Number</span> <span>(required)</span></label>
                                     <input type="text" class="flow-input js-id-number" placeholder="Enter passenger ID number">
                                 </div>
-                                <label class="flow-label">Passenger Type</label>
-                                <div class="passenger-type-grid">
-                                    <button type="button" class="type-option is-active" data-type="regular" data-discount-id="">
-                                        Regular
-                                    </button>
-                                    @foreach ($discountOptions as $discount)
-                                        <button type="button" class="type-option" data-type="discounted"
-                                            data-discount-id="{{ $discount['id'] }}" data-discount-name="{{ $discount['name'] }}"
-                                            data-percentage="{{ $discount['percentage'] }}">
-                                            {{ $discount['name'] }}
-                                        </button>
-                                    @endforeach
-                                </div>
-                                <div class="discount-note js-discount-note d-none"></div>
-                            @endif
+                            </div>
                         </div>
                     @endforeach
-
-                    <div class="flow-summary">
-                        <div class="section-heading">
-                            <div class="section-icon"><i class="las la-receipt"></i></div>
-                            <h5>Fare Summary</h5>
-                        </div>
-                        <div class="js-breakdown"></div>
-                        <div class="summary-total">
-                            <span>Total Fare</span>
-                            <strong class="js-details-total">{{ showAmount($bookedTicket->sub_total) }}</strong>
-                        </div>
-                    </div>
 
                     @if ($isKioskBooking)
                         <div class="authorization-panel d-none" id="authorizationPanel">
@@ -251,6 +247,10 @@
             padding: 18px;
         }
 
+        .passenger-details-header {
+            margin-top: 10px;
+        }
+
         .flow-title-row,
         .authorization-heading {
             align-items: center;
@@ -322,21 +322,49 @@
         }
 
         .passenger-card {
-            border-bottom: 1px solid #edf0f3;
-            margin-top: 10px;
-            padding: 0 0 16px;
-        }
-
-        .passenger-card:last-of-type {
-            border-bottom: 0;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 1px 8px rgba(15, 23, 42, .04);
+            margin-top: 12px;
+            overflow: hidden;
         }
 
         .passenger-card__head {
             align-items: center;
+            background: #f8fafc;
+            border-bottom: 1px solid #edf0f3;
             display: flex;
-            gap: 9px;
-            margin-bottom: 10px;
-            padding: 7px 0;
+            gap: 10px;
+            justify-content: flex-start;
+            padding: 10px 16px;
+        }
+
+        .passenger-card__head span {
+            color: #7b8490;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .passenger-card__head strong {
+            background: var(--booking-primary-soft);
+            border-radius: 4px;
+            color: var(--booking-primary);
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 8px;
+        }
+
+        .passenger-card__body {
+            padding: 10px 16px 16px;
+        }
+
+        .passenger-primary-fields {
+            align-items: end;
+            display: grid;
+            gap: 14px;
+            grid-template-columns: minmax(0, 1.8fr) minmax(180px, 1fr);
         }
 
         .flow-label {
@@ -347,27 +375,9 @@
             text-transform: uppercase;
         }
 
-        .passenger-card__head strong {
-            color: #1f2937;
-            font-weight: 800;
-        }
-
         .seat-price strong {
             color: var(--booking-primary);
             font-weight: 800;
-        }
-
-        .passenger-number {
-            align-items: center;
-            background: var(--booking-primary);
-            border-radius: 999px;
-            color: var(--booking-on-primary);
-            display: inline-flex;
-            flex: 0 0 26px;
-            font-size: 12px;
-            font-weight: 800;
-            height: 26px;
-            justify-content: center;
         }
 
         .flow-input {
@@ -385,79 +395,21 @@
             box-shadow: 0 0 0 3px var(--booking-primary-focus);
         }
 
+        select.flow-input {
+            background-color: #fff;
+            cursor: pointer;
+        }
+
         .flow-label {
             margin: 11px 0 6px;
             text-transform: none;
         }
 
-        .passenger-type-grid {
-            display: grid;
-            gap: 7px;
-            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-        }
-
-        .type-option {
-            background: #fff;
-            border: 1px solid #dfe3e8;
-            border-radius: 8px;
-            color: #4b5563;
-            font-weight: 800;
-            line-height: 1.15;
-            min-height: 38px;
-            overflow-wrap: anywhere;
-            padding: 6px 8px;
-            white-space: normal;
-        }
-
-        .type-option.is-active {
-            background: var(--booking-primary);
-            border-color: var(--booking-primary);
-            color: var(--booking-on-primary);
-        }
-
-        .discount-note {
-            align-items: center;
-            background: #edfdf3;
-            border-radius: 4px;
-            color: #059669;
-            display: inline-flex;
-            font-size: 12px;
-            font-weight: 800;
-            margin-top: 8px;
-            padding: 4px 7px;
-        }
-
-        .flow-summary,
         .payment-total-box {
             background: #f8fafc;
             border-radius: 8px;
             margin-top: 12px;
             padding: 14px;
-        }
-
-        .section-heading {
-            align-items: center;
-            display: flex;
-            gap: 9px;
-            margin-bottom: 8px;
-        }
-
-        .section-heading h5 {
-            color: #1f2937;
-            font-weight: 800;
-            margin: 0;
-        }
-
-        .section-icon {
-            align-items: center;
-            background: var(--booking-primary-soft);
-            border-radius: 6px;
-            color: var(--booking-primary);
-            display: flex;
-            font-size: 17px;
-            height: 30px;
-            justify-content: center;
-            width: 30px;
         }
 
         .summary-line,
@@ -871,6 +823,11 @@
                 padding: 16px;
             }
 
+            .passenger-primary-fields {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+
             .flow-title-row {
                 align-items: flex-start;
             }
@@ -953,10 +910,6 @@
                 });
             }
 
-            function escapeHtml(value) {
-                return $('<div>').text(value || '').html();
-            }
-
             function formatSeatLabel(value) {
                 return String(value || '').replace(/^\d+-/, '');
             }
@@ -1030,11 +983,11 @@
 
                 $('.passenger-card').each(function() {
                     const card = $(this);
-                    const typeButton = card.find('.type-option.is-active');
-                    const passengerType = discountsEnabled ? (typeButton.data('type') || 'regular') : 'regular';
-                    const discountId = discountsEnabled ? (typeButton.data('discount-id') || null) : null;
-                    const discountName = discountsEnabled ? (typeButton.data('discount-name') || null) : null;
-                    const percentage = discountsEnabled ? Number(typeButton.data('percentage') || 0) : 0;
+                    const selectedType = card.find('.passenger-type-select option:selected');
+                    const passengerType = discountsEnabled ? (selectedType.data('type') || 'regular') : 'regular';
+                    const discountId = discountsEnabled ? (selectedType.data('discount-id') || null) : null;
+                    const discountName = discountsEnabled ? (selectedType.data('discount-name') || null) : null;
+                    const percentage = discountsEnabled ? Number(selectedType.data('percentage') || 0) : 0;
                     const seat = String(card.data('seat'));
                     const name = $.trim(card.find('.js-passenger-name').val());
                     const idNumber = $.trim(card.find('.js-id-number').val());
@@ -1081,17 +1034,6 @@
 
             function renderSummary() {
                 const state = collectPassengers();
-                const appliedDiscounts = [...new Map(state.discounted.map((item) => [
-                    `${item.discount_name}-${item.discount_percentage}`,
-                    `${item.discount_name} (${Number(item.discount_percentage).toFixed(0)}%)`
-                ])).values()];
-                const discountLabel = appliedDiscounts.length ? `Discount (${appliedDiscounts.join(', ')})` : 'Discount';
-                const detailsDiscountLine = totals.discount > 0 ?
-                    `<div class="summary-line summary-line--discount"><span>${escapeHtml(discountLabel)}</span><strong>-${money(totals.discount)}</strong></div>` : '';
-                const detailsBreakdown = `<div class="summary-line"><span>Base Fare</span><strong>${money(totals.subtotal)}</strong></div>${detailsDiscountLine}`;
-
-                $('.js-breakdown').html(detailsBreakdown);
-                $('.js-details-total').text(money(totals.payable));
 
                 const discountLine = totals.discount > 0 ?
                     `<div class="summary-line"><span>Discount</span><strong>-${money(totals.discount)}</strong></div>` : '';
@@ -1135,21 +1077,20 @@
                 }
             }
 
-            $(document).on('click', '.type-option', function() {
-                const button = $(this);
-                const card = button.closest('.passenger-card');
-                card.find('.type-option').removeClass('is-active');
-                button.addClass('is-active');
+            $(document).on('change', '.passenger-type-select', function() {
+                const select = $(this);
+                const selectedType = select.find('option:selected');
+                const card = select.closest('.passenger-card');
 
-                if (button.data('type') === 'discounted') {
+                if (selectedType.data('type') === 'discounted') {
                     card.find('.discount-fields').removeClass('d-none');
                     card.find('.js-name-note').text('(required)');
-                    card.find('.js-discount-note').removeClass('d-none').html(`<i class="las la-tag"></i>&nbsp; ${escapeHtml(button.data('discount-name'))} discount applied (${Number(button.data('percentage') || 0).toFixed(0)}%)`);
+                    card.find('.js-id-label').text(`${selectedType.data('discount-name') || 'Passenger'} ID Number`);
                 } else {
                     card.find('.discount-fields').addClass('d-none');
                     card.find('.js-name-note').text('(optional)');
                     card.find('.js-id-number').val('');
-                    card.find('.js-discount-note').addClass('d-none').empty();
+                    card.find('.js-id-label').text('ID Number');
                 }
 
                 resetAuthorization();
