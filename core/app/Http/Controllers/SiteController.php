@@ -202,9 +202,7 @@ class SiteController extends Controller
 
         // Set dynamic title
         $pageTitle = ($request->pickup || $request->destination || $request->date_of_journey) ? 'Search Result' : 'Book Ticket';
-        $emptyMessage = $this->onlineBookingDisabled($request->kiosk_id)
-            ? 'Online booking is currently unavailable.'
-            : 'There is no trip available';
+        $emptyMessage = 'There is no trip available';
 
         // -------------------------------
         // 2. KIOSK FILTER
@@ -781,10 +779,6 @@ class SiteController extends Controller
             ->orderBy('id')
             ->active();
 
-        if ($this->onlineBookingDisabled($request->kiosk_id)) {
-            $query->whereRaw('1 = 0');
-        }
-
         return $query;
     }
 
@@ -867,10 +861,6 @@ class SiteController extends Controller
 
     private function bookingChannelError(Trip $trip, $kioskId = null): ?string
     {
-        if ($this->onlineBookingDisabled($kioskId)) {
-            return 'Online booking is currently unavailable.';
-        }
-
         if ($trip->bookingEnabledFor($kioskId)) {
             return null;
         }
@@ -880,21 +870,12 @@ class SiteController extends Controller
         return "This trip is not available for {$channel} booking.";
     }
 
-    private function onlineBookingDisabled($kioskId = null): bool
-    {
-        return !$kioskId && app()->environment('production');
-    }
-
     public function getDroppingPoints(Request $request, $counter_id)
     {
         // Fetch active trips to map exact travel sequences
         $tripsQuery = Trip::with('route')
             ->active()
             ->forBookingChannel($request->kiosk_id);
-
-        if ($this->onlineBookingDisabled($request->kiosk_id)) {
-            $tripsQuery->whereRaw('1 = 0');
-        }
 
         $trips = $tripsQuery->get();
         $validDroppingIds = [];
