@@ -267,7 +267,7 @@
                             <th>Reference No.</th>
                             <th>Processed By</th>
                             <th>Passenger</th>
-                            <th>Journey</th>
+                            <th>Departure</th>
                             <th>Trip</th>
                             <th>Seat No.</th>
                             <th>Drop-Off</th>
@@ -288,20 +288,23 @@
                             <tr>
                                 <td>{{ $transaction->processed_at?->format('M j, Y') }}<br><small>{{ $transaction->processed_at?->format('h:i A') }}</small></td>
                                 <td>{{ $transaction->source ?: '-' }}</td>
-                                <td><strong>{{ $transaction->pnr ?: '-' }}</strong></td>
-                                <td>{{ $transaction->reference_no ?: '-' }}</td>
+                                <td><span class="daily-data--pnr">{{ $transaction->pnr ?: '-' }}</span></td>
+                                <td><strong class="daily-data--reference">{{ $transaction->reference_no ?: '-' }}</strong></td>
                                 <td>{{ $transaction->processed_by_label }}</td>
                                 <td>
                                     <strong>{{ $transaction->passenger_name ?: 'Guest' }}</strong><br>
                                     <small>{{ $transaction->passenger_type ?: 'Regular' }}{{ $transaction->passenger_id ? ' - ID ' . $transaction->passenger_id : '' }}</small>
                                 </td>
-                                <td>{{ $transaction->journey_date?->format('M j, Y') ?: '-' }}<br><small>{{ $departureTime ?: '-' }}</small></td>
+                                <td>
+                                    <strong class="daily-data--travel-date">{{ $transaction->journey_date?->format('M j, Y') ?: '-' }}</strong>
+                                    <span class="daily-data--departure-time">{{ $departureTime ?: '-' }}</span>
+                                </td>
                                 <td><strong>{{ $transaction->trip_class ?: '-' }}</strong><br><small>{{ $transaction->trip_route ?: '-' }}</small></td>
                                 <td>{{ $seat ?: '-' }}</td>
-                                <td><strong>{{ $transaction->km_post ? 'KM ' . $transaction->km_post : '-' }}</strong><br><small>{{ $transaction->drop_off ?: '' }}</small></td>
+                                <td><strong class="daily-data--km-post">{{ $transaction->km_post ? 'KM ' . $transaction->km_post : '-' }}</strong><br><small>{{ $transaction->drop_off ?: '' }}</small></td>
                                 <td>{{ $transaction->payment_method ?: '-' }}</td>
                                 <td class="text-end daily-total {{ $transaction->amount < 0 ? 'daily-negative' : '' }}">
-                                    {{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}
+                                    <strong class="daily-data--amount">{{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}</strong>
                                 </td>
                                 <td><span class="daily-status daily-status--{{ strtolower($transaction->status) }}">{{ $transaction->status }}</span></td>
                                 <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
@@ -485,6 +488,47 @@
             font-size: 8px;
         }
 
+        .daily-data--pnr {
+            color: #7a818e;
+            font-size: 8px;
+            font-weight: 500;
+        }
+
+        .daily-data--reference,
+        .daily-data--travel-date,
+        .daily-data--departure-time,
+        .daily-data--km-post,
+        .daily-data--amount {
+            color: #17202d;
+            font-weight: 800;
+        }
+
+        .daily-data--reference,
+        .daily-data--amount {
+            font-size: 10.5px;
+            white-space: nowrap;
+        }
+
+        .daily-data--travel-date,
+        .daily-data--departure-time {
+            display: block;
+            font-size: 10px;
+            line-height: 1.15;
+            white-space: nowrap;
+        }
+
+        .daily-data--departure-time {
+            margin-top: 2px;
+        }
+
+        .daily-data--km-post {
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        .daily-negative .daily-data--amount {
+            color: inherit;
+        }
         .transaction-reason span {
             display: block;
         }
@@ -492,7 +536,6 @@
         .transaction-reason span + span {
             margin-top: 2px;
         }
-
         .daily-status {
             display: inline-block;
             padding: 2px 5px;
@@ -613,6 +656,18 @@
             .daily-report__transactions small,
             .daily-status {
                 font-size: 5px;
+            }
+
+            .daily-data--pnr {
+                font-size: 5px;
+            }
+
+            .daily-data--reference,
+            .daily-data--amount,
+            .daily-data--travel-date,
+            .daily-data--departure-time,
+            .daily-data--km-post {
+                font-size: 7px;
             }
 
             .daily-report__footer {
