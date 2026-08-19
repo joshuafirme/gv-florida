@@ -32,7 +32,8 @@
         <div class="container">
             @include('templates.basic.partials.booking_stepper', ['currentStep' => 'details'])
 
-            <form action="{{ route('user.deposit.release-seats') }}" method="POST" class="seat-release-form">
+            <form action="{{ route('user.deposit.release-seats') }}" method="POST" class="seat-release-form"
+                id="seatReleaseForm">
                 @csrf
                 <input type="hidden" name="booked_ticket_id" value="{{ $bookedTicket->id }}">
                 <button type="submit" class="flow-back-btn">
@@ -911,6 +912,39 @@
             let pendingPaymentAfterAuthorization = false;
             let authorizationTimer = null;
             let authorizationInFlight = false;
+            let browserBackReleaseInProgress = false;
+
+            const seatReleaseHistoryKey = 'gvPaymentSeatRelease';
+            const seatReleaseHistoryState = String(@json($bookedTicket->id));
+            const currentHistoryState = window.history.state || {};
+
+            if (currentHistoryState[seatReleaseHistoryKey] !== seatReleaseHistoryState) {
+                window.history.replaceState({
+                    ...currentHistoryState,
+                    [seatReleaseHistoryKey]: 'release-' + seatReleaseHistoryState
+                }, document.title, window.location.href);
+                window.history.pushState({
+                    ...currentHistoryState,
+                    [seatReleaseHistoryKey]: seatReleaseHistoryState
+                }, document.title, window.location.href);
+            }
+
+            window.addEventListener('popstate', function(event) {
+                const state = event.state || {};
+
+                if (state[seatReleaseHistoryKey] !== 'release-' + seatReleaseHistoryState || browserBackReleaseInProgress) {
+                    return;
+                }
+
+                const releaseForm = document.getElementById('seatReleaseForm');
+                if (!releaseForm) {
+                    window.history.back();
+                    return;
+                }
+
+                browserBackReleaseInProgress = true;
+                releaseForm.submit();
+            });
 
             function money(amount) {
                 return '{{ gs('cur_sym') }}' + Number(amount || 0).toLocaleString('en-US', {
