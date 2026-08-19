@@ -94,18 +94,22 @@ class UserController extends Controller
         $fileContent = @file_get_contents($file);
         $content = json_decode($fileContent);
 
+        $reservationSlipView = $admin_request
+            ? 'admin.pdf.reservation-slip-preview'
+            : 'admin.pdf.reservation-slip';
+
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true,
             'defaultFont' => 'DejaVu Sans',
             'isHtml5ParserEnabled' => true,
             'isPhpEnabled' => true,
-        ])->loadView('admin.pdf.reservation-slip', [
+        ])->loadView($reservationSlipView, [
                     'ticket' => $ticket,
                     'content' => $content,
                     'pageTitle' => "Reservation Slip"
                 ]);
 
-        $pdf->setPaper([0, 0, 144, 600], 'portrait');
+        $pdf->setPaper([0, 0, 144, $admin_request ? 500 : 600], 'portrait');
 
         $path = "app/public/tickets/reservation-slip-{$ticket->id}.pdf";
         $pdfPath = storage_path($path);
