@@ -39,6 +39,7 @@ Route::name('user.')->group(function () {
     Route::get('paynamics/details/{request_id}', 'Gateway\Paynamics\ProcessController@getPaymentDetails')->name('paynamics.getPaymentDetails');
     Route::post('paynamics/redirect', 'Gateway\Paynamics\ProcessController@redirect')->name('paynamics.redirect');
     Route::get('paynamics/response', 'Gateway\Paynamics\ProcessController@response')->name('paynamics.response');
+    Route::get('paynamics/cancel', 'Gateway\Paynamics\ProcessController@cancel')->name('paynamics.cancel');
 });
 
 Route::middleware('auth')->name('user.')->group(function () {

@@ -16,6 +16,7 @@
                     $ticketWord = $seatCount === 1 ? 'ticket' : 'tickets';
                     $dateOfJourneyQuery = \Carbon\Carbon::parse($ticket->date_of_journey)->format('m/d/Y');
                     $isPaid = (int) $deposit->status === \App\Constants\Status::PAYMENT_SUCCESS;
+                    $isPaynamicsPayment = !empty($deposit->pchannel) || !empty($paynamicsResponse);
                     $paymentMethod = $deposit->pchannel
                         ? getPaynamicsPChannel($deposit->pchannel, true)
                         : ($deposit->gateway?->name ?? $deposit->methodName());
@@ -26,6 +27,9 @@
                 @if ($isPaid)
                     <h3>Payment Successful &mdash; {{ $seatCount }} {{ $seatWord }} Confirmed</h3>
                     <p>Your payment has been confirmed. Present this voucher at the <strong>Cashier Window</strong> for ticket issuance or verification.</p>
+                @elseif ($isPaynamicsPayment)
+                    <h3>Online Payment Pending &mdash; {{ $seatCount }} {{ $seatWord }} Reserved</h3>
+                    <p>Your booking is reserved while Paynamics confirms the payment. Follow the payment instructions below when applicable.</p>
                 @else
                     <h3>{{ $seatCount }} {{ $seatWord }} Reserved &mdash; Pay at Counter</h3>
                     <p>Present this booking voucher at the <strong>Cashier Window</strong> for ticket issuance or verification.</p>
@@ -33,7 +37,9 @@
 
                 @php
                     $qr = base64_encode(QrCode::format('svg')->size(150)->generate($ticket->pnr_number));
-                    $expiresAt = $deposit->created_at->copy()->addMinutes(15);
+                    $expiresAt = $deposit->expiry_limit
+                        ? \Carbon\Carbon::parse($deposit->expiry_limit)
+                        : $deposit->created_at->copy()->addMinutes(15);
                     $manifest = $ticket->passenger_manifest ?: [];
                     $passengerNames = collect($manifest)
                         ->map(fn ($passenger) => trim((string) ($passenger['name'] ?? '')) ?: 'Guest')
@@ -80,6 +86,10 @@
                         'payment_status' => $isPaid ? 'PAID' : 'PENDING',
                         'amount_label' => $isPaid ? 'AMOUNT PAID' : 'AMOUNT TO BE PAID',
                         'is_paid' => $isPaid,
+                        'provider_reference' => $paynamicsResponse['pay_reference'] ?? null,
+                        'provider_response_code' => $paynamicsResponse['response_code'] ?? null,
+                        'provider_message' => $paynamicsResponse['message'] ?? null,
+                        'payment_channel' => $paynamicsResponse['payment_channel'] ?? $paymentMethod,
                         'passengers' => $manifest,
                     ];
                 @endphp
@@ -114,9 +124,45 @@
                     <div class="payment-window">
                         <strong>
                             <i class="las la-clock"></i>
-                            Pay within <span id="payCountdown" data-expires-at="{{ $expiresAt->toIso8601String() }}">15 mins 00 secs</span>
+                            {{ $isPaynamicsPayment ? 'Complete payment within' : 'Pay within' }}
+                            <span id="payCountdown" data-expires-at="{{ $expiresAt->toIso8601String() }}">15 mins 00 secs</span>
                         </strong>
                         <span>Valid until {{ showDateTime($expiresAt, 'h:i A') }} &middot; the seat is released if unpaid by then.</span>
+                    </div>
+                @endif
+
+                @if (!empty($paynamicsResponse))
+                    <div class="online-payment-response">
+                        <div class="online-payment-response__head">
+                            <i class="las la-credit-card"></i>
+                            <div>
+                                <span>Online Payment Response</span>
+                                <strong>{{ $paynamicsResponse['message'] }}</strong>
+                            </div>
+                        </div>
+                        <div class="online-payment-response__grid">
+                            <div>
+                                <span>Payment Channel</span>
+                                <strong>{{ $paynamicsResponse['payment_channel'] ?: 'Paynamics' }}</strong>
+                            </div>
+                            <div>
+                                <span>Provider Reference</span>
+                                <strong>{{ $paynamicsResponse['pay_reference'] ?: 'Pending' }}</strong>
+                            </div>
+                            <div>
+                                <span>Request ID</span>
+                                <strong>{{ $paynamicsResponse['request_id'] }}</strong>
+                            </div>
+                            <div>
+                                <span>Response Code</span>
+                                <strong>{{ $paynamicsResponse['response_code'] ?: 'Pending' }}</strong>
+                            </div>
+                        </div>
+                        @if (!empty($paynamicsResponse['instructions']))
+                            <div class="online-payment-response__instructions">
+                                {!! nl2br(e($paynamicsResponse['instructions'])) !!}
+                            </div>
+                        @endif
                     </div>
                 @endif
 
@@ -285,6 +331,69 @@
             color: #15803d;
         }
 
+        .online-payment-response {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin: 0 0 14px;
+            overflow: hidden;
+            text-align: left;
+        }
+
+        .online-payment-response__head {
+            align-items: flex-start;
+            display: flex;
+            gap: 10px;
+            padding: 12px 14px;
+        }
+
+        .online-payment-response__head i {
+            color: var(--booking-primary);
+            font-size: 22px;
+        }
+
+        .online-payment-response__head span,
+        .online-payment-response__head strong,
+        .online-payment-response__grid span,
+        .online-payment-response__grid strong {
+            display: block;
+        }
+
+        .online-payment-response__head span,
+        .online-payment-response__grid span {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .online-payment-response__head strong,
+        .online-payment-response__grid strong {
+            color: #1f2937;
+            overflow-wrap: anywhere;
+        }
+
+        .online-payment-response__grid {
+            border-top: 1px solid #e2e8f0;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .online-payment-response__grid > div {
+            border-bottom: 1px solid #e2e8f0;
+            min-width: 0;
+            padding: 9px 14px;
+        }
+
+        .online-payment-response__grid > div:nth-child(odd) {
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .online-payment-response__instructions {
+            color: #475569;
+            padding: 10px 14px 12px;
+        }
+
         .ticket-details {
             border: 1px solid #e5e7eb;
             border-radius: 8px;
@@ -386,6 +495,14 @@
         @media (max-width: 575px) {
             .paid-payment-details {
                 grid-template-columns: 1fr;
+            }
+
+            .online-payment-response__grid {
+                grid-template-columns: 1fr;
+            }
+
+            .online-payment-response__grid > div:nth-child(odd) {
+                border-right: 0;
             }
 
             .voucher-actions {
