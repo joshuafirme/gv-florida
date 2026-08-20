@@ -155,6 +155,23 @@ class SeatLayoutService
         return collect($this->layout($fleetType)['seat_ids']);
     }
 
+    public function availableSeatIds(FleetType|array $fleetType, array $states = []): Collection
+    {
+        return collect($this->layout($fleetType, $states)['decks'])
+            ->flatMap(fn (array $deck) => collect($deck['rows'])->flatMap(
+                fn (array $row) => collect($row['groups'])->flatMap(fn (array $group) => $group['cells'])
+            ))
+            ->where('type', 'seat')
+            ->where('state', 'available')
+            ->pluck('seat_id')
+            ->values();
+    }
+
+    public function availableSeatCount(FleetType|array $fleetType, array $states = []): int
+    {
+        return $this->availableSeatIds($fleetType, $states)->count();
+    }
+
     public function canonicalSeatId(FleetType $fleetType, string $seat): ?string
     {
         $layout = $this->layout($fleetType);

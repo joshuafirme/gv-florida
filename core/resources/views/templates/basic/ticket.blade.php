@@ -701,51 +701,25 @@
                                     $end->addDay();
                                 }
 
-                                $tickets = App\Models\BookedTicket::where('trip_id', $trip->id)
-                                    ->whereDate('date_of_journey', Carbon::parse($date_of_journey)->format('Y-m-d'))
-                                    ->where(function ($query) {
-                                        $query->where('status', Status::BOOKED_APPROVED)->orWhere(function ($subQuery) {
-                                            $subQuery
-                                                ->where('status', Status::BOOKED_PENDING)
-                                                ->whereHas('deposit', function ($depositQuery) {
-                                                    $depositQuery->where(
-                                                        'created_at',
-                                                        '>=',
-                                                        Carbon::now()->subMinutes(15),
-                                                    );
-                                                });
-                                        });
-                                    })
-                                    ->get();
-
-                                $occupied_seats_ctr = 0;
-
-                                foreach ($tickets as $key => $ticket) {
-                                    if ($ticket->seats) {
-                                        $occupied_seats_ctr += count($ticket->seats);
-                                    }
-                                }
-                                $occupied_seats_ctr += App\Models\AdminSeatLock::active()
-                                    ->where('trip_id', $trip->id)
-                                    ->whereDate(
-                                        'date_of_journey',
-                                        Carbon::parse(request('date_of_journey') ?: now())->format('Y-m-d'),
-                                    )
-                                    ->count();
-
-                                $deck_seats = app(App\Services\SeatLayoutService::class)
-                                    ->seatIds($trip->fleetType)
-                                    ->count();
-                                $available_seats_ctr = $deck_seats - $occupied_seats_ctr;
-                                $available_seats_ctr = max($available_seats_ctr, 0);
-
-                                $stoppageArr = $trip->route->stoppages ?? [];
-                                $routeSequence = App\Models\Counter::routeStoppages($stoppageArr);
-                                $isFullyBooked = $available_seats_ctr < 1;
                                 $requestedPickupId =
                                     (string) (request('pickup') ?: request('counter_id') ?: $trip->start_from);
                                 $requestedDestinationId =
                                     (string) (request('destination') ?: request('selected_destination') ?: '');
+                                $requestedDropId = $requestedDestinationId ?: (string) $trip->end_to;
+                                $unavailableSeatIds = app(App\Services\SeatConflictService::class)->unavailableSeats(
+                                    $trip,
+                                    $date_of_journey,
+                                    $requestedPickupId,
+                                    $requestedDropId,
+                                );
+                                $available_seats_ctr = app(App\Services\SeatLayoutService::class)->availableSeatCount(
+                                    $trip->fleetType,
+                                    ['booked' => $unavailableSeatIds],
+                                );
+
+                                $stoppageArr = $trip->route->stoppages ?? [];
+                                $routeSequence = App\Models\Counter::routeStoppages($stoppageArr);
+                                $isFullyBooked = $available_seats_ctr < 1;
                                 $routeStopIds = $routeSequence->pluck('id')->map(fn($id) => (string) $id)->values();
                                 $displayDrop = $requestedDestinationId
                                     ? $routeSequence->first(
