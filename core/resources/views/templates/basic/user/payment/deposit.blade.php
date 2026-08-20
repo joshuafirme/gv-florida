@@ -85,19 +85,46 @@
                                     </div>
                                     <div>
                                         <label class="flow-label">Passenger Type</label>
-                                        <select class="flow-input passenger-type-select">
-                                            <option value="regular" data-type="regular" data-discount-id="">Regular</option>
-                                            @if ($isKioskBooking)
-                                                @foreach ($discountOptions as $discount)
-                                                    <option value="discounted-{{ $discount['id'] }}" data-type="discounted"
-                                                        data-discount-id="{{ $discount['id'] }}"
-                                                        data-discount-name="{{ $discount['name'] }}"
-                                                        data-percentage="{{ $discount['percentage'] }}">
-                                                        {{ $discount['name'] }}
-                                                    </option>
-                                                @endforeach
-                                            @endif
-                                        </select>
+                                        <div class="passenger-type-dropdown">
+                                            <select class="passenger-type-select" tabindex="-1" aria-hidden="true">
+                                                <option value="regular" data-type="regular" data-discount-id="">Regular</option>
+                                                @if ($isKioskBooking)
+                                                    @foreach ($discountOptions as $discount)
+                                                        <option value="discounted-{{ $discount['id'] }}" data-type="discounted"
+                                                            data-discount-id="{{ $discount['id'] }}"
+                                                            data-discount-name="{{ $discount['name'] }}"
+                                                            data-percentage="{{ $discount['percentage'] }}">
+                                                            {{ $discount['name'] }}
+                                                        </option>
+                                                    @endforeach
+                                                @endif
+                                            </select>
+
+                                            <button type="button" class="flow-input passenger-type-trigger"
+                                                aria-haspopup="listbox" aria-expanded="false"
+                                                aria-controls="passengerTypeMenu{{ $index }}">
+                                                <span class="js-passenger-type-label">Regular</span>
+                                                <i class="las la-angle-down" aria-hidden="true"></i>
+                                            </button>
+                                            <div class="passenger-type-menu" id="passengerTypeMenu{{ $index }}"
+                                                role="listbox" aria-label="Passenger Type">
+                                                <button type="button" class="passenger-type-option is-selected"
+                                                    data-value="regular" role="option" aria-selected="true">
+                                                    <span>Regular</span>
+                                                    <i class="las la-check" aria-hidden="true"></i>
+                                                </button>
+                                                @if ($isKioskBooking)
+                                                    @foreach ($discountOptions as $discount)
+                                                        <button type="button" class="passenger-type-option"
+                                                            data-value="discounted-{{ $discount['id'] }}" role="option"
+                                                            aria-selected="false">
+                                                            <span>{{ $discount['name'] }}</span>
+                                                            <i class="las la-check" aria-hidden="true"></i>
+                                                        </button>
+                                                    @endforeach
+                                                @endif
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -327,7 +354,11 @@
             border-radius: 8px;
             box-shadow: 0 1px 8px rgba(15, 23, 42, .04);
             margin-top: 12px;
-            overflow: hidden;
+            position: relative;
+        }
+
+        .passenger-card.is-dropdown-open {
+            z-index: 20;
         }
 
         .passenger-card__head {
@@ -338,6 +369,7 @@
             gap: 10px;
             justify-content: flex-start;
             padding: 10px 16px;
+            border-radius: 7px 7px 0 0;
         }
 
         .passenger-card__head span {
@@ -395,9 +427,100 @@
             box-shadow: 0 0 0 3px var(--booking-primary-focus);
         }
 
-        select.flow-input {
-            background-color: #fff;
+        .passenger-type-dropdown {
+            position: relative;
+        }
+
+        .passenger-type-select {
+            height: 1px;
+            left: 0;
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            width: 1px;
+        }
+
+        .passenger-type-trigger {
+            align-items: center;
+            background: #fff;
             cursor: pointer;
+            display: flex;
+            font-weight: 700;
+            justify-content: space-between;
+            text-align: left;
+            touch-action: manipulation;
+        }
+
+        .passenger-type-trigger i {
+            color: #98a2b3;
+            font-size: 15px;
+            transition: transform .18s ease;
+        }
+
+        .passenger-type-dropdown.is-open .passenger-type-trigger {
+            border-color: var(--booking-primary);
+            box-shadow: 0 0 0 3px var(--booking-primary-focus);
+        }
+
+        .passenger-type-dropdown.is-open .passenger-type-trigger i {
+            transform: rotate(180deg);
+        }
+
+        .passenger-type-menu {
+            background: #fff;
+            border: 1px solid #edf0f3;
+            border-radius: 8px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, .16);
+            display: none;
+            left: 0;
+            margin-top: 6px;
+            overflow: hidden;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            z-index: 30;
+        }
+
+        .passenger-type-dropdown.is-open .passenger-type-menu {
+            display: block;
+        }
+
+        .passenger-type-option {
+            align-items: center;
+            background: #fff;
+            border: 0;
+            color: #344054;
+            display: flex;
+            font-size: 14px;
+            justify-content: space-between;
+            min-height: 46px;
+            padding: 10px 16px;
+            text-align: left;
+            touch-action: manipulation;
+            width: 100%;
+        }
+
+        .passenger-type-option:hover,
+        .passenger-type-option:focus-visible {
+            background: #f8fafc;
+            outline: 0;
+        }
+
+        .passenger-type-option i {
+            color: var(--booking-primary);
+            font-size: 17px;
+            opacity: 0;
+        }
+
+        .passenger-type-option.is-selected {
+            background: var(--booking-primary-soft);
+            color: var(--booking-primary);
+            font-weight: 800;
+        }
+
+        .passenger-type-option.is-selected i {
+            opacity: 1;
         }
 
         .flow-label {
@@ -1077,10 +1200,114 @@
                 }
             }
 
+            function closePassengerTypeDropdown(dropdown) {
+                dropdown.removeClass('is-open');
+                dropdown.closest('.passenger-card').removeClass('is-dropdown-open');
+                dropdown.find('.passenger-type-trigger').attr('aria-expanded', 'false');
+            }
+
+            function closePassengerTypeDropdowns(except = null) {
+                $('.passenger-type-dropdown.is-open').each(function() {
+                    const dropdown = $(this);
+                    if (!except || dropdown[0] !== except[0]) {
+                        closePassengerTypeDropdown(dropdown);
+                    }
+                });
+            }
+
+            function syncPassengerTypeDropdown(select) {
+                const dropdown = select.closest('.passenger-type-dropdown');
+                const selectedOption = select.find('option:selected');
+                const value = String(select.val() || 'regular');
+
+                dropdown.find('.js-passenger-type-label').text(selectedOption.text().trim());
+                dropdown.find('.passenger-type-option').each(function() {
+                    const option = $(this);
+                    const isSelected = String(option.data('value')) === value;
+                    option.toggleClass('is-selected', isSelected).attr('aria-selected', isSelected ? 'true' : 'false');
+                });
+            }
+
+            $(document).on('click', '.passenger-type-trigger', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const trigger = $(this);
+                const dropdown = trigger.closest('.passenger-type-dropdown');
+                const wasOpen = dropdown.hasClass('is-open');
+
+                closePassengerTypeDropdowns();
+                if (wasOpen) return;
+
+                dropdown.addClass('is-open');
+                dropdown.closest('.passenger-card').addClass('is-dropdown-open');
+                trigger.attr('aria-expanded', 'true');
+            });
+
+            $(document).on('click', '.passenger-type-option', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const option = $(this);
+                const dropdown = option.closest('.passenger-type-dropdown');
+                const select = dropdown.find('.passenger-type-select');
+
+                select.val(String(option.data('value'))).trigger('change');
+                closePassengerTypeDropdown(dropdown);
+                dropdown.find('.passenger-type-trigger').trigger('focus');
+            });
+
+            $(document).on('keydown', '.passenger-type-trigger', function(event) {
+                const dropdown = $(this).closest('.passenger-type-dropdown');
+
+                if (event.key === 'Escape') {
+                    closePassengerTypeDropdown(dropdown);
+                    return;
+                }
+
+                if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+
+                event.preventDefault();
+                if (!dropdown.hasClass('is-open')) {
+                    $(this).trigger('click');
+                }
+                dropdown.find('.passenger-type-option.is-selected').trigger('focus');
+            });
+
+            $(document).on('keydown', '.passenger-type-option', function(event) {
+                const option = $(this);
+                const dropdown = option.closest('.passenger-type-dropdown');
+                const options = dropdown.find('.passenger-type-option');
+                const currentIndex = options.index(option);
+
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closePassengerTypeDropdown(dropdown);
+                    dropdown.find('.passenger-type-trigger').trigger('focus');
+                    return;
+                }
+
+                if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+
+                event.preventDefault();
+                const nextIndex = event.key === 'ArrowDown' ?
+                    Math.min(currentIndex + 1, options.length - 1) :
+                    Math.max(currentIndex - 1, 0);
+                options.eq(nextIndex).trigger('focus');
+            });
+
+            $(document).on('click', function(event) {
+                if (!$(event.target).closest('.passenger-type-dropdown').length) {
+                    closePassengerTypeDropdowns();
+                }
+            });
+
             $(document).on('change', '.passenger-type-select', function() {
                 const select = $(this);
                 const selectedType = select.find('option:selected');
                 const card = select.closest('.passenger-card');
+
+                syncPassengerTypeDropdown(select);
 
                 if (selectedType.data('type') === 'discounted') {
                     card.find('.discount-fields').removeClass('d-none');
@@ -1284,6 +1511,9 @@
                 $('.gateway-input:first').prop('checked', true);
             }
 
+            $('.passenger-type-select').each(function() {
+                syncPassengerTypeDropdown($(this));
+            });
             renderSummary();
             calculateGateway();
         })(jQuery);
