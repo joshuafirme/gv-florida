@@ -161,6 +161,29 @@ class SeatLayoutServiceTest extends TestCase
         $this->assertSame(['2-U16'], $layout['disabled_seat_ids']);
     }
 
+    public function test_available_seat_count_excludes_every_unavailable_seat_state(): void
+    {
+        $fleetType = new FleetType();
+        $fleetType->seat_layout = '2x2';
+        $fleetType->deck_seats = [4];
+        $fleetType->prefixes = ['D'];
+        $fleetType->disabled_seats = ['D4'];
+        $fleetType->last_row = [0];
+        $fleetType->cr_position = null;
+        $fleetType->cr_row = null;
+        $fleetType->cr_override_seat = false;
+
+        $service = new SeatLayoutService();
+        $states = [
+            'booked' => ['D1'],
+            'pending' => ['1-D2'],
+            'locked' => ['D3'],
+        ];
+
+        $this->assertSame([], $service->availableSeatIds($fleetType, $states)->all());
+        $this->assertSame(0, $service->availableSeatCount($fleetType, $states));
+    }
+
     public function test_last_row_configuration_applies_independently_to_every_deck(): void
     {
         $fleetType = new FleetType();
