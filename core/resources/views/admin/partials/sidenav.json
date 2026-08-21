@@ -652,6 +652,10 @@
                     {
                         "title": "Admin Seat Locking",
                         "value": "admin.trip.seat-locks.index"
+                    },
+                    {
+                        "title": "Trip Channel Access",
+                        "value": "admin.trip.channel-access.index"
                     }
                 ]
             },

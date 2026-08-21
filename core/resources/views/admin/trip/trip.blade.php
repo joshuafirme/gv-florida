@@ -86,6 +86,7 @@
                                             <a href="{{ $sortUrl('departure_time') }}" class="text--dark">@lang('Schedule')
                                                 {!! $sortIcon('departure_time') !!}</a>
                                         </th>
+                                        <th>@lang('Channels')</th>
                                         <th>@lang('Status')</th>
                                         <th>@lang('Action')</th>
                                     </tr>
@@ -138,6 +139,32 @@
                                             </td>
 
                                             <td>
+                                                <button type="button"
+                                                    class="channel-summary-btn {{ $canManageChannelAccess ? 'channelAccessBtn' : '' }}"
+                                                    data-channel-summary-trip="{{ $item->id }}"
+                                                    @if ($canManageChannelAccess)
+                                                        data-channel-url="{{ route('admin.trip.channel-access.index', $item->id) }}"
+                                                        data-channel-store-url="{{ route('admin.trip.channel-access.store', $item->id) }}"
+                                                        data-channel-authorize-url="{{ route('admin.trip.channel-access.authorize', $item->id) }}"
+                                                    @else
+                                                        disabled
+                                                    @endif
+                                                    title="@lang('View dated channel access')">
+                                                    <span class="channel-summary-item {{ $item->online_booking_enabled ? '' : 'is-default-disabled' }}"
+                                                        data-channel="online">
+                                                        <i class="las la-globe"></i>
+                                                        <span>@lang('Online')</span>
+                                                        <b data-channel-count="online">{{ $item->online_channel_blocks_count }}</b>
+                                                    </span>
+                                                    <span class="channel-summary-item {{ $item->kiosk_booking_enabled ? '' : 'is-default-disabled' }}"
+                                                        data-channel="kiosk">
+                                                        <i class="las la-desktop"></i>
+                                                        <span>@lang('Kiosk')</span>
+                                                        <b data-channel-count="kiosk">{{ $item->kiosk_channel_blocks_count }}</b>
+                                                    </span>
+                                                </button>
+                                            </td>
+                                            <td>
                                                 <div>@php echo $item->statusBadge; @endphp</div>
                                                 <div class="mt-2 small fw-bold">
                                                     @php echo decodeSlug($item->trip_status); @endphp
@@ -170,6 +197,18 @@
                                                             title="@lang('Manage Seat Locks')" aria-label="@lang('Manage Seat Locks')">
                                                             <i class="las la-lock"></i>
                                                         </a>
+                                                    @endif
+
+                                                    @if ($canManageChannelAccess)
+                                                        <button type="button"
+                                                            class="btn btn-sm btn-outline--info trip-action-btn channelAccessBtn"
+                                                            data-channel-url="{{ route('admin.trip.channel-access.index', $item->id) }}"
+                                                            data-channel-store-url="{{ route('admin.trip.channel-access.store', $item->id) }}"
+                                                            data-channel-authorize-url="{{ route('admin.trip.channel-access.authorize', $item->id) }}"
+                                                            data-bs-toggle="tooltip" data-bs-placement="top"
+                                                            title="@lang('Channel Access')" aria-label="@lang('Channel Access')">
+                                                            <i class="las la-globe"></i>
+                                                        </button>
                                                     @endif
 
                                                     @if (!$item->status)
@@ -236,6 +275,8 @@
                 </div>
             </div>
         </div>
+
+        @include('admin.trip.partials.channel-access-modal')
 
         <!-- Create/Update Modal (Light Theme) -->
         <div id="cuModal" class="modal fade" tabindex="-1" role="dialog">
@@ -402,6 +443,63 @@
             .trip-action-btn i {
                 font-size: 17px;
                 margin: 0;
+            }
+
+            .channel-summary-btn {
+                align-items: stretch;
+                background: transparent;
+                border: 0;
+                display: flex;
+                gap: 5px;
+                padding: 0;
+            }
+
+            .channel-summary-btn:not(:disabled) {
+                cursor: pointer;
+            }
+
+            .channel-summary-item {
+                align-items: center;
+                background: #f0fbf5;
+                border: 1px solid #bfe9d0;
+                border-radius: 6px;
+                color: #177447;
+                display: inline-flex;
+                font-size: 11px;
+                font-weight: 700;
+                gap: 4px;
+                min-height: 30px;
+                padding: 4px 7px;
+                position: relative;
+            }
+
+            .channel-summary-item.is-default-disabled {
+                background: #f5f5f6;
+                border-color: #d9dce1;
+                color: #777f8c;
+            }
+
+            .channel-summary-item.has-blocks {
+                background: #fff6e8;
+                border-color: #f3cb83;
+                color: #a56200;
+            }
+
+            .channel-summary-item b {
+                align-items: center;
+                background: #dc8a00;
+                border-radius: 50%;
+                color: #fff;
+                display: none;
+                font-size: 9px;
+                height: 17px;
+                justify-content: center;
+                min-width: 17px;
+                padding: 0 4px;
+            }
+
+            .channel-summary-item.has-blocks b {
+                display: inline-flex;
             }
 
             .booking-channel-section {

@@ -174,6 +174,17 @@ Route::middleware('admin')->group(function () {
             Route::post('/', 'change')->name('change');
         });
 
+    Route::controller('TripChannelAccessController')
+        ->prefix('manage/trip/{trip}/channel-access')
+        ->name('trip.channel-access.')
+        ->middleware('role:admin.trip.channel-access.index')
+          ->group(function () {
+              Route::get('/', 'index')->name('index');
+              Route::post('/authorize', 'authorizeCode')->name('authorize');
+              Route::delete('/rules/{availability}', 'destroy')->name('destroy');
+              Route::post('/', 'store')->name('store');
+          });
+
 
 
     Route::controller('VehicleTicketController')->prefix('manage')->name('trip.ticket.')->group(function () {
