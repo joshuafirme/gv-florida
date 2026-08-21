@@ -14,6 +14,7 @@ use App\Models\GeneralSetting;
 use App\Models\User;
 use App\Models\UserDiscount;
 use App\Services\CashierTransactionRecorder;
+use App\Services\PendingPaymentExpirationService;
 use App\Services\PaynamicsPaymentBroadcaster;
 use App\Services\PaymentGatewayService;
 use Carbon\Carbon;
@@ -22,8 +23,10 @@ use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
-    public function __construct(private readonly PaymentGatewayService $paymentGateways)
-    {
+    public function __construct(
+        private readonly PaymentGatewayService $paymentGateways,
+        private readonly PendingPaymentExpirationService $pendingPaymentExpiration
+    ) {
     }
 
     public function deposit(Request $request)
@@ -291,6 +294,10 @@ class PaymentController extends Controller
 
             $deposit->trx = generateReqID();
         }
+        $expirationStartsAt = $deposit->created_at ?: now();
+        if (!$deposit->exists) {
+            $deposit->created_at = $expirationStartsAt;
+        }
         $deposit->user_id = $user ? $user->id : null;
         $deposit->booked_ticket_id = $bookedTicket->id;
         $deposit->method_code = $gate->method_code;
@@ -301,7 +308,7 @@ class PaymentController extends Controller
         $deposit->btc_amount = 0;
         $deposit->btc_wallet = "";
         $deposit->status = Status::PAYMENT_INITIATE;
-        $deposit->expiry_limit = date('Y-m-d H:i:s', strtotime(date('Y-m-d H:i:s') . ' + 1 hour'));
+        $deposit->expiry_limit = $this->pendingPaymentExpiration->expiresAt($expirationStartsAt);
         $deposit->success_url = route('user.deposit.done');
         $deposit->failed_url = urlPath('ticket');
         $deposit->final_amount = $finalAmount;
@@ -365,6 +372,11 @@ class PaymentController extends Controller
         }
 
         $ticket = $deposit->bookedTicket;
+        $expiresAt = $ticket->isKioskBooking()
+            ? $this->pendingPaymentExpiration->expiresAt($deposit->created_at)
+            : ($deposit->expiry_limit
+                ? Carbon::parse($deposit->expiry_limit)
+                : $this->pendingPaymentExpiration->expiresAt($deposit->created_at));
 
         if ($ticket->isKioskBooking()) {
             $layout = 'layouts.kiosk';
@@ -403,7 +415,8 @@ class PaymentController extends Controller
             'paynamicsResponse',
             'paynamicsRealtime',
             'pageTitle',
-            'layout'
+            'layout',
+            'expiresAt'
         ));
     }
 

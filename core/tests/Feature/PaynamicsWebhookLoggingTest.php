@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Controllers\Gateway\Paynamics\ProcessController;
 use App\Models\PaynamicsWebhookLog;
 use App\Services\PaymentGatewayService;
+use App\Services\PendingPaymentExpirationService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -98,6 +99,9 @@ class PaynamicsWebhookLoggingTest extends TestCase
 
     private function controller(): ProcessController
     {
-        return new ProcessController(app(PaymentGatewayService::class));
+        return new ProcessController(
+            app(PaymentGatewayService::class),
+            app(PendingPaymentExpirationService::class)
+        );
     }
 }

@@ -180,7 +180,8 @@
             ->filter()
             ->unique(fn ($part) => strtolower($part))
             ->implode(', ');
-        $androidExpiresAt = $ticket->deposit->created_at->copy()->addMinutes(15);
+        $androidExpiresAt = app(\App\Services\PendingPaymentExpirationService::class)
+            ->expiresAt($ticket->deposit->created_at);
         $androidIsPaid = (int) $ticket->deposit->status === \App\Constants\Status::PAYMENT_SUCCESS;
         $androidPaymentMethod = $ticket->deposit->pchannel
             ? getPaynamicsPChannel($ticket->deposit->pchannel, true)

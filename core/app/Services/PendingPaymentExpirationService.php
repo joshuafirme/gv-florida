@@ -12,6 +12,12 @@ class PendingPaymentExpirationService
 {
     public const EXPIRATION_MINUTES = 15;
 
+    public function expiresAt(CarbonInterface $createdAt): CarbonImmutable
+    {
+        return CarbonImmutable::instance($createdAt)
+            ->addMinutes(self::EXPIRATION_MINUTES);
+    }
+
     public function expireDue(?CarbonInterface $now = null): int
     {
         $cutoff = ($now ? CarbonImmutable::instance($now) : CarbonImmutable::now())
