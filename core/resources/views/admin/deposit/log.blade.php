@@ -6,6 +6,13 @@
         $status = isset($status) ? $status : 'all';
         $method_code = request('method_code') ?: 'all';
         $enhancedPaymentTable = in_array($status, ['approved', 'successful', 'rejected', 'all']);
+        $paymentFilters = $paymentFilters ?? [];
+        $paymentFilterOptions = $paymentFilterOptions ?? [];
+        $exportParameters = array_filter(
+            array_merge(['status' => $status, 'search' => $search], $paymentFilters),
+            fn ($value) => $value !== null && $value !== ''
+        );
+        $exportUrl = url('/admin/deposit/export') . ($exportParameters ? '?' . http_build_query($exportParameters) : '');
     @endphp
     <div class="row justify-content-center">
         @if (request()->routeIs('admin.deposit.list') || request()->routeIs('admin.deposit.method'))
@@ -35,37 +42,115 @@
         @endif
 
         <div class="col-md-12 mb-3">
-            <form action="#">
-                <div class="d-flex flex-wrap gap-4">
-                    <div style="width: 250px;">
-                        <label for="">Date</label>
-                        <input name="date" type="search" class="datepicker-here form-control bg--white pe-2 date-range"
-                            placeholder="@lang('Start Date - End Date')" autocomplete="off" value="{{ request()->date }}">
+            @if ($status === 'all')
+                <form action="{{ route('admin.deposit.list') }}" method="GET" class="all-payment-filters">
+                    @if ($search)
+                        <input type="hidden" name="search" value="{{ $search }}">
+                    @endif
+
+                    <div class="all-payment-filters__field">
+                        <label for="paymentDateFrom">@lang('Date From')</label>
+                        <input id="paymentDateFrom" name="date_from" type="date" class="form-control"
+                            value="{{ $paymentFilters['date_from'] ?? '' }}">
                     </div>
-                    <div style="width: 250px;">
-                        <label for="">Payment Method</label>
-                        @php
-                            $gateways = App\Models\GatewayCurrency::get();
-                        @endphp
-                        <select name="method_code" class="select2" required>
-                            <option value="all">@lang('All')</option>
-                            @foreach ($gateways as $gateway)
-                                <option value="{{ $gateway->method_code }}"
-                                    {{ $gateway->method_code == $method_code ? 'selected' : '' }}>{{ $gateway->name }}
+                    <div class="all-payment-filters__field">
+                        <label for="paymentDateTo">@lang('Date To')</label>
+                        <input id="paymentDateTo" name="date_to" type="date" class="form-control"
+                            value="{{ $paymentFilters['date_to'] ?? '' }}"
+                            min="{{ $paymentFilters['date_from'] ?? '' }}">
+                    </div>
+                    <div class="all-payment-filters__field">
+                        <label for="paymentSource">@lang('Source')</label>
+                        <select id="paymentSource" name="source" class="form-control">
+                            <option value="">@lang('All Sources')</option>
+                            @foreach ($paymentFilterOptions['sources'] ?? [] as $option)
+                                <option value="{{ $option['value'] }}" @selected(($paymentFilters['source'] ?? '') === $option['value'])>
+                                    {{ __($option['label']) }}
                                 </option>
                             @endforeach
                         </select>
                     </div>
-                    <div class="align-self-end">
-                        <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> Filter</button>
+                    <div class="all-payment-filters__field">
+                        <label for="paymentMethod">@lang('Payment Method')</label>
+                        <select id="paymentMethod" name="payment_method" class="form-control">
+                            <option value="">@lang('All Payment Methods')</option>
+                            @foreach ($paymentFilterOptions['payment_methods'] ?? [] as $option)
+                                <option value="{{ $option['value'] }}" @selected(($paymentFilters['payment_method'] ?? '') === $option['value'])>
+                                    {{ $option['label'] }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
-                    <div class="align-self-end">
-                        <a class="btn btn--success w-100 h-45"
-                            href="{{ url("/admin/deposit/export?status=$status&date=$date&search=$search&method_code=$method_code") }}"><i
-                                class="fa-solid fa-file-export"></i> Export</a>
+                    <div class="all-payment-filters__field">
+                        <label for="paymentStatus">@lang('Payment Status')</label>
+                        <select id="paymentStatus" name="payment_status" class="form-control">
+                            <option value="">@lang('All Statuses')</option>
+                            @foreach ($paymentFilterOptions['payment_statuses'] ?? [] as $option)
+                                <option value="{{ $option['value'] }}" @selected((string) ($paymentFilters['payment_status'] ?? '') === (string) $option['value'])>
+                                    {{ __($option['label']) }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
-                </div>
-            </form>
+                    <div class="all-payment-filters__field">
+                        <label for="paymentProcessedBy">@lang('Processed By')</label>
+                        <select id="paymentProcessedBy" name="processed_by" class="form-control">
+                            <option value="">@lang('All Processors')</option>
+                            @foreach ($paymentFilterOptions['processed_by'] ?? [] as $option)
+                                <option value="{{ $option['value'] }}" @selected(($paymentFilters['processed_by'] ?? '') === $option['value'])>
+                                    {{ $option['label'] }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="all-payment-filters__actions">
+                        <button class="btn btn--primary h-45" type="submit">
+                            <i class="las la-filter"></i> @lang('Apply')
+                        </button>
+                        <a class="btn btn-light h-45" href="{{ route('admin.deposit.list') }}" title="@lang('Clear filters')">
+                            <i class="las la-times"></i> @lang('Clear')
+                        </a>
+                        <a class="btn btn--success h-45" href="{{ $exportUrl }}">
+                            <i class="las la-file-export"></i> @lang('Export')
+                        </a>
+                    </div>
+                </form>
+            @else
+                <form action="#">
+                    <div class="d-flex flex-wrap gap-4">
+                        <div style="width: 250px;">
+                            <label for="paymentDateRange">@lang('Date')</label>
+                            <input id="paymentDateRange" name="date" type="search"
+                                class="datepicker-here form-control bg--white pe-2 date-range"
+                                placeholder="@lang('Start Date - End Date')" autocomplete="off"
+                                value="{{ request()->date }}">
+                        </div>
+                        <div style="width: 250px;">
+                            <label for="paymentMethodCode">@lang('Payment Method')</label>
+                            @php
+                                $gateways = App\Models\GatewayCurrency::get();
+                            @endphp
+                            <select id="paymentMethodCode" name="method_code" class="select2" required>
+                                <option value="all">@lang('All')</option>
+                                @foreach ($gateways as $gateway)
+                                    <option value="{{ $gateway->method_code }}"
+                                        {{ $gateway->method_code == $method_code ? 'selected' : '' }}>{{ $gateway->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="align-self-end">
+                            <button class="btn btn--primary w-100 h-45"><i class="fas fa-filter"></i> @lang('Filter')</button>
+                        </div>
+                        <div class="align-self-end">
+                            <a class="btn btn--success w-100 h-45"
+                                href="{{ url("/admin/deposit/export?status=$status&date=$date&search=$search&method_code=$method_code") }}">
+                                <i class="fa-solid fa-file-export"></i> @lang('Export')
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            @endif
         </div>
         <div class="col-md-12">
             <div class="card">
@@ -593,17 +678,16 @@
 
 @push('breadcrumb-plugins')
     <form class="payment-search-form" method="GET">
-        @if (request()->filled('date'))
-            <input type="hidden" name="date" value="{{ request('date') }}">
-        @endif
-        @if (request()->filled('method_code'))
-            <input type="hidden" name="method_code" value="{{ request('method_code') }}">
-        @endif
+        @foreach (['date', 'method_code', 'date_from', 'date_to', 'source', 'payment_method', 'payment_status', 'processed_by'] as $filterName)
+            @if (request()->has($filterName) && request($filterName) !== '')
+                <input type="hidden" name="{{ $filterName }}" value="{{ request($filterName) }}">
+            @endif
+        @endforeach
         <label class="payment-search-control" for="paymentSearchInput">
             <i class="las la-search" aria-hidden="true"></i>
             <input id="paymentSearchInput" type="search" name="search" value="{{ request('search') }}"
-                placeholder="{{ $status == 'pending' ? __('Search PNR or passenger name') : __('Search PNR, passenger, or ref. no.') }}"
-                aria-label="{{ $status == 'pending' ? __('Search by PNR or passenger name') : __('Search by PNR, passenger name, or reference number') }}">
+                placeholder="{{ $status == 'pending' ? __('Search request ID, PNR, or passenger') : __('Search request ID, PNR, passenger, or ref. no.') }}"
+                aria-label="{{ $status == 'pending' ? __('Search by payment request ID, PNR, or passenger name') : __('Search by payment request ID, PNR, passenger name, or reference number') }}">
         </label>
     </form>
 @endpush
@@ -656,6 +740,79 @@
         .payment-search-control>input::placeholder {
             color: #858b96;
             opacity: 1;
+        }
+
+        .all-payment-filters {
+            align-items: end;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            display: grid;
+            gap: 12px;
+            grid-template-columns: repeat(6, minmax(145px, 1fr)) auto;
+            padding: 14px;
+        }
+
+        .all-payment-filters__field {
+            min-width: 0;
+        }
+
+        .all-payment-filters__field label {
+            color: #4b5563;
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .all-payment-filters__field .form-control {
+            background: #fff;
+            border-color: #d6d9df;
+            border-radius: 7px;
+            color: #323843;
+            font-size: 13px;
+            height: 42px;
+            min-width: 0;
+            width: 100%;
+        }
+
+        .all-payment-filters__field .form-control:focus {
+            border-color: #df257b;
+            box-shadow: 0 0 0 3px rgba(223, 37, 123, .1);
+        }
+
+        .all-payment-filters__actions {
+            display: flex;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .all-payment-filters__actions .btn {
+            align-items: center;
+            display: inline-flex;
+            gap: 5px;
+            justify-content: center;
+        }
+
+        @media (max-width: 1599.98px) {
+            .all-payment-filters {
+                grid-template-columns: repeat(3, minmax(180px, 1fr));
+            }
+
+            .all-payment-filters__actions {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .all-payment-filters {
+                grid-template-columns: 1fr;
+            }
+
+            .all-payment-filters__actions {
+                flex-wrap: wrap;
+                grid-column: auto;
+            }
         }
 
         .pending-payments-table {
