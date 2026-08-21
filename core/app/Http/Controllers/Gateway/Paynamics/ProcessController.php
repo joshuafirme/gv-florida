@@ -9,6 +9,7 @@ use App\Http\Controllers\Gateway\PaymentController;
 use App\Models\PaynamicsWebhookLog;
 use App\Services\Paynamics;
 use App\Services\PaynamicsPaymentBroadcaster;
+use App\Services\PendingPaymentExpirationService;
 use App\Services\PaymentGatewayService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -18,8 +19,10 @@ use Storage;
 
 class ProcessController extends Controller
 {
-    public function __construct(private readonly PaymentGatewayService $paymentGateways)
-    {
+    public function __construct(
+        private readonly PaymentGatewayService $paymentGateways,
+        private readonly PendingPaymentExpirationService $pendingPaymentExpiration
+    ) {
     }
 
     /*
@@ -107,7 +110,9 @@ class ProcessController extends Controller
                 return redirect()->to($transaction->payment_action_info);
             } else if ($transaction && isset($transaction->direct_otc_info)) {
                 $ticket->deposit->status = Status::PAYMENT_PENDING;
-                $ticket->deposit->expiry_limit = $transaction->expiry_limit ?? $ticket->deposit->expiry_limit;
+                $ticket->deposit->expiry_limit = $isKioskBooking
+                    ? $this->pendingPaymentExpiration->expiresAt($ticket->deposit->created_at)
+                    : ($transaction->expiry_limit ?? $ticket->deposit->expiry_limit);
                 $ticket->deposit->pay_reference = $transaction->pay_reference ?? $ticket->deposit->pay_reference;
                 $ticket->deposit->save();
 
@@ -400,7 +405,12 @@ class ProcessController extends Controller
             $deposit->pchannel = $channel;
         }
 
-        if ($expiryLimit) {
+        $isKioskBooking = $deposit->getAttribute('booked_ticket_id')
+            && $deposit->bookedTicket?->isKioskBooking();
+
+        if ($isKioskBooking) {
+            $deposit->expiry_limit = $this->pendingPaymentExpiration->expiresAt($deposit->created_at);
+        } elseif ($expiryLimit) {
             $deposit->expiry_limit = $expiryLimit;
         }
 

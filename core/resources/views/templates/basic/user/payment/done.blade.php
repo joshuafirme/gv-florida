@@ -47,9 +47,6 @@
 
                 @php
                     $qr = base64_encode(QrCode::format('svg')->size(150)->generate($ticket->pnr_number));
-                    $expiresAt = $deposit->expiry_limit
-                        ? \Carbon\Carbon::parse($deposit->expiry_limit)
-                        : $deposit->created_at->copy()->addMinutes(15);
                     $manifest = $ticket->passenger_manifest ?: [];
                     $passengerNames = collect($manifest)
                         ->map(fn ($passenger) => trim((string) ($passenger['name'] ?? '')) ?: 'Guest')
@@ -137,7 +134,7 @@
                             {{ $isPaynamicsPayment ? 'Complete payment within' : 'Pay within' }}
                             <span id="payCountdown" data-expires-at="{{ $expiresAt->toIso8601String() }}">15 mins 00 secs</span>
                         </strong>
-                        <span>Valid until {{ showDateTime($expiresAt, 'h:i A') }} &middot; the seat is released if unpaid by then.</span>
+                        <span>Valid until {{ showDateTime($expiresAt, 'M j, Y, g:i A') }} &middot; the seat is released if unpaid by then.</span>
                     </div>
                 @endif
 
