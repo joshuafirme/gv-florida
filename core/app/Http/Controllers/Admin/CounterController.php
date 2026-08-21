@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BookedTicket;
 use App\Models\AdminSeatLock;
 use App\Models\Trip;
+use App\Services\SeatConflictService;
 use App\Services\SeatLayoutService;
 use Illuminate\Http\Request;
 use App\Models\Counter;
@@ -93,28 +94,25 @@ class CounterController extends Controller
     public function scheduleBoardJSON($counter_id)
     {
         $trips = $this->getTripQuery($counter_id)->get();
+        $journeyDate = now()->toDateString();
+        $seatConflicts = app(SeatConflictService::class);
+        $seatLayouts = app(SeatLayoutService::class);
 
         $data = [];
 
-        foreach ($trips as $key => $trip) {
-            $tickets = BookedTicket::where('trip_id', $trip->id)
-                ->wheredate('date_of_journey', date('Y-m-d'))
-                ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
-                ->get();
-
-            $occupied_seats_ctr = 0;
-
-            foreach ($tickets as $key => $ticket) {
-                $occupied_seats_ctr += $ticket?->seats ? count($ticket->seats) : 0;
-            }
-            $occupied_seats_ctr += AdminSeatLock::active()
-                ->where('trip_id', $trip->id)
-                ->whereDate('date_of_journey', date('Y-m-d'))
-                ->count();
-
-            $deck_seats = app(SeatLayoutService::class)->seatIds($trip->fleetType)->count();
-            $available_seats_ctr = $deck_seats - $occupied_seats_ctr;
-            $available_seats_ctr = max($available_seats_ctr, 0);
+        foreach ($trips as $trip) {
+            $unavailableSeats = $seatConflicts->unavailableSeats(
+                $trip,
+                $journeyDate,
+                $trip->start_from,
+                $trip->end_to
+            );
+            $deck_seats = $seatLayouts->seatIds($trip->fleetType)->count();
+            $available_seats_ctr = $seatLayouts->availableSeatCount(
+                $trip->fleetType,
+                ['booked' => $unavailableSeats]
+            );
+            $occupied_seats_ctr = $deck_seats - $available_seats_ctr;
 
             $trip['deck_seats'] = $deck_seats;
             $trip['occupied_seats'] = $occupied_seats_ctr;
