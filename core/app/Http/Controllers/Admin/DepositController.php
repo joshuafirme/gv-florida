@@ -4,12 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Constants\Status;
 use App\Models\Deposit;
-use App\Models\Gateway;
 use App\Http\Controllers\Controller;
+use App\Models\Admin;
 use App\Models\BookedTicket;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use App\Exports\PaymentExport;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -168,20 +169,36 @@ class DepositController extends Controller
         return view('admin.deposit.log', compact('pageTitle', 'deposits', 'status'));
     }
 
-    public function deposit($userId = null)
+    public function deposit(Request $request, $userId = null)
     {
         $pageTitle = 'Deposit History';
-        $depositData = $this->depositData($scope = null, $summary = true, userId: $userId);
+        $paymentFilters = $this->validatedPaymentFilters($request);
+        $paymentFilterOptions = $this->paymentFilterOptions();
+        $depositData = $this->depositData(
+            scope: null,
+            summary: true,
+            userId: $userId,
+            paymentFilters: $paymentFilters
+        );
         $deposits = $depositData['data'];
         $summary = $depositData['summary'];
         $successful = $summary['successful'];
         $pending = $summary['pending'];
         $rejected = $summary['rejected'];
         $initiated = $summary['initiated'];
-        return view('admin.deposit.log', compact('pageTitle', 'deposits', 'successful', 'pending', 'rejected', 'initiated'));
+        return view('admin.deposit.log', compact(
+            'pageTitle',
+            'deposits',
+            'successful',
+            'pending',
+            'rejected',
+            'initiated',
+            'paymentFilters',
+            'paymentFilterOptions'
+        ));
     }
 
-    protected function depositData($scope = null, $summary = false, $userId = null)
+    protected function depositData($scope = null, $summary = false, $userId = null, array $paymentFilters = [])
     {
         $request = request();
         $relations = [
@@ -215,6 +232,10 @@ class DepositController extends Controller
         }
 
         $deposits->paymentSearch($request->search, $scope !== 'pending');
+
+        if (!$scope && $paymentFilters) {
+            $deposits->paymentFilters($paymentFilters);
+        }
 
         if (request()->filled('date')) {
             [$from, $to] = explode(' - ', $request->date);
@@ -261,6 +282,97 @@ class DepositController extends Controller
                 ]
             ];
         }
+    }
+
+    private function validatedPaymentFilters(Request $request): array
+    {
+        $dateToRules = ['nullable', 'date', 'before_or_equal:today'];
+        if ($request->filled('date_from')) {
+            $dateToRules[] = 'after_or_equal:date_from';
+        }
+
+        $validated = $request->validate([
+            'search' => 'nullable|string|max:255',
+            'date_from' => 'nullable|date|before_or_equal:today',
+            'date_to' => $dateToRules,
+            'source' => ['nullable', Rule::in(['kiosk', 'online', 'counter'])],
+            'payment_method' => ['nullable', 'string', 'max:150'],
+            'payment_status' => ['nullable', Rule::in([
+                Status::PAYMENT_INITIATE,
+                Status::PAYMENT_SUCCESS,
+                Status::PAYMENT_PENDING,
+                Status::PAYMENT_REJECT,
+                Status::PAYMENT_EXPIRED,
+            ])],
+            'processed_by' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        return collect($validated)->only([
+            'date_from',
+            'date_to',
+            'source',
+            'payment_method',
+            'payment_status',
+            'processed_by',
+        ])->map(fn ($value) => is_string($value) ? trim($value) : $value)->all();
+    }
+
+    private function paymentFilterOptions(): array
+    {
+        $paymentMethods = Deposit::query()
+            ->select('method_code', 'pchannel')
+            ->with('gateway:id,code,name')
+            ->distinct()
+            ->get()
+            ->map(function (Deposit $deposit) {
+                $channel = trim((string) $deposit->pchannel);
+                $label = $channel !== ''
+                    ? getPaynamicsPChannel($channel, true)
+                    : ($deposit->gateway?->name ?: ($deposit->methodName() ?: 'Method ' . $deposit->method_code));
+
+                return [
+                    'value' => $channel !== '' ? 'channel:' . $channel : 'method:' . $deposit->method_code,
+                    'label' => $label,
+                ];
+            })
+            ->filter(fn (array $option) => filled($option['label']))
+            ->unique('value')
+            ->sortBy(fn (array $option) => strtolower($option['label']))
+            ->values();
+
+        $processorIds = Deposit::query()
+            ->whereNotNull('processed_by_admin_id')
+            ->distinct()
+            ->pluck('processed_by_admin_id');
+        $processors = Admin::query()
+            ->whereIn('id', $processorIds)
+            ->orderBy('name')
+            ->get(['id', 'name', 'username'])
+            ->map(fn (Admin $admin) => [
+                'value' => 'admin:' . $admin->id,
+                'label' => $admin->name ?: $admin->username,
+            ]);
+
+        if (Deposit::query()->whereNull('processed_by_admin_id')->exists()) {
+            $processors->push(['value' => 'system', 'label' => 'System / Payment Gateway']);
+        }
+
+        return [
+            'sources' => [
+                ['value' => 'kiosk', 'label' => 'Kiosk'],
+                ['value' => 'online', 'label' => 'Online'],
+                ['value' => 'counter', 'label' => 'Counter'],
+            ],
+            'payment_methods' => $paymentMethods,
+            'payment_statuses' => [
+                ['value' => Status::PAYMENT_INITIATE, 'label' => 'Initiated'],
+                ['value' => Status::PAYMENT_PENDING, 'label' => 'Pending'],
+                ['value' => Status::PAYMENT_SUCCESS, 'label' => 'Successful'],
+                ['value' => Status::PAYMENT_REJECT, 'label' => 'Rejected'],
+                ['value' => Status::PAYMENT_EXPIRED, 'label' => 'Expired'],
+            ],
+            'processed_by' => $processors,
+        ];
     }
 
     public function details($id)

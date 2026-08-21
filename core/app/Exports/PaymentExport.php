@@ -43,7 +43,24 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
         } else {
             $deposits = Deposit::with($relations);
         }
-        $deposits->paymentSearch($request->search, $scope !== 'pending')->dateFilter();
+        $deposits->paymentSearch($request->search, $scope !== 'pending');
+
+        if ($scope === 'query') {
+            $deposits->paymentFilters($request->only([
+                'date_from',
+                'date_to',
+                'source',
+                'payment_method',
+                'payment_status',
+                'processed_by',
+            ]));
+
+            if ($request->filled('date')) {
+                $deposits->dateFilter();
+            }
+        } else {
+            $deposits->dateFilter();
+        }
 
         $user = $request->user('admin');
 
@@ -65,14 +82,13 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
             foreach ($deposits as $deposit) {
 
 
-                if ($deposit->user) {
-                    $user = $deposit->user->username;
-                } else {
-                    $user = $deposit->bookedTicket->kiosk->name;
-                }
+                $user = $deposit->user?->username
+                    ?: $deposit->bookedTicket?->kiosk?->name
+                    ?: 'Counter';
 
                 array_push($output, [
-                    $deposit->gateway->name,
+                    $deposit->gateway?->name ?: 'Payment',
+                    $deposit->trx,
                     showDateTime($deposit->created_at),
                     $deposit->bookedTicket->pnr_number,
                     $this->formatReferenceNumbers($deposit),
@@ -112,7 +128,8 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
     public function headings(): array
     {
         return [
-            'Gateway | Transaction',
+            'Gateway',
+            'Payment Request ID',
             'Initiated',
             'PNR',
             'Reference No.',
@@ -130,7 +147,7 @@ class PaymentExport implements FromCollection, WithHeadings, WithStrictNullCompa
 
     public function styles(Worksheet $sheet): array
     {
-        $sheet->getStyle('D')->getAlignment()->setWrapText(true);
+        $sheet->getStyle('E')->getAlignment()->setWrapText(true);
 
         return [];
     }
