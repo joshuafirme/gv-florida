@@ -145,7 +145,8 @@ class Deposit extends Model
         $like = '%' . addcslashes($search, '\\%_') . '%';
 
         return $query->where(function ($paymentQuery) use ($like, $includeReference) {
-            $paymentQuery->whereHas('bookedTicket', function ($ticketQuery) use ($like) {
+            $paymentQuery->where('trx', 'like', $like)
+                ->orWhereHas('bookedTicket', function ($ticketQuery) use ($like) {
                 $ticketQuery->where('pnr_number', 'like', $like)
                     ->orWhere('passenger_manifest', 'like', $like);
             })->orWhereHas('userDiscount', function ($discountQuery) use ($like) {
@@ -163,5 +164,61 @@ class Deposit extends Model
                 });
             }
         });
+    }
+
+    public function scopePaymentFilters($query, array $filters = [])
+    {
+        $dateFrom = trim((string) ($filters['date_from'] ?? ''));
+        $dateTo = trim((string) ($filters['date_to'] ?? ''));
+        $source = strtolower(trim((string) ($filters['source'] ?? '')));
+        $paymentMethod = trim((string) ($filters['payment_method'] ?? ''));
+        $paymentStatus = $filters['payment_status'] ?? '';
+        $processedBy = trim((string) ($filters['processed_by'] ?? ''));
+
+        if ($dateFrom !== '') {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+
+        if ($dateTo !== '') {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+
+        if ($source === 'kiosk') {
+            $query->whereHas('bookedTicket', fn ($ticket) => $ticket->whereNotNull('kiosk_id'));
+        } elseif ($source === 'online') {
+            $query->whereNotNull('user_id')
+                ->whereHas('bookedTicket', fn ($ticket) => $ticket->whereNull('kiosk_id'));
+        } elseif ($source === 'counter') {
+            $query->whereNull('user_id')
+                ->whereHas('bookedTicket', fn ($ticket) => $ticket->whereNull('kiosk_id'));
+        }
+
+        if ($paymentMethod !== '') {
+            [$methodType, $methodValue] = array_pad(explode(':', $paymentMethod, 2), 2, null);
+
+            if ($methodType === 'channel' && filled($methodValue)) {
+                $query->where('pchannel', $methodValue);
+            } elseif ($methodType === 'method' && is_numeric($methodValue)) {
+                $query->where('method_code', (int) $methodValue);
+            } elseif (is_numeric($paymentMethod)) {
+                // Keep existing bookmarked/export URLs using method_code working.
+                $query->where('method_code', (int) $paymentMethod);
+            }
+        }
+
+        if ($paymentStatus !== '' && $paymentStatus !== null) {
+            $query->where('status', (int) $paymentStatus);
+        }
+
+        if ($processedBy === 'system') {
+            $query->whereNull('processed_by_admin_id');
+        } elseif (str_starts_with($processedBy, 'admin:')) {
+            $adminId = substr($processedBy, strlen('admin:'));
+            if (ctype_digit($adminId)) {
+                $query->where('processed_by_admin_id', (int) $adminId);
+            }
+        }
+
+        return $query;
     }
 }
