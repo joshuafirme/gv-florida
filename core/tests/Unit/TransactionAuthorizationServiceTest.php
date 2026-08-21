@@ -61,11 +61,13 @@ class TransactionAuthorizationServiceTest extends TestCase
             'permissions' => json_encode([
                 'admin.vehicle.ticket.authorize.cancel',
                 'admin.vehicle.ticket.authorize.refund',
+                'admin.trip.channel-access.index',
             ]),
         ]));
 
         $this->assertTrue($service->canAuthorize($admin, TransactionAuthorizationService::CANCELLATION));
         $this->assertTrue($service->canAuthorize($admin, TransactionAuthorizationService::REFUND));
+        $this->assertTrue($service->canAuthorize($admin, TransactionAuthorizationService::CHANNEL_ACCESS));
         $this->assertFalse($service->canAuthorize($admin, TransactionAuthorizationService::REBOOKING));
         $this->assertFalse($service->canAuthorize($admin, TransactionAuthorizationService::SEAT_LOCKING));
         $this->assertFalse($service->canAuthorize($admin, TransactionAuthorizationService::VOID));

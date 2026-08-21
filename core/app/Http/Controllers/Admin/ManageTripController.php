@@ -332,12 +332,29 @@ class ManageTripController extends Controller
             UserRole::permissions('admin'),
             true
         );
+        $canManageChannelAccess = in_array(
+            'admin.trip.channel-access.index',
+            UserRole::permissions('admin'),
+            true
+        );
         $fleetTypes = FleetType::where('status', 1)->get();
         $routes = VehicleRoute::where('status', 1)->get();
         $schedules = Schedule::where('status', 1)->get();
         $stoppages = Counter::where('status', 1)->get();
 
         $trips = Trip::with(['fleetType', 'route.startFrom', 'route.endTo', 'schedule'])
+            ->withCount([
+                'channelAvailabilities as online_channel_blocks_count' => function ($query) {
+                    $query->where('channel', 'online')
+                        ->where('is_enabled', false)
+                        ->whereDate('journey_date', '>=', today());
+                },
+                'channelAvailabilities as kiosk_channel_blocks_count' => function ($query) {
+                    $query->where('channel', 'kiosk')
+                        ->where('is_enabled', false)
+                        ->whereDate('journey_date', '>=', today());
+                },
+            ])
             ->withMin('schedule as departure_time', 'start_from');
 
         // 1. Dynamic Filtering (Search by Title)
@@ -379,7 +396,8 @@ class ManageTripController extends Controller
             'routes',
             'schedules',
             'stoppages',
-            'canManageSeatLocks'
+            'canManageSeatLocks',
+            'canManageChannelAccess'
         ));
     }
 

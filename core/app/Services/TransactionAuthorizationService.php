@@ -12,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 class TransactionAuthorizationService
 {
     public const CANCELLATION = 'Ticket Cancellation';
+    public const CHANNEL_ACCESS = 'Trip Channel Access';
     public const REBOOKING = 'Ticket Rebooking';
     public const REFUND = 'Ticket Refund';
     public const SEAT_LOCKING = 'Admin Seat Locking';
@@ -19,6 +20,7 @@ class TransactionAuthorizationService
 
     private const REQUIRED_PERMISSIONS = [
         self::CANCELLATION => 'admin.vehicle.ticket.authorize.cancel',
+        self::CHANNEL_ACCESS => 'admin.trip.channel-access.index',
         self::REBOOKING => 'admin.vehicle.ticket.authorize.rebook',
         self::REFUND => 'admin.vehicle.ticket.authorize.refund',
         self::SEAT_LOCKING => 'admin.trip.seat-locks.index',

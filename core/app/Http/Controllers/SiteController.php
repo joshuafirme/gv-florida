@@ -362,14 +362,14 @@ class SiteController extends Controller
             'bookedTickets'
         ])->where('status', Status::ENABLE)->where('id', $id)->firstOrFail();
 
-        if ($message = $this->bookingChannelError($trip, $request->kiosk_id)) {
+        $journeyDate = $request->date_of_journey ?: now()->format('m/d/Y');
+        if ($message = $this->bookingChannelError($trip, $request->kiosk_id, $journeyDate)) {
             $notify[] = ['error', $message];
             $query = $this->tripSelectionQuery($request, $trip);
 
             return redirect()->route('ticket', $query)->withNotify($notify);
         }
 
-        $journeyDate = $request->date_of_journey ?: now()->format('m/d/Y');
         if ($message = $this->bookingWindowError($trip, $journeyDate, $request->kiosk_id)) {
             $notify[] = ['error', $message];
             $query = $this->tripSelectionQuery($request, $trip);
@@ -494,7 +494,11 @@ class SiteController extends Controller
         $reverse = false;
 
         if ($trip) {
-            if ($message = $this->bookingChannelError($trip, $request->kiosk_id)) {
+            if ($message = $this->bookingChannelError(
+                $trip,
+                $request->kiosk_id,
+                $request->date ?: $request->date_of_journey
+            )) {
                 return response()->json([
                     'error' => $message,
                     'price' => ['error' => $message],
@@ -556,7 +560,7 @@ class SiteController extends Controller
         ]);
 
         $trip = Trip::with(['route', 'schedule'])->where('status', Status::ENABLE)->findOrFail($id);
-        if ($message = $this->bookingChannelError($trip, $request->kiosk_id)) {
+        if ($message = $this->bookingChannelError($trip, $request->kiosk_id, $request->date_of_journey)) {
             return response()->json([
                 'available' => false,
                 'message' => $message,
@@ -618,16 +622,6 @@ class SiteController extends Controller
     {
         try {
             $trip = Trip::with('schedule')->findOrFail($id);
-            if ($message = $this->bookingChannelError($trip, $request->kiosk_id)) {
-                $notify[] = ['error', $message];
-                return redirect()->back()->withNotify($notify);
-            }
-
-            if ($message = $this->bookingWindowError($trip, $request->date_of_journey, $request->kiosk_id)) {
-                $notify[] = ['error', $message];
-                return redirect()->back()->withNotify($notify);
-            }
-
             $request->validate([
                 "pickup_point" => "required|integer|gt:0",
                 "dropping_point" => "required|integer|gt:0",
@@ -636,6 +630,16 @@ class SiteController extends Controller
             ], [
                 "seats.required" => "Please Select at Least One Seat"
             ]);
+
+            if ($message = $this->bookingChannelError($trip, $request->kiosk_id, $request->date_of_journey)) {
+                $notify[] = ['error', $message];
+                return redirect()->back()->withNotify($notify);
+            }
+
+            if ($message = $this->bookingWindowError($trip, $request->date_of_journey, $request->kiosk_id)) {
+                $notify[] = ['error', $message];
+                return redirect()->back()->withNotify($notify);
+            }
 
             session()->put('kiosk_id', request('kiosk_id'));
 
@@ -699,7 +703,11 @@ class SiteController extends Controller
             DB::beginTransaction();
 
             $lockedTrip = Trip::with('route')->whereKey($id)->lockForUpdate()->firstOrFail();
-            if ($message = $this->bookingChannelError($lockedTrip, $request->kiosk_id)) {
+            if ($message = $this->bookingChannelError(
+                $lockedTrip,
+                $request->kiosk_id,
+                $request->date_of_journey
+            )) {
                 DB::rollBack();
                 $notify[] = ['error', $message];
                 return redirect()->back()->withNotify($notify);
@@ -763,7 +771,7 @@ class SiteController extends Controller
 
         $query = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])
             ->withMin('schedule as earliest_start', 'start_from')
-            ->forBookingChannel($request->kiosk_id)
+            ->forBookingChannel($request->kiosk_id, $request->date_of_journey)
             ->whereHas('schedule', function ($q) use ($now, $request, $cutoffMinutes) {
                 $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey) : Carbon::now();
                 if ($date->isToday()) {
@@ -859,9 +867,9 @@ class SiteController extends Controller
         return null;
     }
 
-    private function bookingChannelError(Trip $trip, $kioskId = null): ?string
+    private function bookingChannelError(Trip $trip, $kioskId = null, $journeyDate = null): ?string
     {
-        if ($trip->bookingEnabledFor($kioskId)) {
+        if ($trip->bookingEnabledFor($kioskId, $journeyDate)) {
             return null;
         }
 
@@ -875,7 +883,7 @@ class SiteController extends Controller
         // Fetch active trips to map exact travel sequences
         $tripsQuery = Trip::with('route')
             ->active()
-            ->forBookingChannel($request->kiosk_id);
+            ->forBookingChannel($request->kiosk_id, $request->date_of_journey);
 
         $trips = $tripsQuery->get();
         $validDroppingIds = [];
