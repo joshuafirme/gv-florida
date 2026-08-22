@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\Trip;
 use App\Models\TripChannelAvailability;
+use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -73,5 +74,33 @@ class TripChannelAvailabilityTest extends TestCase
 
         $this->assertFalse(Trip::query()->forBookingChannel(null, '2026-08-25')->whereKey($trip->id)->exists());
         $this->assertTrue(Trip::query()->forBookingChannel(null, '2026-08-26')->whereKey($trip->id)->exists());
+    }
+
+    public function test_channel_scope_uses_today_when_the_trip_list_has_no_date_filter(): void
+    {
+        Carbon::setTestNow('2026-08-22 10:00:00');
+
+        try {
+            $trip = Trip::query()->create([
+                'online_booking_enabled' => true,
+                'kiosk_booking_enabled' => true,
+            ]);
+            $trip->channelAvailabilities()->create([
+                'journey_date' => '2026-08-22',
+                'channel' => TripChannelAvailability::KIOSK,
+                'is_enabled' => false,
+            ]);
+
+            $this->assertFalse(
+                Trip::query()->forBookingChannel(1)->whereKey($trip->id)->exists(),
+                'A kiosk block for today must apply when the ticket filters are cleared.'
+            );
+            $this->assertTrue(
+                Trip::query()->forBookingChannel(null)->whereKey($trip->id)->exists(),
+                'The kiosk-only override must not block the online channel.'
+            );
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 }

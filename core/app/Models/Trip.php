@@ -81,11 +81,7 @@ class Trip extends Model
         $channel = $kioskId ? TripChannelAvailability::KIOSK : TripChannelAvailability::ONLINE;
         $defaultColumn = $kioskId ? 'kiosk_booking_enabled' : 'online_booking_enabled';
 
-        if (!$journeyDate) {
-            return $query->where($defaultColumn, true);
-        }
-
-        $date = Carbon::parse($journeyDate)->format('Y-m-d');
+        $date = Carbon::parse($journeyDate ?: today())->format('Y-m-d');
 
         return $query->where(function ($availabilityQuery) use ($channel, $defaultColumn, $date) {
             $availabilityQuery->whereHas('channelAvailabilities', function ($override) use ($channel, $date) {
