@@ -117,7 +117,7 @@ class ReportController extends Controller
 
         $pdf = Pdf::setOptions($this->reportPdfOptions())
             ->loadView('admin.pdf.shift-end-report', compact('admin', 'date') + $report)
-            ->setPaper('legal', 'landscape');
+            ->setPaper('a4', 'landscape');
 
         return response($pdf->output(), 200, [
             'Content-Type' => 'application/pdf',
