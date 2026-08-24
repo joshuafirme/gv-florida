@@ -341,7 +341,7 @@
 
         @media print {
             @page {
-                size: A4 landscape;
+                size: Letter landscape;
                 margin: 10mm 14mm 12mm 18mm;
             }
 

@@ -5,7 +5,7 @@
     <title>Shift End Report - {{ $date->format('Y-m-d') }}</title>
     <style>
         @page {
-            size: A4 landscape;
+            size: Letter landscape;
             margin: 10mm 14mm 12mm 18mm;
         }
 
