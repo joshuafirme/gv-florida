@@ -74,7 +74,7 @@
                         <div class="passenger-card" data-seat="{{ $seat }}">
                             <div class="passenger-card__head">
                                 <span>Passenger {{ $index + 1 }}</span>
-                                <strong>{{ formatSeatLabel($seat) }}</strong>
+                                <strong>Seat no. {{ formatSeatLabel($seat) }}</strong>
                             </div>
 
                             <div class="passenger-card__body">
@@ -161,8 +161,18 @@
 
                     <h4 class="payment-title">Payment</h4>
 
+                    <div class="payment-section fare-breakdown-section">
+                        <h5>Fare Breakdown</h5>
+                        <div class="fare-passenger-list js-fare-passengers"></div>
+                        <div class="fare-computation js-fare-computation"></div>
+                        <div class="summary-total">
+                            <span class="js-total-label">Total to pay ({{ $seatCount }} {{ $seatCount === 1 ? 'passenger' : 'passengers' }})</span>
+                            <strong class="js-payment-total">{{ showAmount($bookedTicket->sub_total) }}</strong>
+                        </div>
+                    </div>
+
                     <div class="payment-section payment-method-section">
-                        <label class="flow-label">Payment Method</label>
+                        <h5>Payment Method</h5>
                         <div class="payment-methods">
                             @forelse ($gatewayCurrency as $data)
                                 @php
@@ -195,14 +205,7 @@
 
                     @include('templates.basic.user.payment.partials.paynamics-channels')
 
-                    <div class="payment-section payment-details-section">
-                        <h5>Payment Details</h5>
-                        <div class="js-payment-breakdown"></div>
-                        <div class="summary-total">
-                            <span>Total Amount</span>
-                            <strong class="js-payment-total">{{ showAmount($bookedTicket->sub_total) }}</strong>
-                        </div>
-
+                    <div class="payment-section payment-confirmation-section">
                         <div class="payment-notice">
                             <span class="payment-notice__icon"><i class="las la-info-circle"></i></span>
                             <div>
@@ -704,14 +707,70 @@
             margin-top: 12px;
         }
 
-        .payment-method-section .flow-label {
-            margin-top: 0;
+        .fare-breakdown-section h5,
+        .payment-method-section h5 {
+            color: #111827;
+            font-size: 16px;
+            font-weight: 800;
+            margin: 0 0 12px;
         }
 
-        .payment-details-section h5 {
-            color: #111827;
+        .fare-passenger-list {
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 7px;
+        }
+
+        .fare-passenger-row,
+        .fare-computation-row {
+            align-items: flex-start;
+            color: #4b5563;
+            display: flex;
+            font-size: 13px;
+            gap: 16px;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+
+        .fare-passenger-row span,
+        .fare-computation-row span {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .fare-passenger-row strong,
+        .fare-computation-row strong {
+            color: #1f2937;
+            flex: 0 0 auto;
             font-weight: 800;
-            margin: 0 0 10px;
+            white-space: nowrap;
+        }
+
+        .fare-computation {
+            padding-top: 5px;
+        }
+
+        .fare-computation-row {
+            color: #8a94a3;
+            padding: 3px 0;
+        }
+
+        .fare-computation-row strong {
+            color: #8a94a3;
+            font-weight: 600;
+        }
+
+        .fare-computation-row--discount,
+        .fare-computation-row--discount strong {
+            color: #059669;
+        }
+
+        .fare-breakdown-section .summary-total {
+            margin-top: 5px;
+            padding-top: 12px;
+        }
+
+        .fare-breakdown-section .summary-total strong {
+            font-size: 21px;
         }
 
         .payment-methods {
@@ -923,18 +982,8 @@
             font-size: 13px;
         }
 
-        .payment-details-section .summary-line {
-            font-size: 13px;
-            padding: 5px 0;
-        }
-
-        .payment-details-section .summary-total {
-            margin-top: 6px;
-            padding-top: 12px;
-        }
-
-        .payment-details-section .summary-total strong {
-            font-size: 25px;
+        .payment-confirmation-section .payment-notice {
+            margin-top: 0;
         }
 
         #confirmPayment i {
@@ -1031,6 +1080,10 @@
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 });
+            }
+
+            function escapeHtml(value) {
+                return $('<div>').text(String(value ?? '')).html();
             }
 
             function formatSeatLabel(value) {
@@ -1158,11 +1211,38 @@
             function renderSummary() {
                 const state = collectPassengers();
 
-                const discountLine = totals.discount > 0 ?
-                    `<div class="summary-line"><span>Discount</span><strong>-${money(totals.discount)}</strong></div>` : '';
-                $('.js-payment-breakdown').html(
-                    `<div class="summary-line"><span>Base Fare (${seats.length} ${seats.length === 1 ? 'seat' : 'seats'})</span><strong>${money(totals.subtotal)}</strong></div>${discountLine}<div class="summary-line"><span>Processing Fee</span><strong class="js-processing-charge">${money(totals.charge)}</strong></div>`
+                const passengerRows = passengerManifest.map((passenger) => {
+                    const passengerName = passenger.name || 'Passenger';
+                    const passengerType = passenger.passenger_type === 'discounted' ?
+                        (passenger.discount_name || 'Discounted') : 'Regular';
+
+                    return `<div class="fare-passenger-row"><span>${escapeHtml(passengerName)} &middot; ${escapeHtml(passengerType)} &middot; Seat ${escapeHtml(formatSeatLabel(passenger.seat))}</span><strong>${money(passenger.fare)}</strong></div>`;
+                }).join('');
+
+                const discountGroups = state.discounted.reduce((groups, passenger) => {
+                    const key = `${passenger.discount_id || passenger.discount_name}-${passenger.discount_percentage}`;
+                    if (!groups[key]) {
+                        groups[key] = {
+                            name: passenger.discount_name || 'Discount',
+                            percentage: passenger.discount_percentage,
+                            count: 0,
+                            amount: 0
+                        };
+                    }
+                    groups[key].count += 1;
+                    groups[key].amount += passenger.discount_amount;
+                    return groups;
+                }, {});
+
+                const discountRows = Object.values(discountGroups).map((discount) =>
+                    `<div class="fare-computation-row fare-computation-row--discount"><span>${escapeHtml(discount.name)} (${Number(discount.percentage || 0).toLocaleString('en-US')}% off) &times; ${discount.count}</span><strong>-${money(discount.amount)}</strong></div>`
+                ).join('');
+
+                $('.js-fare-passengers').html(passengerRows);
+                $('.js-fare-computation').html(
+                    `<div class="fare-computation-row"><span>Regular fare &times; ${passengerManifest.length}</span><strong>${money(totals.subtotal)}</strong></div>${discountRows}<div class="fare-computation-row js-processing-row ${totals.charge > 0 ? '' : 'd-none'}"><span>Processing fee</span><strong class="js-processing-charge">${money(totals.charge)}</strong></div>`
                 );
+                $('.js-total-label').text(`Total to pay (${passengerManifest.length} ${passengerManifest.length === 1 ? 'passenger' : 'passengers'})`);
                 $('.js-payment-total').text(money(totals.final));
 
                 if (state.discounted.length) {
@@ -1188,6 +1268,7 @@
 
                 $('input[name="currency"]').val(gateway.currency);
                 $('.js-processing-charge').text(money(totals.charge));
+                $('.js-processing-row').toggleClass('d-none', totals.charge <= 0);
                 $('.js-payment-total').text(money(totals.final));
                 $('.js-paynamics-channels').toggleClass('d-none', !isPaynamicsSelected());
 
