@@ -337,10 +337,20 @@ class ManageTripController extends Controller
             UserRole::permissions('admin'),
             true
         );
-        $fleetTypes = FleetType::where('status', 1)->get();
-        $routes = VehicleRoute::where('status', 1)->get();
+        $fleetTypes = FleetType::where('status', 1)->orderBy('name')->get();
+        $routes = VehicleRoute::with(['startFrom', 'endTo'])->where('status', 1)->get();
         $schedules = Schedule::where('status', 1)->get();
         $stoppages = Counter::where('status', 1)->get();
+        $origins = $routes->pluck('startFrom')
+            ->filter()
+            ->unique('id')
+            ->sortBy(fn ($counter) => strtolower($counter->city ?: $counter->name))
+            ->values();
+        $destinations = $routes->pluck('endTo')
+            ->filter()
+            ->unique('id')
+            ->sortBy(fn ($counter) => strtolower($counter->city ?: $counter->name))
+            ->values();
 
         $trips = Trip::with(['fleetType', 'route.startFrom', 'route.endTo', 'schedule'])
             ->withCount([
@@ -361,6 +371,20 @@ class ManageTripController extends Controller
         if ($request->search) {
             $search = $request->search;
             $trips->where('title', 'like', "%$search%");
+        }
+
+        if ($request->filled('origin')) {
+            $origin = (int) $request->origin;
+            $trips->whereHas('route', fn ($route) => $route->where('start_from', $origin));
+        }
+
+        if ($request->filled('destination')) {
+            $destination = (int) $request->destination;
+            $trips->whereHas('route', fn ($route) => $route->where('end_to', $destination));
+        }
+
+        if ($request->filled('fleet_type_id')) {
+            $trips->where('fleet_type_id', (int) $request->fleet_type_id);
         }
 
         // 2. Status Filtering
@@ -396,6 +420,8 @@ class ManageTripController extends Controller
             'routes',
             'schedules',
             'stoppages',
+            'origins',
+            'destinations',
             'canManageSeatLocks',
             'canManageChannelAccess'
         ));
