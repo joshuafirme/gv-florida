@@ -231,6 +231,17 @@ Route::middleware('admin')->group(function () {
         Route::get('{scope}/search', 'search')->name('search');
     });
 
+    Route::controller('OnlineTicketValidationController')
+        ->prefix('online-ticket-validation')
+        ->name('online.ticket.validation.')
+        ->middleware('role:admin.online.ticket.validation.index')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('{slip}/details', 'details')->name('details');
+            Route::post('{slip}/discount', 'applyDiscount')->name('discount');
+            Route::post('{slip}/validate', 'validateTicket')->name('validate');
+        });
+
 
 
 

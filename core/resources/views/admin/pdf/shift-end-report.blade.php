@@ -133,6 +133,8 @@
         .status-cancelled { color: #8a5700; background: #fff4df; }
         .status-voided { color: #7423a5; background: #f4eafa; }
         .status-refunded { color: #b42318; background: #fff0ef; }
+        .status-discount-override { color: #9b5c00; background: #fff8e6; }
+        .status-validated { color: #087a4b; background: #e9f8f0; }
 
         .note {
             margin-top: 6px;
@@ -219,8 +221,9 @@
             <col width="4%" style="width: 4%">
             <col width="7%" style="width: 7%">
             <col width="9%" style="width: 9%">
-            <col width="5.5%" style="width: 5.5%">
-            <col width="28.5%" style="width: 28.5%">
+            <col width="8%" style="width: 8%">
+            <col width="6%" style="width: 6%">
+            <col width="25%" style="width: 25%">
         </colgroup>
         <thead>
             <tr>
@@ -233,15 +236,19 @@
                 <th style="width: 4%">Seat</th>
                 <th style="width: 7%">Drop-Off</th>
                 <th class="right" style="width: 9%">Payment Details</th>
-                <th style="width: 5.5%">Status</th>
-                <th style="width: 28.5%">Reason</th>
+                <th class="right" style="width: 8%">Discount / Refund</th>
+                <th style="width: 6%">Status</th>
+                <th style="width: 25%">Reason</th>
             </tr>
         </thead>
         <tbody>
             @forelse ($transactions as $transaction)
                 @php
                     $amount = (float) $transaction->amount;
-                    $statusClass = strtolower($transaction->status);
+                    $statusClass = \Illuminate\Support\Str::slug($transaction->status);
+                    $adjustmentAmount = in_array($transaction->status, ['Discount Override', 'Refunded'], true)
+                        ? abs($amount)
+                        : 0;
                 @endphp
                 <tr>
                     <td>
@@ -282,12 +289,15 @@
                         </strong>
                         <span class="sub">{{ $transaction->payment_method ?: '-' }}</span>
                     </td>
+                    <td class="right {{ $adjustmentAmount > 0 ? 'negative' : '' }}">
+                        {{ $adjustmentAmount > 0 ? '-' . showAmount($adjustmentAmount) : '-' }}
+                    </td>
                     <td><span class="status status-{{ $statusClass }}">{{ $transaction->status }}</span></td>
                     <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="11" class="empty">No cashier transactions were recorded for this date.</td>
+                    <td colspan="12" class="empty">No cashier transactions were recorded for this date.</td>
                 </tr>
             @endforelse
         </tbody>
@@ -297,7 +307,7 @@
                 <td class="right">
                     {{ $summary['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($summary['net_collection'])) }}
                 </td>
-                <td colspan="2"></td>
+                <td colspan="3"></td>
             </tr>
         </tfoot>
     </table>

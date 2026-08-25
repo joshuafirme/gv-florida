@@ -24,22 +24,26 @@ class DailyReportServiceTest extends TestCase
             $this->transaction(2, 'Ben', 'Voided', 'Counter', -200),
             $this->transaction(2, 'Ben', 'Rebooked', 'Counter', 0),
             $this->transaction(2, 'Ben', 'Cancelled', 'Counter', 0),
+            $this->transaction(1, 'Alice', 'Discount Override', 'Online', -100, 100),
+            $this->transaction(1, 'Alice', 'Validated', 'Online', 0),
         ]);
 
         $report = $service->compile($transactions);
 
         $this->assertSame(2, $report['summary']['tickets']);
-        $this->assertSame(900.0, $report['summary']['net_collection']);
+        $this->assertSame(800.0, $report['summary']['net_collection']);
         $this->assertSame([
             'sold' => 2,
             'rebooked' => 1,
             'cancelled' => 1,
             'voided' => 1,
             'refunded' => 1,
+            'discount_override' => 1,
+            'validated' => 1,
         ], $report['activity']);
 
         $this->assertSame('Alice', $report['cashier_collections'][0]['cashier']);
-        $this->assertSame(600.0, $report['cashier_collections'][0]['summary']['net_collection']);
+        $this->assertSame(500.0, $report['cashier_collections'][0]['summary']['net_collection']);
         $this->assertSame('Ben', $report['cashier_collections'][1]['cashier']);
         $this->assertSame(300.0, $report['cashier_collections'][1]['summary']['net_collection']);
 

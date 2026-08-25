@@ -257,7 +257,7 @@
                         <col style="width: 7%"><col style="width: 4%"><col style="width: 5%"><col style="width: 6%">
                         <col style="width: 7%"><col style="width: 8%"><col style="width: 6%"><col style="width: 9%">
                         <col style="width: 4%"><col style="width: 6%"><col style="width: 6%"><col style="width: 6%">
-                        <col style="width: 5%"><col style="width: 21%">
+                        <col style="width: 6%"><col style="width: 5%"><col style="width: 15%">
                     </colgroup>
                     <thead>
                         <tr>
@@ -273,6 +273,7 @@
                             <th>Drop-Off</th>
                             <th>Payment Method</th>
                             <th class="text-end">Amount</th>
+                            <th class="text-end">Discount / Refund</th>
                             <th>Status</th>
                             <th>Reason</th>
                         </tr>
@@ -284,6 +285,9 @@
                                 $departureTime = $transaction->departure_time
                                     ? \Carbon\Carbon::parse($transaction->departure_time)->format('h:i A')
                                     : null;
+                                $adjustmentAmount = in_array($transaction->status, ['Discount Override', 'Refunded'], true)
+                                    ? abs((float) $transaction->amount)
+                                    : 0;
                             @endphp
                             <tr>
                                 <td>
@@ -309,12 +313,15 @@
                                 <td class="text-end daily-total {{ $transaction->amount < 0 ? 'daily-negative' : '' }}">
                                     <strong class="daily-data--amount">{{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}</strong>
                                 </td>
-                                <td><span class="daily-status daily-status--{{ strtolower($transaction->status) }}">{{ $transaction->status }}</span></td>
+                                <td class="text-end daily-total {{ $adjustmentAmount > 0 ? 'daily-negative' : '' }}">
+                                    {{ $adjustmentAmount > 0 ? '-' . showAmount($adjustmentAmount) : '-' }}
+                                </td>
+                                <td><span class="daily-status daily-status--{{ \Illuminate\Support\Str::slug($transaction->status) }}">{{ $transaction->status }}</span></td>
                                 <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="14" class="daily-empty">No transactions were recorded for this date.</td>
+                                <td colspan="15" class="daily-empty">No transactions were recorded for this date.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -325,7 +332,7 @@
                                 <td class="text-end daily-total {{ $summary['net_collection'] < 0 ? 'daily-negative' : '' }}">
                                     {{ $summary['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($summary['net_collection'])) }}
                                 </td>
-                                <td colspan="2"></td>
+                                <td colspan="3"></td>
                             </tr>
                         </tfoot>
                     @endif
@@ -554,6 +561,8 @@
         .daily-status--cancelled,
         .daily-status--refunded { color: #b42318; background: #fff3f2; border-color: #ffc8c2; }
         .daily-status--voided { color: #7f3bb1; background: #f7f0ff; border-color: #dec5fa; }
+        .daily-status--discount-override { color: #9b5c00; background: #fff8e6; border-color: #efd69b; }
+        .daily-status--validated { color: #167944; background: #ecfdf3; border-color: #b6ead0; }
 
         .daily-report__footer {
             margin-top: 14px;

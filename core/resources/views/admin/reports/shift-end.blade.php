@@ -59,8 +59,9 @@
                         <col width="4%" style="width: 4%">
                         <col width="7%" style="width: 7%">
                         <col width="9%" style="width: 9%">
-                        <col width="5.5%" style="width: 5.5%">
-                        <col width="28.5%" style="width: 28.5%">
+                        <col width="8%" style="width: 8%">
+                        <col width="6%" style="width: 6%">
+                        <col width="25%" style="width: 25%">
                     </colgroup>
                     <thead>
                         <tr>
@@ -73,8 +74,9 @@
                             <th style="width: 4%">Seat No.</th>
                             <th style="width: 7%">Drop-Off</th>
                             <th class="text-end" style="width: 9%">Payment Details</th>
-                            <th style="width: 5.5%">Status</th>
-                            <th style="width: 28.5%">Reason</th>
+                            <th class="text-end" style="width: 8%">Discount / Refund</th>
+                            <th style="width: 6%">Status</th>
+                            <th style="width: 25%">Reason</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -86,9 +88,14 @@
                                     'Cancelled' => 'cancelled',
                                     'Voided' => 'voided',
                                     'Refunded' => 'refunded',
+                                    'Discount Override' => 'discount-override',
+                                    'Validated' => 'validated',
                                     default => 'neutral',
                                 };
                                 $amount = (float) $transaction->amount;
+                                $adjustmentAmount = in_array($transaction->status, ['Discount Override', 'Refunded'], true)
+                                    ? abs($amount)
+                                    : 0;
                             @endphp
                             <tr>
                                 <td>
@@ -127,12 +134,15 @@
                                     </strong>
                                     <small>{{ $transaction->payment_method ?: '-' }}</small>
                                 </td>
+                                <td class="text-end {{ $adjustmentAmount > 0 ? 'shift-negative' : '' }}">
+                                    {{ $adjustmentAmount > 0 ? '-' . showAmount($adjustmentAmount) : '-' }}
+                                </td>
                                 <td><span class="shift-status shift-status--{{ $statusClass }}">{{ $transaction->status }}</span></td>
                                 <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="shift-empty">No cashier transactions were recorded for this date.</td>
+                                <td colspan="12" class="shift-empty">No cashier transactions were recorded for this date.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -140,7 +150,7 @@
                         <tr>
                             <td colspan="8"><strong>Total &middot; {{ $transactions->count() }} transactions</strong></td>
                             <td class="text-end"><strong>{{ $summary['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($summary['net_collection'])) }}</strong></td>
-                            <td colspan="2"></td>
+                            <td colspan="3"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -309,6 +319,8 @@
         .shift-status--cancelled { color: #a15c00; background: #fff4df; border-color: #f0d59d; }
         .shift-status--voided { color: #812bb4; background: #f4eafa; border-color: #ddc1ec; }
         .shift-status--refunded { color: #b42318; background: #fff0ef; border-color: #f4c7c3; }
+        .shift-status--discount-override { color: #a15c00; background: #fff7df; border-color: #efd69b; }
+        .shift-status--validated { color: #087a4b; background: #e9f8f0; border-color: #bce5cf; }
 
         .shift-empty {
             padding: 35px !important;

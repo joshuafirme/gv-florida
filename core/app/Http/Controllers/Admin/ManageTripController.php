@@ -622,9 +622,17 @@ class ManageTripController extends Controller
             'trip.fleetType',
             'pickup',
             'drop',
-            'slipSeriesNumbers',
+            'slipSeriesNumbers.onlineValidation.discount',
         ])->findOrFail($id);
         $ticket->setRelation('deposit', $ticket->payment_record);
+
+        $requestedSlipId = request()->integer('slip_id');
+        if ($requestedSlipId) {
+            $requestedSlip = $ticket->slipSeriesNumbers->firstWhere('id', $requestedSlipId);
+            abort_unless($requestedSlip, 404);
+            $ticket->setRelation('slipSeriesNumbers', collect([$requestedSlip]));
+            $ticket->setRelation('activeSlipSeriesNumbers', collect([$requestedSlip]));
+        }
 
         $dir = 'assets/admin/contents/';
         $file = "{$dir}reservation-slip-$ticket->pickup_point.json";

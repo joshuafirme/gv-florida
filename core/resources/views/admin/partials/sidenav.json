@@ -287,6 +287,23 @@
             },
             {
                 "keyword": [
+                    "Online Ticket Validation",
+                    "Validate online ticket",
+                    "Boarding validation"
+                ],
+                "title": "Online Ticket Validation",
+                "route_name": "admin.online.ticket.validation.index",
+                "menu_active": "admin.online.ticket.validation.*",
+                "permission": "admin.online.ticket.validation.index",
+                "additional_permissions": [
+                    {
+                        "title": "Authorize Online Ticket Discount Override",
+                        "value": "admin.online.ticket.validation.discount"
+                    }
+                ]
+            },
+            {
+                "keyword": [
                     "Rebooked Ticket",
                     "Rebooking",
                     "Booking history",

@@ -17,6 +17,8 @@ class TransactionReasonFormatter
             'Cancelled' => $reason !== '' ? "Cancellation: {$reason}" : 'Ticket cancelled.',
             'Voided' => $reason !== '' ? "Void: {$reason}" : 'Ticket voided.',
             'Refunded' => $reason !== '' ? "Refund: {$reason}" : 'Ticket refunded.',
+            'Discount Override' => $reason !== '' ? $reason : 'Discount applied during online ticket validation.',
+            'Validated' => $reason !== '' ? $reason : 'Online ticket validated for boarding.',
             default => $reason !== '' ? $reason : ($transaction->status ?: '-'),
         };
     }
