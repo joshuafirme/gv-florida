@@ -2,22 +2,45 @@
 namespace App\Services;
 
 use App\Models\PaynamicsPaymentChannel;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Storage;
 
 class Paynamics
 {
+    public const KIOSK_EXPIRATION_MINUTES = 15;
+    public const ONLINE_EXPIRATION_MINUTES = 30;
+
     public $user;
     public $data;
     public function __construct($user)
     {
         $this->user = $user;
     }
+
+    public static function expirationMinutes(bool $isKioskBooking): int
+    {
+        return $isKioskBooking
+            ? self::KIOSK_EXPIRATION_MINUTES
+            : self::ONLINE_EXPIRATION_MINUTES;
+    }
+
+    public static function expiresAt(
+        bool $isKioskBooking,
+        ?CarbonInterface $startsAt = null
+    ): CarbonImmutable {
+        return CarbonImmutable::instance($startsAt ?? now())
+            ->addMinutes(self::expirationMinutes($isKioskBooking));
+    }
+
     public function createTransaction(PaynamicsPaymentChannel $channel)
     {
         try {
             $channel->loadMissing('paymentMethod');
             $pmethod = $channel->paymentMethod->code;
             $pchannel = $channel->code;
+            $isKioskBooking = $this->data->isKioskBooking();
+            $expiresAt = self::expiresAt($isKioskBooking);
 
             $final_amount = number_format((float) $this->data->deposit->final_amount, 2, '.', '');
 
@@ -59,6 +82,7 @@ class Paynamics
                     "amount" => $final_amount,
                     "currency" => "PHP",
                     "trx_type" => "sale",
+                    "expiry_limit" => $expiresAt->format('m/d/Y H:i:s'),
                 ],
                 "customer_info" => [
                     "fname" => $this->user ? $this->user->firstname : 'kiosk',
@@ -145,6 +169,9 @@ class Paynamics
                 $json_res = json_decode($response);
 
                 if ($json_res?->request_id) {
+                    // Keep the application countdown tied to this gateway request,
+                    // not to the earlier booking/deposit creation time.
+                    $json_res->expiry_limit = $expiresAt->format('Y-m-d H:i:s');
                     return $json_res;
                 } else {
                     dd($json_res);
