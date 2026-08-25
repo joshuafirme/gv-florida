@@ -5,8 +5,8 @@
     <title>Shift End Report - {{ $date->format('Y-m-d') }}</title>
     <style>
         @page {
-            size: legal landscape;
-            margin: 0;
+            size: Letter landscape;
+            margin: 10mm 14mm 12mm 18mm;
         }
 
         * {
@@ -15,7 +15,7 @@
 
         body {
             margin: 0;
-            padding: 10mm 14mm 12mm;
+            padding: 0;
             color: #222936;
             font-family: "DejaVu Sans", sans-serif;
             font-size: 7px;
@@ -100,15 +100,14 @@
             line-height: 1.1;
         }
 
-        .pnr {
-            font-family: "DejaVu Sans Mono", monospace;
-            font-weight: 700;
-        }
-
         .reference {
             color: #d92378;
             font-weight: 700;
             font-size: 10px;
+        }
+
+        .payment-details .amount {
+            display: block;
         }
 
         .amount {
@@ -211,35 +210,31 @@
     <div class="section-title">Detail - Transactions</div>
     <table>
         <colgroup>
-            <col style="width: 7%">
-            <col style="width: 4%">
-            <col style="width: 6.5%">
-            <col style="width: 5%">
-            <col style="width: 8.5%">
-            <col style="width: 6.5%">
-            <col style="width: 10.5%">
-            <col style="width: 3.5%">
-            <col style="width: 6.5%">
-            <col style="width: 6%">
-            <col style="width: 6%">
-            <col style="width: 5%">
-            <col style="width: 25%">
+            <col width="7.5%" style="width: 7.5%">
+            <col width="4.5%" style="width: 4.5%">
+            <col width="7%" style="width: 7%">
+            <col width="9%" style="width: 9%">
+            <col width="7%" style="width: 7%">
+            <col width="11%" style="width: 11%">
+            <col width="4%" style="width: 4%">
+            <col width="7%" style="width: 7%">
+            <col width="9%" style="width: 9%">
+            <col width="5.5%" style="width: 5.5%">
+            <col width="28.5%" style="width: 28.5%">
         </colgroup>
         <thead>
             <tr>
-                <th>Transaction Date &amp; Time</th>
-                <th>Source</th>
-                <th>PNR</th>
-                <th>Reference No.</th>
-                <th>Passenger</th>
-                <th>Departure</th>
-                <th>Trip</th>
-                <th>Seat</th>
-                <th>Drop-Off</th>
-                <th>Payment</th>
-                <th class="right">Amount</th>
-                <th>Status</th>
-                <th>Reason</th>
+                <th style="width: 7.5%">Transaction Date &amp; Time</th>
+                <th style="width: 4.5%">Source</th>
+                <th style="width: 7%">Reference No.</th>
+                <th style="width: 9%">Passenger</th>
+                <th style="width: 7%">Departure</th>
+                <th style="width: 11%">Trip</th>
+                <th style="width: 4%">Seat</th>
+                <th style="width: 7%">Drop-Off</th>
+                <th class="right" style="width: 9%">Payment Details</th>
+                <th style="width: 5.5%">Status</th>
+                <th style="width: 28.5%">Reason</th>
             </tr>
         </thead>
         <tbody>
@@ -254,7 +249,6 @@
                         <span class="sub">{{ $transaction->processed_at->format('h:i A') }}</span>
                     </td>
                     <td>{{ $transaction->source ?: '-' }}</td>
-                    <td class="pnr">{{ $transaction->pnr ?: '-' }}</td>
                     <td class="reference">{{ $transaction->reference_no ?: '-' }}</td>
                     <td>
                         <strong>{{ $transaction->passenger_name ?: 'Guest' }}</strong>
@@ -282,22 +276,24 @@
                             <span class="sub">{{ $transaction->drop_off }}</span>
                         @endif
                     </td>
-                    <td>{{ $transaction->payment_method ?: '-' }}</td>
-                    <td class="right amount {{ $amount < 0 ? 'negative' : '' }}">
-                        {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
+                    <td class="right payment-details">
+                        <strong class="amount {{ $amount < 0 ? 'negative' : '' }}">
+                            {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
+                        </strong>
+                        <span class="sub">{{ $transaction->payment_method ?: '-' }}</span>
                     </td>
                     <td><span class="status status-{{ $statusClass }}">{{ $transaction->status }}</span></td>
                     <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="13" class="empty">No cashier transactions were recorded for this date.</td>
+                    <td colspan="11" class="empty">No cashier transactions were recorded for this date.</td>
                 </tr>
             @endforelse
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="10">Total - {{ $transactions->count() }} transactions</td>
+                <td colspan="8">Total - {{ $transactions->count() }} transactions</td>
                 <td class="right">
                     {{ $summary['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($summary['net_collection'])) }}
                 </td>

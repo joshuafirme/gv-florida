@@ -50,35 +50,31 @@
             <div class="table-responsive shift-detail-scroll">
                 <table class="shift-detail-table">
                     <colgroup>
-                        <col style="width: 8.5%">
-                        <col style="width: 4%">
-                        <col style="width: 6.5%">
-                        <col style="width: 6%">
-                        <col style="width: 8.5%">
-                        <col style="width: 7.5%">
-                        <col style="width: 10%">
-                        <col style="width: 4.5%">
-                        <col style="width: 6.5%">
-                        <col style="width: 6.5%">
-                        <col style="width: 7%">
-                        <col style="width: 5%">
-                        <col style="width: 19.5%">
+                        <col width="7.5%" style="width: 7.5%">
+                        <col width="4.5%" style="width: 4.5%">
+                        <col width="7%" style="width: 7%">
+                        <col width="9%" style="width: 9%">
+                        <col width="7%" style="width: 7%">
+                        <col width="11%" style="width: 11%">
+                        <col width="4%" style="width: 4%">
+                        <col width="7%" style="width: 7%">
+                        <col width="9%" style="width: 9%">
+                        <col width="5.5%" style="width: 5.5%">
+                        <col width="28.5%" style="width: 28.5%">
                     </colgroup>
                     <thead>
                         <tr>
-                            <th>Transaction Date &amp; Time</th>
-                            <th>Source</th>
-                            <th>PNR</th>
-                            <th>Reference No.</th>
-                            <th>Passenger</th>
-                            <th>Departure</th>
-                            <th>Trip</th>
-                            <th>Seat No.</th>
-                            <th>Drop-Off</th>
-                            <th>Payment Method</th>
-                            <th class="text-end">Amount</th>
-                            <th>Status</th>
-                            <th>Reason</th>
+                            <th style="width: 7.5%">Transaction Date &amp; Time</th>
+                            <th style="width: 4.5%">Source</th>
+                            <th style="width: 7%">Reference No.</th>
+                            <th style="width: 9%">Passenger</th>
+                            <th style="width: 7%">Departure</th>
+                            <th style="width: 11%">Trip</th>
+                            <th style="width: 4%">Seat No.</th>
+                            <th style="width: 7%">Drop-Off</th>
+                            <th class="text-end" style="width: 9%">Payment Details</th>
+                            <th style="width: 5.5%">Status</th>
+                            <th style="width: 28.5%">Reason</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -100,8 +96,7 @@
                                     <small>{{ $transaction->processed_at->format('h:i A') }}</small>
                                 </td>
                                 <td>{{ $transaction->source ?: '-' }}</td>
-                                <td>{{ $transaction->pnr ?: '-' }}</td>
-                                <td><strong class="shift-pnr">{{ $transaction->reference_no ?: '-' }}</strong></td>
+                                <td><strong class="shift-reference">{{ $transaction->reference_no ?: '-' }}</strong></td>
                                 <td>
                                     <strong>{{ $transaction->passenger_name ?: 'Guest' }}</strong>
                                     <small>
@@ -126,22 +121,24 @@
                                         <small>{{ $transaction->drop_off }}</small>
                                     @endif
                                 </td>
-                                <td>{{ $transaction->payment_method ?: '-' }}</td>
-                                <td class="text-end amount-cell {{ $amount < 0 ? 'shift-negative' : '' }}">
-                                    {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
+                                <td class="text-end payment-details-cell">
+                                    <strong class="amount-cell {{ $amount < 0 ? 'shift-negative' : '' }}">
+                                        {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
+                                    </strong>
+                                    <small>{{ $transaction->payment_method ?: '-' }}</small>
                                 </td>
                                 <td><span class="shift-status shift-status--{{ $statusClass }}">{{ $transaction->status }}</span></td>
                                 <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="13" class="shift-empty">No cashier transactions were recorded for this date.</td>
+                                <td colspan="11" class="shift-empty">No cashier transactions were recorded for this date.</td>
                             </tr>
                         @endforelse
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="10"><strong>Total &middot; {{ $transactions->count() }} transactions</strong></td>
+                            <td colspan="8"><strong>Total &middot; {{ $transactions->count() }} transactions</strong></td>
                             <td class="text-end"><strong>{{ $summary['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($summary['net_collection'])) }}</strong></td>
                             <td colspan="2"></td>
                         </tr>
@@ -282,16 +279,14 @@
             background: #e7e9ed;
         }
 
-        .shift-pnr {
+        .shift-reference {
             color: #d92378;
             font-size: 12px;
-        }
-
-        .shift-reference {
             font-family: monospace;
         }
 
         .amount-cell {
+            display: block;
             font-weight: 600;
             white-space: nowrap;
         }
@@ -346,14 +341,14 @@
 
         @media print {
             @page {
-                size: legal landscape;
-                margin: 0;
+                size: Letter landscape;
+                margin: 10mm 14mm 12mm 18mm;
             }
 
             body {
                 background: #fff !important;
                 box-sizing: border-box;
-                padding: 10mm 14mm 12mm !important;
+                padding: 0 !important;
             }
 
             .sidebar,
