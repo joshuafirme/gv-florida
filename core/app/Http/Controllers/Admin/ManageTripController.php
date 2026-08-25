@@ -383,8 +383,8 @@ class ManageTripController extends Controller
             $trips->whereHas('route', fn ($route) => $route->where('end_to', $destination));
         }
 
-        if ($request->filled('fleet_type_id')) {
-            $trips->where('fleet_type_id', (int) $request->fleet_type_id);
+        if ($request->filled('bus_class')) {
+            $trips->where('fleet_type_id', (int) $request->bus_class);
         }
 
         // 2. Status Filtering

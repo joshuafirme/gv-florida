@@ -60,10 +60,10 @@
                         </div>
                         <div class="trip-filter-field">
                             <label>@lang('Bus Class')</label>
-                            <select name="fleet_type_id" class="form-control select2 js-trip-filter">
+                            <select name="bus_class" class="form-control select2 js-trip-filter">
                                 <option value="">@lang('All Bus Classes')</option>
                                 @foreach ($fleetTypes as $fleetType)
-                                    <option value="{{ $fleetType->id }}" @selected((string) request('fleet_type_id') === (string) $fleetType->id)>
+                                    <option value="{{ $fleetType->id }}" @selected((string) request('bus_class') === (string) $fleetType->id)>
                                         {{ __($fleetType->name) }}
                                     </option>
                                 @endforeach
