@@ -252,11 +252,15 @@
     @foreach ($displaySlips as $slipSeries)
         @php
             $passenger = $manifest->get((string) $slipSeries->seat, []);
-            $fare = (float) ($passenger['fare'] ?? $fallbackFare);
+            $validation = $slipSeries->onlineValidation;
+            $fare = (float) ($validation?->discount_id
+                ? $validation->net_fare
+                : ($passenger['fare'] ?? $fallbackFare));
             $passengerName = trim((string) ($passenger['name'] ?? '')) ?: 'Guest';
-            $passengerType = ($passenger['passenger_type'] ?? 'regular') === 'discounted'
-                ? ($passenger['discount_name'] ?? 'Discounted')
-                : 'Regular';
+            $passengerType = $validation?->discount?->name
+                ?: (($passenger['passenger_type'] ?? 'regular') === 'discounted'
+                    ? ($passenger['discount_name'] ?? 'Discounted')
+                    : 'Regular');
             $authorizedBy = $isPendingPayment
                 ? ''
                 : ($payment?->processed_by_name ?: auth('admin')->user()?->name);
@@ -289,6 +293,9 @@
                 <table class="details">
                     <tr><td class="label">Passenger</td><td class="value">{{ $passengerName }}</td></tr>
                     <tr><td class="label">Type</td><td class="value strong">{{ $passengerType }}</td></tr>
+                    @if ($validation?->passenger_id)
+                        <tr><td class="label">ID Number</td><td class="value strong">{{ $validation->passenger_id }}</td></tr>
+                    @endif
                     <tr><td class="label">Seat No.</td><td class="value strong">{{ formatSeatLabel($slipSeries->seat) }}</td></tr>
                     <tr><td class="label">Source</td><td class="value">{{ $bookingSource }}</td></tr>
                     <tr><td class="label">Mode of Payment</td><td class="value">{{ $paymentMethod }}</td></tr>

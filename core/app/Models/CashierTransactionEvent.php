@@ -13,6 +13,8 @@ class CashierTransactionEvent extends Model
         'Cancelled',
         'Voided',
         'Refunded',
+        'Discount Override',
+        'Validated',
     ];
 
     protected $guarded = ['id'];

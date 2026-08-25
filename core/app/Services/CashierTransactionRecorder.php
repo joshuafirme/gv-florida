@@ -7,6 +7,7 @@ use App\Models\Admin;
 use App\Models\BookedTicket;
 use App\Models\CashierTransactionEvent;
 use App\Models\Deposit;
+use App\Models\OnlineTicketValidation;
 use App\Models\SlipSeriesNumber;
 use App\Models\TicketCancellation;
 use App\Models\TicketRefund;
@@ -196,6 +197,105 @@ class CashierTransactionRecorder
         }
     }
 
+    public function ticketSnapshotFor(BookedTicket $ticket, SlipSeriesNumber $slip): array
+    {
+        return $this->ticketSnapshot($ticket, $slip);
+    }
+
+    public function recordOnlineDiscountOverride(OnlineTicketValidation $validation): void
+    {
+        if (!$validation->discount_id || (float) $validation->discount_amount <= 0) {
+            return;
+        }
+
+        $validation->loadMissing([
+            'bookedTicket',
+            'slipSeriesNumber',
+            'discount',
+            'discountAppliedBy:id,name,username',
+            'discountAuthorizedBy:id,name,username',
+        ]);
+
+        if (!$validation->bookedTicket || !$validation->slipSeriesNumber) {
+            return;
+        }
+
+        $snapshot = $this->ticketSnapshot($validation->bookedTicket, $validation->slipSeriesNumber);
+        $snapshot = array_merge($snapshot, [
+            'passenger_type' => $validation->discount?->name ?: 'Discounted',
+            'passenger_id' => $validation->passenger_id,
+            'discount_amount' => (float) $validation->discount_amount,
+            'fare' => (float) $validation->net_fare,
+            'discount_override' => [
+                'status' => 'Applied',
+                'discount_id' => $validation->discount_id,
+                'discount_name' => $validation->discount?->name,
+                'percentage' => (float) $validation->discount_percentage,
+                'original_fare' => (float) $validation->original_fare,
+                'discount_amount' => (float) $validation->discount_amount,
+                'net_fare' => (float) $validation->net_fare,
+            ],
+        ]);
+        $snapshot = $this->withAuthorizationAudit(
+            $snapshot,
+            $validation->discountAuthorizedBy,
+            $validation->discountAppliedBy,
+            TransactionAuthorizationService::DISCOUNT_OVERRIDE,
+            $validation->discount_authorized_at,
+            $validation->approval_remarks
+        );
+
+        $this->store(
+            "discount-override:{$validation->id}",
+            $validation->discount_applied_by_admin_id,
+            'Discount Override',
+            $snapshot,
+            -(float) $validation->discount_amount,
+            $validation->reason,
+            $validation->discount_authorized_at ?: now()
+        );
+    }
+
+    public function recordOnlineValidation(OnlineTicketValidation $validation): void
+    {
+        if (!$validation->validated_at || !$validation->validated_by_admin_id) {
+            return;
+        }
+
+        $validation->loadMissing([
+            'bookedTicket',
+            'slipSeriesNumber',
+            'validator:id,name,username',
+            'discount',
+            'discountAuthorizedBy:id,name,username',
+        ]);
+
+        if (!$validation->bookedTicket || !$validation->slipSeriesNumber) {
+            return;
+        }
+
+        $snapshot = $this->ticketSnapshot($validation->bookedTicket, $validation->slipSeriesNumber);
+        $snapshot['online_validation'] = [
+            'validated_by_admin_id' => $validation->validated_by_admin_id,
+            'validated_by_name' => $validation->validator?->name ?: $validation->validator?->username,
+            'validated_at' => $validation->validated_at->toIso8601String(),
+            'discount_override_applied' => (bool) $validation->discount_id,
+            'discount_name' => $validation->discount?->name,
+            'discount_amount' => (float) $validation->discount_amount,
+            'net_fare' => (float) $validation->net_fare,
+        ];
+
+        $this->store(
+            "online-validation:{$validation->id}",
+            $validation->validated_by_admin_id,
+            'Validated',
+            $snapshot,
+            0,
+            'Online ticket validated for boarding.',
+            $validation->validated_at
+        );
+    }
+
     private function bookingSnapshot(BookedTicket $ticket): array
     {
         $placeholder = new SlipSeriesNumber();
@@ -294,6 +394,17 @@ class CashierTransactionRecorder
             ->with($this->actionRelations())
             ->get()
             ->each(fn ($ticketVoid) => $this->safely(fn () => $this->recordVoid($ticketVoid)));
+
+        OnlineTicketValidation::where(function ($query) use ($admin) {
+            $query->where('validated_by_admin_id', $admin->id)
+                ->orWhere('discount_applied_by_admin_id', $admin->id);
+        })->where(function ($query) use ($start, $end) {
+            $query->whereBetween('validated_at', [$start, $end])
+                ->orWhereBetween('discount_authorized_at', [$start, $end]);
+        })->get()->each(function ($validation) {
+            $this->safely(fn () => $this->recordOnlineDiscountOverride($validation));
+            $this->safely(fn () => $this->recordOnlineValidation($validation));
+        });
     }
 
     public function backfillAllForDate(Carbon $date): void
@@ -330,6 +441,14 @@ class CashierTransactionRecorder
                 TicketVoid::whereNotNull('processed_by_admin_id')
                     ->whereBetween('created_at', [$start, $end])
                     ->pluck('processed_by_admin_id')
+            )
+            ->merge(
+                OnlineTicketValidation::whereBetween('validated_at', [$start, $end])
+                    ->pluck('validated_by_admin_id')
+            )
+            ->merge(
+                OnlineTicketValidation::whereBetween('discount_authorized_at', [$start, $end])
+                    ->pluck('discount_applied_by_admin_id')
             )
             ->merge(
                 CashierTransactionEvent::whereBetween('processed_at', [$start, $end])

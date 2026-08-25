@@ -15,6 +15,8 @@ class DailyReportService
         'cancelled' => 'Cancelled',
         'voided' => 'Voided',
         'refunded' => 'Refunded',
+        'discount_override' => 'Discount Override',
+        'validated' => 'Validated',
     ];
 
     public function __construct(

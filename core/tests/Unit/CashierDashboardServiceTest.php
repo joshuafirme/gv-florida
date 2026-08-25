@@ -21,19 +21,21 @@ class CashierDashboardServiceTest extends TestCase
             $this->transaction('Voided', -200),
             $this->transaction('Rebooked', 0),
             $this->transaction('Cancelled', 0),
+            $this->transaction('Discount Override', -100, 100),
+            $this->transaction('Validated', 0),
         ]);
 
         $this->assertSame([
             'tickets' => 2,
             'gross_sales' => 1350.0,
-            'discounts' => 100.0,
+            'discounts' => 200.0,
             'surcharges' => 50.0,
             'refunds' => 300.0,
             'voids' => 200.0,
             'rebooked' => 1,
             'cancelled' => 1,
-            'net_collection' => 900.0,
-            'transaction_count' => 6,
+            'net_collection' => 800.0,
+            'transaction_count' => 8,
         ], $service->summarize($transactions));
     }
 

@@ -106,7 +106,8 @@ class CashierDashboardService
         return [
             'tickets' => $sold->count(),
             'gross_sales' => (float) $sold->sum('amount') - $surcharges,
-            'discounts' => (float) $sold->sum('discount_amount'),
+            'discounts' => (float) $sold->sum('discount_amount')
+                + abs((float) $transactions->where('status', 'Discount Override')->sum('amount')),
             'surcharges' => $surcharges,
             'refunds' => abs((float) $transactions->where('status', 'Refunded')->sum('amount')),
             'voids' => abs((float) $transactions->where('status', 'Voided')->sum('amount')),

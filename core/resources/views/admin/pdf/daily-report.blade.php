@@ -322,13 +322,13 @@
             <col style="width: 7%"><col style="width: 4%"><col style="width: 5%"><col style="width: 6%">
             <col style="width: 7%"><col style="width: 8%"><col style="width: 6%"><col style="width: 9%">
             <col style="width: 4%"><col style="width: 6%"><col style="width: 6%"><col style="width: 6%">
-            <col style="width: 5%"><col style="width: 21%">
+            <col style="width: 6%"><col style="width: 5%"><col style="width: 15%">
         </colgroup>
         <thead>
             <tr>
                 <th>Transaction Date &amp; Time</th><th>Source</th><th>PNR</th><th>Reference No.</th>
                 <th>Processed By</th><th>Passenger</th><th>Departure</th><th>Trip</th><th>Seat No.</th>
-                <th>Drop-Off</th><th>Payment Method</th><th class="right">Amount</th><th>Status</th><th>Reason</th>
+                <th>Drop-Off</th><th>Payment Method</th><th class="right">Amount</th><th class="right">Discount / Refund</th><th>Status</th><th>Reason</th>
             </tr>
         </thead>
         <tbody>
@@ -338,6 +338,9 @@
                     $departureTime = $transaction->departure_time
                         ? \Carbon\Carbon::parse($transaction->departure_time)->format('h:i A')
                         : null;
+                    $adjustmentAmount = in_array($transaction->status, ['Discount Override', 'Refunded'], true)
+                        ? abs((float) $transaction->amount)
+                        : 0;
                 @endphp
                 <tr>
                     <td>{{ $transaction->processed_at?->format('M j, Y') }}<br><span class="subtle">{{ $transaction->processed_at?->format('h:i A') }}</span></td>
@@ -349,11 +352,12 @@
                     <td>{{ $seat ?: '-' }}</td><td><strong class="transaction-km-post">{{ $transaction->km_post ? 'KM ' . $transaction->km_post : '-' }}</strong><br><span class="subtle">{{ $transaction->drop_off ?: '' }}</span></td>
                     <td>{{ $transaction->payment_method ?: '-' }}</td>
                     <td class="right total {{ $transaction->amount < 0 ? 'negative' : '' }}"><strong class="transaction-amount">{{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}</strong></td>
+                    <td class="right {{ $adjustmentAmount > 0 ? 'negative' : '' }}">{{ $adjustmentAmount > 0 ? '-' . showAmount($adjustmentAmount) : '-' }}</td>
                     <td>{{ $transaction->status }}</td>
                     <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                 </tr>
             @empty
-                <tr><td colspan="14" class="empty">No transactions were recorded for this date.</td></tr>
+                <tr><td colspan="15" class="empty">No transactions were recorded for this date.</td></tr>
             @endforelse
         </tbody>
         @if ($transactions->isNotEmpty())
@@ -361,7 +365,7 @@
                 <tr>
                     <td colspan="11">Total - {{ $transactions->count() }} transactions</td>
                     <td class="right {{ $summary['net_collection'] < 0 ? 'negative' : '' }}">{{ $summary['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($summary['net_collection'])) }}</td>
-                    <td colspan="2"></td>
+                    <td colspan="3"></td>
                 </tr>
             </tfoot>
         @endif
