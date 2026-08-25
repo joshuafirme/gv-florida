@@ -28,23 +28,64 @@
     <div class="row">
         <div class="col-md-12">
             <div class="col-12 mb-3">
-                <form action="{{ url()->current() }}" method="GET">
-                    <div class="d-flex flex-wrap gap-3 justify-content-end align-items-end">
-                        <div style="width: 250px;">
+                <form action="{{ url()->current() }}" method="GET" id="tripFilterForm" class="trip-filter-form">
+                    <input type="hidden" name="sort_field" value="departure_time">
+                    <div class="trip-filter-grid">
+                        <div class="trip-filter-field trip-filter-field--search">
                             <label>@lang('Search Title')</label>
                             <input type="text" name="search" class="form-control" placeholder="Search by title..."
                                 value="{{ request('search') }}">
                         </div>
-                        <div style="width: 200px;">
+                        <div class="trip-filter-field">
+                            <label>@lang('Origin')</label>
+                            <select name="origin" class="form-control select2 js-trip-filter">
+                                <option value="">@lang('All Origins')</option>
+                                @foreach ($origins as $origin)
+                                    <option value="{{ $origin->id }}" @selected((string) request('origin') === (string) $origin->id)>
+                                        {{ __($origin->city ?: $origin->name) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="trip-filter-field">
+                            <label>@lang('Destination')</label>
+                            <select name="destination" class="form-control select2 js-trip-filter">
+                                <option value="">@lang('All Destinations')</option>
+                                @foreach ($destinations as $destination)
+                                    <option value="{{ $destination->id }}" @selected((string) request('destination') === (string) $destination->id)>
+                                        {{ __($destination->city ?: $destination->name) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="trip-filter-field">
+                            <label>@lang('Bus Class')</label>
+                            <select name="bus_class" class="form-control select2 js-trip-filter">
+                                <option value="">@lang('All Bus Classes')</option>
+                                @foreach ($fleetTypes as $fleetType)
+                                    <option value="{{ $fleetType->id }}" @selected((string) request('bus_class') === (string) $fleetType->id)>
+                                        {{ __($fleetType->name) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="trip-filter-field">
+                            <label>@lang('Departure Time')</label>
+                            <select name="sort_order" class="form-control js-trip-filter">
+                                <option value="asc" @selected(request('sort_order', 'asc') === 'asc')>@lang('Earliest to Latest')</option>
+                                <option value="desc" @selected(request('sort_order') === 'desc')>@lang('Latest to Earliest')</option>
+                            </select>
+                        </div>
+                        <div class="trip-filter-field trip-filter-field--status">
                             <label>@lang('Status')</label>
-                            <select name="status" class="form-control select2">
+                            <select name="status" class="form-control select2 js-trip-filter">
                                 <option value="all">@lang('All status')</option>
                                 <option value="1" {{ $status == '1' ? 'selected' : '' }}>@lang('Enabled')</option>
                                 <option value="0" {{ request()->has('status') && $status == '0' ? 'selected' : '' }}>
                                     @lang('Disabled')</option>
                             </select>
                         </div>
-                        <div>
+                        <div class="trip-filter-actions">
                             <button class="btn btn--primary h-45"><i class="fas fa-filter"></i> @lang('Filter')</button>
                             <a href="{{ url('/admin/manage/trip') }}" class="btn btn--dark h-45"><i class="fas fa-sync"></i>
                                 @lang('Clear')</a>
@@ -425,6 +466,55 @@
 
     @push('style')
         <style>
+            .trip-filter-grid {
+                align-items: end;
+                display: grid;
+                gap: 12px;
+                grid-template-columns: minmax(190px, 1.25fr) repeat(3, minmax(155px, 1fr)) minmax(170px, .9fr) minmax(135px, .7fr) auto;
+            }
+
+            .trip-filter-field {
+                min-width: 0;
+            }
+
+            .trip-filter-field label {
+                color: #374151;
+                display: block;
+                font-size: 12px;
+                font-weight: 700;
+                margin-bottom: 5px;
+            }
+
+            .trip-filter-actions {
+                display: flex;
+                gap: 7px;
+                white-space: nowrap;
+            }
+
+            @media (max-width: 1399px) {
+                .trip-filter-grid {
+                    grid-template-columns: repeat(3, minmax(180px, 1fr));
+                }
+
+                .trip-filter-actions {
+                    justify-content: flex-end;
+                }
+            }
+
+            @media (max-width: 767px) {
+                .trip-filter-grid {
+                    grid-template-columns: 1fr;
+                }
+
+                .trip-filter-actions {
+                    justify-content: stretch;
+                }
+
+                .trip-filter-actions .btn {
+                    flex: 1;
+                }
+            }
+
             .trip-action-group {
                 display: flex;
                 flex-wrap: wrap;
@@ -672,6 +762,10 @@
                 const ticketPrices = @json($allTicketPrices);
                 const routesData = @json($allRoutes);
                 const countersData = @json($allCounters);
+
+                $('.js-trip-filter').on('change', function() {
+                    document.getElementById('tripFilterForm').submit();
+                });
 
                 // Render Fare Preview Engine
                 function renderFarePreview() {
