@@ -180,7 +180,10 @@
             ->filter()
             ->unique(fn ($part) => strtolower($part))
             ->implode(', ');
-        $androidExpiresAt = app(\App\Services\PendingPaymentExpirationService::class)
+        $androidExpiresAt = $ticket->deposit->expiry_limit
+            ? rescue(fn () => \Carbon\Carbon::parse($ticket->deposit->expiry_limit), null, false)
+            : null;
+        $androidExpiresAt ??= app(\App\Services\PendingPaymentExpirationService::class)
             ->expiresAt($ticket->deposit->created_at);
         $androidIsPaid = (int) $ticket->deposit->status === \App\Constants\Status::PAYMENT_SUCCESS;
         $androidPaymentMethod = $ticket->deposit->pchannel

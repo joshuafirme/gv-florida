@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\UserDiscount;
 use App\Services\CashierTransactionRecorder;
 use App\Services\PendingPaymentExpirationService;
+use App\Services\Paynamics;
 use App\Services\PaynamicsPaymentBroadcaster;
 use App\Services\PaymentGatewayService;
 use Carbon\Carbon;
@@ -372,10 +373,12 @@ class PaymentController extends Controller
         }
 
         $ticket = $deposit->bookedTicket;
-        $expiresAt = $ticket->isKioskBooking()
-            ? $this->pendingPaymentExpiration->expiresAt($deposit->created_at)
-            : ($deposit->expiry_limit
-                ? Carbon::parse($deposit->expiry_limit)
+        $isPaynamicsPayment = !empty($deposit->pchannel)
+            || strtolower((string) $deposit->gateway?->alias) === PaymentGatewayService::PAYNAMICS;
+        $expiresAt = $deposit->expiry_limit
+            ? Carbon::parse($deposit->expiry_limit)
+            : ($isPaynamicsPayment
+                ? Paynamics::expiresAt($ticket->isKioskBooking(), $deposit->created_at)
                 : $this->pendingPaymentExpiration->expiresAt($deposit->created_at));
 
         if ($ticket->isKioskBooking()) {
