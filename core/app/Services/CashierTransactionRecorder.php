@@ -17,9 +17,13 @@ use Illuminate\Support\Collection;
 
 class CashierTransactionRecorder
 {
+    private FareDiscountService $fareDiscounts;
+
     public function __construct(
-        private readonly TicketPassengerResolver $passengerResolver
+        private readonly TicketPassengerResolver $passengerResolver,
+        ?FareDiscountService $fareDiscounts = null
     ) {
+        $this->fareDiscounts = $fareDiscounts ?? new FareDiscountService();
     }
 
     public function recordSold(Deposit $deposit): void
@@ -516,12 +520,18 @@ class CashierTransactionRecorder
 
         if (!$passenger['manifest_found'] && $deposit?->userDiscount) {
             $percentage = (float) ($deposit->userDiscount->percentage ?? 0);
-            $discountAmount = $percentage > 0
-                ? $baseFare * ($percentage / 100)
-                : (float) ($deposit->userDiscount->amount ?? 0) / $slipCount;
+            $storedDiscountAmount = (float) ($deposit->userDiscount->amount ?? 0);
+            if ($storedDiscountAmount > 0) {
+                $discountAmount = $storedDiscountAmount / $slipCount;
+            } elseif ($percentage > 0) {
+                $fare = $this->fareDiscounts->discountedFare($baseFare, $percentage);
+                $discountAmount = $baseFare - $fare;
+            } else {
+                $discountAmount = 0;
+            }
         }
 
-        $fare = (float) ($manifestEntry['fare'] ?? max($baseFare - $discountAmount, 0));
+        $fare = (float) ($manifestEntry['fare'] ?? ($fare ?? max($baseFare - $discountAmount, 0)));
 
         return [
             'booked_ticket_id' => $ticket->id,

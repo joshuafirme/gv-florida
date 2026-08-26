@@ -1082,6 +1082,10 @@
                 });
             }
 
+            function discountedFare(baseFare, percentage) {
+                return Math.round((Number(baseFare || 0) * (1 - (Number(percentage || 0) / 100))) / 5) * 5;
+            }
+
             function escapeHtml(value) {
                 return $('<div>').text(String(value ?? '')).html();
             }
@@ -1167,7 +1171,8 @@
                     const seat = String(card.data('seat'));
                     const name = $.trim(card.find('.js-passenger-name').val());
                     const idNumber = $.trim(card.find('.js-id-number').val());
-                    const seatDiscount = passengerType === 'discounted' ? unitPrice * (percentage / 100) : 0;
+                    const seatFare = passengerType === 'discounted' ? discountedFare(unitPrice, percentage) : unitPrice;
+                    const seatDiscount = passengerType === 'discounted' ? unitPrice - seatFare : 0;
 
                     if (passengerType === 'discounted') {
                         if (!name) errors.push(`Passenger name is required for seat ${formatSeatLabel(seat)}.`);
@@ -1185,7 +1190,7 @@
                         id_number: passengerType === 'discounted' ? idNumber : '',
                         base_fare: unitPrice,
                         discount_amount: seatDiscount,
-                        fare: unitPrice - seatDiscount
+                        fare: seatFare
                     });
                 });
 
