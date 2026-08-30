@@ -17,10 +17,50 @@ class TransactionReasonFormatter
             'Cancelled' => $reason !== '' ? "Cancellation: {$reason}" : 'Ticket cancelled.',
             'Voided' => $reason !== '' ? "Void: {$reason}" : 'Ticket voided.',
             'Refunded' => $reason !== '' ? "Refund: {$reason}" : 'Ticket refunded.',
-            'Discount Override' => $reason !== '' ? $reason : 'Discount applied during online ticket validation.',
+            'Discount Override' => $this->formatDiscountOverride($transaction, $reason),
             'Validated' => $reason !== '' ? $reason : 'Online ticket validated for boarding.',
             default => $reason !== '' ? $reason : ($transaction->status ?: '-'),
         };
+    }
+
+    private function formatDiscountOverride(CashierTransactionEvent $transaction, string $reason): string
+    {
+        $override = data_get($transaction->snapshot, 'discount_override', []);
+
+        if (!$override) {
+            return $reason !== '' ? $reason : 'Discount applied during online ticket validation.';
+        }
+
+        $previous = $override['previous_passenger'] ?? [];
+        $passenger = $override['passenger'] ?? [];
+        $changes = [];
+        $this->addChange($changes, 'Passenger', $this->text($previous['name'] ?? null), $this->text($passenger['name'] ?? null));
+        $this->addChange($changes, 'Passenger Type', $this->text($previous['type'] ?? null), $this->text($passenger['type'] ?? null));
+
+        $originalFare = (float) ($override['original_fare'] ?? 0);
+        $netFare = (float) ($override['net_fare'] ?? 0);
+        $discountAmount = (float) ($override['discount_amount'] ?? 0);
+        $percentage = (float) ($override['percentage'] ?? 0);
+        if ($originalFare > 0) {
+            $changes[] = 'Fare: ' . $this->money($originalFare) . ' to ' . $this->money($netFare);
+        }
+        if ($discountAmount > 0) {
+            $percentageLabel = $percentage > 0 ? ' (' . rtrim(rtrim(number_format($percentage, 2), '0'), '.') . '%)' : '';
+            $changes[] = 'Discount: -' . $this->money($discountAmount) . $percentageLabel;
+        }
+        if ($this->text($passenger['id_number'] ?? null) !== '') {
+            $changes[] = 'ID Number: ' . $this->text($passenger['id_number']);
+        }
+        if ($reason !== '') {
+            $changes[] = 'Reason: ' . $reason;
+        }
+
+        return 'Discount override: ' . implode('; ', $changes);
+    }
+
+    private function money(float $amount): string
+    {
+        return 'PHP ' . number_format($amount, 2);
     }
 
     private function formatRebooking(CashierTransactionEvent $transaction, string $reason): string
