@@ -14,6 +14,7 @@ use App\Models\GeneralSetting;
 use App\Models\User;
 use App\Models\UserDiscount;
 use App\Services\CashierTransactionRecorder;
+use App\Services\FareDiscountService;
 use App\Services\PendingPaymentExpirationService;
 use App\Services\Paynamics;
 use App\Services\PaynamicsPaymentBroadcaster;
@@ -26,7 +27,8 @@ class PaymentController extends Controller
 {
     public function __construct(
         private readonly PaymentGatewayService $paymentGateways,
-        private readonly PendingPaymentExpirationService $pendingPaymentExpiration
+        private readonly PendingPaymentExpirationService $pendingPaymentExpiration,
+        private readonly FareDiscountService $fareDiscounts
     ) {
     }
 
@@ -204,6 +206,7 @@ class PaymentController extends Controller
             $discountId = isset($passenger['discount_id']) ? (int) $passenger['discount_id'] : null;
             $discount = null;
             $seatDiscount = 0;
+            $seatFare = $unitPrice;
 
             if (!in_array($passengerType, ['regular', 'discounted'], true)) {
                 $notify[] = ['error', 'Please select a valid passenger type for seat ' . formatSeatLabel($seat) . '.'];
@@ -228,7 +231,11 @@ class PaymentController extends Controller
                     return back()->withNotify($notify);
                 }
 
-                $seatDiscount = $unitPrice * ($discount->percentage / 100);
+                $seatFare = $this->fareDiscounts->discountedFare(
+                    $unitPrice,
+                    (float) $discount->percentage
+                );
+                $seatDiscount = $unitPrice - $seatFare;
                 $discountAmount += $seatDiscount;
             }
 
@@ -242,7 +249,7 @@ class PaymentController extends Controller
                 'id_number' => $passengerType === 'discounted' ? $idNumber : null,
                 'base_fare' => getAmount($unitPrice),
                 'discount_amount' => getAmount($seatDiscount),
-                'fare' => getAmount($unitPrice - $seatDiscount),
+                'fare' => getAmount($seatFare),
             ];
 
             $manifest[] = $entry;
