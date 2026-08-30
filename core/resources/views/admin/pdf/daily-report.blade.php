@@ -319,14 +319,14 @@
     <div class="section-title">Detail - Transactions</div>
     <table class="transactions-table">
         <colgroup>
-            <col style="width: 7%"><col style="width: 4%"><col style="width: 5%"><col style="width: 6%">
+            <col style="width: 7%"><col style="width: 4%"><col style="width: 7%">
             <col style="width: 7%"><col style="width: 8%"><col style="width: 6%"><col style="width: 9%">
             <col style="width: 4%"><col style="width: 6%"><col style="width: 6%"><col style="width: 6%">
             <col style="width: 6%"><col style="width: 5%"><col style="width: 15%">
         </colgroup>
         <thead>
             <tr>
-                <th>Transaction Date &amp; Time</th><th>Source</th><th>PNR</th><th>Reference No.</th>
+                <th>Transaction Date &amp; Time</th><th>Source</th><th>Reference No.</th>
                 <th>Processed By</th><th>Passenger</th><th>Departure</th><th>Trip</th><th>Seat No.</th>
                 <th>Drop-Off</th><th>Payment Method</th><th class="right">Amount</th><th class="right">Discount / Refund</th><th>Status</th><th>Reason</th>
             </tr>
@@ -344,7 +344,7 @@
                 @endphp
                 <tr>
                     <td>{{ $transaction->processed_at?->format('M j, Y') }}<br><span class="subtle">{{ $transaction->processed_at?->format('h:i A') }}</span></td>
-                    <td>{{ $transaction->source ?: '-' }}</td><td><span class="transaction-pnr">{{ $transaction->pnr ?: '-' }}</span></td><td><strong class="transaction-reference">{{ $transaction->reference_no ?: '-' }}</strong></td>
+                    <td>{{ $transaction->source ?: '-' }}</td><td><strong class="transaction-reference">{{ $transaction->reference_no ?: '-' }}</strong></td>
                     <td>{{ $transaction->processed_by_label }}</td>
                     <td><strong>{{ $transaction->passenger_name ?: 'Guest' }}</strong><br><span class="subtle">{{ $transaction->passenger_type ?: 'Regular' }}{{ $transaction->passenger_id ? ' - ID ' . $transaction->passenger_id : '' }}</span></td>
                     <td><strong class="transaction-travel-date">{{ $transaction->journey_date?->format('M j, Y') ?: '-' }}</strong><span class="transaction-departure-time">{{ $departureTime ?: '-' }}</span></td>
@@ -357,13 +357,13 @@
                     <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                 </tr>
             @empty
-                <tr><td colspan="15" class="empty">No transactions were recorded for this date.</td></tr>
+                <tr><td colspan="14" class="empty">No transactions were recorded for this date.</td></tr>
             @endforelse
         </tbody>
         @if ($transactions->isNotEmpty())
             <tfoot>
                 <tr>
-                    <td colspan="11">Total - {{ $transactions->count() }} transactions</td>
+                    <td colspan="10">Total - {{ $transactions->count() }} transactions</td>
                     <td class="right {{ $summary['net_collection'] < 0 ? 'negative' : '' }}">{{ $summary['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($summary['net_collection'])) }}</td>
                     <td colspan="3"></td>
                 </tr>

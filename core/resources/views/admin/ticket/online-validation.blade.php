@@ -47,9 +47,12 @@
                                 <td data-label="Trip"><strong>{{ $ticket['trip_class'] }}</strong><span class="validation-meta">{{ $ticket['trip_route'] }}</span></td>
                                 <td data-label="Seat"><strong>{{ $ticket['seat'] }}</strong></td>
                                 <td data-label="Fare" class="text-end">
-                                    <strong>{{ showAmount($ticket['net_fare']) }}</strong>
                                     @if ($ticket['discount_amount'] > 0)
-                                        <span class="validation-meta validation-discount">Override -{{ showAmount($ticket['discount_amount']) }}</span>
+                                        <span class="validation-fare-line"><span>Original</span><del>{{ showAmount($ticket['original_fare']) }}</del></span>
+                                        <span class="validation-fare-line validation-discount"><span>{{ $ticket['discount_name'] }} ({{ (float) $ticket['discount_percentage'] }}%)</span><strong>-{{ showAmount($ticket['discount_amount']) }}</strong></span>
+                                        <span class="validation-fare-line validation-final-fare"><span>Final</span><strong>{{ showAmount($ticket['net_fare']) }}</strong></span>
+                                    @else
+                                        <strong>{{ showAmount($ticket['original_fare']) }}</strong>
                                     @endif
                                 </td>
                                 <td data-label="Passenger"><strong>{{ $ticket['passenger_name'] }}</strong><span class="validation-meta">{{ $ticket['passenger_type'] }}{{ $ticket['passenger_id'] ? ' - ID ' . $ticket['passenger_id'] : '' }}</span></td>
@@ -66,7 +69,7 @@
                                             <i class="las {{ $ticket['validated'] ? 'la-eye' : 'la-check-circle' }}"></i>
                                             {{ $ticket['validated'] ? 'Details' : 'Validate' }}
                                         </button>
-                                        <a href="{{ $ticket['rebook_url'] }}" class="btn btn-sm btn-outline--primary" title="Rebook ticket"><i class="las la-exchange-alt"></i></a>
+                                        <a href="{{ $ticket['rebook_url'] }}" class="btn btn-sm btn-outline--primary" title="Rebook ticket"><i class="fa-solid fa-calendar-day"></i></a>
                                         <a href="{{ $ticket['refund_url'] }}" class="btn btn-sm btn-outline--warning" title="Refund ticket"><i class="las la-undo-alt"></i></a>
                                         <a href="{{ $ticket['cancel_url'] }}" class="btn btn-sm btn-outline--danger" title="Cancel ticket"><i class="las la-ban"></i></a>
                                     </div>
@@ -116,6 +119,10 @@
                     <label class="validation-label">Discount Type</label>
                     <div class="discount-options" id="discountOptions"></div>
                     <div class="mb-3">
+                        <label class="validation-label" for="discountPassengerName">Discounted Person's Name</label>
+                        <input type="text" class="form-control" id="discountPassengerName" name="passenger_name" placeholder="Enter discounted passenger's full name" autocomplete="off" required>
+                    </div>
+                    <div class="mb-3">
                         <label class="validation-label" for="discountPassengerId">ID Number</label>
                         <input type="text" class="form-control" id="discountPassengerId" name="passenger_id" placeholder="Enter passenger ID number" required>
                     </div>
@@ -147,6 +154,10 @@
 @push('style')
 <style>
     .online-validation-toolbar{align-items:center;display:flex;gap:14px;justify-content:space-between;margin-bottom:14px}.online-validation-tabs{background:#f1f2f5;border:1px solid #dfe2e7;border-radius:7px;display:flex;padding:3px}.online-validation-tab{border-radius:5px;color:#4d5561;font-size:12px;font-weight:600;padding:8px 12px}.online-validation-tab span{background:#e2e5e9;border-radius:999px;font-size:10px;margin-left:3px;padding:2px 6px}.online-validation-tab.is-active{background:var(--primary-color,#df2a82);color:#fff!important}.online-validation-tab.is-active span{background:rgba(255,255,255,.22);color:#fff}.online-validation-search{max-width:360px;position:relative;width:100%}.online-validation-search i{color:#8b929c;font-size:18px;left:12px;position:absolute;top:12px}.online-validation-search input{background:#f7f8fa;border:1px solid #d4d8df;border-radius:7px;height:42px;padding:0 12px 0 38px;width:100%}.online-validation-table{min-width:1580px}.online-validation-table th{white-space:nowrap}.online-validation-table td{font-size:12px;vertical-align:top}.validation-meta{color:#7d8490;display:block;font-size:10px;margin-top:2px}.validation-discount{color:#c56b00}.validation-status{border:1px solid;border-radius:999px;display:inline-flex;font-size:10px;font-weight:700;padding:4px 9px;white-space:nowrap}.validation-status.is-validated{background:#eaf8f0;border-color:#b5e3c7;color:#168044}.validation-status.is-pending{background:#eaf7fc;border-color:#afe0ef;color:#19738d}.validation-actions{display:flex;gap:5px}.validation-dialog{max-width:610px}.validation-modal-content{border:0;border-radius:10px;box-shadow:0 24px 65px rgba(0,0,0,.3);overflow:hidden}.validation-modal-content .modal-header{align-items:flex-start;border-color:#e7e9ed;padding:18px 20px}.validation-modal-content .modal-title{font-size:17px;font-weight:700;margin-bottom:7px}.validation-modal-content .modal-body{max-height:68vh;overflow-y:auto;padding:16px 20px}.validation-modal-badge{background:#eaf7fc;border:1px solid #afe0ef;border-radius:999px;color:#19738d;font-size:10px;font-weight:700;padding:4px 9px}.validation-modal-badge.is-validated{background:#eaf8f0;border-color:#b5e3c7;color:#168044}.validation-detail-group{border:1px solid #e1e4e9;border-radius:8px;overflow:hidden}.validation-detail-row{align-items:flex-start;border-bottom:1px solid #e9ebef;display:flex;gap:18px;justify-content:space-between;padding:10px 12px}.validation-detail-row:last-child{border-bottom:0}.validation-detail-row span{color:#747d8b;font-size:11px}.validation-detail-row strong{color:#222c3a;font-size:12px;max-width:68%;text-align:right}.validation-detail-row .negative{color:#c16900}.validation-modal-footer{align-items:center}.validation-print-link{color:#525b68;font-size:12px}.validation-help{color:#687180;font-size:12px}.validation-label{color:#4b5360;display:block;font-size:12px;font-weight:600;margin-bottom:6px}.discount-options{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px}.discount-option{background:#fff;border:1px solid #d5d9df;border-radius:999px;color:#4d5561;font-size:11px;padding:7px 12px}.discount-option.is-active{background:#fff5fa;border-color:var(--primary-color,#df2a82);color:var(--primary-color,#df2a82);font-weight:700}.discount-computation{background:#f7f8fa;border:1px solid #e1e4e9;border-radius:8px;margin-bottom:16px;padding:10px 12px}.discount-computation div{display:flex;font-size:12px;justify-content:space-between;padding:5px 0}.discount-computation .discount-credit{border-top:1px solid #e1e4e9;color:#bd6500;margin-top:4px;padding-top:9px}@media(max-width:767px){.online-validation-toolbar{align-items:stretch;flex-direction:column}.online-validation-search{max-width:none}.online-validation-tabs{overflow-x:auto}.validation-modal-footer{align-items:stretch;flex-direction:column}.validation-modal-footer .ms-auto{margin-left:0!important;width:100%}.validation-modal-footer .btn{flex:1}}
+</style>
+<style>
+    .validation-fare-line{display:flex;font-size:10px;gap:10px;justify-content:space-between;white-space:nowrap}
+    .validation-final-fare{border-top:1px solid #e5e7eb;margin-top:3px;padding-top:3px}
 </style>
 @endpush
 
@@ -189,7 +200,7 @@
     $(document).on('click','.validation-details-btn',function(){load($(this).data('url'));});
     $('#openDiscountBtn').on('click',function(){
         selectedDiscount=null;$('#discountPassenger').text(`${current.passenger_name} - PNR ${current.pnr} - Ref. ${current.reference_no}`);
-        $('#discountPassengerId,#discountReason,#discountApprovalRemarks,#discountAuthorizationCode').val('');$('#discountAuthorizationCode').removeClass('is-invalid');$('#discountError').text('');
+        $('#discountPassengerName').val(current.booking_passenger_name||'');$('#discountPassengerId,#discountReason,#discountApprovalRemarks,#discountAuthorizationCode').val('');$('#discountAuthorizationCode').removeClass('is-invalid');$('#discountError').text('');
         $('#discountOriginalFare').text(money.format(current.original_fare));$('#discountedFare,#discountCredit').text('-');
         $('#discountOptions').html((current.discounts||[]).map(d=>`<button type="button" class="discount-option" data-id="${d.id}" data-name="${escape(d.name)}" data-percentage="${d.percentage}">${escape(d.name)} - ${Number(d.percentage)}%</button>`).join(''));
         detailsModal.hide();discountModal.show();
@@ -203,7 +214,7 @@
     $('#discountOverrideForm').on('submit',function(event){
         event.preventDefault();if(!selectedDiscount){notify('error','Select a discount type.');return;}
         const button=$('#applyDiscountBtn').prop('disabled',true);$('#discountError').text('');
-        $.post(current.discount_url,{_token:'{{ csrf_token() }}',discount_id:selectedDiscount.id,passenger_id:$('#discountPassengerId').val(),reason:$('#discountReason').val(),approval_remarks:$('#discountApprovalRemarks').val(),authorization_code:$('#discountAuthorizationCode').val()})
+        $.post(current.discount_url,{_token:'{{ csrf_token() }}',discount_id:selectedDiscount.id,passenger_name:$('#discountPassengerName').val(),passenger_id:$('#discountPassengerId').val(),reason:$('#discountReason').val(),approval_remarks:$('#discountApprovalRemarks').val(),authorization_code:$('#discountAuthorizationCode').val()})
             .done(result=>{notify('success',result.message);current=result.ticket;discountModal.hide();detailsModal.show();render(current);})
             .fail(xhr=>{$('#discountError').text(errorMessage(xhr));$('#discountAuthorizationCode').addClass('is-invalid').val('');notify('error',errorMessage(xhr));})
             .always(()=>button.prop('disabled',false));

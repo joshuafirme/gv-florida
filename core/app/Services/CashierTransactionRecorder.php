@@ -221,7 +221,13 @@ class CashierTransactionRecorder
         }
 
         $snapshot = $this->ticketSnapshot($validation->bookedTicket, $validation->slipSeriesNumber);
+        $originalPassenger = [
+            'name' => $snapshot['passenger_name'] ?? 'Guest',
+            'type' => $snapshot['passenger_type'] ?? 'Regular',
+            'id_number' => $snapshot['passenger_id'] ?? null,
+        ];
         $snapshot = array_merge($snapshot, [
+            'passenger_name' => $validation->passenger_name ?: ($snapshot['passenger_name'] ?? 'Guest'),
             'passenger_type' => $validation->discount?->name ?: 'Discounted',
             'passenger_id' => $validation->passenger_id,
             'discount_amount' => (float) $validation->discount_amount,
@@ -234,6 +240,12 @@ class CashierTransactionRecorder
                 'original_fare' => (float) $validation->original_fare,
                 'discount_amount' => (float) $validation->discount_amount,
                 'net_fare' => (float) $validation->net_fare,
+                'previous_passenger' => $originalPassenger,
+                'passenger' => [
+                    'name' => $validation->passenger_name ?: ($snapshot['passenger_name'] ?? 'Guest'),
+                    'type' => $validation->discount?->name ?: 'Discounted',
+                    'id_number' => $validation->passenger_id,
+                ],
             ],
         ]);
         $snapshot = $this->withAuthorizationAudit(
@@ -275,6 +287,13 @@ class CashierTransactionRecorder
         }
 
         $snapshot = $this->ticketSnapshot($validation->bookedTicket, $validation->slipSeriesNumber);
+        if ($validation->discount_id) {
+            $snapshot['passenger_name'] = $validation->passenger_name ?: $snapshot['passenger_name'];
+            $snapshot['passenger_type'] = $validation->discount?->name ?: 'Discounted';
+            $snapshot['passenger_id'] = $validation->passenger_id;
+            $snapshot['discount_amount'] = (float) $validation->discount_amount;
+            $snapshot['fare'] = (float) $validation->net_fare;
+        }
         $snapshot['online_validation'] = [
             'validated_by_admin_id' => $validation->validated_by_admin_id,
             'validated_by_name' => $validation->validator?->name ?: $validation->validator?->username,

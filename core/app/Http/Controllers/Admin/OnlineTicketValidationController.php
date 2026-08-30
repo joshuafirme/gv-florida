@@ -95,6 +95,7 @@ class OnlineTicketValidationController extends Controller
     {
         $validated = $request->validate([
             'discount_id' => ['required', 'integer', Rule::exists('discounts', 'id')->where('status', Status::ENABLE)],
+            'passenger_name' => 'required|string|max:255',
             'passenger_id' => 'required|string|max:100',
             'authorization_code' => 'required|string|max:100',
             'reason' => 'nullable|string|max:500',
@@ -143,6 +144,7 @@ class OnlineTicketValidationController extends Controller
                 'discount_percentage' => (float) $discount->percentage,
                 'discount_amount' => $discountAmount,
                 'net_fare' => max($originalFare - $discountAmount, 0),
+                'passenger_name' => trim($validated['passenger_name']),
                 'passenger_id' => trim($validated['passenger_id']),
                 'reason' => trim((string) ($validated['reason'] ?? ''))
                     ?: "{$discount->name} discount applied during online ticket validation.",
@@ -258,7 +260,8 @@ class OnlineTicketValidationController extends Controller
             'reference_no' => (string) $slip->id,
             'request_no' => $payment?->trx ?: '-',
             'pnr' => $ticket->pnr_number ?: '-',
-            'passenger_name' => $snapshot['passenger_name'] ?? 'Guest',
+            'passenger_name' => $validation?->passenger_name ?: ($snapshot['passenger_name'] ?? 'Guest'),
+            'booking_passenger_name' => $this->providedPassengerName($snapshot['passenger_name'] ?? null),
             'passenger_type' => $validation?->discount?->name ?: ($snapshot['passenger_type'] ?? 'Regular'),
             'passenger_id' => $validation?->passenger_id ?: ($snapshot['passenger_id'] ?? null),
             'journey_date' => $journeyDate,
@@ -298,6 +301,13 @@ class OnlineTicketValidationController extends Controller
         }
 
         return $data;
+    }
+
+    private function providedPassengerName(?string $name): string
+    {
+        $name = trim((string) $name);
+
+        return in_array(strtolower($name), ['', 'guest', 'passenger'], true) ? '' : $name;
     }
 
     private function relations(): array

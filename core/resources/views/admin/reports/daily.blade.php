@@ -254,7 +254,7 @@
             <div class="table-responsive">
                 <table class="daily-table">
                     <colgroup>
-                        <col style="width: 7%"><col style="width: 4%"><col style="width: 5%"><col style="width: 6%">
+                        <col style="width: 7%"><col style="width: 4%"><col style="width: 7%">
                         <col style="width: 7%"><col style="width: 8%"><col style="width: 6%"><col style="width: 9%">
                         <col style="width: 4%"><col style="width: 6%"><col style="width: 6%"><col style="width: 6%">
                         <col style="width: 6%"><col style="width: 5%"><col style="width: 15%">
@@ -263,7 +263,6 @@
                         <tr>
                             <th>Transaction Date &amp; Time</th>
                             <th>Source</th>
-                            <th>PNR</th>
                             <th>Reference No.</th>
                             <th>Processed By</th>
                             <th>Passenger</th>
@@ -295,7 +294,6 @@
                                     <small>{{ $transaction->processed_at->format('h:i A') }}</small>
                                 </td>
                                 <td>{{ $transaction->source ?: '-' }}</td>
-                                <td><span class="daily-data--pnr">{{ $transaction->pnr ?: '-' }}</span></td>
                                 <td><strong class="daily-data--reference">{{ $transaction->reference_no ?: '-' }}</strong></td>
                                 <td>{{ $transaction->processed_by_label }}</td>
                                 <td>
@@ -321,14 +319,14 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="15" class="daily-empty">No transactions were recorded for this date.</td>
+                                <td colspan="14" class="daily-empty">No transactions were recorded for this date.</td>
                             </tr>
                         @endforelse
                     </tbody>
                     @if ($transactions->isNotEmpty())
                         <tfoot>
                             <tr>
-                                <td colspan="11"><strong>Total - {{ $transactions->count() }} transactions</strong></td>
+                                <td colspan="10"><strong>Total - {{ $transactions->count() }} transactions</strong></td>
                                 <td class="text-end daily-total {{ $summary['net_collection'] < 0 ? 'daily-negative' : '' }}">
                                     {{ $summary['net_collection'] < 0 ? '-' : '' }}{{ showAmount(abs($summary['net_collection'])) }}
                                 </td>

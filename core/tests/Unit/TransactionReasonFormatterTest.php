@@ -99,6 +99,40 @@ class TransactionReasonFormatterTest extends TestCase
         $this->assertSame('Refund: Change of plans', $formatter->format($this->transaction('Refunded', 'Change of plans')));
     }
 
+    public function test_discount_override_reason_lists_passenger_and_fare_changes(): void
+    {
+        $transaction = new CashierTransactionEvent([
+            'status' => 'Discount Override',
+            'reason' => 'Senior citizen ID verified',
+            'snapshot' => [
+                'discount_override' => [
+                    'percentage' => 20,
+                    'original_fare' => 2800,
+                    'discount_amount' => 560,
+                    'net_fare' => 2240,
+                    'previous_passenger' => [
+                        'name' => 'Guest',
+                        'type' => 'Regular',
+                    ],
+                    'passenger' => [
+                        'name' => 'Juan Dela Cruz',
+                        'type' => 'Senior Citizen',
+                        'id_number' => 'SC-12345',
+                    ],
+                ],
+            ],
+        ]);
+
+        $reason = (new TransactionReasonFormatter())->format($transaction);
+
+        $this->assertStringContainsString('Passenger: Guest to Juan Dela Cruz', $reason);
+        $this->assertStringContainsString('Passenger Type: Regular to Senior Citizen', $reason);
+        $this->assertStringContainsString('Fare: PHP 2,800.00 to PHP 2,240.00', $reason);
+        $this->assertStringContainsString('Discount: -PHP 560.00 (20%)', $reason);
+        $this->assertStringContainsString('ID Number: SC-12345', $reason);
+        $this->assertStringContainsString('Reason: Senior citizen ID verified', $reason);
+    }
+
     private function transaction(string $status, ?string $reason = null): CashierTransactionEvent
     {
         return new CashierTransactionEvent([
