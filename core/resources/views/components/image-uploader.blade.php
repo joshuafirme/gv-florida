@@ -10,8 +10,8 @@
     'darkMode'=>false
 ])
 @php
-    $size = $size ?? getFileSize($type);
-    $imagePath = $imagePath ?? getImage(getFilePath($type) . '/' . $image, $size);
+    $size = $size ?? ($type ? getFileSize($type) : null);
+    $imagePath = $imagePath ?? ($type ? getImage(getFilePath($type) . '/' . $image, $size) : null);
 @endphp
 <div {{ $attributes->merge(['class' => 'image--uploader']) }}>
     <div class="image-upload-wrapper">

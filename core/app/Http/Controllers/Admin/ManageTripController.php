@@ -681,7 +681,7 @@ class ManageTripController extends Controller
             ->whereDate('date_of_journey', $date)
             ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
             ->with([
-                'activeSlipSeriesNumbers',
+                'activeSlipSeriesNumbers.onlineValidation.discount',
                 'deposit.userDiscount',
                 'user',
                 'pickup',
@@ -693,6 +693,14 @@ class ManageTripController extends Controller
         foreach ($bookings as $booking) {
             foreach ($booking->activeSlipSeriesNumbers as $slip) {
                 $passenger = $this->passengerResolver->forSeat($booking, (string) $slip->seat);
+                $validation = $slip->onlineValidation;
+                if ($validation?->discount_id) {
+                    $passenger['name'] = $validation->passenger_name ?: $passenger['name'];
+                    $passenger['type'] = $validation->discount?->name ?: 'Discounted';
+                    $passenger['id_number'] = $validation->passenger_id;
+                }
+                $discountApplied = (bool) $validation?->discount_id
+                    || strtolower(trim((string) $passenger['type'])) !== 'regular';
                 $seatId = $seatLayoutService->canonicalSeatId($trip->fleetType, (string) $slip->seat)
                     ?: strtoupper(trim((string) $slip->seat));
                 $haystack = strtolower(implode(' ', [
@@ -707,6 +715,7 @@ class ManageTripController extends Controller
                     'passenger_name' => $passenger['name'],
                     'passenger_type' => $passenger['type'],
                     'passenger_id' => $passenger['id_number'],
+                    'discount_applied' => $discountApplied,
                     'reference' => $slip->id,
                     'destination' => $booking->drop?->name,
                     'km_post' => $booking->drop?->km_post,

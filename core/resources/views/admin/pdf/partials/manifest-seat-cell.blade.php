@@ -51,6 +51,9 @@
             <div class="manifest-passenger">
                 <span class="manifest-reference">No. {{ $manifest['reference'] }}</span>
                 <span class="manifest-passenger-name">{{ $manifest['passenger_name'] }}</span>
+                @if ($manifest['discount_applied'] && $manifest['passenger_id'])
+                    <span class="manifest-passenger-id">ID No. {{ $manifest['passenger_id'] }}</span>
+                @endif
                 <span class="manifest-passenger-dropoff">
                     {{ $manifest['destination'] ?: '-' }}
                     @if ($manifest['km_post'])
