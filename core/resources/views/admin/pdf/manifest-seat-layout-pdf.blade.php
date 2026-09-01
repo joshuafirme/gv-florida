@@ -50,6 +50,7 @@
         .manifest-passenger { clear: both; padding-top: 2px; }
         .manifest-reference { color: #df1768; display: block; font-size: 10px; font-weight: 800; line-height: 1.05; }
         .manifest-passenger-name { display: block; font-size: 6.5px; font-weight: 800; margin-top: 1px; }
+        .manifest-passenger-id { color: #5f6875; display: block; font-size: 5.5px; font-weight: 700; margin-top: 1px; }
         .manifest-passenger-dropoff { display: block; font-size: 6.5px; font-weight: 800; margin-top: 1px; text-transform: uppercase; }
         .manifest-km-post { font-size: 8px; white-space: nowrap; }
         .manifest-type { background: #fff7df; border: .5pt solid #d7ae3e; color: #8a5900; display: inline-block; font-size: 5px; font-weight: 700; margin-top: 1px; padding: 1px 2px; text-transform: uppercase; }
@@ -60,12 +61,14 @@
         .manifest-centered-table { margin: 0 auto; }
         .manifest-page--dense .manifest-reference { font-size: 8px; }
         .manifest-page--dense .manifest-passenger-name, .manifest-page--dense .manifest-passenger-dropoff { font-size: 5.5px; }
+        .manifest-page--dense .manifest-passenger-id { font-size: 5px; }
         .manifest-page--dense .manifest-km-post { font-size: 7px; }
         .manifest-page--compact .manifest-seat-table td, .manifest-page--compact .manifest-centered-table td { padding: 2px; }
         .manifest-page--compact .manifest-seat-number { font-size: 8px; }
         .manifest-page--compact .manifest-seat-status { font-size: 4px; }
         .manifest-page--compact .manifest-reference { font-size: 7px; }
         .manifest-page--compact .manifest-passenger-name, .manifest-page--compact .manifest-passenger-dropoff { font-size: 4.5px; }
+        .manifest-page--compact .manifest-passenger-id { font-size: 4px; margin-top: 0; }
         .manifest-page--compact .manifest-km-post { font-size: 6px; }
     </style>
 </head>

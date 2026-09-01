@@ -63,6 +63,7 @@
         .manifest-passenger { align-items: start; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) minmax(155px, .9fr); margin-top: 7px; }
         .manifest-reference { color: var(--pink); display: block; font-size: 28px; font-weight: 800; line-height: 1.05; }
         .manifest-passenger-name { display: block; font-size: 14px; font-weight: 800; margin-top: 4px; }
+        .manifest-passenger-id { color: #5f6875; display: block; font-size: 11px; font-weight: 700; margin-top: 3px; }
         .manifest-passenger-dropoff { color: #111; font-size: 18px; font-weight: 800; line-height: 1.12; text-align: right; text-transform: uppercase; }
         .manifest-km-post { font-size: 23px; white-space: nowrap; }
         .manifest-type { background: #fff7df; border: 1px solid #efc75a; border-radius: 5px; color: #9a6500; display: inline-block; font-size: 9px; font-weight: 700; margin-top: 7px; padding: 3px 7px; text-transform: uppercase; }
@@ -101,6 +102,7 @@
             .manifest-passenger { display: block; margin-top: 3px; }
             .manifest-reference { font-size: 15px; overflow-wrap: anywhere; }
             .manifest-passenger-name { font-size: 8px; margin-top: 2px; }
+            .manifest-passenger-id { font-size: 6px; margin-top: 1px; }
             .manifest-passenger-dropoff { font-size: 9px; margin-top: 3px; overflow-wrap: anywhere; text-align: left; }
             .manifest-km-post { font-size: 12px; white-space: normal; }
             .manifest-type { font-size: 6px; margin-top: 2px; padding: 1px 3px; }
@@ -112,6 +114,7 @@
             .manifest-page--dense .manifest-seat-number { font-size: 13px; }
             .manifest-page--dense .manifest-reference { font-size: 13px; }
             .manifest-page--dense .manifest-passenger-name { font-size: 7px; }
+            .manifest-page--dense .manifest-passenger-id { font-size: 5.5px; }
             .manifest-page--dense .manifest-passenger-dropoff { font-size: 8px; margin-top: 2px; }
             .manifest-page--dense .manifest-km-post { font-size: 10px; }
             .manifest-page--compact .manifest-seat { padding: 2px 3px; }
@@ -120,6 +123,7 @@
             .manifest-page--compact .manifest-passenger { margin-top: 1px; }
             .manifest-page--compact .manifest-reference { font-size: 11px; }
             .manifest-page--compact .manifest-passenger-name { font-size: 6px; margin-top: 1px; }
+            .manifest-page--compact .manifest-passenger-id { font-size: 5px; margin-top: 0; }
             .manifest-page--compact .manifest-passenger-dropoff { font-size: 7px; margin-top: 1px; }
             .manifest-page--compact .manifest-km-post { font-size: 9px; }
             .manifest-page--compact .manifest-type { font-size: 5px; margin-top: 1px; }
@@ -244,6 +248,9 @@
                                                     <div>
                                                         <span class="manifest-reference">No. {{ $manifest['reference'] }}</span>
                                                         <span class="manifest-passenger-name">{{ $manifest['passenger_name'] }}</span>
+                                                        @if ($manifest['discount_applied'] && $manifest['passenger_id'])
+                                                            <span class="manifest-passenger-id">ID No. {{ $manifest['passenger_id'] }}</span>
+                                                        @endif
                                                     </div>
                                                     <div class="manifest-passenger-dropoff">
                                                         <div>
