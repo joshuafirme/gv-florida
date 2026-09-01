@@ -60,6 +60,8 @@
             font-weight: 700;
             line-height: 1.1;
             text-align: left;
+            overflow-wrap: normal;
+            word-break: normal;
         }
 
         td {
@@ -155,6 +157,17 @@
         .transaction-reason span + span {
             margin-top: 1px;
         }
+
+        .column-label {
+            display: block;
+            line-height: 1.1;
+            white-space: normal;
+        }
+
+        .transaction-datetime {
+            white-space: nowrap;
+            word-break: normal;
+        }
     </style>
 </head>
 <body>
@@ -212,33 +225,33 @@
     <div class="section-title">Detail - Transactions</div>
     <table>
         <colgroup>
-            <col width="7.5%" style="width: 7.5%">
-            <col width="4.5%" style="width: 4.5%">
-            <col width="7%" style="width: 7%">
-            <col width="9%" style="width: 9%">
-            <col width="7%" style="width: 7%">
-            <col width="11%" style="width: 11%">
+            <col width="10%" style="width: 10%">
             <col width="4%" style="width: 4%">
             <col width="7%" style="width: 7%">
-            <col width="9%" style="width: 9%">
             <col width="8%" style="width: 8%">
+            <col width="10%" style="width: 10%">
+            <col width="10%" style="width: 10%">
+            <col width="4%" style="width: 4%">
+            <col width="7%" style="width: 7%">
+            <col width="8.5%" style="width: 8.5%">
+            <col width="7.5%" style="width: 7.5%">
             <col width="6%" style="width: 6%">
-            <col width="25%" style="width: 25%">
+            <col width="18%" style="width: 18%">
         </colgroup>
         <thead>
             <tr>
-                <th style="width: 7.5%">Transaction Date &amp; Time</th>
-                <th style="width: 4.5%">Source</th>
-                <th style="width: 7%">Reference No.</th>
-                <th style="width: 9%">Passenger</th>
-                <th style="width: 7%">Departure</th>
-                <th style="width: 11%">Trip</th>
-                <th style="width: 4%">Seat</th>
-                <th style="width: 7%">Drop-Off</th>
-                <th class="right" style="width: 9%">Payment Details</th>
-                <th class="right" style="width: 8%">Discount / Refund</th>
-                <th style="width: 6%">Status</th>
-                <th style="width: 25%">Reason</th>
+                <th><span class="column-label">Transaction<br>Date &amp; Time</span></th>
+                <th><span class="column-label">Source</span></th>
+                <th><span class="column-label">Reference<br>No.</span></th>
+                <th><span class="column-label">Passenger</span></th>
+                <th><span class="column-label">Departure</span></th>
+                <th><span class="column-label">Trip</span></th>
+                <th><span class="column-label">Seat<br>No.</span></th>
+                <th><span class="column-label">Drop-Off</span></th>
+                <th class="right"><span class="column-label">Payment<br>Details</span></th>
+                <th class="right"><span class="column-label">Discount /<br>Refund</span></th>
+                <th><span class="column-label">Status</span></th>
+                <th><span class="column-label">Reason</span></th>
             </tr>
         </thead>
         <tbody>
@@ -251,9 +264,8 @@
                         : 0;
                 @endphp
                 <tr>
-                    <td>
-                        <strong>{{ $transaction->processed_at->format('M j, Y') }}</strong>
-                        <span class="sub">{{ $transaction->processed_at->format('h:i A') }}</span>
+                    <td class="transaction-datetime">
+                        <strong>{{ $transaction->processed_at->format('M j, Y h:i A') }}</strong>
                     </td>
                     <td>{{ $transaction->source ?: '-' }}</td>
                     <td class="reference">{{ $transaction->reference_no ?: '-' }}</td>
@@ -266,11 +278,8 @@
                             @endif
                         </span>
                     </td>
-                    <td>
-                        <strong>{{ $transaction->journey_date?->format('M j, Y') ?: '-' }}</strong>
-                        <span class="sub">
-                            {{ $transaction->departure_time ? date('h:i A', strtotime($transaction->departure_time)) : '-' }}
-                        </span>
+                    <td class="transaction-datetime">
+                        <strong>{{ $transaction->journey_date?->format('M j, Y') ?: '-' }} {{ $transaction->departure_time ? date('h:i A', strtotime($transaction->departure_time)) : '-' }}</strong>
                     </td>
                     <td>
                         <strong>{{ $transaction->trip_class ?: '-' }}</strong>
