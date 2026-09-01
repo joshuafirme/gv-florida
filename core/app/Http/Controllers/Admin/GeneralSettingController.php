@@ -6,6 +6,7 @@ use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Models\Frontend;
 use App\Rules\FileTypeValidate;
+use App\Services\KioskSettingsService;
 use Illuminate\Http\Request;
 
 class GeneralSettingController extends Controller
@@ -15,6 +16,46 @@ class GeneralSettingController extends Controller
         $pageTitle = 'System Settings';
         $settings = json_decode(file_get_contents(resource_path('views/admin/setting/settings.json')));
         return view('admin.setting.system', compact('pageTitle', 'settings'));
+    }
+
+    public function kioskSettings(KioskSettingsService $kioskSettings)
+    {
+        $pageTitle = 'Kiosk Settings';
+        $heroPath = getFilePath('kioskHero') . '/kiosk-hero.png';
+        $settings = $kioskSettings->get();
+
+        return view('admin.setting.kiosk', compact('pageTitle', 'heroPath', 'settings'));
+    }
+
+    public function kioskSettingsUpdate(Request $request, KioskSettingsService $kioskSettings)
+    {
+        $validated = $request->validate([
+            'hero_image' => ['nullable', 'image', 'max:8192', new FileTypeValidate(['jpg', 'jpeg', 'png'])],
+            'headline' => ['required', 'string', 'max:80'],
+            'tagline' => ['required', 'string', 'max:100'],
+            'button_text' => ['required', 'string', 'max:50'],
+            'benefit_one' => ['required', 'string', 'max:60'],
+            'benefit_two' => ['required', 'string', 'max:60'],
+            'benefit_three' => ['required', 'string', 'max:60'],
+        ]);
+
+        try {
+            if ($request->hasFile('hero_image')) {
+                fileUploader(
+                    $request->hero_image,
+                    getFilePath('kioskHero'),
+                    filename: 'kiosk-hero.png'
+                );
+            }
+
+            $kioskSettings->save($validated);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return back()->withInput()->withNotify([['error', 'Could not update the kiosk settings.']]);
+        }
+
+        return back()->withNotify([['success', 'Kiosk settings updated successfully.']]);
     }
     public function general()
     {

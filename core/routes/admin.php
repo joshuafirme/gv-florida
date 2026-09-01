@@ -365,6 +365,8 @@ Route::middleware('admin')->group(function () {
     Route::controller('GeneralSettingController')->group(function () {
 
         Route::get('system-setting', 'systemSetting')->name('setting.system');
+        Route::get('system-setting/kiosk-settings', 'kioskSettings')->name('setting.kiosk');
+        Route::post('system-setting/kiosk-settings', 'kioskSettingsUpdate')->name('setting.kiosk.update');
 
         // General Setting
         Route::get('general-setting', 'general')->name('setting.general');

@@ -62,6 +62,9 @@ class FileInfo
             'path'      =>'assets/images/maintenance',
             'size'      =>'660x325',
         ];
+        $data['kioskHero'] = [
+            'path'      => 'assets/images/kiosk',
+        ];
         $data['language'] = [
             'path' => 'assets/images/language',
             'size' => '50x50'

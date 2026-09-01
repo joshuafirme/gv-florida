@@ -736,6 +736,7 @@
         "route_name": "admin.setting.system",
         "menu_active": [
             "admin.setting.system",
+            "admin.setting.kiosk",
             "admin.setting.general",
             "admin.setting.socialite.credentials",
             "admin.setting.system.configuration",

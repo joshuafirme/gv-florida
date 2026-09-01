@@ -5,6 +5,10 @@
         $kiosk_id = request()->kiosk_id;
         $allowed_advance_booking_days = getAllowedAdvanceBookingDays($kiosk_id);
         $advance_window_end = now()->startOfDay()->addDays($allowed_advance_booking_days);
+        $kioskHeroPath = getFilePath('kioskHero') . '/kiosk-hero.png';
+        $kioskHeroVersion = file_exists($kioskHeroPath) ? filemtime($kioskHeroPath) : appVersion();
+        $kioskHeroUrl = getImage($kioskHeroPath) . '?v=' . $kioskHeroVersion;
+        $kioskHeroCopy = $kiosk_id ? app(\App\Services\KioskSettingsService::class)->get() : [];
     @endphp
     @if ($kiosk_id)
         @php
@@ -560,7 +564,59 @@
                 transform: rotate(90deg);
             }
         }
+
+        .kiosk-idle-hero{background:#151a20;color:#fff;inset:0;overflow:hidden;pointer-events:none;position:fixed;transform:translateY(-105%);transition:transform .62s cubic-bezier(.76,0,.24,1),visibility 0s linear .62s;visibility:hidden;z-index:10000}
+        .kiosk-idle-hero.is-active{pointer-events:auto;transform:translateY(0);transition:transform .62s cubic-bezier(.76,0,.24,1);visibility:visible}
+        .kiosk-idle-hero.is-leaving{pointer-events:none;transform:translateY(-105%)}
+        .kiosk-idle-hero__image{height:100%;inset:0;object-fit:cover;object-position:center;position:absolute;width:100%}
+        .kiosk-idle-hero__shade{background:linear-gradient(180deg,rgba(255,255,255,.28) 0%,rgba(255,255,255,.06) 42%,rgba(10,14,18,.82) 100%);inset:0;position:absolute}
+        .kiosk-idle-hero__content{align-items:center;display:flex;flex-direction:column;height:100%;justify-content:space-between;padding:7vh 6vw 5vh;position:relative;text-align:center;z-index:1}
+        .kiosk-idle-hero__headline{align-items:center;display:flex;flex-direction:column}
+        .kiosk-idle-hero__route-mark{align-items:center;color:var(--booking-primary);display:flex;gap:22px;margin-bottom:18px}
+        .kiosk-idle-hero__route-mark::before,.kiosk-idle-hero__route-mark::after{background:currentColor;content:'';height:3px;width:110px}
+        .kiosk-idle-hero__route-mark i{font-size:42px}
+        .kiosk-idle-hero h1{color:#20252c;font-size:112px;font-weight:900;letter-spacing:0;line-height:.82;margin:0;text-shadow:0 2px 0 rgba(255,255,255,.15);white-space:pre-line}
+        .kiosk-idle-hero__tagline{align-items:center;color:var(--booking-primary);display:flex;font-size:22px;font-weight:800;gap:18px;margin:28px 0 0;text-transform:uppercase}
+        .kiosk-idle-hero__tagline::before,.kiosk-idle-hero__tagline::after{background:currentColor;content:'';height:2px;width:70px}
+        .kiosk-idle-hero__footer{width:min(900px,100%)}
+        .kiosk-idle-hero__benefits{align-items:stretch;display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:28px}
+        .kiosk-idle-hero__benefit{align-items:center;border-right:1px solid rgba(255,255,255,.45);display:flex;font-size:15px;font-weight:700;gap:10px;justify-content:center;padding:4px 18px;text-align:left;text-transform:uppercase;white-space:pre-line}
+        .kiosk-idle-hero__benefit:last-child{border-right:0}
+        .kiosk-idle-hero__benefit i{border:2px solid #fff;border-radius:50%;display:grid;font-size:21px;height:48px;place-items:center;width:48px}
+        .kiosk-idle-hero__cta{align-items:center;background:#fff;border:0;border-radius:999px;box-shadow:0 10px 28px rgba(0,0,0,.24);color:var(--booking-primary);display:inline-flex;font-size:22px;font-weight:900;gap:14px;justify-content:center;min-height:66px;padding:12px 42px;text-transform:uppercase}
+        .kiosk-idle-hero__cta i{background:var(--booking-primary);border-radius:50%;color:#fff;display:grid;font-size:26px;height:44px;place-items:center;width:44px}
+        body.kiosk-attract-active{overflow:hidden}
+        @media(max-width:991px){.kiosk-idle-hero__content{padding:6vh 5vw 4vh}.kiosk-idle-hero h1{font-size:76px}.kiosk-idle-hero__tagline{font-size:18px}.kiosk-idle-hero__benefit{font-size:12px;padding:4px 10px}}
+        @media(max-width:575px){.kiosk-idle-hero__content{padding:5vh 18px 4vh}.kiosk-idle-hero__route-mark{gap:14px}.kiosk-idle-hero__route-mark::before,.kiosk-idle-hero__route-mark::after{width:52px}.kiosk-idle-hero__route-mark i{font-size:32px}.kiosk-idle-hero h1{font-size:54px;line-height:.86}.kiosk-idle-hero__tagline{font-size:13px;gap:8px;margin-top:18px}.kiosk-idle-hero__tagline::before,.kiosk-idle-hero__tagline::after{width:24px}.kiosk-idle-hero__benefits{gap:8px;margin-bottom:18px}.kiosk-idle-hero__benefit{border:0;display:block;font-size:9px;padding:0;text-align:center}.kiosk-idle-hero__benefit i{height:38px;margin:0 auto 6px;width:38px}.kiosk-idle-hero__cta{font-size:17px;min-height:56px;padding:8px 26px}.kiosk-idle-hero__cta i{font-size:21px;height:38px;width:38px}}
+        @media(orientation:landscape) and (max-height:700px){.kiosk-idle-hero__content{padding:5vh 5vw}.kiosk-idle-hero h1{font-size:64px}.kiosk-idle-hero__tagline{font-size:14px;margin-top:14px}.kiosk-idle-hero__benefits{margin-bottom:12px}.kiosk-idle-hero__benefit i{height:38px;width:38px}.kiosk-idle-hero__cta{font-size:17px;min-height:52px}}
     </style>
+
+    @if ($kiosk_id)
+        <section class="kiosk-idle-hero" id="kioskIdleHero" role="button" tabindex="-1"
+            aria-label="{{ str_replace(["\r", "\n"], ' ', $kioskHeroCopy['headline']) }}. {{ $kioskHeroCopy['button_text'] }}."
+            aria-hidden="true">
+            <img class="kiosk-idle-hero__image" src="{{ $kioskHeroUrl }}" alt="Florida bus on a scenic route">
+            <span class="kiosk-idle-hero__shade" aria-hidden="true"></span>
+            <div class="kiosk-idle-hero__content">
+                <div class="kiosk-idle-hero__headline">
+                    <span class="kiosk-idle-hero__route-mark" aria-hidden="true"><i class="fas fa-bus"></i></span>
+                    <h1>{{ $kioskHeroCopy['headline'] }}</h1>
+                    <p class="kiosk-idle-hero__tagline">{{ $kioskHeroCopy['tagline'] }}</p>
+                </div>
+                <div class="kiosk-idle-hero__footer">
+                    <div class="kiosk-idle-hero__benefits" aria-hidden="true">
+                        <span class="kiosk-idle-hero__benefit"><i class="fas fa-chair"></i> {{ $kioskHeroCopy['benefit_one'] }}</span>
+                        <span class="kiosk-idle-hero__benefit"><i class="fas fa-shield-alt"></i> {{ $kioskHeroCopy['benefit_two'] }}</span>
+                        <span class="kiosk-idle-hero__benefit"><i class="fas fa-map-marker-alt"></i> {{ $kioskHeroCopy['benefit_three'] }}</span>
+                    </div>
+                    <span class="kiosk-idle-hero__cta" aria-hidden="true">
+                        <i class="fas fa-hand-pointer"></i> {{ $kioskHeroCopy['button_text'] }}
+                    </span>
+                </div>
+            </div>
+        </section>
+    @endif
+
     <div class="ticket-search-bar {{ $kiosk_id ? 'ticket-search-bar--kiosk' : '' }} bg_img"
         style="background: url({{ getImage('assets/templates/basic/images/search_bg.jpg') }}) left center;">
         <div class="container">
@@ -994,33 +1050,54 @@
         (function($) {
             "use strict";
 
-            // 1 minute in milliseconds
-            const IDLE_TIMEOUT = 60000;
-            let idleTimer;
+            @if ($kiosk_id)
+                const IDLE_TIMEOUT = 60000;
+                const EXIT_DURATION = 650;
+                const idleHero = document.getElementById('kioskIdleHero');
+                let idleTimer;
+                let isExiting = false;
 
-            function reloadPage() {
-                window.location.reload();
-            }
+                function showIdleHero() {
+                    idleHero.classList.remove('is-leaving');
+                    idleHero.classList.add('is-active');
+                    idleHero.setAttribute('aria-hidden', 'false');
+                    idleHero.setAttribute('tabindex', '0');
+                    document.body.classList.add('kiosk-attract-active');
+                    idleHero.focus({ preventScroll: true });
+                }
 
-            function resetTimer() {
-                clearTimeout(idleTimer);
-                idleTimer = setTimeout(reloadPage, IDLE_TIMEOUT);
-            }
+                function resetIdleTimer() {
+                    if (idleHero.classList.contains('is-active') || isExiting) return;
+                    clearTimeout(idleTimer);
+                    idleTimer = setTimeout(showIdleHero, IDLE_TIMEOUT);
+                }
 
-            const activityEvents = [
-                'mousemove',
-                'mousedown',
-                'keydown',
-                'scroll',
-                'touchstart',
-                'click'
-            ];
+                function exitIdleHero() {
+                    if (isExiting) return;
+                    isExiting = true;
+                    clearTimeout(idleTimer);
+                    idleHero.classList.add('is-leaving');
 
-            activityEvents.forEach(function(event) {
-                document.addEventListener(event, resetTimer, true);
-            });
+                    window.setTimeout(function() {
+                        window.location.reload();
+                    }, EXIT_DURATION);
+                }
 
-            resetTimer();
+                ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(function(eventName) {
+                    document.addEventListener(eventName, resetIdleTimer, { capture: true, passive: true });
+                });
+                idleHero.addEventListener('click', exitIdleHero);
+                idleHero.addEventListener('keydown', function(event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        exitIdleHero();
+                    }
+                });
+                document.addEventListener('visibilitychange', function() {
+                    if (!document.hidden) resetIdleTimer();
+                });
+                resetIdleTimer();
+            @endif
 
             $('.select2').select2();
 
