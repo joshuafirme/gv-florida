@@ -18,18 +18,34 @@
         getDroppingPoints(pickup);
     }
 
+    $('input[name=date_of_journey]').on('change', function () {
+        let selectedPickup = $('select[name=pickup]').first().val();
+        if (selectedPickup) {
+            getDroppingPoints(selectedPickup);
+        }
+    });
+
     function getDroppingPoints(counter_id) {
         let host = window.location.hostname;
         let url = '/trip/dropping-points/';
         const pageParams = new URLSearchParams(window.location.search);
         const kioskId = pageParams.get('kiosk_id');
+        const journeyDate = $('input[name=date_of_journey]').first().val()
+            || pageParams.get('date_of_journey');
 
         // Preserve your local environment routing
         if (host.includes('local')) {
             url = '/gv-florida/trip/dropping-points/';
         }
 
-        const channelQuery = kioskId ? `?kiosk_id=${encodeURIComponent(kioskId)}` : '';
+        const requestParams = new URLSearchParams();
+        if (kioskId) {
+            requestParams.set('kiosk_id', kioskId);
+        }
+        if (journeyDate) {
+            requestParams.set('date_of_journey', journeyDate);
+        }
+        const channelQuery = requestParams.toString() ? `?${requestParams.toString()}` : '';
 
         fetch(url + counter_id + channelQuery)
             .then(response => response.json())
