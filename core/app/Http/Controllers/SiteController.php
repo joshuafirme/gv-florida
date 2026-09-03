@@ -34,7 +34,12 @@ class SiteController extends Controller
         $sections = Page::where('tempname', activeTemplate())->where('slug', '/')->first();
         $seoContents = $sections->seo_content;
         $seoImage = @$seoContents->image ? getImage(getFilePath('seo') . '/' . @$seoContents->image, getFileSize('seo')) : null;
-        $counters = Counter::active()->get();
+        $originTrips = Trip::query()
+            ->active()
+            ->forBookingChannel(request()->kiosk_id, request()->date_of_journey)
+            ->whereHas('schedule');
+        $counters = $this->availableOriginCounters($originTrips);
+
         return view('Template::home', compact('pageTitle', 'sections', 'seoContents', 'seoImage', 'counters'));
     }
 
@@ -233,8 +238,27 @@ class SiteController extends Controller
             $trips_query->whereIntegerInRaw('id', $tripIds);
         }
 
+        $originTripsQuery = clone $trips_query;
+        if ($request->date_of_journey) {
+            $originTripsQuery->whereJsonDoesntContain(
+                'day_off',
+                Carbon::parse($request->date_of_journey)->format('w')
+            );
+        }
+        $counters = $this->availableOriginCounters($originTripsQuery);
+
+        if ($request->kiosk_id && $request->counter_id) {
+            $counters = $counters
+                ->where('id', (int) $request->counter_id)
+                ->values();
+        }
+
         $pickup = $request->pickup ?: $request->counter_id;
         $destination = $request->destination ?: $request->selected_destination;
+
+        if ($pickup) {
+            $trips_query->where('start_from', (int) $pickup);
+        }
 
         // -------------------------------
         // 4. MAIN FILTER LOGIC
@@ -294,10 +318,6 @@ class SiteController extends Controller
             // Partial Filters (Only pickup or only destination)
             if ($pickup) {
                 Session::flash('pickup', $pickup);
-                $trips_query->whereHas('route', function ($route) use ($pickup) {
-                    $route->whereJsonContains('stoppages', (string) $pickup)
-                        ->orWhereJsonContains('stoppages', (int) $pickup);
-                });
             }
 
             if ($destination) {
@@ -328,12 +348,6 @@ class SiteController extends Controller
         $fleetType = FleetType::active()->get();
         $schedules = Schedule::all();
         $routes = VehicleRoute::active()->get();
-
-        $counters = Counter::active();
-        if ($request->kiosk_id && $request->counter_id) {
-            $counters->where('id', $request->counter_id);
-        }
-        $counters = $counters->get();
 
         $layout = auth()->check() ? 'layouts.master' : 'layouts.frontend';
 
@@ -880,10 +894,23 @@ class SiteController extends Controller
 
     public function getDroppingPoints(Request $request, $counter_id)
     {
-        // Fetch active trips to map exact travel sequences
-        $tripsQuery = Trip::with('route')
-            ->active()
-            ->forBookingChannel($request->kiosk_id, $request->date_of_journey);
+        if ($request->kiosk_id) {
+            $kiosk = Kiosk::active()->find($request->kiosk_id);
+            if (!$kiosk || (int) $kiosk->counter_id !== (int) $counter_id) {
+                return response()->json([]);
+            }
+        }
+
+        // Pickup points represent a trip's configured origin, not any intermediate route stop.
+        $tripsQuery = $this->getTripQuery()
+            ->where('start_from', (int) $counter_id);
+
+        if ($request->date_of_journey) {
+            $tripsQuery->whereJsonDoesntContain(
+                'day_off',
+                Carbon::parse($request->date_of_journey)->format('w')
+            );
+        }
 
         $trips = $tripsQuery->get();
         $validDroppingIds = [];
@@ -971,6 +998,21 @@ class SiteController extends Controller
         }
 
         return response()->json($dropping_counters);
+    }
+
+    private function availableOriginCounters($tripsQuery)
+    {
+        $originIds = (clone $tripsQuery)
+            ->reorder()
+            ->select('start_from')
+            ->distinct()
+            ->pluck('start_from')
+            ->filter();
+
+        return Counter::active()
+            ->whereIn('id', $originIds)
+            ->orderBy('name')
+            ->get();
     }
 
     public function placeholderImage($size = null)
