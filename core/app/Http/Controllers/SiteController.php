@@ -34,10 +34,10 @@ class SiteController extends Controller
         $sections = Page::where('tempname', activeTemplate())->where('slug', '/')->first();
         $seoContents = $sections->seo_content;
         $seoImage = @$seoContents->image ? getImage(getFilePath('seo') . '/' . @$seoContents->image, getFileSize('seo')) : null;
-        $originTrips = Trip::query()
-            ->active()
-            ->forBookingChannel(request()->kiosk_id, request()->date_of_journey)
-            ->whereHas('schedule');
+        $originTrips = $this->getOriginTripQuery(
+            request()->kiosk_id,
+            request()->date_of_journey
+        );
         $counters = $this->availableOriginCounters($originTrips);
 
         return view('Template::home', compact('pageTitle', 'sections', 'seoContents', 'seoImage', 'counters'));
@@ -238,7 +238,14 @@ class SiteController extends Controller
             $trips_query->whereIntegerInRaw('id', $tripIds);
         }
 
-        $originTripsQuery = clone $trips_query;
+        $originTripsQuery = $this->getOriginTripQuery(
+            $request->kiosk_id,
+            $request->date_of_journey
+        );
+        if ($request->kiosk_id) {
+            $originTripsQuery->whereIntegerInRaw('id', $tripIds);
+        }
+
         if ($request->date_of_journey) {
             $originTripsQuery->whereJsonDoesntContain(
                 'day_off',
@@ -902,7 +909,11 @@ class SiteController extends Controller
         }
 
         // Pickup points represent a trip's configured origin, not any intermediate route stop.
-        $tripsQuery = $this->getTripQuery()
+        $tripsQuery = $this->getOriginTripQuery(
+            $request->kiosk_id,
+            $request->date_of_journey
+        )
+            ->with('route')
             ->where('start_from', (int) $counter_id);
 
         if ($request->date_of_journey) {
@@ -1013,6 +1024,14 @@ class SiteController extends Controller
             ->whereIn('id', $originIds)
             ->orderBy('name')
             ->get();
+    }
+
+    private function getOriginTripQuery($kioskId = null, $journeyDate = null)
+    {
+        return Trip::query()
+            ->active()
+            ->forBookingChannel($kioskId, $journeyDate)
+            ->whereHas('schedule');
     }
 
     public function placeholderImage($size = null)
