@@ -192,7 +192,8 @@ class ProcessController extends Controller
 
         if (
             (int) $deposit->status === Status::PAYMENT_SUCCESS
-            || ($ticket->isKioskBooking() && (int) $deposit->status === Status::PAYMENT_PENDING)
+            || ((int) $deposit->status === Status::PAYMENT_PENDING
+                && ($ticket->isKioskBooking() || Paynamics::isSandbox()))
         ) {
             return to_route('user.deposit.done');
         }
@@ -429,7 +430,7 @@ class ProcessController extends Controller
             Status::PAYMENT_SUCCESS => 'success',
             Status::PAYMENT_REJECT => 'failed',
             Status::PAYMENT_EXPIRED => 'expired',
-            default => 'pending',
+            default => $this->providerTransactionState($transaction),
         };
         $details = $this->callbackDetails($deposit, $transaction, $state);
 
@@ -443,6 +444,17 @@ class ProcessController extends Controller
             'updated_at' => $deposit->updated_at?->toIso8601String(),
             'details' => $details,
         ];
+    }
+
+    private function providerTransactionState(mixed $transaction): string
+    {
+        $responseCode = strtoupper(trim((string) data_get($transaction, 'response_code')));
+
+        return match ($responseCode) {
+            '', 'GR033' => 'pending',
+            'GR001' => 'success',
+            default => 'failed',
+        };
     }
 
     private function restoreBookingSession(BookedTicket $ticket, Deposit $deposit): void

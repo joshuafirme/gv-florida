@@ -24,6 +24,7 @@ class PaynamicsWebhookLoggingTest extends TestCase
             $table->string('trx')->nullable();
             $table->string('pay_reference')->nullable();
             $table->unsignedTinyInteger('status')->default(0);
+            $table->timestamp('expiry_limit')->nullable();
             $table->timestamps();
         });
 
