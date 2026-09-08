@@ -390,11 +390,22 @@ class DepositController extends Controller
             ])],
         ]);
 
-        $deposit = Deposit::findOrFail($validated['deposit_id']);
-        $deposit->status = (int) $validated['status'];
-        $deposit->processed_by_admin_id = auth('admin')->id();
-        $deposit->processed_by_name = auth('admin')->user()->name;
-        $deposit->save();
+        DB::transaction(function () use ($validated) {
+            $deposit = Deposit::whereKey($validated['deposit_id'])->lockForUpdate()->firstOrFail();
+            $deposit->status = (int) $validated['status'];
+            $deposit->processed_by_admin_id = auth('admin')->id();
+            $deposit->processed_by_name = auth('admin')->user()->name;
+            $deposit->save();
+
+            if ((int) $validated['status'] === Status::PAYMENT_SUCCESS && $deposit->booked_ticket_id) {
+                $bookedTicket = BookedTicket::whereKey($deposit->booked_ticket_id)->lockForUpdate()->first();
+
+                if ($bookedTicket) {
+                    $bookedTicket->status = Status::BOOKED_APPROVED;
+                    $bookedTicket->save();
+                }
+            }
+        });
 
         $notify[] = ['success', 'Payment status overridden successfully'];
         return back()->withNotify($notify);

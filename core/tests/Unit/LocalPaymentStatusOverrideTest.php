@@ -20,9 +20,16 @@ class LocalPaymentStatusOverrideTest extends TestCase
 
         Schema::create('deposits', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('booked_ticket_id')->nullable();
             $table->unsignedTinyInteger('status')->default(Status::PAYMENT_INITIATE);
             $table->unsignedBigInteger('processed_by_admin_id')->nullable();
             $table->string('processed_by_name')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('booked_tickets', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedTinyInteger('status')->default(Status::BOOKED_PENDING);
             $table->timestamps();
         });
     }
@@ -38,7 +45,13 @@ class LocalPaymentStatusOverrideTest extends TestCase
     {
         $this->app['env'] = 'local';
 
+        $ticketId = DB::table('booked_tickets')->insertGetId([
+            'status' => Status::BOOKED_PENDING,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
         $depositId = DB::table('deposits')->insertGetId([
+            'booked_ticket_id' => $ticketId,
             'status' => Status::PAYMENT_PENDING,
             'created_at' => now(),
             'updated_at' => now(),
@@ -62,6 +75,10 @@ class LocalPaymentStatusOverrideTest extends TestCase
             'status' => Status::PAYMENT_SUCCESS,
             'processed_by_admin_id' => 7,
             'processed_by_name' => 'Local Admin',
+        ]);
+        $this->assertDatabaseHas('booked_tickets', [
+            'id' => $ticketId,
+            'status' => Status::BOOKED_APPROVED,
         ]);
     }
 }
