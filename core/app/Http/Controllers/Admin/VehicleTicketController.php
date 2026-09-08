@@ -1569,8 +1569,8 @@ class VehicleTicketController extends Controller
 
     public function rebookingOptions(Request $request, $id)
     {
-        $ticket = $this->rebookingTicket($id);
         $slipId = $request->integer('slip_id') ?: null;
+        $ticket = $this->rebookingTicket($id, $slipId);
         $targetSlips = $this->rebookingSlips($ticket, $slipId);
         $eligibility = $this->assertAdminRebookingEligible($ticket, $targetSlips);
         $routeParams = $slipId ? [$ticket->id, 'slip_id' => $slipId] : [$ticket->id];
@@ -1617,8 +1617,9 @@ class VehicleTicketController extends Controller
             'trip_id' => 'nullable|required_if:type,new_trip|integer',
         ]);
 
-        $ticket = $this->rebookingTicket($id);
-        $targetSlips = $this->rebookingSlips($ticket, $request->integer('slip_id') ?: null);
+        $slipId = $request->integer('slip_id') ?: null;
+        $ticket = $this->rebookingTicket($id, $slipId);
+        $targetSlips = $this->rebookingSlips($ticket, $slipId);
         $this->assertAdminRebookingEligible($ticket, $targetSlips);
         [$trip, $date] = $this->resolveRebookingTarget($ticket, $validated);
         $availability = $this->seatAvailability($ticket, $trip, $date, false, $targetSlips);
@@ -1661,20 +1662,7 @@ class VehicleTicketController extends Controller
         );
 
         $result = DB::transaction(function () use ($id, $validated, $slipId, $authorizedBy) {
-            $ticket = BookedTicket::query()
-                ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
-                ->with([
-                    'trip.route',
-                    'trip.schedule',
-                    'trip.fleetType',
-                    'pickup',
-                    'drop',
-                    'activeSlipSeriesNumbers',
-                    'deposit.userDiscount',
-                    'paymentSourceDeposit.userDiscount',
-                ])
-                ->lockForUpdate()
-                ->findOrFail($id);
+            $ticket = $this->rebookingTicket($id, $slipId, true);
             $targetSlips = $this->rebookingSlips($ticket, $slipId);
             $eligibility = $this->assertAdminRebookingEligible($ticket, $targetSlips);
             [$trip, $date] = $this->resolveRebookingTarget($ticket, $validated, true);
@@ -1774,9 +1762,31 @@ class VehicleTicketController extends Controller
         ]);
     }
 
-    private function rebookingTicket($id)
+    private function rebookingTicket($id, ?int $slipId = null, bool $lockForUpdate = false)
     {
-        return BookedTicket::query()
+        $ticketId = (int) $id;
+
+        if ($slipId) {
+            $slipQuery = SlipSeriesNumber::query()
+                ->whereDoesntHave('refund')
+                ->whereDoesntHave('cancellation')
+                ->whereDoesntHave('voidRecord')
+                ->whereKey($slipId);
+
+            if ($lockForUpdate) {
+                $slipQuery->lockForUpdate();
+            }
+
+            $ticketId = (int) $slipQuery->value('booked_ticket_id');
+
+            if (!$ticketId) {
+                throw ValidationException::withMessages([
+                    'slip_id' => 'The selected reference number is no longer active for rebooking.',
+                ]);
+            }
+        }
+
+        $query = BookedTicket::query()
             ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
             ->with([
                 'trip.route',
@@ -1789,8 +1799,13 @@ class VehicleTicketController extends Controller
                 'deposit.userDiscount',
                 'paymentSourceDeposit.userDiscount',
                 'user',
-            ])
-            ->findOrFail($id);
+            ]);
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+
+        return $query->findOrFail($ticketId);
     }
 
     private function rebookingSlips(BookedTicket $ticket, ?int $slipId = null)
@@ -2429,10 +2444,17 @@ class VehicleTicketController extends Controller
         ?int $slipId = null,
         ?string $reason = null
     ): array {
-        $ticket = BookedTicket::with('activeSlipSeriesNumbers:id,booked_ticket_id,seat')->find($bookingId);
         $slip = $slipId
-            ? $ticket?->activeSlipSeriesNumbers->firstWhere('id', $slipId)
-            : $ticket?->activeSlipSeriesNumbers->first();
+            ? SlipSeriesNumber::query()
+                ->whereDoesntHave('refund')
+                ->whereDoesntHave('cancellation')
+                ->whereDoesntHave('voidRecord')
+                ->with('bookedTicket:id,pnr_number')
+                ->find($slipId)
+            : null;
+        $ticket = $slip?->bookedTicket
+            ?: BookedTicket::with('activeSlipSeriesNumbers:id,booked_ticket_id,seat')->find($bookingId);
+        $slip ??= $ticket?->activeSlipSeriesNumbers->first();
 
         return [
             'booked_ticket_id' => $ticket?->id,
