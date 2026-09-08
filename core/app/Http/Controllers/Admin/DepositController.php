@@ -7,6 +7,7 @@ use App\Models\Deposit;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\BookedTicket;
+use App\Services\CashierTransactionRecorder;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -390,7 +391,7 @@ class DepositController extends Controller
             ])],
         ]);
 
-        DB::transaction(function () use ($validated) {
+        $successfulDeposit = DB::transaction(function () use ($validated) {
             $deposit = Deposit::whereKey($validated['deposit_id'])->lockForUpdate()->firstOrFail();
             $deposit->status = (int) $validated['status'];
             $deposit->processed_by_admin_id = auth('admin')->id();
@@ -403,9 +404,22 @@ class DepositController extends Controller
                 if ($bookedTicket) {
                     $bookedTicket->status = Status::BOOKED_APPROVED;
                     $bookedTicket->save();
+                    $bookedTicket->ensureSlipSeriesNumbers();
+
+                    return $deposit;
                 }
             }
+
+            return null;
         });
+
+        if ($successfulDeposit) {
+            try {
+                app(CashierTransactionRecorder::class)->recordSold($successfulDeposit);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
 
         $notify[] = ['success', 'Payment status overridden successfully'];
         return back()->withNotify($notify);

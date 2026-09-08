@@ -5,6 +5,8 @@ namespace Tests\Unit;
 use App\Constants\Status;
 use App\Http\Controllers\Admin\DepositController;
 use App\Models\Admin;
+use App\Models\Deposit;
+use App\Services\CashierTransactionRecorder;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +32,14 @@ class LocalPaymentStatusOverrideTest extends TestCase
         Schema::create('booked_tickets', function (Blueprint $table) {
             $table->id();
             $table->unsignedTinyInteger('status')->default(Status::BOOKED_PENDING);
+            $table->text('seats')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('slip_series_numbers', function (Blueprint $table) {
+            $table->id();
+            $table->string('seat');
+            $table->unsignedBigInteger('booked_ticket_id');
             $table->timestamps();
         });
     }
@@ -47,6 +57,7 @@ class LocalPaymentStatusOverrideTest extends TestCase
 
         $ticketId = DB::table('booked_tickets')->insertGetId([
             'status' => Status::BOOKED_PENDING,
+            'seats' => json_encode(['D1', 'D2']),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -62,6 +73,12 @@ class LocalPaymentStatusOverrideTest extends TestCase
             'name' => 'Local Admin',
         ]);
         auth('admin')->setUser($admin);
+
+        $recorder = \Mockery::mock(CashierTransactionRecorder::class);
+        $recorder->shouldReceive('recordSold')
+            ->once()
+            ->with(\Mockery::on(fn (Deposit $deposit) => $deposit->id === $depositId));
+        $this->app->instance(CashierTransactionRecorder::class, $recorder);
 
         $request = Request::create('/admin/deposit/status-override', 'POST', [
             'deposit_id' => $depositId,
@@ -79,6 +96,14 @@ class LocalPaymentStatusOverrideTest extends TestCase
         $this->assertDatabaseHas('booked_tickets', [
             'id' => $ticketId,
             'status' => Status::BOOKED_APPROVED,
+        ]);
+        $this->assertDatabaseHas('slip_series_numbers', [
+            'booked_ticket_id' => $ticketId,
+            'seat' => 'D1',
+        ]);
+        $this->assertDatabaseHas('slip_series_numbers', [
+            'booked_ticket_id' => $ticketId,
+            'seat' => 'D2',
         ]);
     }
 }
