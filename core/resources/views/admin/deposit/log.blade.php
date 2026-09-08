@@ -377,6 +377,17 @@
                                                         title="@lang('View payment')">
                                                         <i class="las la-eye"></i>
                                                     </a>
+                                                    @if ($status === 'all' && app()->environment('local'))
+                                                        <button type="button"
+                                                            class="pending-action-btn payment-status-override-btn"
+                                                            data-deposit-id="{{ $deposit->id }}"
+                                                            data-payment-request="{{ $deposit->trx }}"
+                                                            data-payment-status="{{ $deposit->status }}"
+                                                            title="@lang('Change payment status')"
+                                                            aria-label="@lang('Change payment status')">
+                                                            <i class="las la-exchange-alt"></i>
+                                                        </button>
+                                                    @endif
                                                 </div>
                                             </td>
                                         </tr>
@@ -671,6 +682,41 @@
                         <div class="modal-footer">
                             <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
                             <button type="submit" class="btn btn--danger">Reject Payment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($status === 'all' && app()->environment('local'))
+        <div class="modal fade" id="paymentStatusOverrideModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@lang('Change Payment Status')</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@lang('Close')"></button>
+                    </div>
+                    <form method="POST" action="{{ route('admin.deposit.status.override') }}" id="paymentStatusOverrideForm">
+                        @csrf
+                        <input type="hidden" name="deposit_id" id="paymentStatusOverrideDepositId">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">@lang('Payment Request ID')</label>
+                                <div class="fw-bold" id="paymentStatusOverrideRequestId">-</div>
+                            </div>
+                            <label class="form-label" for="paymentStatusOverrideSelect">@lang('Payment Status')</label>
+                            <select class="form-control" name="status" id="paymentStatusOverrideSelect" required>
+                                <option value="{{ Status::PAYMENT_INITIATE }}">@lang('Initiated')</option>
+                                <option value="{{ Status::PAYMENT_PENDING }}">@lang('Pending')</option>
+                                <option value="{{ Status::PAYMENT_SUCCESS }}">@lang('Successful')</option>
+                                <option value="{{ Status::PAYMENT_REJECT }}">@lang('Rejected')</option>
+                                <option value="{{ Status::PAYMENT_EXPIRED }}">@lang('Expired')</option>
+                            </select>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">@lang('Cancel')</button>
+                            <button type="submit" class="btn btn--primary">@lang('Save')</button>
                         </div>
                     </form>
                 </div>
@@ -1363,6 +1409,19 @@
                         .text(expanding ? @json(__('View less')) : @json(__('View more')));
                 });
             });
+
+            @if ($status === 'all' && app()->environment('local'))
+                const paymentStatusOverrideModal = new bootstrap.Modal(
+                    document.getElementById('paymentStatusOverrideModal')
+                );
+
+                $(document).on('click', '.payment-status-override-btn', function() {
+                    $('#paymentStatusOverrideDepositId').val($(this).data('deposit-id'));
+                    $('#paymentStatusOverrideRequestId').text($(this).data('payment-request') || '-');
+                    $('#paymentStatusOverrideSelect').val(String($(this).data('payment-status')));
+                    paymentStatusOverrideModal.show();
+                });
+            @endif
 
             @if ($status == 'pending')
                 const currencyFormatter = new Intl.NumberFormat('en-PH', {

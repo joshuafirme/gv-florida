@@ -375,6 +375,31 @@ class DepositController extends Controller
         ];
     }
 
+    public function overrideStatus(Request $request)
+    {
+        abort_unless(app()->environment('local'), 404);
+
+        $validated = $request->validate([
+            'deposit_id' => ['required', 'integer', 'exists:deposits,id'],
+            'status' => ['required', Rule::in([
+                Status::PAYMENT_INITIATE,
+                Status::PAYMENT_PENDING,
+                Status::PAYMENT_SUCCESS,
+                Status::PAYMENT_REJECT,
+                Status::PAYMENT_EXPIRED,
+            ])],
+        ]);
+
+        $deposit = Deposit::findOrFail($validated['deposit_id']);
+        $deposit->status = (int) $validated['status'];
+        $deposit->processed_by_admin_id = auth('admin')->id();
+        $deposit->processed_by_name = auth('admin')->user()->name;
+        $deposit->save();
+
+        $notify[] = ['success', 'Payment status overridden successfully'];
+        return back()->withNotify($notify);
+    }
+
     public function details($id)
     {
         $deposit = Deposit::where('id', $id)->with([
