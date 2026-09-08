@@ -179,6 +179,7 @@
         const details=[
             row('Reference No.',ticket.reference_no),row('Payment Request No.',ticket.request_no),row('PNR',ticket.pnr),
             row('Passenger',ticket.passenger_name),row('Passenger Type',ticket.passenger_type+(ticket.passenger_id?` - ID ${ticket.passenger_id}`:'')),
+            row('Email Address',ticket.passenger_email||'-'),row('Phone Number',ticket.passenger_phone||'-'),
             row('Trip',`${ticket.trip_class} - ${ticket.trip_route}`),row('Journey',`${ticket.journey_date} - ${ticket.departure_time}`),
             row('Seat No.',ticket.seat),row('Drop-Off',`${ticket.drop_off}${ticket.km_post?` - KM ${ticket.km_post}`:''}`),
             row('Fare Paid Online',money.format(ticket.original_fare)),

@@ -244,6 +244,7 @@ class OnlineTicketValidationController extends Controller
         $ticket = $slip->bookedTicket;
         $payment = $ticket->payment_record;
         $validation = $slip->onlineValidation;
+        $contact = $this->passengerContact($ticket);
         $snapshot = $this->transactionRecorder->ticketSnapshotFor($ticket, $slip);
         $originalFare = (float) ($validation?->original_fare ?: ($snapshot['fare'] ?? 0));
         $discountAmount = (float) ($validation?->discount_amount ?? 0);
@@ -264,6 +265,8 @@ class OnlineTicketValidationController extends Controller
             'booking_passenger_name' => $this->providedPassengerName($snapshot['passenger_name'] ?? null),
             'passenger_type' => $validation?->discount?->name ?: ($snapshot['passenger_type'] ?? 'Regular'),
             'passenger_id' => $validation?->passenger_id ?: ($snapshot['passenger_id'] ?? null),
+            'passenger_email' => $contact['email'],
+            'passenger_phone' => $contact['phone'],
             'journey_date' => $journeyDate,
             'departure_time' => $departureTime,
             'trip_class' => $snapshot['trip_class'] ?? '-',
@@ -301,6 +304,21 @@ class OnlineTicketValidationController extends Controller
         }
 
         return $data;
+    }
+
+    private function passengerContact(BookedTicket $ticket): array
+    {
+        $email = trim((string) $ticket->user?->email);
+        $phone = trim((string) $ticket->user?->mobileNumber);
+
+        if ($phone !== '' && !str_starts_with($phone, '+')) {
+            $phone = '+' . $phone;
+        }
+
+        return [
+            'email' => $email ?: null,
+            'phone' => $phone ?: null,
+        ];
     }
 
     private function providedPassengerName(?string $name): string
