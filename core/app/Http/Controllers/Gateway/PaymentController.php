@@ -10,7 +10,6 @@ use App\Models\AdminNotification;
 use App\Models\BookedTicket;
 use App\Models\Deposit;
 use App\Models\Discount;
-use App\Models\GeneralSetting;
 use App\Models\User;
 use App\Models\UserDiscount;
 use App\Services\CashierTransactionRecorder;
@@ -19,6 +18,7 @@ use App\Services\PendingPaymentExpirationService;
 use App\Services\Paynamics;
 use App\Services\PaynamicsPaymentBroadcaster;
 use App\Services\PaymentGatewayService;
+use App\Services\PaymentSuccessNotifier;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -556,27 +556,7 @@ class PaymentController extends Controller
         }
 
 
-        $general = GeneralSetting::first();
-
-        if ($user) {
-            notify($user, $isManual ? 'PAYMENT_APPROVE' : 'PAYMENT_COMPLETE', [
-                'method_name' => $deposit->gatewayCurrency()->name,
-                'method_currency' => $deposit->method_currency,
-                'method_amount' => showAmount($deposit->final_amount, currencyFormat: false),
-                'amount' => showAmount($deposit->amount, currencyFormat: false),
-                'charge' => showAmount($deposit->charge, currencyFormat: false),
-                'currency' => $general->cur_text,
-                'rate' => showAmount($deposit->rate, currencyFormat: false),
-                'trx' => $deposit->trx,
-                'journey_date' => showDateTime($bookedTicket->date_of_journey, 'd m, Y'),
-                'seats' => formatSeatLabel($bookedTicket->seats),
-                'total_seats' => sizeof($bookedTicket->seats),
-                'source' => $bookedTicket->pickup->name,
-                'destination' => $bookedTicket->drop->name,
-                'ticket' => $bookedTicket,
-                'has_file' => true
-            ]);
-        }
+        app(PaymentSuccessNotifier::class)->send($deposit, $bookedTicket, (bool) $isManual);
     }
 
     public function manualDepositConfirm()
