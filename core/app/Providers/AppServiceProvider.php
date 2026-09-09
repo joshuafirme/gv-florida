@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Constants\Status;
+use App\Http\Middleware\StagingLicenseMiddleware;
 use App\Lib\Searchable;
 use App\Models\AdminNotification;
 use App\Models\AssignedVehicle;
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\App;
+use Laramin\Utility\Utility as LicenseMiddleware;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,6 +33,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         Builder::mixin(new Searchable);
+
+        $this->app->bind(LicenseMiddleware::class, StagingLicenseMiddleware::class);
     }
 
     /**
