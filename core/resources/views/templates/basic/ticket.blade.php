@@ -1244,7 +1244,23 @@
                     format: 'DD MMM YYYY'
                 }
 
-            })
+            });
+
+            let selectedJourneyDate = @json($dateOfJourneyDisplay);
+            let dateSubmitting = false;
+
+            datePicker.on('apply.daterangepicker', function(event, picker) {
+                const newJourneyDate = picker.startDate.format('DD MMM YYYY');
+                this.value = newJourneyDate;
+
+                if (dateSubmitting || newJourneyDate === selectedJourneyDate || !this.form) {
+                    return;
+                }
+
+                dateSubmitting = true;
+                selectedJourneyDate = newJourneyDate;
+                this.form.submit();
+            });
 
             const mobileSearchPanel = document.querySelector('.bus-search-header');
 
