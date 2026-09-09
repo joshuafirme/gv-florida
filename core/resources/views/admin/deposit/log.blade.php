@@ -263,7 +263,10 @@
                                             : ($deposit->user_id
                                                 ? __('Online')
                                                 : __('Counter'));
-                                        $expiresAt = $deposit->created_at->copy()->addMinutes(15);
+                                        $expiresAt = $deposit->expiry_limit
+                                            ? rescue(fn () => \Carbon\Carbon::parse($deposit->expiry_limit), null, false)
+                                            : null;
+                                        $expiresAt ??= $deposit->created_at->copy()->addMinutes(15);
                                         $eventDate = $status == 'all' ? $deposit->created_at : $deposit->updated_at;
                                         $processedByName =
                                             $deposit->processedBy?->name ?:

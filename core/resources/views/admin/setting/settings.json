@@ -40,6 +40,19 @@
         "icon": "las la-images",
         "route_name": "admin.setting.logo.icon"
     },
+    "kiosk_settings": {
+        "keyword": [
+            "kiosk",
+            "idle screen",
+            "hero image",
+            "book here",
+            "attract screen"
+        ],
+        "title": "Kiosk Settings",
+        "subtitle": "Manage the self-booking kiosk hero image.",
+        "icon": "las la-desktop",
+        "route_name": "admin.setting.kiosk"
+    },
     "system_configuration": {
         "keyword": [
             "basic modules",

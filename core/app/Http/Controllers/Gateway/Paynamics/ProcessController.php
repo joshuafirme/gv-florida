@@ -13,6 +13,7 @@ use App\Services\PendingPaymentExpirationService;
 use App\Services\PaymentGatewayService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 use Storage;
 
@@ -79,9 +80,6 @@ class ProcessController extends Controller
             $paynamics = new Paynamics(request()->user());
             $paynamics->data = $ticket;
             $transaction = $paynamics->createTransaction($channel);
-            $ticket->deposit->pchannel = $channel->code;
-            $ticket->deposit->pmethod = $channel->paymentMethod->code;
-            $ticket->deposit->save();
 
             if ($transaction?->response_code == "GR011") { // if req ID is already process or exist.
                 $ticket->deposit->trx = generateReqID();
@@ -99,6 +97,16 @@ class ProcessController extends Controller
                 $transaction = $paynamics->createTransaction($channel);
             }
 
+            $ticket->deposit->pchannel = $channel->code;
+            $ticket->deposit->pmethod = $channel->paymentMethod->code;
+            $ticket->deposit->status = Status::PAYMENT_PENDING;
+            $ticket->deposit->expiry_limit = $transaction->expiry_limit
+                ?? Paynamics::expiresAt($isKioskBooking)->format('Y-m-d H:i:s');
+            $ticket->deposit->save();
+
+            $ticket->status = Status::BOOKED_PENDING;
+            $ticket->save();
+
             session()->put('paynamics_request_id', $transaction->request_id);
             session()->put('paynamics_response_id', $transaction->response_id);
 
@@ -109,15 +117,8 @@ class ProcessController extends Controller
             if ($transaction && isset($transaction->payment_action_info)) {
                 return redirect()->to($transaction->payment_action_info);
             } else if ($transaction && isset($transaction->direct_otc_info)) {
-                $ticket->deposit->status = Status::PAYMENT_PENDING;
-                $ticket->deposit->expiry_limit = $isKioskBooking
-                    ? $this->pendingPaymentExpiration->expiresAt($ticket->deposit->created_at)
-                    : ($transaction->expiry_limit ?? $ticket->deposit->expiry_limit);
                 $ticket->deposit->pay_reference = $transaction->pay_reference ?? $ticket->deposit->pay_reference;
                 $ticket->deposit->save();
-
-                $ticket->status = Status::BOOKED_PENDING;
-                $ticket->save();
 
                 Storage::put(
                     "paynamics/direct-otc/{$ticket->deposit->trx}.json",
@@ -152,6 +153,7 @@ class ProcessController extends Controller
 
         try {
             $verifiedTransaction = $this->getTransaction($deposit->trx);
+            $this->syncProviderDetails($deposit, $verifiedTransaction);
         } catch (\Throwable $exception) {
             report($exception);
         }
@@ -405,13 +407,15 @@ class ProcessController extends Controller
             $deposit->pchannel = $channel;
         }
 
-        $isKioskBooking = $deposit->getAttribute('booked_ticket_id')
-            && $deposit->bookedTicket?->isKioskBooking();
-
-        if ($isKioskBooking) {
-            $deposit->expiry_limit = $this->pendingPaymentExpiration->expiresAt($deposit->created_at);
-        } elseif ($expiryLimit) {
-            $deposit->expiry_limit = $expiryLimit;
+        if ($expiryLimit) {
+            $deposit->expiry_limit = Carbon::parse($expiryLimit)->format('Y-m-d H:i:s');
+        } elseif (!$deposit->expiry_limit) {
+            $isKioskBooking = $deposit->getAttribute('booked_ticket_id')
+                && $deposit->bookedTicket?->isKioskBooking();
+            $deposit->expiry_limit = Paynamics::expiresAt(
+                (bool) $isKioskBooking,
+                $deposit->created_at
+            )->format('Y-m-d H:i:s');
         }
 
         if ($deposit->isDirty()) {

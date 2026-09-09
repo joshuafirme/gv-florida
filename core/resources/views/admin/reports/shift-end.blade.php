@@ -50,33 +50,33 @@
             <div class="table-responsive shift-detail-scroll">
                 <table class="shift-detail-table">
                     <colgroup>
-                        <col width="7.5%" style="width: 7.5%">
-                        <col width="4.5%" style="width: 4.5%">
-                        <col width="7%" style="width: 7%">
-                        <col width="9%" style="width: 9%">
-                        <col width="7%" style="width: 7%">
-                        <col width="11%" style="width: 11%">
+                        <col width="10%" style="width: 10%">
                         <col width="4%" style="width: 4%">
                         <col width="7%" style="width: 7%">
-                        <col width="9%" style="width: 9%">
                         <col width="8%" style="width: 8%">
+                        <col width="10%" style="width: 10%">
+                        <col width="10%" style="width: 10%">
+                        <col width="4%" style="width: 4%">
+                        <col width="7%" style="width: 7%">
+                        <col width="8.5%" style="width: 8.5%">
+                        <col width="7.5%" style="width: 7.5%">
                         <col width="6%" style="width: 6%">
-                        <col width="25%" style="width: 25%">
+                        <col width="18%" style="width: 18%">
                     </colgroup>
                     <thead>
                         <tr>
-                            <th style="width: 7.5%">Transaction Date &amp; Time</th>
-                            <th style="width: 4.5%">Source</th>
-                            <th style="width: 7%">Reference No.</th>
-                            <th style="width: 9%">Passenger</th>
-                            <th style="width: 7%">Departure</th>
-                            <th style="width: 11%">Trip</th>
-                            <th style="width: 4%">Seat No.</th>
-                            <th style="width: 7%">Drop-Off</th>
-                            <th class="text-end" style="width: 9%">Payment Details</th>
-                            <th class="text-end" style="width: 8%">Discount / Refund</th>
-                            <th style="width: 6%">Status</th>
-                            <th style="width: 25%">Reason</th>
+                            <th><span class="shift-column-label">Transaction<br>Date &amp; Time</span></th>
+                            <th><span class="shift-column-label">Source</span></th>
+                            <th><span class="shift-column-label">Reference<br>No.</span></th>
+                            <th><span class="shift-column-label">Passenger</span></th>
+                            <th><span class="shift-column-label">Departure</span></th>
+                            <th><span class="shift-column-label">Trip</span></th>
+                            <th><span class="shift-column-label">Seat<br>No.</span></th>
+                            <th><span class="shift-column-label">Drop-Off</span></th>
+                            <th class="text-end"><span class="shift-column-label">Payment<br>Details</span></th>
+                            <th class="text-end"><span class="shift-column-label">Discount /<br>Refund</span></th>
+                            <th><span class="shift-column-label">Status</span></th>
+                            <th><span class="shift-column-label">Reason</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -98,9 +98,8 @@
                                     : 0;
                             @endphp
                             <tr>
-                                <td>
-                                    <strong>{{ $transaction->processed_at->format('M j, Y') }}</strong>
-                                    <small>{{ $transaction->processed_at->format('h:i A') }}</small>
+                                <td class="transaction-datetime">
+                                    <strong>{{ $transaction->processed_at->format('M j, Y h:i A') }}</strong>
                                 </td>
                                 <td>{{ $transaction->source ?: '-' }}</td>
                                 <td><strong class="shift-reference">{{ $transaction->reference_no ?: '-' }}</strong></td>
@@ -113,9 +112,8 @@
                                         @endif
                                     </small>
                                 </td>
-                                <td>
-                                    <strong>{{ $transaction->journey_date?->format('M j, Y') ?: '-' }}</strong>
-                                    <small>{{ $transaction->departure_time ? date('h:i A', strtotime($transaction->departure_time)) : '-' }}</small>
+                                <td class="transaction-datetime">
+                                    <strong>{{ $transaction->journey_date?->format('M j, Y') ?: '-' }} {{ $transaction->departure_time ? date('h:i A', strtotime($transaction->departure_time)) : '-' }}</strong>
                                 </td>
                                 <td>
                                     <strong>{{ $transaction->trip_class ?: '-' }}</strong>
@@ -263,6 +261,22 @@
         .shift-detail-table th,
         .shift-detail-table td {
             overflow-wrap: anywhere;
+        }
+
+        .shift-detail-table th {
+            overflow-wrap: normal;
+            word-break: normal;
+        }
+
+        .shift-column-label {
+            display: block;
+            line-height: 1.15;
+            white-space: normal;
+            color: #fff;
+        }
+
+        .transaction-datetime {
+            white-space: nowrap;
         }
 
         .shift-detail-table tbody tr:nth-child(even) {

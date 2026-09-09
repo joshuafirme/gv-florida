@@ -20,25 +20,30 @@ class PendingPaymentExpirationService
 
     public function expireDue(?CarbonInterface $now = null): int
     {
-        $cutoff = ($now ? CarbonImmutable::instance($now) : CarbonImmutable::now())
+        $currentTime = $now ? CarbonImmutable::instance($now) : CarbonImmutable::now();
+        $legacyCutoff = $currentTime
             ->subMinutes(self::EXPIRATION_MINUTES);
         $expiredCount = 0;
 
         Deposit::query()
             ->where('status', Status::PAYMENT_PENDING)
-            ->where('created_at', '<=', $cutoff)
+            ->where('created_at', '<=', $legacyCutoff)
             ->select('id')
-            ->chunkById(100, function ($deposits) use ($cutoff, &$expiredCount) {
+            ->chunkById(100, function ($deposits) use ($currentTime, &$expiredCount) {
                 $ids = $deposits->pluck('id');
 
-                $expiredCount += DB::transaction(function () use ($ids, $cutoff) {
+                $expiredCount += DB::transaction(function () use ($ids, $currentTime) {
                     $dueDeposits = Deposit::query()
                         ->with('bookedTicket')
                         ->whereIn('id', $ids)
                         ->where('status', Status::PAYMENT_PENDING)
-                        ->where('created_at', '<=', $cutoff)
                         ->lockForUpdate()
-                        ->get();
+                        ->get()
+                        ->filter(function (Deposit $deposit) use ($currentTime) {
+                            $expiresAt = $this->expiresAtForDeposit($deposit);
+
+                            return $expiresAt->lessThanOrEqualTo($currentTime);
+                        });
 
                     foreach ($dueDeposits as $deposit) {
                         $deposit->status = Status::PAYMENT_EXPIRED;
@@ -56,5 +61,18 @@ class PendingPaymentExpirationService
             });
 
         return $expiredCount;
+    }
+
+    public function expiresAtForDeposit(Deposit $deposit): CarbonImmutable
+    {
+        if ($deposit->expiry_limit) {
+            try {
+                return CarbonImmutable::parse($deposit->expiry_limit);
+            } catch (\Throwable) {
+                // Legacy malformed values fall back to the voucher rule below.
+            }
+        }
+
+        return $this->expiresAt($deposit->created_at);
     }
 }
