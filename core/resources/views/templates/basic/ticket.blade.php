@@ -21,6 +21,7 @@
         $dateOfJourneyQuery = request('date_of_journey')
             ? Carbon::parse(request('date_of_journey'))->format('m/d/Y')
             : date('m/d/Y');
+        $dateOfJourneyDisplay = Carbon::parse($date_of_journey)->format('d M Y');
     @endphp
     @extends($activeTemplate . $layout)
 
@@ -122,39 +123,68 @@
         }
 
         .trip-search-label {
-            display: block;
-            margin: 0 0 7px;
-            color: #1f2937;
-            font-size: 14px;
+            color: #64748b;
+            font-size: 10px;
             font-weight: 700;
+            left: 38px;
+            line-height: 1;
+            margin: 0;
+            pointer-events: none;
+            position: absolute;
+            top: 8px;
+            z-index: 12;
         }
 
         .ticket-form .ticket-search-field > i {
             align-items: center;
-            bottom: 0;
+            bottom: auto;
             display: flex;
-            height: 40px;
+            height: 52px;
             justify-content: center;
             left: 8px;
             line-height: 1;
             padding: 0;
             pointer-events: none;
-            top: auto;
+            top: 0;
             width: 20px;
         }
 
         .ticket-form .ticket-search-field > .form--control,
         .ticket-form .ticket-search-field .select2-selection--single {
+            height: 52px;
             padding-left: 38px !important;
+            padding-top: 16px !important;
+        }
+
+        .ticket-form .ticket-search-field .select2-selection--single {
+            padding-top: 0 !important;
         }
 
         .ticket-form .ticket-search-field .select2-selection__rendered {
+            bottom: 8px;
+            display: block;
+            height: auto;
+            left: 38px;
+            line-height: 16px !important;
             margin-left: 0;
-            padding-left: 0;
+            overflow: hidden;
+            padding: 0 !important;
+            position: absolute;
+            right: 30px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ticket-form .ticket-search-field .select2-selection__arrow {
+            top: 12px;
         }
 
         .ticket-search-actions {
-            padding-top: 27px;
+            padding-top: 0;
+        }
+
+        .ticket-search-actions .btn {
+            min-height: 52px;
         }
 
         @media screen and (max-width: 991px) {
@@ -484,6 +514,69 @@
         }
 
         @media screen and (max-width: 767px) {
+            .ticket-search-bar,
+            .ticket-search-bar--kiosk {
+                background: #fff !important;
+                position: relative;
+                top: auto;
+            }
+
+            .ticket-search-bar::before {
+                display: none;
+            }
+
+            .bus-search-header {
+                background: #fff;
+                border: 1px solid #e5e7eb;
+                border-bottom: 0;
+                border-radius: 14px 14px 0 0;
+                bottom: 0;
+                box-shadow: 0 -8px 24px rgba(15, 23, 42, .13);
+                left: 0;
+                padding: 9px 12px max(9px, env(safe-area-inset-bottom));
+                position: fixed;
+                right: 0;
+                z-index: 1040;
+            }
+
+            .bus-search-header .ticket-form-two {
+                --bs-gutter-x: 8px;
+                --bs-gutter-y: 6px;
+                margin: 0;
+            }
+
+            .bus-search-header .ticket-form-two > [class*="col-"] {
+                padding-left: 0;
+                padding-right: 0;
+            }
+
+            .ticket-form .ticket-search-field > i {
+                font-size: 18px;
+                height: 46px;
+            }
+
+            .ticket-form .ticket-search-field > .form--control,
+            .ticket-form .ticket-search-field .select2-selection--single {
+                font-size: 13px;
+                height: 46px;
+            }
+
+            .ticket-form .ticket-search-field .select2-selection__rendered {
+                bottom: 6px;
+            }
+
+            .ticket-form .ticket-search-field .select2-selection__arrow {
+                top: 9px;
+            }
+
+            .ticket-search-actions .btn {
+                min-height: 40px;
+            }
+
+            .ticket-section {
+                padding-bottom: calc(var(--mobile-ticket-search-height, 214px) + 24px) !important;
+            }
+
             .kiosk-advance-window {
                 padding: 10px 0 6px;
             }
@@ -639,11 +732,11 @@
 
                     <div class="col-md-4 col-lg-3">
                         <div class="form--group ticket-search-field">
-                            <label class="trip-search-label" for="ticket-travel-date">@lang('Travel Date')</label>
+                            <label class="trip-search-label" for="ticket-travel-date">@lang('Departure')</label>
                             <i class="las la-calendar-check"></i>
                             <input type="text" name="date_of_journey" id="ticket-travel-date"
-                                class="form--control date-range" placeholder="@lang('Date of Journey')" autocomplete="off"
-                                value="{{ $dateOfJourneyQuery }}">
+                                class="form--control date-range" placeholder="@lang('Departure')" autocomplete="off"
+                                value="{{ $dateOfJourneyDisplay }}">
                         </div>
                     </div>
 
@@ -1067,10 +1160,31 @@
             const datePicker = $('.date-range').daterangepicker({
                 autoUpdateInput: true,
                 singleDatePicker: true,
+                startDate: moment(@json($date_of_journey), 'YYYY-MM-DD'),
                 minDate: new Date(),
-                maxDate: moment().add("{{ $allowed_advance_booking_days }}", 'days')
+                maxDate: moment().add("{{ $allowed_advance_booking_days }}", 'days'),
+                locale: {
+                    format: 'DD MMM YYYY'
+                }
 
             })
+
+            const mobileSearchPanel = document.querySelector('.bus-search-header');
+
+            function syncMobileSearchClearance() {
+                const panelHeight = window.matchMedia('(max-width: 767px)').matches && mobileSearchPanel
+                    ? Math.ceil(mobileSearchPanel.getBoundingClientRect().height)
+                    : 0;
+
+                document.documentElement.style.setProperty('--mobile-ticket-search-height', `${panelHeight}px`);
+            }
+
+            syncMobileSearchClearance();
+            window.addEventListener('resize', syncMobileSearchClearance);
+
+            if (window.ResizeObserver && mobileSearchPanel) {
+                new ResizeObserver(syncMobileSearchClearance).observe(mobileSearchPanel);
+            }
 
 
             $('.reset-button').on('click', function() {
