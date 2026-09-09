@@ -18,6 +18,7 @@
     <div class="padding-top padding-bottom booking-seat-flow {{ $kiosk_id ? 'is-kiosk' : '' }}">
         <div class="container">
             @include('templates.basic.partials.booking_stepper', ['currentStep' => 'seat'])
+            <div class="booking-stepper-content-gap" aria-hidden="true"></div>
             <a class="seat-back-link"
                 href="{{ url('/tickets?' . urldecode(http_build_query([
                     'kiosk_id' => $kiosk_id,
@@ -155,7 +156,12 @@
                     @endif
 
 
-                    <div class="seat-for-reserved">
+                    <button class="seat-legend-toggle d-md-none" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#seatLegendItems" aria-expanded="false" aria-controls="seatLegendItems">
+                        <span><i class="las la-chair" aria-hidden="true"></i> @lang('Seat Legend')</span>
+                        <i class="las la-angle-down seat-legend-toggle__chevron" aria-hidden="true"></i>
+                    </button>
+                    <div class="seat-for-reserved collapse d-md-flex" id="seatLegendItems">
                         <div class="seat-condition available-seat">
                             <span class="seat"><span></span></span>
                             <p>@lang('Available Seats')</p>
@@ -306,6 +312,38 @@
 
             .booking-seat-flow h6.title {
                 margin-bottom: 8px;
+            }
+
+            .booking-stepper-content-gap {
+                display: none;
+            }
+
+            .seat-legend-toggle {
+                align-items: center;
+                background: #fff;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                color: #334155;
+                font-size: 13px;
+                font-weight: 800;
+                justify-content: space-between;
+                min-height: 36px;
+                padding: 7px 10px;
+                width: 100%;
+            }
+
+            .seat-legend-toggle span {
+                align-items: center;
+                display: inline-flex;
+                gap: 6px;
+            }
+
+            .seat-legend-toggle__chevron {
+                transition: transform .2s ease;
+            }
+
+            .seat-legend-toggle[aria-expanded="true"] .seat-legend-toggle__chevron {
+                transform: rotate(180deg);
             }
 
             /* Selected by Admin for Rebooking (Green) */
@@ -600,9 +638,31 @@
             }
 
             @media (max-width: 767px) {
+                .booking-seat-flow {
+                    --seat-overview-mobile-height: 170px;
+                    padding-bottom: calc(var(--seat-overview-mobile-height) + 20px) !important;
+                }
+
+                .booking-seat-flow .booking-flow-stepper-shell {
+                    margin-bottom: 0;
+                }
+
+                .booking-stepper-content-gap {
+                    display: block;
+                    height: 32px;
+                }
+
+                .booking-seat-flow > .container {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                }
+
                 .seat-back-link {
+                    display: flex;
                     font-size: 12px;
                     margin-bottom: 5px;
+                    position: relative;
+                    z-index: 1;
                 }
 
                 .trip-header-banner {
@@ -620,8 +680,14 @@
                     min-width: 0;
                 }
 
+                .trip-header-banner .header-left {
+                    flex: 1 1 auto;
+                    overflow: hidden;
+                }
+
                 .trip-header-banner .header-right {
                     flex: 0 0 auto;
+                    max-width: 38%;
                     text-align: right !important;
                 }
 
@@ -641,9 +707,32 @@
                     font-size: 17px;
                 }
 
-                .booking-seat-flow .seat-overview-wrapper .card-body,
+                .seat-overview-column {
+                    bottom: 0;
+                    left: 50%;
+                    margin: 0 !important;
+                    max-width: 540px;
+                    padding: 0 8px max(7px, env(safe-area-inset-bottom));
+                    position: fixed;
+                    top: auto;
+                    transform: translateX(-50%);
+                    width: 100%;
+                    z-index: 1040;
+                }
+
+                .seat-overview-wrapper {
+                    border: 1px solid #e2e8f0 !important;
+                    border-radius: 12px !important;
+                    box-shadow: 0 -5px 20px rgba(15, 23, 42, .14) !important;
+                    margin: 0;
+                }
+
+                .booking-seat-flow .seat-overview-wrapper .card-body {
+                    padding: 7px 10px !important;
+                }
+
                 .booking-seat-flow .seat-overview-wrapper .card-footer {
-                    padding: 10px 12px !important;
+                    padding: 7px 10px !important;
                 }
 
                 .seat-overview-item:not(.seat-overview-item--dropoff) {
@@ -651,20 +740,145 @@
                 }
 
                 .seat-overview-item--dropoff .overview-icon-box {
-                    height: 30px;
-                    width: 30px;
+                    height: 28px;
+                    margin-right: 8px !important;
+                    width: 28px;
+                }
+
+                .seat-overview-item--dropoff .small {
+                    font-size: 10px;
+                    line-height: 1;
+                    margin-bottom: 3px !important;
+                }
+
+                .seat-overview-item--dropoff .select2-container--default .select2-selection--single {
+                    font-size: 12px;
+                    height: 36px;
+                    padding-left: 12px;
+                }
+
+                .seat-overview-column > .select2-container--open {
+                    z-index: 1060;
+                }
+
+                .seat-dropping-point-dropdown {
+                    border-color: #e2e8f0;
+                    box-shadow: 0 -8px 24px rgba(15, 23, 42, .18);
+                }
+
+                .seat-dropping-point-dropdown .select2-search--dropdown {
+                    padding: 8px;
+                }
+
+                .seat-dropping-point-dropdown .select2-search__field {
+                    border-color: #cbd5e1 !important;
+                    border-radius: 6px;
+                    font-size: 16px;
+                    min-height: 40px;
+                    padding: 7px 9px !important;
+                }
+
+                .seat-dropping-point-dropdown .select2-results__options {
+                    -webkit-overflow-scrolling: touch;
+                    max-height: min(190px, 32vh) !important;
+                }
+
+                .seat-dropping-point-dropdown .select2-results__option {
+                    font-size: 13px;
+                    min-height: 40px;
+                    padding: 10px 12px;
                 }
 
                 .seat-overview-wrapper .card-footer > .d-flex {
-                    margin-bottom: 8px !important;
+                    font-size: 12px;
+                    line-height: 1.2;
+                    margin-bottom: 4px !important;
+                }
+
+                .seat-overview-wrapper .total-fare-amount {
+                    font-size: 18px;
                 }
 
                 .seat-overview-wrapper .book-bus-btn {
-                    min-height: 40px;
+                    font-size: 14px !important;
+                    height: 38px;
+                    min-height: 38px;
                 }
 
                 .booking-seat-flow .row {
-                    --bs-gutter-y: .75rem;
+                    --bs-gutter-y: .5rem;
+                }
+
+                .seat-map-column {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                }
+
+                .booking-seat-flow h6.title {
+                    font-size: 13px;
+                    margin: 0 0 6px;
+                }
+
+                .seat-legend-toggle {
+                    display: flex;
+                    margin-bottom: 8px;
+                }
+
+                .booking-seat-flow .seat-for-reserved {
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 6px;
+                    gap: 6px 10px;
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    margin: 0 0 10px;
+                    padding: 8px;
+                }
+
+                .booking-seat-flow .seat-for-reserved.show,
+                .booking-seat-flow .seat-for-reserved.collapsing {
+                    display: grid;
+                }
+
+                .booking-seat-flow .seat-for-reserved .seat-condition {
+                    min-width: 0;
+                    padding: 0;
+                    width: auto;
+                }
+
+                .booking-seat-flow .seat-for-reserved .seat {
+                    flex: 0 0 32px;
+                    height: 14px;
+                    margin-right: 6px;
+                    width: 32px;
+                }
+
+                .booking-seat-flow .seat-for-reserved p {
+                    font-size: 10px;
+                    line-height: 1.15;
+                    overflow-wrap: anywhere;
+                }
+            }
+
+            @media (max-width: 390px) {
+                .trip-header-banner .card-body {
+                    padding: 8px 9px !important;
+                }
+
+                .trip-route-title {
+                    font-size: 12px;
+                }
+
+                .trip-time {
+                    font-size: 15px;
+                }
+
+                .trip-fleet-type,
+                .trip-date-duration {
+                    font-size: 9px;
+                }
+
+                .booking-seat-flow .seat-for-reserved {
+                    gap: 5px 8px;
                 }
             }
 
@@ -719,7 +933,9 @@
                 "use strict";
 
                 const bookingFlow = document.querySelector('.booking-seat-flow');
+                const bookingStepperShell = document.querySelector('.booking-flow-stepper-shell');
                 const bookingStepper = document.querySelector('.booking-flow-stepper');
+                const seatOverviewColumn = document.querySelector('.seat-overview-column');
 
                 function synchronizeStickySeatSections() {
                     if (!bookingFlow) return;
@@ -730,21 +946,73 @@
                     const overviewTop = stepperBottom + 8;
 
                     bookingFlow.style.setProperty('--seat-overview-sticky-top', `${overviewTop}px`);
+
+                    if (bookingStepperShell && bookingStepper) {
+                        const shellDocumentTop = bookingStepperShell.getBoundingClientRect().top + window.scrollY;
+                        const requiredClearance = Math.ceil(stepperBottom - shellDocumentTop + 8);
+                        const renderedStepperHeight = Math.ceil(bookingStepper.getBoundingClientRect().height + 8);
+                        const currentClearance = parseFloat(bookingStepperShell.style.height) || 0;
+
+                        bookingStepperShell.style.height = `${Math.max(68, currentClearance, requiredClearance, renderedStepperHeight)}px`;
+                    }
+
+                    if (seatOverviewColumn && window.matchMedia('(max-width: 767px)').matches) {
+                        const overviewHeight = Math.ceil(seatOverviewColumn.getBoundingClientRect().height);
+                        bookingFlow.style.setProperty('--seat-overview-mobile-height', `${overviewHeight}px`);
+                    } else {
+                        bookingFlow.style.removeProperty('--seat-overview-mobile-height');
+                    }
                 }
 
                 window.addEventListener('load', synchronizeStickySeatSections);
                 window.addEventListener('resize', synchronizeStickySeatSections);
                 requestAnimationFrame(synchronizeStickySeatSections);
 
-                if ('ResizeObserver' in window && bookingStepper) {
+                if ('ResizeObserver' in window) {
                     const stickySeatObserver = new ResizeObserver(synchronizeStickySeatSections);
-                    stickySeatObserver.observe(bookingStepper);
+                    if (bookingStepperShell) stickySeatObserver.observe(bookingStepperShell);
+                    if (bookingStepper) stickySeatObserver.observe(bookingStepper);
+                    if (seatOverviewColumn) stickySeatObserver.observe(seatOverviewColumn);
                 }
 
                 // ==========================================
                 // INITIALIZATION
                 // ==========================================
-                $(".select2").select2();
+                const droppingPointMedia = window.matchMedia('(max-width: 767px)');
+                const $droppingPointSelect = $('#dropping_point');
+                let droppingPointMobileMode = null;
+
+                function synchronizeDroppingPointControl() {
+                    const select2IsActive = $droppingPointSelect.hasClass('select2-hidden-accessible');
+                    const mobileMode = droppingPointMedia.matches;
+
+                    if (select2IsActive && droppingPointMobileMode === mobileMode) {
+                        return;
+                    }
+
+                    if (select2IsActive) {
+                        $droppingPointSelect.select2('destroy');
+                    }
+
+                    const select2Options = {
+                        width: '100%'
+                    };
+
+                    if (mobileMode) {
+                        select2Options.dropdownParent = $('.seat-overview-column');
+                        select2Options.dropdownCssClass = 'seat-dropping-point-dropdown';
+                    }
+
+                    $droppingPointSelect.select2(select2Options);
+                    droppingPointMobileMode = mobileMode;
+                }
+
+                synchronizeDroppingPointControl();
+                if (typeof droppingPointMedia.addEventListener === 'function') {
+                    droppingPointMedia.addEventListener('change', synchronizeDroppingPointControl);
+                } else if (typeof droppingPointMedia.addListener === 'function') {
+                    droppingPointMedia.addListener(synchronizeDroppingPointControl);
+                }
 
                 var date_of_journey = $('input[name="date_of_journey"]').val();
                 var pickup = $('input[name="pickup_point"]').val();
