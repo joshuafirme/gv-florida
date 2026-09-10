@@ -862,6 +862,7 @@
                             @endphp
 
                             <div class="ticket-item js-trip-card {{ $isFullyBooked ? 'is-disabled' : '' }}"
+                                data-trip-id="{{ $trip->id }}"
                                 @unless ($isFullyBooked) data-href="{{ $selectSeatUrl }}" tabindex="0" role="link" @endunless
                                 aria-disabled="{{ $isFullyBooked ? 'true' : 'false' }}">
                                 <div class="trip-card-top">
@@ -1023,6 +1024,9 @@
     <script src="{{ asset('assets/global/js/moment.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/daterangepicker.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/dropping-points.js?v=' . buildVer()) }}"></script>
+    @if (config('services.pusher.key'))
+        <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+    @endif
 @endpush
 
 @push('script')
@@ -1103,6 +1107,40 @@
 
             const requestedDestination = String(@json(request('destination') ?: request('selected_destination') ?: ''));
             let destinationSubmitting = false;
+
+            const tripListRealtime = {
+                key: @json(config('services.pusher.key')),
+                cluster: @json(config('services.pusher.cluster', 'ap1')),
+                channel: @json(App\Services\ScheduleBoardBroadcaster::CHANNEL),
+                event: @json(App\Services\ScheduleBoardBroadcaster::EVENT),
+                journeyDate: @json(\Carbon\Carbon::parse($date_of_journey)->format('Y-m-d')),
+            };
+            let tripListRefreshTimer = null;
+
+            if (tripListRealtime.key && typeof window.Pusher !== 'undefined') {
+                const tripListPusher = new Pusher(tripListRealtime.key, {
+                    cluster: tripListRealtime.cluster || 'ap1'
+                });
+                const tripListChannel = tripListPusher.subscribe(tripListRealtime.channel);
+
+                tripListChannel.bind(tripListRealtime.event, function(event) {
+                    if (!event || String(event.date_of_journey || '') !== tripListRealtime.journeyDate) {
+                        return;
+                    }
+
+                    const visibleTrip = Array.from(document.querySelectorAll('.js-trip-card[data-trip-id]'))
+                        .some(function(card) {
+                            return String(card.dataset.tripId) === String(event.trip_id);
+                        });
+
+                    if (!visibleTrip) return;
+
+                    window.clearTimeout(tripListRefreshTimer);
+                    tripListRefreshTimer = window.setTimeout(function() {
+                        window.location.reload();
+                    }, 300);
+                });
+            }
 
             $('select[name="destination"]').on('change', function() {
                 const selectedDestination = String($(this).val() || '');

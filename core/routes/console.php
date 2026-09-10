@@ -15,5 +15,5 @@ Artisan::command('payments:expire-pending', function () {
 })->purpose('Expire overdue pending payments and release their reserved seats');
 
 Schedule::command('payments:expire-pending')
-    ->everyMinute()
+    ->everySecond()
     ->withoutOverlapping();

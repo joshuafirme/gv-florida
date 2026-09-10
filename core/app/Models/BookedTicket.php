@@ -4,6 +4,9 @@ namespace App\Models;
 
 use App\Constants\Status;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class BookedTicket extends Model
@@ -230,6 +233,51 @@ class BookedTicket extends Model
     public function scopeBooked($query)
     {
         $query->where('status', Status::BOOKED_APPROVED);
+    }
+
+    public function scopeHoldingSeats(Builder $query, ?CarbonInterface $at = null): Builder
+    {
+        $currentTime = $at ? CarbonImmutable::instance($at) : CarbonImmutable::now();
+        $legacyCutoff = $currentTime
+            ->subMinutes(\App\Services\PendingPaymentExpirationService::EXPIRATION_MINUTES)
+            ->format('Y-m-d H:i:s');
+        $currentTimestamp = $currentTime->format('Y-m-d H:i:s');
+
+        return $query->where(function (Builder $statusQuery) use ($currentTimestamp, $legacyCutoff) {
+            $statusQuery->where('status', Status::BOOKED_APPROVED)
+                ->orWhere(function (Builder $pendingQuery) use ($currentTimestamp, $legacyCutoff) {
+                    $pendingQuery->where('status', Status::BOOKED_PENDING)
+                        ->where(function (Builder $activeQuery) use ($currentTimestamp, $legacyCutoff) {
+                            $activeQuery->where(function (Builder $withoutDeposit) use ($legacyCutoff) {
+                                $withoutDeposit->whereDoesntHave('deposit')
+                                    ->where('created_at', '>', $legacyCutoff);
+                            })->orWhereHas('deposit', function (Builder $depositQuery) use (
+                                $currentTimestamp,
+                                $legacyCutoff
+                            ) {
+                                $depositQuery
+                                    ->whereIn('status', [Status::PAYMENT_INITIATE, Status::PAYMENT_PENDING])
+                                    ->where(function (Builder $expirationQuery) use (
+                                        $currentTimestamp,
+                                        $legacyCutoff
+                                    ) {
+                                        $expirationQuery->where(function (Builder $configuredExpiry) use (
+                                            $currentTimestamp
+                                        ) {
+                                            $configuredExpiry->whereNotNull('expiry_limit')
+                                                ->where('expiry_limit', '!=', '')
+                                                ->where('expiry_limit', '>', $currentTimestamp);
+                                        })->orWhere(function (Builder $legacyExpiry) use ($legacyCutoff) {
+                                            $legacyExpiry->where(function (Builder $missingExpiry) {
+                                                $missingExpiry->whereNull('expiry_limit')
+                                                    ->orWhere('expiry_limit', '');
+                                            })->where('created_at', '>', $legacyCutoff);
+                                        });
+                                    });
+                            });
+                        });
+                });
+        });
     }
 
     public function scopeRejected($query)

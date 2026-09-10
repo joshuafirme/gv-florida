@@ -11,7 +11,6 @@ use App\Models\Deposit;
 use App\Models\DeviceToken;
 use App\Models\NotificationLog;
 use App\Models\Transaction;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -19,6 +18,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Gateway\PaymentController;
+use App\Services\PendingPaymentExpirationService;
 
 class UserController extends Controller
 {
@@ -65,12 +65,11 @@ class UserController extends Controller
             // Only attempt approval if the deposit is actually pending
             if ($deposit && $deposit->status == Status::PAYMENT_PENDING) {
 
-                // STRICT VALIDATION: Check the 15-minute expiration window
-                if ($deposit->created_at < Carbon::now()->subMinutes(15)) {
+                if (app(PendingPaymentExpirationService::class)->expireIfDue($deposit)) {
                     // Return a 400 Bad Request to automatically trigger the JavaScript .catch() block
                     return response()->json([
                         'success' => false,
-                        'message' => 'This transaction has expired (exceeded 15 minutes) and cannot be approved or printed.'
+                        'message' => 'This transaction has expired and cannot be approved or printed.'
                     ], 400);
                 }
 
@@ -133,13 +132,12 @@ class UserController extends Controller
     {
         $deposit = Deposit::where('id', $id)
             ->where('status', Status::PAYMENT_PENDING)
-            ->where('created_at', '>=', Carbon::now()->subMinutes(15))
             ->first();
 
-        if (!$deposit) {
+        if (!$deposit || app(PendingPaymentExpirationService::class)->expireIfDue($deposit)) {
             return response()->json([
                 'success' => false,
-                'message' => 'This transaction has expired (exceeded 15 minutes) or has already been processed.'
+                'message' => 'This transaction has expired or has already been processed.'
             ]);
         }
 

@@ -679,7 +679,7 @@ class ManageTripController extends Controller
 
         $bookings = BookedTicket::where('trip_id', $trip->id)
             ->whereDate('date_of_journey', $date)
-            ->whereIn('status', [Status::BOOKED_APPROVED, Status::BOOKED_PENDING])
+            ->holdingSeats()
             ->with([
                 'activeSlipSeriesNumbers.onlineValidation.discount',
                 'deposit.userDiscount',

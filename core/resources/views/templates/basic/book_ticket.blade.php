@@ -711,6 +711,9 @@
         <script src="{{ asset('assets/global/js/select2.min.js') }}"></script>
         <script src="{{ asset('assets/global/js/moment.min.js') }}"></script>
         <script src="{{ asset('assets/global/js/daterangepicker.min.js') }}"></script>
+        @if (config('services.pusher.key'))
+            <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+        @endif
     @endpush
 
     @push('script')
@@ -750,6 +753,15 @@
                 var pickup = $('input[name="pickup_point"]').val();
                 var routeId = '{{ $trip->route->id }}';
                 var fleetTypeId = '{{ $trip->fleetType->id }}';
+                const seatRealtime = {
+                    key: @json(config('services.pusher.key')),
+                    cluster: @json(config('services.pusher.cluster', 'ap1')),
+                    channel: @json(App\Services\ScheduleBoardBroadcaster::CHANNEL),
+                    event: @json(App\Services\ScheduleBoardBroadcaster::EVENT),
+                    tripId: @json((string) $trip->id),
+                    journeyDate: @json(\Carbon\Carbon::parse($date_of_journey)->format('Y-m-d')),
+                };
+                let liveSeatRefreshTimer = null;
 
                 // Map counter IDs to Names safely from Blade's $routeSequence
                 const routeCounters = {};
@@ -760,6 +772,23 @@
                 // 1. Initial Load: Call getPrice just to get stoppages and populate dropdown
                 if (pickup) {
                     getPrice(routeId, fleetTypeId, pickup, '', date_of_journey, true);
+                }
+
+                if (seatRealtime.key && typeof window.Pusher !== 'undefined') {
+                    const seatPusher = new Pusher(seatRealtime.key, {
+                        cluster: seatRealtime.cluster || 'ap1'
+                    });
+                    const seatChannel = seatPusher.subscribe(seatRealtime.channel);
+
+                    seatChannel.bind(seatRealtime.event, function(event) {
+                        if (!event || String(event.trip_id) !== seatRealtime.tripId ||
+                            String(event.date_of_journey || '') !== seatRealtime.journeyDate) {
+                            return;
+                        }
+
+                        window.clearTimeout(liveSeatRefreshTimer);
+                        liveSeatRefreshTimer = window.setTimeout(showBookedSeat, 150);
+                    });
                 }
 
                 // 2. Listen to Dropping Point changes

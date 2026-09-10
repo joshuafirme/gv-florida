@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Constants\Status;
 use App\Models\AdminSeatLock;
 use App\Models\BookedTicket;
 use App\Models\Trip;
@@ -151,18 +150,7 @@ class SeatConflictService
         $query = BookedTicket::query()
             ->where('trip_id', $trip->id)
             ->whereDate('date_of_journey', Carbon::parse($dateOfJourney)->format('Y-m-d'))
-            ->where(function ($statusQuery) {
-                $statusQuery->where('status', Status::BOOKED_APPROVED)
-                    ->orWhere(function ($pendingQuery) {
-                        $pendingQuery->where('status', Status::BOOKED_PENDING)
-                            ->where(function ($activeQuery) {
-                                $activeQuery->where('created_at', '>=', Carbon::now()->subMinutes(15))
-                                    ->orWhereHas('deposit', function ($depositQuery) {
-                                        $depositQuery->where('created_at', '>=', Carbon::now()->subMinutes(15));
-                                    });
-                            });
-                    });
-            });
+            ->holdingSeats();
 
         if ($excludeTicketId) {
             $query->where('id', '!=', $excludeTicketId);
