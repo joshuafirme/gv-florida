@@ -559,6 +559,7 @@
 
             const androidReceiptPayload = @json($androidReceiptPayload);
             const paymentRealtime = @json($paynamicsRealtime);
+            let reconcilePaymentAtExpiry = null;
 
             function printViaAndroidBridge() {
                 if (!window.Android || typeof window.Android.printReceipt !== 'function') {
@@ -675,6 +676,8 @@
                     }
                 }
 
+                reconcilePaymentAtExpiry = reconcilePayment;
+
                 if (paymentRealtime.key && typeof window.Pusher !== 'undefined') {
                     const pusher = new Pusher(paymentRealtime.key, {
                         cluster: paymentRealtime.cluster || 'ap1'
@@ -728,6 +731,9 @@
                 if (remaining <= 0) {
                     clearInterval(timer);
                     countdown.closest('.payment-window').classList.add('is-expired');
+                    if (reconcilePaymentAtExpiry) {
+                        reconcilePaymentAtExpiry();
+                    }
                 }
             }
 

@@ -11,6 +11,7 @@
                                 <th>@lang('User')</th>
                                 <th>@lang('Email-Mobile')</th>
                                 <th>@lang('Country')</th>
+                                <th>@lang('Auth Provider')</th>
                                 <th>@lang('Joined At')</th>
                                 <th>@lang('Balance')</th>
                                 <th>@lang('Action')</th>
@@ -34,9 +35,12 @@
                                 <td>
                                     <span class="fw-bold" title="{{ @$user->country_name }}">{{ $user->country_code }}</span>
                                 </td>
-
-
-
+                                <td>
+                                    @php($authProvider = strtolower($user->provider ?: 'system'))
+                                    <span class="badge {{ $authProvider === 'system' ? 'badge--success' : 'badge--primary' }}">
+                                        {{ __(ucfirst($authProvider)) }}
+                                    </span>
+                                </td>
                                 <td>
                                     {{ showDateTime($user->created_at) }} <br> {{ diffForHumans($user->created_at) }}
                                 </td>

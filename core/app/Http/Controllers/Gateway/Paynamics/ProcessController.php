@@ -299,9 +299,21 @@ class ProcessController extends Controller
 
                 if (data_get($transaction, 'response_code') === 'GR001') {
                     PaymentController::userDataUpdate($deposit);
+                } else {
+                    $deposit->refresh();
+                    $this->pendingPaymentExpiration->expireIfDue($deposit);
                 }
             } catch (\Throwable $exception) {
                 report($exception);
+
+                $deposit->refresh();
+                if ($this->pendingPaymentExpiration->expireIfDue($deposit)) {
+                    $deposit->refresh()->loadMissing(['gateway', 'bookedTicket']);
+                    $payload = $this->paymentStatusPayload($deposit, null);
+                    session()->put('paynamics_callback_details', $payload['details']);
+
+                    return response()->json(['data' => $payload]);
+                }
 
                 return response()->json([
                     'message' => 'Payment status could not be refreshed yet. Live updates will remain active.',

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Models\BookedTicket;
 use App\Models\Trip;
@@ -36,10 +35,7 @@ class BookedTicketController extends Controller
 
         // 2. Check for seats already booked on this NEW date
         $bookedSeats = BookedTicket::query()
-            ->whereIn('status', [
-                Status::BOOKED_APPROVED,
-                Status::BOOKED_PENDING
-            ])
+            ->holdingSeats()
             ->whereDate('date_of_journey', Carbon::parse($request->date)->format('Y-m-d'))
 
             // Filter BookedTicket by Trip + Schedule conditions

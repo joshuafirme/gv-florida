@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Constants\Status;
+use App\Support\UserIdentitySanitizer;
 use App\Traits\UserNotify;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -33,6 +34,21 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'ver_code_send_at' => 'datetime'
     ];
+
+    public function setFirstnameAttribute($value): void
+    {
+        $this->attributes['firstname'] = UserIdentitySanitizer::name($value);
+    }
+
+    public function setLastnameAttribute($value): void
+    {
+        $this->attributes['lastname'] = UserIdentitySanitizer::name($value);
+    }
+
+    public function setUsernameAttribute($value): void
+    {
+        $this->attributes['username'] = UserIdentitySanitizer::username($value);
+    }
 
 
     public function loginLogs()

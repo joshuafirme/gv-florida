@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Support\UserIdentitySanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -18,12 +19,18 @@ class ProfileController extends Controller
 
     public function submitProfile(Request $request)
     {
+        $request->merge(UserIdentitySanitizer::sanitize(
+            $request->only(['firstname', 'lastname'])
+        ));
+
         $request->validate([
-            'firstname' => 'required|string',
-            'lastname' => 'required|string',
+            'firstname' => UserIdentitySanitizer::nameRules(),
+            'lastname' => UserIdentitySanitizer::nameRules(),
         ],[
             'firstname.required'=>'The first name field is required',
-            'lastname.required'=>'The last name field is required'
+            'firstname.regex'=>'The first name may contain letters and spaces only',
+            'lastname.required'=>'The last name field is required',
+            'lastname.regex'=>'The last name may contain letters and spaces only',
         ]);
 
         $user = auth()->user();

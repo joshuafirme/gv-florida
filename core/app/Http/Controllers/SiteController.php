@@ -458,18 +458,7 @@ class SiteController extends Controller
 
         $bookings = BookedTicket::where('trip_id', $request->trip_id)
             ->whereDate('date_of_journey', Carbon::parse($dateOfJourney)->format('Y-m-d'))
-            ->where(function ($query) {
-                $query->where('status', Status::BOOKED_APPROVED)
-                    ->orWhere(function ($subQuery) {
-                        $subQuery->where('status', Status::BOOKED_PENDING)
-                            ->where(function ($activeQuery) {
-                                $activeQuery->where('created_at', '>=', Carbon::now()->subMinutes(15))
-                                    ->orWhereHas('deposit', function ($depositQuery) {
-                                        $depositQuery->where('created_at', '>=', Carbon::now()->subMinutes(15));
-                                    });
-                            });
-                    });
-            })
+            ->holdingSeats()
             // Select only the columns needed by the frontend to save memory
             ->get(['pickup_point', 'dropping_point', 'seats', 'gender', 'pnr_number']);
 
