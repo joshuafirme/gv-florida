@@ -13,14 +13,29 @@
                                         <div class="col-md-6">
                                             <div class="form-group">
                                                 <label class="form-label">@lang('First Name')</label>
-                                                <input type="text" class="form-control form--control radius-0" name="firstname" placeholder="@lang('First Name')" value="{{ $user->firstname }}" required>
+                                                <input type="text"
+                                                    class="form-control form--control radius-0 @error('firstname') is-invalid @enderror"
+                                                    name="firstname" placeholder="@lang('First Name')"
+                                                    value="{{ old('firstname', $user->firstname) }}" maxlength="40" required>
+                                                @error('firstname')
+                                                    <small class="text--danger">{{ $message }}</small>
+                                                @enderror
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="form-group">
                                                 <label class="form-label">@lang('Last Name')</label>
-                                                <input type="text" class="form-control form--control radius-0" id="lastname" name="lastname" placeholder="@lang('Last Name')" value="{{ $user->lastname }}" required>
+                                                <input type="text"
+                                                    class="form-control form--control radius-0 @error('lastname') is-invalid @enderror"
+                                                    id="lastname" name="lastname" placeholder="@lang('Last Name')"
+                                                    value="{{ old('lastname', $user->lastname) }}" maxlength="40" required>
+                                                @error('lastname')
+                                                    <small class="text--danger">{{ $message }}</small>
+                                                @enderror
                                             </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <small class="text-muted">@lang('Special characters, including parentheses, are removed from names when saved.')</small>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="form-group">

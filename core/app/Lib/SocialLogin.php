@@ -6,10 +6,12 @@ use App\Constants\Status;
 use App\Models\AdminNotification;
 use App\Models\User;
 use App\Models\UserLogin;
+use App\Support\UserIdentitySanitizer;
 use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use Socialite;
 
 class SocialLogin
@@ -123,6 +125,19 @@ class SocialLogin
             $lastName = array_pop($pieces);
         }
 
+        $identity = UserIdentitySanitizer::sanitize([
+            'firstname' => $firstName,
+            'lastname' => $lastName,
+        ]);
+        $validator = Validator::make($identity, [
+            'firstname' => UserIdentitySanitizer::nameRules(),
+            'lastname' => UserIdentitySanitizer::nameRules(),
+        ]);
+
+        if ($validator->fails()) {
+            throw new Exception($validator->errors()->first());
+        }
+
         $referBy = session()->get('reference');
         if ($referBy) {
             $referUser = User::where('username', $referBy)->first();
@@ -136,8 +151,8 @@ class SocialLogin
         $newUser->email = $user->email;
 
         $newUser->password = Hash::make($password);
-        $newUser->firstname = $firstName;
-        $newUser->lastname = $lastName;
+        $newUser->firstname = $identity['firstname'];
+        $newUser->lastname = $identity['lastname'];
         $user->ref_by = $referUser ? $referUser->id : 0;
 
         $newUser->status = Status::VERIFIED;

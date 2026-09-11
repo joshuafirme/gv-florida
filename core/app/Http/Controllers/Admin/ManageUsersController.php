@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Rules\FileTypeValidate;
+use App\Support\UserIdentitySanitizer;
 
 class ManageUsersController extends Controller
 {
@@ -96,6 +97,9 @@ class ManageUsersController extends Controller
     public function update(Request $request, $id)
     {
         $user = User::findOrFail($id);
+        $request->merge(UserIdentitySanitizer::sanitize(
+            $request->only(['firstname', 'lastname'])
+        ));
         $countryData = json_decode(file_get_contents(resource_path('views/partials/country.json')));
         $countryArray   = (array)$countryData;
         $countries      = implode(',', array_keys($countryArray));
@@ -105,11 +109,14 @@ class ManageUsersController extends Controller
         $dialCode       = $countryData->$countryCode->dial_code;
 
         $request->validate([
-            'firstname' => 'required|string|max:40',
-            'lastname' => 'required|string|max:40',
+            'firstname' => UserIdentitySanitizer::nameRules(),
+            'lastname' => UserIdentitySanitizer::nameRules(),
             'email' => 'required|email|string|max:40|unique:users,email,' . $user->id,
             'mobile' => 'required|string|max:40',
             'country' => 'required|in:'.$countries,
+        ], [
+            'firstname.regex' => 'The first name may contain letters and spaces only',
+            'lastname.regex' => 'The last name may contain letters and spaces only',
         ]);
 
         $exists = User::where('mobile',$request->mobile)->where('dial_code',$dialCode)->where('id','!=',$user->id)->exists();

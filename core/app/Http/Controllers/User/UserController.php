@@ -8,6 +8,7 @@ use App\Lib\GoogleAuthenticator;
 use App\Models\DeviceToken;
 use App\Models\BookedTicket;
 use App\Models\Transaction;
+use App\Support\UserIdentitySanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -136,20 +137,22 @@ class UserController extends Controller
         $mobileCodes = implode(',', array_column($countryData, 'dial_code'));
         $countries = implode(',', array_column($countryData, 'country'));
 
+        $request->merge(UserIdentitySanitizer::sanitize(
+            $request->only(['username'])
+        ));
+
         $request->validate([
             'country_code' => 'required|in:' . $countryCodes,
             'country' => 'required|in:' . $countries,
             'mobile_code' => 'required|in:' . $mobileCodes,
-            'username' => 'required|unique:users|min:6',
+            'username' => [
+                ...UserIdentitySanitizer::usernameRules(),
+                Rule::unique('users', 'username'),
+            ],
             'mobile' => ['required', 'regex:/^([0-9]*)$/', Rule::unique('users')->where('dial_code', $request->mobile_code)],
+        ], [
+            'username.regex' => 'Username may contain lowercase letters, numbers, and underscores only.',
         ]);
-
-
-        if (preg_match("/[^a-z0-9_]/", trim($request->username))) {
-            $notify[] = ['info', 'Username can contain only small letters, numbers and underscore.'];
-            $notify[] = ['error', 'No special character, space or capital letters in username.'];
-            return back()->withNotify($notify)->withInput($request->all());
-        }
 
         $user->country_code = $request->country_code;
         $user->mobile = $request->mobile;

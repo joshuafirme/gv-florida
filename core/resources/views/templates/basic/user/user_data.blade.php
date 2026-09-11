@@ -5,8 +5,18 @@
         <div class="col-md-12">
             <div class="form-group form--group">
                 <label class="form-label">@lang('Username')</label>
-                <input type="text" class="form-control form--control checkUser" name="username" value="{{ old('username') }}" required>
+                <input type="text"
+                    class="form-control form--control checkUser @error('username') is-invalid @enderror"
+                    name="username" value="{{ old('username') }}" minlength="6" maxlength="40"
+                    autocapitalize="none" spellcheck="false"
+                    oninput="this.value = this.value.toLowerCase().replace(/[^a-z0-9_]/g, '')" required>
                 <small class="text--danger usernameExist"></small>
+                @error('username')
+                    <small class="text--danger d-block">{{ $message }}</small>
+                @enderror
+                <small class="text-muted d-block">
+                    @lang('Lowercase letters, numbers, and underscores only. Other characters, including parentheses, are removed.')
+                </small>
             </div>
         </div>
         <div class="col-md-6">
