@@ -2,7 +2,12 @@
 @section('app')
     @include($activeTemplate . 'partials.user_header')
 
-    @if (!request()->routeIs('home') && !request()->routeIs('ticket') && !request()->routeIs('search'))
+    @if (!request()->routeIs([
+        'home',
+        'ticket',
+        'search',
+        'user.deposit.index',
+    ]))
         @include($activeTemplate . 'partials.breadcrumb')
     @endif
 
