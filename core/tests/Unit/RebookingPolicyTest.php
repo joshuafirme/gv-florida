@@ -161,24 +161,28 @@ class RebookingPolicyTest extends TestCase
         $this->policy->assertEnoughSeats(3, 2);
     }
 
-    public function test_an_already_rebooked_ticket_can_be_rebooked_again_by_staff(): void
+    public function test_online_and_kiosk_tickets_can_both_be_rebooked_multiple_times_by_staff(): void
     {
-        $ticket = $this->ticket('2026-08-03', '5:00 PM');
-        $ticket->is_rebooked = 1;
+        $onlineTicket = $this->ticket('2026-08-03', '5:00 PM');
+        $onlineTicket->forceFill(['user_id' => 15, 'kiosk_id' => null, 'is_rebooked' => 1]);
+        $kioskTicket = $this->ticket('2026-08-03', '5:00 PM');
+        $kioskTicket->forceFill(['user_id' => null, 'kiosk_id' => 3, 'is_rebooked' => 1]);
 
-        $firstCheck = $this->policy->assertAdminEligible(
-            $ticket,
-            null,
-            Carbon::parse('2026-08-03 10:00 AM')
-        );
-        $secondCheck = $this->policy->assertAdminEligible(
-            $ticket,
-            null,
-            Carbon::parse('2026-08-03 11:00 AM')
-        );
+        foreach ([$onlineTicket, $kioskTicket] as $ticket) {
+            $firstCheck = $this->policy->assertAdminEligible(
+                $ticket,
+                null,
+                Carbon::parse('2026-08-03 10:00 AM')
+            );
+            $secondCheck = $this->policy->assertAdminEligible(
+                $ticket,
+                null,
+                Carbon::parse('2026-08-03 11:00 AM')
+            );
 
-        $this->assertFalse($firstCheck['after_departure']);
-        $this->assertFalse($secondCheck['after_departure']);
+            $this->assertFalse($firstCheck['after_departure']);
+            $this->assertFalse($secondCheck['after_departure']);
+        }
     }
 
     public function test_admin_grace_period_remains_anchored_to_the_original_departure(): void
