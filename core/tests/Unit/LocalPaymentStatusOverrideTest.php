@@ -5,8 +5,10 @@ namespace Tests\Unit;
 use App\Constants\Status;
 use App\Http\Controllers\Admin\DepositController;
 use App\Models\Admin;
+use App\Models\BookedTicket;
 use App\Models\Deposit;
 use App\Services\CashierTransactionRecorder;
+use App\Services\PaymentSuccessNotifier;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +24,7 @@ class LocalPaymentStatusOverrideTest extends TestCase
 
         Schema::create('deposits', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('user_id')->nullable();
             $table->unsignedBigInteger('booked_ticket_id')->nullable();
             $table->unsignedTinyInteger('status')->default(Status::PAYMENT_INITIATE);
             $table->unsignedBigInteger('processed_by_admin_id')->nullable();
@@ -31,6 +34,7 @@ class LocalPaymentStatusOverrideTest extends TestCase
 
         Schema::create('booked_tickets', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('kiosk_id')->nullable();
             $table->unsignedTinyInteger('status')->default(Status::BOOKED_PENDING);
             $table->text('seats')->nullable();
             $table->timestamps();
@@ -40,6 +44,12 @@ class LocalPaymentStatusOverrideTest extends TestCase
             $table->id();
             $table->string('seat');
             $table->unsignedBigInteger('booked_ticket_id');
+            $table->timestamps();
+        });
+
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->string('email')->nullable();
             $table->timestamps();
         });
     }
@@ -55,6 +65,12 @@ class LocalPaymentStatusOverrideTest extends TestCase
     {
         $this->app['env'] = 'local';
 
+        $userId = DB::table('users')->insertGetId([
+            'email' => 'passenger@example.com',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         $ticketId = DB::table('booked_tickets')->insertGetId([
             'status' => Status::BOOKED_PENDING,
             'seats' => json_encode(['D1', 'D2']),
@@ -62,6 +78,7 @@ class LocalPaymentStatusOverrideTest extends TestCase
             'updated_at' => now(),
         ]);
         $depositId = DB::table('deposits')->insertGetId([
+            'user_id' => $userId,
             'booked_ticket_id' => $ticketId,
             'status' => Status::PAYMENT_PENDING,
             'created_at' => now(),
@@ -79,6 +96,21 @@ class LocalPaymentStatusOverrideTest extends TestCase
             ->once()
             ->with(\Mockery::on(fn (Deposit $deposit) => $deposit->id === $depositId));
         $this->app->instance(CashierTransactionRecorder::class, $recorder);
+
+        $notifier = \Mockery::mock(PaymentSuccessNotifier::class);
+        $notifier->shouldReceive('send')
+            ->once()
+            ->withArgs(fn (
+                Deposit $deposit,
+                BookedTicket $ticket,
+                bool $isManual,
+                array $sendVia
+            ) => $deposit->id === $depositId
+                && $ticket->id === $ticketId
+                && $isManual === false
+                && $sendVia === ['email'])
+            ->andReturnTrue();
+        $this->app->instance(PaymentSuccessNotifier::class, $notifier);
 
         $request = Request::create('/admin/deposit/status-override', 'POST', [
             'deposit_id' => $depositId,

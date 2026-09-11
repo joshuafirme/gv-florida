@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\BookedTicket;
 use App\Services\CashierTransactionRecorder;
+use App\Services\PaymentSuccessNotifier;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -393,12 +394,13 @@ class DepositController extends Controller
 
         $successfulDeposit = DB::transaction(function () use ($validated) {
             $deposit = Deposit::whereKey($validated['deposit_id'])->lockForUpdate()->firstOrFail();
+            $wasSuccessful = (int) $deposit->status === Status::PAYMENT_SUCCESS;
             $deposit->status = (int) $validated['status'];
             $deposit->processed_by_admin_id = auth('admin')->id();
             $deposit->processed_by_name = auth('admin')->user()->name;
             $deposit->save();
 
-            if ((int) $validated['status'] === Status::PAYMENT_SUCCESS && $deposit->booked_ticket_id) {
+            if (!$wasSuccessful && (int) $validated['status'] === Status::PAYMENT_SUCCESS && $deposit->booked_ticket_id) {
                 $bookedTicket = BookedTicket::whereKey($deposit->booked_ticket_id)->lockForUpdate()->first();
 
                 if ($bookedTicket) {
@@ -418,6 +420,26 @@ class DepositController extends Controller
                 app(CashierTransactionRecorder::class)->recordSold($successfulDeposit);
             } catch (\Throwable $exception) {
                 report($exception);
+            }
+
+            $successfulDeposit->loadMissing(['user', 'bookedTicket']);
+            $bookedTicket = $successfulDeposit->bookedTicket;
+
+            if (
+                $bookedTicket
+                && !$bookedTicket->isKioskBooking()
+                && filled($successfulDeposit->user?->email)
+            ) {
+                try {
+                    app(PaymentSuccessNotifier::class)->send(
+                        $successfulDeposit,
+                        $bookedTicket,
+                        false,
+                        ['email']
+                    );
+                } catch (\Throwable $exception) {
+                    report($exception);
+                }
             }
         }
 
