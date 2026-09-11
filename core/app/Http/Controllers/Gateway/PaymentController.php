@@ -417,6 +417,8 @@ class PaymentController extends Controller
             'event' => PaynamicsPaymentBroadcaster::EVENT,
             'key' => config('services.pusher.key'),
             'cluster' => config('services.pusher.cluster', 'ap1'),
+            'polling' => Paynamics::isSandbox(),
+            'poll_interval_ms' => (int) config('paynamics.sandbox_poll_interval_ms', 3000),
         ];
 
         return view('Template::user.payment.done', compact(

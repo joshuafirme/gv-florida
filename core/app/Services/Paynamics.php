@@ -25,6 +25,11 @@ class Paynamics
             : self::ONLINE_EXPIRATION_MINUTES;
     }
 
+    public static function isSandbox(): bool
+    {
+        return strtolower((string) config('paynamics.environment')) === 'sandbox';
+    }
+
     public static function expiresAt(
         bool $isKioskBooking,
         ?CarbonInterface $startsAt = null
@@ -195,6 +200,10 @@ class Paynamics
         $basicPass = config('paynamics.basic_auth_pw');
 
         $org_trxid2 = $originalRequestId ?: (string) session('paynamics_request_id', '');
+        if ($org_trxid2 === '') {
+            throw new \InvalidArgumentException('The original Paynamics request ID is required.');
+        }
+
         $req_id = generateReqID();
         $rawTrx = $merchantid . $req_id . $org_trxid2 . $mkey;
 
@@ -216,6 +225,8 @@ class Paynamics
         curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             "Content-Type: application/json",
             "Authorization: Basic " . base64_encode("$basicUser:$basicPass")
@@ -229,8 +240,21 @@ class Paynamics
             throw new \RuntimeException('Unable to query Paynamics: ' . $message);
         }
 
+        $httpStatus = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        return json_decode($response);
+        $transaction = json_decode($response);
+
+        if (!is_object($transaction)) {
+            throw new \RuntimeException('Paynamics returned an invalid query response.');
+        }
+
+        if ($httpStatus >= 400) {
+            throw new \RuntimeException(
+                'Paynamics query failed: ' . ($transaction->response_message ?? "HTTP {$httpStatus}")
+            );
+        }
+
+        return $transaction;
     }
 }

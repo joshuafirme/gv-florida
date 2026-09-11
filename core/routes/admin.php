@@ -312,6 +312,7 @@ Route::middleware('admin')->group(function () {
         Route::get('initiated/{user_id?}', 'initiated')->name('initiated');
         Route::get('expired/{user_id?}', 'expired')->name('expired');
         Route::get('details/{id}', 'details')->name('details');
+        Route::post('status-override', 'overrideStatus')->name('status.override');
         Route::post('reject', 'reject')->name('reject');
         Route::post('approve/{id}', 'approve')->name('approve');
     });

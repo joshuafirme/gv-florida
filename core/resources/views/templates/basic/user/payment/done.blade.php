@@ -582,8 +582,10 @@
             }
 
             if (paymentRealtime.enabled) {
-                let statusRequested = false;
+                let statusRequestInFlight = false;
                 let isReloading = false;
+                let pollingStopped = false;
+                let pollTimer = null;
                 const liveStatus = document.getElementById('paymentLiveStatus');
 
                 function setLiveStatus(message, state) {
@@ -614,6 +616,7 @@
                     setText('providerPaymentUpdated', details.timestamp, payload.updated_at);
 
                     if (payload.is_paid || payload.state === 'success') {
+                        pollingStopped = true;
                         isReloading = true;
                         setLiveStatus('Payment confirmed. Updating your voucher...', 'connected');
                         window.location.reload();
@@ -621,6 +624,7 @@
                     }
 
                     if (payload.state === 'expired' || payload.state === 'failed') {
+                        pollingStopped = true;
                         setText('paymentStatusTitle', payload.state === 'expired' ? 'Payment Expired' : 'Payment Not Confirmed');
                         setText('paymentStatusMessage', details.message, 'The payment could not be confirmed.');
                         setLiveStatus('Payment status updated.', 'error');
@@ -630,9 +634,19 @@
                     setLiveStatus('Live payment updates connected.', 'connected');
                 }
 
+                function scheduleReconciliation() {
+                    if (!paymentRealtime.polling || pollingStopped || isReloading) return;
+
+                    window.clearTimeout(pollTimer);
+                    pollTimer = window.setTimeout(
+                        reconcilePayment,
+                        Math.max(Number(paymentRealtime.poll_interval_ms) || 3000, 1000)
+                    );
+                }
+
                 async function reconcilePayment() {
-                    if (statusRequested) return;
-                    statusRequested = true;
+                    if (statusRequestInFlight || pollingStopped || isReloading) return;
+                    statusRequestInFlight = true;
                     setLiveStatus('Checking the latest payment status...');
 
                     try {
@@ -656,6 +670,9 @@
                     } catch (error) {
                         console.error('Paynamics status check failed:', error);
                         setLiveStatus('Automatic status check is temporarily unavailable. Live updates remain active.', 'error');
+                    } finally {
+                        statusRequestInFlight = false;
+                        scheduleReconciliation();
                     }
                 }
 
