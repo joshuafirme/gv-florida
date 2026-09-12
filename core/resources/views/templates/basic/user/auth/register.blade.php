@@ -18,15 +18,26 @@
             <div class="col-sm-6">
                 <div class="form-group form--group">
                     <label class="form-label">@lang('First Name')</label>
-                    <input class="form--control" name="firstname" type="text" value="{{ old('firstname') }}" required>
+                    <input class="form--control @error('firstname') is-invalid @enderror" name="firstname"
+                        type="text" value="{{ old('firstname') }}" maxlength="40" required>
+                    @error('firstname')
+                        <small class="text--danger">{{ $message }}</small>
+                    @enderror
                 </div>
             </div>
 
             <div class="col-sm-6">
                 <div class="form-group form--group">
                     <label class="form-label">@lang('Last Name')</label>
-                    <input class="form--control" name="lastname" type="text" value="{{ old('lastname') }}" required>
+                    <input class="form--control @error('lastname') is-invalid @enderror" name="lastname"
+                        type="text" value="{{ old('lastname') }}" maxlength="40" required>
+                    @error('lastname')
+                        <small class="text--danger">{{ $message }}</small>
+                    @enderror
                 </div>
+            </div>
+            <div class="col-12">
+                <small class="text-muted">@lang('Special characters, including parentheses, are removed from names when saved.')</small>
             </div>
 
             <div class="col-md-12">

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AdminNotification;
 use App\Models\User;
 use App\Models\UserLogin;
+use App\Support\UserIdentitySanitizer;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -37,6 +38,7 @@ class RegisterController extends Controller
      */
     protected function validator(array $data)
     {
+        $data = UserIdentitySanitizer::sanitize($data);
         $passwordValidation = Password::min(6);
         if (gs('secure_password')) {
             $passwordValidation = $passwordValidation->mixedCase()->numbers()->symbols()->uncompromised();
@@ -47,14 +49,16 @@ class RegisterController extends Controller
         }
 
         $validate     = Validator::make($data, [
-            'firstname' => 'required',
-            'lastname'  => 'required',
+            'firstname' => UserIdentitySanitizer::nameRules(),
+            'lastname'  => UserIdentitySanitizer::nameRules(),
             'email'     => 'required|string|email|unique:users',
             'password'  => ['required', 'confirmed', $passwordValidation],
             'agree'     => $agree
         ], [
             'firstname.required' => 'The first name field is required',
-            'lastname.required' => 'The last name field is required'
+            'firstname.regex' => 'The first name may contain letters and spaces only',
+            'lastname.required' => 'The last name field is required',
+            'lastname.regex' => 'The last name may contain letters and spaces only',
         ]);
 
         return $validate;
@@ -71,6 +75,10 @@ class RegisterController extends Controller
                 'message' => ['error' => $notify],
             ]);
         }
+
+        $request->merge(UserIdentitySanitizer::sanitize(
+            $request->only(['firstname', 'lastname'])
+        ));
 
         $validator = $this->validator($request->all());
         if ($validator->fails()) {
@@ -104,6 +112,7 @@ class RegisterController extends Controller
      */
     protected function create(array $data)
     {
+        $data = UserIdentitySanitizer::sanitize($data);
         $referBy = @$data['reference'];
         if ($referBy) {
             $referUser = User::where('username', $referBy)->first();
@@ -116,6 +125,7 @@ class RegisterController extends Controller
         $user->lastname  = $data['lastname'];
         $user->email     = strtolower($data['email']);
         $user->password  = Hash::make($data['password']);
+        $user->provider  = 'system';
         $user->ref_by    = $referUser ? $referUser->id : 0;
         $user->kv = gs('kv') ? Status::UNVERIFIED : Status::VERIFIED;
         $user->ev = gs('ev') ? Status::UNVERIFIED : Status::VERIFIED;

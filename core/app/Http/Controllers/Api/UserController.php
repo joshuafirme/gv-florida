@@ -19,6 +19,7 @@ use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Gateway\PaymentController;
 use App\Services\PendingPaymentExpirationService;
+use App\Support\UserIdentitySanitizer;
 
 class UserController extends Controller
 {
@@ -235,26 +236,25 @@ class UserController extends Controller
         $countries = implode(',', array_column($countryData, 'country'));
 
 
+        $request->merge(UserIdentitySanitizer::sanitize(
+            $request->only(['username'])
+        ));
+
         $validator = Validator::make($request->all(), [
             'country_code' => 'required|in:' . $countryCodes,
             'country' => 'required|in:' . $countries,
             'mobile_code' => 'required|in:' . $mobileCodes,
-            'username' => 'required|unique:users|min:6',
+            'username' => [
+                ...UserIdentitySanitizer::usernameRules(),
+                Rule::unique('users', 'username'),
+            ],
             'mobile' => ['required', 'regex:/^([0-9]*)$/', Rule::unique('users')->where('dial_code', $request->mobile_code)],
+        ], [
+            'username.regex' => 'Username may contain lowercase letters, numbers, and underscores only.',
         ]);
 
 
         if ($validator->fails()) {
-            return response()->json([
-                'remark' => 'validation_error',
-                'status' => 'error',
-                'message' => ['error' => $validator->errors()->all()],
-            ]);
-        }
-
-
-        if (preg_match("/[^a-z0-9_]/", trim($request->username))) {
-            $notify[] = 'No special character, space or capital letters in username';
             return response()->json([
                 'remark' => 'validation_error',
                 'status' => 'error',
@@ -342,12 +342,18 @@ class UserController extends Controller
 
     public function submitProfile(Request $request)
     {
+        $request->merge(UserIdentitySanitizer::sanitize(
+            $request->only(['firstname', 'lastname'])
+        ));
+
         $validator = Validator::make($request->all(), [
-            'firstname' => 'required',
-            'lastname' => 'required',
+            'firstname' => UserIdentitySanitizer::nameRules(),
+            'lastname' => UserIdentitySanitizer::nameRules(),
         ], [
             'firstname.required' => 'The first name field is required',
-            'lastname.required' => 'The last name field is required'
+            'firstname.regex' => 'The first name may contain letters and spaces only',
+            'lastname.required' => 'The last name field is required',
+            'lastname.regex' => 'The last name may contain letters and spaces only',
         ]);
 
         if ($validator->fails()) {

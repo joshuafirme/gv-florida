@@ -8,6 +8,7 @@ use App\Lib\Intended;
 use App\Models\AdminNotification;
 use App\Models\User;
 use App\Models\UserLogin;
+use App\Support\UserIdentitySanitizer;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Http\Request;
@@ -36,6 +37,7 @@ class RegisterController extends Controller
 
     protected function validator(array $data)
     {
+        $data = UserIdentitySanitizer::sanitize($data);
 
         $passwordValidation = Password::min(6);
 
@@ -49,15 +51,17 @@ class RegisterController extends Controller
         }
 
         $validate     = Validator::make($data, [
-            'firstname' => 'required',
-            'lastname'  => 'required',
+            'firstname' => UserIdentitySanitizer::nameRules(),
+            'lastname'  => UserIdentitySanitizer::nameRules(),
             'email'     => 'required|string|email|unique:users',
             'password'  => ['required', 'confirmed', $passwordValidation],
             'captcha'   => 'sometimes|required',
             'agree'     => $agree
         ], [
             'firstname.required' => 'The first name field is required',
-            'lastname.required' => 'The last name field is required'
+            'firstname.regex' => 'The first name may contain letters and spaces only',
+            'lastname.required' => 'The last name field is required',
+            'lastname.regex' => 'The last name may contain letters and spaces only',
         ]);
 
         return $validate;
@@ -69,6 +73,10 @@ class RegisterController extends Controller
             $notify[] = ['error', 'Registration not allowed'];
             return back()->withNotify($notify);
         }
+
+        $request->merge(UserIdentitySanitizer::sanitize(
+            $request->only(['firstname', 'lastname'])
+        ));
 
         $this->validator($request->all())->validate();
 
@@ -93,6 +101,7 @@ class RegisterController extends Controller
 
     protected function create(array $data)
     {
+        $data = UserIdentitySanitizer::sanitize($data);
         $referBy = session()->get('reference');
         if ($referBy) {
             $referUser = User::where('username', $referBy)->first();
@@ -106,6 +115,7 @@ class RegisterController extends Controller
         $user->firstname = $data['firstname'];
         $user->lastname  = $data['lastname'];
         $user->password  = Hash::make($data['password']);
+        $user->provider  = 'system';
         $user->ref_by    = $referUser ? $referUser->id : 0;
         $user->ev = gs('ev') ? Status::NO : Status::YES;
         $user->sv = gs('sv') ? Status::NO : Status::YES;
