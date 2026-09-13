@@ -249,7 +249,19 @@
         .passenger-flow-wrap {
             background: #f3f5f7;
             min-height: 100vh;
-            padding: 8px 0 24px;
+            overflow-x: clip;
+            padding: 10px 0 32px;
+        }
+
+        .passenger-flow-wrap > .container {
+            max-width: 960px;
+            width: 100%;
+        }
+
+        .passenger-flow-wrap .js-step-panel,
+        .passenger-flow-wrap .payment-section,
+        .passenger-flow-wrap .passenger-card {
+            min-width: 0;
         }
 
         .passenger-flow-wrap input::placeholder,
@@ -990,9 +1002,49 @@
             margin-right: 5px;
         }
 
+        @media (max-width: 991px) {
+            .passenger-flow-wrap > .container {
+                max-width: 760px;
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .passenger-flow-wrap {
+                padding: 8px 0 24px;
+            }
+
+            .passenger-flow-wrap > .container {
+                max-width: none;
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+
+            .flow-panel,
+            .payment-section {
+                padding: 14px;
+            }
+
+            .passenger-card__head,
+            .passenger-card__body {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+
+            .payment-step {
+                margin-top: 8px;
+            }
+
+            .payment-step .payment-title {
+                font-size: 20px;
+                margin: 6px 0 10px;
+            }
+        }
+
         @media (max-width: 575px) {
             .flow-panel {
-                padding: 16px;
+                padding: 12px;
             }
 
             .passenger-primary-fields {
@@ -1016,6 +1068,41 @@
 
             .auth-actions {
                 grid-template-columns: 1fr;
+            }
+
+            .passenger-card__head,
+            .passenger-card__body,
+            .payment-section {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+
+            .flow-title-icon,
+            .auth-icon {
+                flex-basis: 38px;
+                height: 38px;
+                width: 38px;
+            }
+
+            .flow-title-row h4 {
+                font-size: 18px;
+            }
+
+            .summary-line,
+            .summary-total,
+            .fare-passenger-row,
+            .fare-computation-row {
+                gap: 10px;
+            }
+
+            .summary-total strong,
+            .fare-breakdown-section .summary-total strong {
+                font-size: 19px;
+            }
+
+            .payment-method-card {
+                min-height: 64px;
+                padding: 11px 12px;
             }
         }
     </style>
