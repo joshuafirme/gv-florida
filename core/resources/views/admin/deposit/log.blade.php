@@ -377,7 +377,7 @@
                                                         title="@lang('View payment')">
                                                         <i class="las la-eye"></i>
                                                     </a>
-                                                    @if ($status === 'all' && app()->environment('local'))
+                                                    @if ($status === 'all')
                                                         <button type="button"
                                                             class="pending-action-btn payment-status-override-btn"
                                                             data-deposit-id="{{ $deposit->id }}"
@@ -689,7 +689,7 @@
         </div>
     @endif
 
-    @if ($status === 'all' && app()->environment('local'))
+    @if ($status === 'all')
         <div class="modal fade" id="paymentStatusOverrideModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
@@ -1410,7 +1410,7 @@
                 });
             });
 
-            @if ($status === 'all' && app()->environment('local'))
+            @if ($status === 'all')
                 const paymentStatusOverrideModal = new bootstrap.Modal(
                     document.getElementById('paymentStatusOverrideModal')
                 );

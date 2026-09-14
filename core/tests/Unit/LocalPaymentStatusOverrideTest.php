@@ -13,7 +13,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Tests\TestCase;
 
 class LocalPaymentStatusOverrideTest extends TestCase
@@ -54,16 +53,9 @@ class LocalPaymentStatusOverrideTest extends TestCase
         });
     }
 
-    public function test_status_override_is_rejected_outside_the_local_environment(): void
+    public function test_production_admin_can_override_a_payment_status(): void
     {
-        $this->expectException(NotFoundHttpException::class);
-
-        app(DepositController::class)->overrideStatus(Request::create('/admin/deposit/status-override', 'POST'));
-    }
-
-    public function test_local_admin_can_override_a_payment_status(): void
-    {
-        $this->app['env'] = 'local';
+        $this->app['env'] = 'production';
 
         $userId = DB::table('users')->insertGetId([
             'email' => 'passenger@example.com',
@@ -87,7 +79,7 @@ class LocalPaymentStatusOverrideTest extends TestCase
 
         $admin = (new Admin())->forceFill([
             'id' => 7,
-            'name' => 'Local Admin',
+            'name' => 'Production Admin',
         ]);
         auth('admin')->setUser($admin);
 
@@ -123,7 +115,7 @@ class LocalPaymentStatusOverrideTest extends TestCase
             'id' => $depositId,
             'status' => Status::PAYMENT_SUCCESS,
             'processed_by_admin_id' => 7,
-            'processed_by_name' => 'Local Admin',
+            'processed_by_name' => 'Production Admin',
         ]);
         $this->assertDatabaseHas('booked_tickets', [
             'id' => $ticketId,
