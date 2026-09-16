@@ -33,46 +33,46 @@ class OnlineTicketValidationController extends Controller
         $search = trim((string) ($validated['search'] ?? ''));
         $status = $validated['status'] ?? 'all';
 
-        $query = SlipSeriesNumber::query()
-            ->whereHas('bookedTicket', fn ($ticket) => $this->onlinePaidTicketQuery($ticket))
-            ->whereDoesntHave('refund')
-            ->whereDoesntHave('cancellation')
-            ->whereDoesntHave('voidRecord')
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($searchQuery) use ($search) {
-                    $searchQuery->where('id', 'like', "%{$search}%")
-                        ->orWhere('seat', 'like', "%{$search}%")
-                        ->orWhereHas('bookedTicket', function ($ticket) use ($search) {
-                            $ticket->where('pnr_number', 'like', "%{$search}%")
-                                ->orWhere('passenger_manifest', 'like', "%{$search}%")
-                                ->orWhereHas('user', function ($user) use ($search) {
-                                    $user->where('firstname', 'like', "%{$search}%")
-                                        ->orWhere('lastname', 'like', "%{$search}%")
-                                        ->orWhereRaw("CONCAT_WS(' ', firstname, lastname) LIKE ?", ["%{$search}%"]);
-                                })
-                                ->orWhereHas('deposit', fn ($deposit) => $deposit->where('trx', 'like', "%{$search}%"))
-                                ->orWhereHas('paymentSourceDeposit', fn ($deposit) => $deposit->where('trx', 'like', "%{$search}%"));
-                        });
-                });
-            })
-            ->when($status === 'to_validate', fn ($query) => $query->whereDoesntHave('onlineValidation', fn ($validation) => $validation->whereNotNull('validated_at')))
-            ->when($status === 'validated', fn ($query) => $query->whereHas('onlineValidation', fn ($validation) => $validation->whereNotNull('validated_at')))
-            ->with($this->relations())
-            ->latest('id');
-
-        $tickets = $query->paginate(getPaginate())->withQueryString();
-        $tickets->getCollection()->transform(fn (SlipSeriesNumber $slip) => $this->ticketData($slip));
-
-        $countsBase = SlipSeriesNumber::query()
-            ->whereHas('bookedTicket', fn ($ticket) => $this->onlinePaidTicketQuery($ticket))
-            ->whereDoesntHave('refund')
-            ->whereDoesntHave('cancellation')
-            ->whereDoesntHave('voidRecord');
+        $countRow = $this->eligibleTicketsQuery()
+            ->reorder()
+            ->select([
+                DB::raw('COUNT(*) AS total_count'),
+                DB::raw('SUM(CASE WHEN validation_record.validated_at IS NULL THEN 1 ELSE 0 END) AS to_validate_count'),
+                DB::raw('SUM(CASE WHEN validation_record.validated_at IS NOT NULL THEN 1 ELSE 0 END) AS validated_count'),
+            ])
+            ->first();
         $counts = [
-            'all' => (clone $countsBase)->count(),
-            'to_validate' => (clone $countsBase)->whereDoesntHave('onlineValidation', fn ($validation) => $validation->whereNotNull('validated_at'))->count(),
-            'validated' => (clone $countsBase)->whereHas('onlineValidation', fn ($validation) => $validation->whereNotNull('validated_at'))->count(),
+            'all' => (int) ($countRow?->total_count ?? 0),
+            'to_validate' => (int) ($countRow?->to_validate_count ?? 0),
+            'validated' => (int) ($countRow?->validated_count ?? 0),
         ];
+        $searchLike = '%' . addcslashes($search, '\\%_') . '%';
+
+        $query = $this->eligibleTicketsQuery()
+            ->when($search !== '', function ($query) use ($searchLike) {
+                $query->leftJoin('users as validation_user', 'validation_user.id', '=', 'validation_ticket.user_id')
+                    ->where(function ($searchQuery) use ($searchLike) {
+                        $searchQuery->where('slip_series_numbers.id', 'like', $searchLike)
+                            ->orWhere('slip_series_numbers.seat', 'like', $searchLike)
+                            ->orWhere('validation_ticket.pnr_number', 'like', $searchLike)
+                            ->orWhere('validation_ticket.passenger_manifest', 'like', $searchLike)
+                            ->orWhere('validation_user.firstname', 'like', $searchLike)
+                            ->orWhere('validation_user.lastname', 'like', $searchLike)
+                            ->orWhereRaw("CONCAT_WS(' ', validation_user.firstname, validation_user.lastname) LIKE ?", [$searchLike])
+                            ->orWhere('direct_payment.trx', 'like', $searchLike)
+                            ->orWhere('source_payment.trx', 'like', $searchLike);
+                    });
+            })
+            ->when($status === 'to_validate', fn ($query) => $query->whereNull('validation_record.validated_at'))
+            ->when($status === 'validated', fn ($query) => $query->whereNotNull('validation_record.validated_at'))
+            ->with($this->indexRelations())
+            ->latest('slip_series_numbers.id');
+
+        $paginationTotal = $search === '' ? $counts[$status] : null;
+        $tickets = $query
+            ->paginate(getPaginate(), ['*'], 'page', null, $paginationTotal)
+            ->withQueryString();
+        $tickets->getCollection()->transform(fn (SlipSeriesNumber $slip) => $this->ticketData($slip));
 
         return view('admin.ticket.online-validation', compact(
             'pageTitle',
@@ -204,18 +204,30 @@ class OnlineTicketValidationController extends Controller
         ]);
     }
 
-    private function onlinePaidTicketQuery($query)
+    private function eligibleTicketsQuery()
     {
-        return $query
-            ->whereNotNull('user_id')
+        return SlipSeriesNumber::query()
+            ->join('booked_tickets as validation_ticket', 'validation_ticket.id', '=', 'slip_series_numbers.booked_ticket_id')
+            ->leftJoin('deposits as direct_payment', 'direct_payment.booked_ticket_id', '=', 'validation_ticket.id')
+            ->leftJoin('deposits as source_payment', 'source_payment.id', '=', 'validation_ticket.payment_source_deposit_id')
+            ->leftJoin('ticket_refunds as validation_refund', 'validation_refund.slip_series_number_id', '=', 'slip_series_numbers.id')
+            ->leftJoin('ticket_cancellations as validation_cancellation', 'validation_cancellation.slip_series_number_id', '=', 'slip_series_numbers.id')
+            ->leftJoin('ticket_voids as validation_void', 'validation_void.slip_series_number_id', '=', 'slip_series_numbers.id')
+            ->leftJoin('online_ticket_validations as validation_record', 'validation_record.slip_series_number_id', '=', 'slip_series_numbers.id')
+            ->whereNotNull('validation_ticket.user_id')
             ->where(function ($kiosk) {
-                $kiosk->whereNull('kiosk_id')->orWhere('kiosk_id', 0);
+                $kiosk->whereNull('validation_ticket.kiosk_id')
+                    ->orWhere('validation_ticket.kiosk_id', 0);
             })
-            ->where('status', Status::BOOKED_APPROVED)
+            ->where('validation_ticket.status', Status::BOOKED_APPROVED)
             ->where(function ($payment) {
-                $payment->whereHas('deposit', fn ($deposit) => $deposit->where('status', Status::PAYMENT_SUCCESS))
-                    ->orWhereHas('paymentSourceDeposit', fn ($deposit) => $deposit->where('status', Status::PAYMENT_SUCCESS));
-            });
+                $payment->where('direct_payment.status', Status::PAYMENT_SUCCESS)
+                    ->orWhere('source_payment.status', Status::PAYMENT_SUCCESS);
+            })
+            ->whereNull('validation_refund.id')
+            ->whereNull('validation_cancellation.id')
+            ->whereNull('validation_void.id')
+            ->select('slip_series_numbers.*');
     }
 
     private function ensureOnlinePaidTicket(SlipSeriesNumber $slip): void
@@ -343,12 +355,20 @@ class OnlineTicketValidationController extends Controller
             'bookedTicket.pickup',
             'bookedTicket.drop',
             'bookedTicket.user',
-            'bookedTicket.kiosk',
             'bookedTicket.deposit.userDiscount',
             'bookedTicket.deposit.processedBy:id,name,username',
             'bookedTicket.paymentSourceDeposit.userDiscount',
             'bookedTicket.paymentSourceDeposit.processedBy:id,name,username',
             'bookedTicket.slipSeriesNumbers',
         ];
+    }
+
+    private function indexRelations(): array
+    {
+        return array_values(array_diff($this->relations(), [
+            'refund',
+            'cancellation',
+            'voidRecord',
+        ]));
     }
 }
