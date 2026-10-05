@@ -17,15 +17,6 @@
                         name="hero_image" id="kioskHeroImage" />
 
                     <div class="form-group mt-4">
-                        <label>Headline</label>
-                        <textarea class="form-control" name="headline" id="kioskHeadline" rows="2" required>{{ old('headline', $settings['headline']) }}</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Tagline</label>
-                        <input class="form-control" type="text" name="tagline" id="kioskTagline"
-                            value="{{ old('tagline', $settings['tagline']) }}" required>
-                    </div>
-                    <div class="form-group">
                         <label>Button Text</label>
                         <input class="form-control" type="text" name="button_text" id="kioskButtonText"
                             value="{{ old('button_text', $settings['button_text']) }}" required>
@@ -61,18 +52,13 @@
             <section class="kiosk-settings-preview" aria-label="Kiosk hero preview">
                 <img id="kioskHeroPreview" src="{{ $heroUrl }}" alt="Kiosk hero preview">
                 <div class="kiosk-settings-preview__content">
-                    <div class="kiosk-settings-preview__headline">
-                        <i class="las la-bus"></i>
-                        <strong id="kioskPreviewHeadline">{{ old('headline', $settings['headline']) }}</strong>
-                        <small id="kioskPreviewTagline">{{ old('tagline', $settings['tagline']) }}</small>
-                    </div>
                     <div class="kiosk-settings-preview__footer">
                         <div class="kiosk-settings-preview__benefits">
-                            <span id="kioskPreviewBenefitOne">{{ old('benefit_one', $settings['benefit_one']) }}</span>
-                            <span id="kioskPreviewBenefitTwo">{{ old('benefit_two', $settings['benefit_two']) }}</span>
-                            <span id="kioskPreviewBenefitThree">{{ old('benefit_three', $settings['benefit_three']) }}</span>
+                            <span><i class="las la-chair"></i><b id="kioskPreviewBenefitOne">{{ old('benefit_one', $settings['benefit_one']) }}</b></span>
+                            <span><i class="las la-shield-alt"></i><b id="kioskPreviewBenefitTwo">{{ old('benefit_two', $settings['benefit_two']) }}</b></span>
+                            <span><i class="las la-map-marker-alt"></i><b id="kioskPreviewBenefitThree">{{ old('benefit_three', $settings['benefit_three']) }}</b></span>
                         </div>
-                        <b id="kioskPreviewButtonText">{{ old('button_text', $settings['button_text']) }}</b>
+                        <strong><i class="las la-hand-pointer"></i><span id="kioskPreviewButtonText">{{ old('button_text', $settings['button_text']) }}</span></strong>
                     </div>
                 </div>
             </section>
@@ -85,20 +71,19 @@
         .kiosk-settings-layout{align-items:start;display:grid;gap:24px;grid-template-columns:minmax(300px,.7fr) minmax(360px,1.3fr)}
         .kiosk-settings-form{border-radius:8px;overflow:hidden}
         .kiosk-settings-preview{aspect-ratio:4/5;background:#151a20;border-radius:8px;max-height:680px;overflow:hidden;position:relative;width:100%}
-        .kiosk-settings-preview::after{background:linear-gradient(180deg,rgba(255,255,255,.1) 0%,rgba(255,255,255,.03) 38%,rgba(16,20,26,.68) 100%);content:'';inset:0;position:absolute}
+        .kiosk-settings-preview::after{background:linear-gradient(180deg,rgba(255,255,255,.04) 35%,rgba(16,20,26,.78) 100%);content:'';inset:0;position:absolute}
         .kiosk-settings-preview>img{height:100%;object-fit:cover;width:100%}
-        .kiosk-settings-preview__content{align-items:center;color:#fff;display:flex;flex-direction:column;inset:7% 7% 6%;justify-content:space-between;position:absolute;text-align:center;z-index:1}
-        .kiosk-settings-preview__headline{align-items:center;display:flex;flex-direction:column}
-        .kiosk-settings-preview__headline i{color:var(--primary-color,#df2a82);font-size:38px}
-        .kiosk-settings-preview__headline strong{color:#20252c;font-size:74px;line-height:.82;margin-top:12px;white-space:pre-line}
-        .kiosk-settings-preview__headline small{color:var(--primary-color,#df2a82);font-size:17px;font-weight:800;margin-top:18px;text-transform:uppercase}
-        .kiosk-settings-preview__footer{width:100%}
-        .kiosk-settings-preview__benefits{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:20px}
-        .kiosk-settings-preview__benefits span{border-right:1px solid rgba(255,255,255,.5);font-size:12px;font-weight:700;padding:0 8px;text-transform:uppercase;white-space:pre-line}
+        .kiosk-settings-preview__content{align-items:center;color:#fff;display:flex;inset:0;justify-content:center;padding:0 6% 6%;position:absolute;text-align:center;z-index:1}
+        .kiosk-settings-preview__footer{align-self:flex-end;background:rgba(210,30,119,.94);border-radius:8px;padding:18px 20px;width:100%}
+        .kiosk-settings-preview__benefits{align-items:start;display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:18px}
+        .kiosk-settings-preview__benefits span{align-items:center;border-right:1px solid rgba(255,255,255,.5);display:flex;flex-direction:column;font-size:12px;font-weight:700;gap:5px;padding:0 8px;text-transform:uppercase;white-space:pre-line}
         .kiosk-settings-preview__benefits span:last-child{border-right:0}
-        .kiosk-settings-preview__footer b{background:#fff;border-radius:999px;color:var(--primary-color,#df2a82);display:inline-block;font-size:18px;font-weight:800;padding:14px 30px;text-transform:uppercase}
+        .kiosk-settings-preview__benefits i{border:2px solid #fff;border-radius:50%;display:grid;font-size:20px;height:42px;place-items:center;width:42px}
+        .kiosk-settings-preview__benefits b{font:inherit}
+        .kiosk-settings-preview__footer>strong{align-items:center;background:#fff;border-radius:999px;color:var(--primary-color,#df2a82);display:inline-flex;font-size:20px;font-weight:900;gap:10px;justify-content:center;min-height:54px;padding:10px 30px;text-transform:uppercase}
+        .kiosk-settings-preview__footer>strong i{background:var(--primary-color,#df2a82);border-radius:50%;color:#fff;display:grid;font-size:22px;height:36px;place-items:center;width:36px}
         @media(max-width:991px){.kiosk-settings-layout{grid-template-columns:1fr}.kiosk-settings-preview{justify-self:center;max-width:620px}}
-        @media(max-width:575px){.kiosk-settings-preview__headline strong{font-size:54px}.kiosk-settings-preview__headline small{font-size:13px}.kiosk-settings-preview__benefits span{font-size:9px}.kiosk-settings-preview__footer b{font-size:15px;padding:12px 22px}}
+        @media(max-width:575px){.kiosk-settings-preview__content{padding:0 12px 12px}.kiosk-settings-preview__footer{padding:14px 10px}.kiosk-settings-preview__benefits span{font-size:10px;padding:0 4px}.kiosk-settings-preview__benefits i{font-size:17px;height:36px;width:36px}.kiosk-settings-preview__footer>strong{font-size:16px;min-height:48px;padding:8px 20px}}
     </style>
 @endpush
 
@@ -111,8 +96,6 @@
         });
 
         const kioskPreviewBindings = {
-            kioskHeadline: 'kioskPreviewHeadline',
-            kioskTagline: 'kioskPreviewTagline',
             kioskButtonText: 'kioskPreviewButtonText',
             kioskBenefitOne: 'kioskPreviewBenefitOne',
             kioskBenefitTwo: 'kioskPreviewBenefitTwo',

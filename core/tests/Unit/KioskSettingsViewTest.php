@@ -23,8 +23,23 @@ class KioskSettingsViewTest extends TestCase
         $settings = app(KioskSettingsService::class)->get();
 
         $this->assertSame(
-            ['headline', 'tagline', 'button_text', 'benefit_one', 'benefit_two', 'benefit_three'],
+            ['button_text', 'benefit_one', 'benefit_two', 'benefit_three'],
             array_keys($settings)
         );
+
+        $this->assertArrayNotHasKey('headline', $settings);
+        $this->assertArrayNotHasKey('tagline', $settings);
+    }
+
+    public function test_headline_and_tagline_are_removed_from_settings_and_overlay(): void
+    {
+        $settingsView = file_get_contents(resource_path('views/admin/setting/kiosk.blade.php'));
+        $ticketView = file_get_contents(resource_path('views/templates/basic/ticket.blade.php'));
+
+        $this->assertStringNotContainsString('name="headline"', $settingsView);
+        $this->assertStringNotContainsString('name="tagline"', $settingsView);
+        $this->assertStringNotContainsString('kiosk-idle-hero__headline', $ticketView);
+        $this->assertStringNotContainsString('kiosk-idle-hero__tagline', $ticketView);
+        $this->assertStringContainsString('@media(orientation:portrait)', $ticketView);
     }
 }
