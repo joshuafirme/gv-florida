@@ -759,7 +759,6 @@ class CashierTransactionRecorder
             $prefix . 'pickup',
             $prefix . 'drop',
             $prefix . 'user',
-            $prefix . 'kiosk',
             $prefix . 'deposit.userDiscount',
             $prefix . 'deposit.processedBy:id,name,username',
             $prefix . 'paymentSourceDeposit.userDiscount',

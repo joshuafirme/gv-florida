@@ -379,8 +379,6 @@ class DepositController extends Controller
 
     public function overrideStatus(Request $request)
     {
-        abort_unless(app()->environment('local'), 404);
-
         $validated = $request->validate([
             'deposit_id' => ['required', 'integer', 'exists:deposits,id'],
             'status' => ['required', Rule::in([
