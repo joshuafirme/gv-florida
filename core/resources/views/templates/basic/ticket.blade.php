@@ -127,15 +127,16 @@
         }
 
         .trip-search-label {
-            color: #64748b;
+            color: #718096;
             font-size: 10px;
-            font-weight: 700;
-            left: 38px;
+            font-weight: 800;
+            left: 44px;
             line-height: 1;
             margin: 0;
             pointer-events: none;
             position: absolute;
-            top: 8px;
+            text-transform: uppercase;
+            top: 11px;
             z-index: 12;
         }
 
@@ -143,9 +144,10 @@
             align-items: center;
             bottom: auto;
             display: flex;
-            height: 52px;
+            font-size: 21px;
+            height: 60px;
             justify-content: center;
-            left: 8px;
+            left: 13px;
             line-height: 1;
             padding: 0;
             pointer-events: none;
@@ -153,34 +155,77 @@
             width: 20px;
         }
 
-        .ticket-form .ticket-search-field > .form--control,
-        .ticket-form .ticket-search-field .select2-selection--single {
-            height: 52px;
-            padding-left: 38px !important;
-            padding-top: 16px !important;
+        .ticket-form .ticket-search-field .select2-container {
+            display: block;
+            height: 60px !important;
+            width: 100% !important;
         }
 
-        .ticket-form .ticket-search-field .select2-selection--single {
-            padding-top: 0 !important;
+        .ticket-form .ticket-search-field > .form--control,
+        .ticket-form .ticket-search-field .select2-container--default .select2-selection--single {
+            background: #fff;
+            border: 1px solid #d7dde6 !important;
+            border-radius: 10px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, .03);
+            box-sizing: border-box;
+            color: #1f2937;
+            font-size: 14px;
+            font-weight: 700;
+            height: 60px !important;
+            min-height: 60px;
+            line-height: 20px;
+            transition: border-color .2s ease, box-shadow .2s ease;
+        }
+
+        .ticket-form .ticket-search-field > .form--control {
+            padding: 25px 38px 7px 44px !important;
+        }
+
+        .ticket-form .ticket-search-field .select2-container--default .select2-selection--single {
+            align-items: flex-end;
+            display: flex;
+            padding: 0 38px 9px 44px !important;
+        }
+
+        .ticket-form .ticket-search-field > .form--control:focus,
+        .ticket-form .ticket-search-field .select2-container--focus .select2-selection--single,
+        .ticket-form .ticket-search-field .select2-container--open .select2-selection--single {
+            border-color: var(--booking-primary) !important;
+            box-shadow: 0 0 0 3px var(--booking-primary-soft);
+            outline: 0;
         }
 
         .ticket-form .ticket-search-field .select2-selection__rendered {
-            bottom: 8px;
+            color: #1f2937;
             display: block;
+            font-size: 14px;
+            font-weight: 700;
             height: auto;
-            left: 38px;
-            line-height: 16px !important;
+            line-height: 18px !important;
             margin-left: 0;
             overflow: hidden;
             padding: 0 !important;
-            position: absolute;
-            right: 30px;
+            position: static;
             text-overflow: ellipsis;
             white-space: nowrap;
+            width: 100%;
+        }
+
+        .ticket-form .ticket-search-field .select2-selection__placeholder {
+            color: #8a93a2;
+            font-weight: 500;
         }
 
         .ticket-form .ticket-search-field .select2-selection__arrow {
-            top: 12px;
+            height: 58px;
+            top: 0;
+        }
+
+        .bus-search-header {
+            border: 1px solid #e2e7ee;
+            border-radius: 12px 12px 0 0;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .08);
+            padding: 18px;
         }
 
         .ticket-search-actions {
@@ -188,7 +233,7 @@
         }
 
         .ticket-search-actions .btn {
-            min-height: 52px;
+            min-height: 60px;
         }
 
         @media screen and (max-width: 991px) {
@@ -556,21 +601,35 @@
 
             .ticket-form .ticket-search-field > i {
                 font-size: 18px;
-                height: 46px;
+                height: 52px;
+            }
+
+            .ticket-form .ticket-search-field .select2-container {
+                height: 52px !important;
             }
 
             .ticket-form .ticket-search-field > .form--control,
-            .ticket-form .ticket-search-field .select2-selection--single {
+            .ticket-form .ticket-search-field .select2-container--default .select2-selection--single {
                 font-size: 13px;
-                height: 46px;
+                height: 52px !important;
+                min-height: 52px;
+            }
+
+            .ticket-form .ticket-search-field > .form--control {
+                padding: 21px 34px 6px 44px !important;
+            }
+
+            .ticket-form .ticket-search-field .select2-container--default .select2-selection--single {
+                padding: 0 34px 7px 44px !important;
             }
 
             .ticket-form .ticket-search-field .select2-selection__rendered {
-                bottom: 6px;
+                font-size: 13px;
             }
 
             .ticket-form .ticket-search-field .select2-selection__arrow {
-                top: 9px;
+                height: 50px;
+                top: 0;
             }
 
             .ticket-search-actions .btn {
