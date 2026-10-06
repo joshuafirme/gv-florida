@@ -316,6 +316,7 @@ class OnlineTicketValidationController extends Controller
             'rebook_url' => route('admin.vehicle.ticket.booked', ['rebook_ticket' => $ticket->id, 'slip_id' => $slip->id]),
             'cancel_url' => route('admin.vehicle.ticket.booked', ['ticket_action' => 'cancel', 'slip_id' => $slip->id]),
             'refund_url' => route('admin.vehicle.ticket.booked', ['ticket_action' => 'refund', 'slip_id' => $slip->id]),
+            'notify_url' => route('admin.vehicle.ticket.notify', $ticket, false),
         ];
 
         if ($includeDiscounts) {
