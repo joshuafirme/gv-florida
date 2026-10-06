@@ -9,6 +9,7 @@ use App\Models\Discount;
 use App\Models\OnlineTicketValidation;
 use App\Models\SlipSeriesNumber;
 use App\Services\CashierTransactionRecorder;
+use App\Services\BookingNotificationService;
 use App\Services\TransactionAuthorizationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -193,6 +194,15 @@ class OnlineTicketValidationController extends Controller
 
             return $record;
         });
+
+        $validation->loadMissing(['bookedTicket', 'slipSeriesNumber']);
+        app(BookingNotificationService::class)->send(
+            $validation->bookedTicket,
+            'validation_completed',
+            "ticket-validation:{$validation->id}",
+            auth('admin')->user(),
+            $validation->slipSeriesNumber
+        );
 
         return response()->json([
             'message' => 'Online ticket validated successfully.',

@@ -79,6 +79,10 @@ Route::middleware('auth')->name('user.')->group(function () {
                 Route::get('transactions', 'transactions')->name('transactions');
 
                 Route::post('add-device-token', 'addDeviceToken')->name('add.device.token');
+
+                Route::get('notifications', 'notifications')->name('notifications.index');
+                Route::post('notifications/read-all', 'readAllNotifications')->name('notifications.read-all');
+                Route::post('notifications/{notification}/read', 'readNotification')->name('notifications.read');
             });
 
             //Profile setting

@@ -61,6 +61,8 @@
         @include('partials.push_script')
     @endif
 
+    @include('partials.passenger_notification_pusher')
+
     @stack('script')
 
     <script>
