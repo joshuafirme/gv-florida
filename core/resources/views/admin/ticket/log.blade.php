@@ -213,6 +213,16 @@
                                                           <i class="las la-ban"></i>
                                                       </button>
                                             @endif
+
+                                            @if ($item->user_id)
+                                                <button type="button" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                    title="Notify Passenger"
+                                                    class="btn btn-sm btn-outline--primary ms-1 notify-passenger-btn"
+                                                    data-notify-url="{{ route('admin.vehicle.ticket.notify', $item) }}"
+                                                    data-pnr="{{ $item->pnr_number }}">
+                                                    <i class="las la-bell"></i>
+                                                </button>
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty
@@ -714,6 +724,7 @@
     </style>
 
     <x-confirmation-modal />
+    @include('admin.ticket.partials.notify-passenger-modal')
 @endsection
 @push('breadcrumb-plugins')
     <form

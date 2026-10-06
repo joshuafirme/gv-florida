@@ -8,6 +8,7 @@ use App\Lib\GoogleAuthenticator;
 use App\Models\DeviceToken;
 use App\Models\BookedTicket;
 use App\Models\Transaction;
+use App\Models\PassengerNotification;
 use App\Support\UserIdentitySanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -197,6 +198,51 @@ class UserController extends Controller
         $deviceToken->save();
 
         return ['success' => true, 'message' => 'Token saved successfully'];
+    }
+
+    public function notifications()
+    {
+        $pageTitle = 'Notification History';
+        $notifications = auth()->user()
+            ->passengerNotifications()
+            ->latest()
+            ->paginate(getPaginate());
+
+        return view('Template::user.notifications', compact('pageTitle', 'notifications'));
+    }
+
+    public function readNotification(PassengerNotification $notification)
+    {
+        abort_unless((int) $notification->user_id === (int) auth()->id(), 404);
+
+        if (!$notification->is_read) {
+            $notification->update([
+                'is_read' => true,
+                'read_at' => now(),
+            ]);
+        }
+
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return to_route('user.notifications.index');
+    }
+
+    public function readAllNotifications()
+    {
+        auth()->user()->passengerNotifications()
+            ->where('is_read', false)
+            ->update([
+                'is_read' => true,
+                'read_at' => now(),
+            ]);
+
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return back();
     }
 
     public function downloadAttachment($fileHash)

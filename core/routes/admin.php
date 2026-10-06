@@ -229,6 +229,7 @@ Route::middleware('admin')->group(function () {
         Route::get('all', 'list')->name('list');
         Route::get('pending/details/{id}', 'pendingDetails')->name('pending.details');
         Route::get('{scope}/search', 'search')->name('search');
+        Route::post('{ticket}/notify-passenger', 'notifyPassenger')->name('notify');
     });
 
     Route::controller('OnlineTicketValidationController')

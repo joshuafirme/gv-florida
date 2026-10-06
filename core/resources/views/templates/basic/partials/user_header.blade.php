@@ -105,6 +105,35 @@
                 </li>
             </ul>
             <div class="d-flex flex-wrap algin-items-center">
+                <div class="passenger-notification dropdown me-3">
+                    <button class="passenger-notification-bell" type="button" data-bs-toggle="dropdown"
+                        aria-expanded="false" aria-label="@lang('Notifications')">
+                        <i class="las la-bell"></i>
+                        <span id="passengerNotificationCount"
+                            class="passenger-notification-count {{ empty($passengerNotificationCount) ? 'd-none' : '' }}">
+                            {{ $passengerNotificationCount ?? 0 }}
+                        </span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end passenger-notification-menu">
+                        <div class="passenger-notification-head">
+                            <strong>@lang('Notifications')</strong>
+                            <a href="{{ route('user.notifications.index') }}">@lang('View history')</a>
+                        </div>
+                        <div id="passengerNotificationDropdown" class="passenger-notification-list">
+                            @forelse (($passengerNotifications ?? collect()) as $notification)
+                                <a href="{{ route('user.notifications.index') }}"
+                                    class="passenger-notification-item {{ $notification->is_read ? '' : 'is-unread' }}"
+                                    data-read-url="{{ route('user.notifications.read', $notification) }}">
+                                    <strong>{{ $notification->title }}</strong>
+                                    <span>{{ $notification->message }}</span>
+                                    <small>{{ diffForHumans($notification->created_at) }}</small>
+                                </a>
+                            @empty
+                                <div class="passenger-notification-empty">@lang('No notifications yet.')</div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
                 <a href="{{ route('ticket') }}" class="cmn--btn btn--sm">@lang('Buy Tickets')</a>
                 <div class="header-trigger-wrapper d-flex d-lg-none ms-4">
                     <div class="header-trigger d-block d-lg-none">
@@ -202,6 +231,26 @@
         .language .dropdown-menu.show {
             visibility: visible;
             opacity: 1;
+        }
+
+        .passenger-notification { display: flex; align-items: center; }
+        .passenger-notification-bell { align-items: center; background: transparent; border: 0; color: #343a4a; display: inline-flex; justify-content: center; padding: 6px; position: relative; }
+        .passenger-notification-bell i { font-size: 20px; }
+        .passenger-notification-count { align-items: center; background: var(--booking-primary, #df2a82); border: 2px solid #fff; border-radius: 999px; color: #fff; display: flex; font-size: 9px; font-weight: 700; height: 19px; justify-content: center; min-width: 19px; padding: 0 4px; position: absolute; right: -7px; top: -7px; }
+        .passenger-notification-menu { border: 0; border-radius: 12px; box-shadow: 0 14px 38px rgba(31, 41, 55, .18); min-width: 380px; overflow: hidden; padding: 0; }
+        .passenger-notification-head { align-items: center; border-bottom: 1px solid #edf0f5; display: flex; justify-content: space-between; padding: 14px 16px; }
+        .passenger-notification-head a { color: var(--booking-primary, #df2a82); font-size: 12px; }
+        .passenger-notification-list { max-height: 390px; overflow-y: auto; }
+        .passenger-notification-item { border-bottom: 1px solid #f0f1f4; color: #343a4a; display: flex; flex-direction: column; gap: 3px; padding: 12px 16px; white-space: normal; }
+        .passenger-notification-item:hover { background: #f8f9fb; color: #343a4a; }
+        .passenger-notification-item.is-unread { background: color-mix(in srgb, var(--booking-primary) 7%, #fff); border-left: 3px solid var(--booking-primary, #df2a82); }
+        .passenger-notification-item strong { font-size: 13px; }
+        .passenger-notification-item span { color: #646c7b; font-size: 11px; line-height: 1.45; }
+        .passenger-notification-item small { color: #969daa; font-size: 10px; }
+        .passenger-notification-empty { color: #818896; font-size: 12px; padding: 28px 16px; text-align: center; }
+
+        @media (max-width: 575px) {
+            .passenger-notification-menu { min-width: min(360px, calc(100vw - 24px)); }
         }
     </style>
 @endpush
