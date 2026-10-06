@@ -33,6 +33,7 @@ class DailyReportService
         $allTransactions = CashierTransactionEvent::query()
             ->bookingTransactions()
             ->with('admin:id,name,username')
+            ->whereNotNull('admin_id')
             ->whereBetween('processed_at', [
                 $businessDate->copy()->startOfDay(),
                 $businessDate->copy()->endOfDay(),
@@ -85,8 +86,14 @@ class DailyReportService
 
     public function compile(Collection $transactions): array
     {
-        $cashierCollections = $transactions
+        // This report reconciles money handled by cashiers. Channel-only sales
+        // (for example, an online payment without a processing cashier) belong
+        // in channel revenue reporting and must not inflate cashier totals.
+        $transactions = $transactions
             ->filter(fn ($transaction) => $transaction->admin_id)
+            ->values();
+
+        $cashierCollections = $transactions
             ->groupBy(fn ($transaction) => (string) ($transaction->admin_id ?? 'unknown'))
             ->map(function (Collection $cashierTransactions) {
                 $first = $cashierTransactions->first();

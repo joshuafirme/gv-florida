@@ -30,7 +30,7 @@ class CashierDashboardServiceTest extends TestCase
             'gross_sales' => 1350.0,
             'discounts' => 200.0,
             'surcharges' => 50.0,
-            'refunds' => 300.0,
+            'refunds' => 400.0,
             'voids' => 200.0,
             'rebooked' => 1,
             'cancelled' => 1,
