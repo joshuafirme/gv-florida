@@ -102,6 +102,7 @@ class CashierDashboardService
     {
         $sold = $transactions->where('status', 'Sold');
         $surcharges = (float) $sold->sum('surcharge_amount');
+        $refunds = $transactions->whereIn('status', ['Refunded', 'Discount Override']);
 
         return [
             'tickets' => $sold->count(),
@@ -109,7 +110,10 @@ class CashierDashboardService
             'discounts' => (float) $sold->sum('discount_amount')
                 + abs((float) $transactions->where('status', 'Discount Override')->sum('amount')),
             'surcharges' => $surcharges,
-            'refunds' => abs((float) $transactions->where('status', 'Refunded')->sum('amount')),
+            // A discount override on an already-paid online ticket is money
+            // returned by the cashier, so it is a refund outflow for collection
+            // reconciliation even though it remains classified as a discount.
+            'refunds' => abs((float) $refunds->sum('amount')),
             'voids' => abs((float) $transactions->where('status', 'Voided')->sum('amount')),
             'rebooked' => $transactions->where('status', 'Rebooked')->count(),
             'cancelled' => $transactions->where('status', 'Cancelled')->count(),

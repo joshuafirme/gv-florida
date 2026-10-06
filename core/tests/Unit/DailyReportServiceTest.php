@@ -32,6 +32,7 @@ class DailyReportServiceTest extends TestCase
 
         $this->assertSame(2, $report['summary']['tickets']);
         $this->assertSame(800.0, $report['summary']['net_collection']);
+        $this->assertSame(400.0, $report['summary']['refunds']);
         $this->assertSame([
             'sold' => 2,
             'rebooked' => 1,
@@ -44,6 +45,7 @@ class DailyReportServiceTest extends TestCase
 
         $this->assertSame('Alice', $report['cashier_collections'][0]['cashier']);
         $this->assertSame(500.0, $report['cashier_collections'][0]['summary']['net_collection']);
+        $this->assertSame(400.0, $report['cashier_collections'][0]['summary']['refunds']);
         $this->assertSame('Ben', $report['cashier_collections'][1]['cashier']);
         $this->assertSame(300.0, $report['cashier_collections'][1]['summary']['net_collection']);
 
@@ -53,7 +55,7 @@ class DailyReportServiceTest extends TestCase
         $this->assertSame(900.0, $report['channel_collections'][1]['amount']);
     }
 
-    public function test_it_keeps_online_and_kiosk_sales_in_the_daily_total_without_listing_them_as_cashiers(): void
+    public function test_it_excludes_channel_only_sales_from_cashier_breakdown_and_totals(): void
     {
         $recorder = $this->createMock(CashierTransactionRecorder::class);
         $service = new DailyReportService(
@@ -62,16 +64,18 @@ class DailyReportServiceTest extends TestCase
         );
 
         $transactions = collect([
+            $this->transaction(1, 'Alice', 'Sold', 'Counter', 300),
             $this->transaction(null, null, 'Sold', 'Kiosk', 900),
             $this->transaction(null, null, 'Sold', 'Online', 500),
         ]);
 
         $report = $service->compile($transactions);
 
-        $this->assertSame(2, $report['summary']['tickets']);
-        $this->assertSame(1400.0, $report['summary']['net_collection']);
-        $this->assertCount(0, $report['cashier_collections']);
-        $this->assertSame(['Kiosk', 'Online'], $report['channel_collections']->pluck('channel')->all());
+        $this->assertSame(1, $report['summary']['tickets']);
+        $this->assertSame(300.0, $report['summary']['net_collection']);
+        $this->assertCount(1, $report['cashier_collections']);
+        $this->assertSame('Alice', $report['cashier_collections'][0]['cashier']);
+        $this->assertSame(['Counter'], $report['channel_collections']->pluck('channel')->all());
     }
 
     public function test_it_filters_transactions_by_type_source_processor_and_payment_method(): void
