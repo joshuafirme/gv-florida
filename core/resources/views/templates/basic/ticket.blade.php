@@ -658,44 +658,32 @@
             }
         }
 
-        .kiosk-idle-hero{background:#151a20;color:#fff;inset:0;overflow:hidden;pointer-events:none;position:fixed;transform:translateY(-105%);transition:transform .62s cubic-bezier(.76,0,.24,1),visibility 0s linear .62s;visibility:hidden;z-index:10000}
+        .kiosk-idle-hero{background:#151a20;color:#fff;height:100vh;height:100dvh;inset:0;overflow:hidden;pointer-events:none;position:fixed;transform:translateY(-105%);transition:transform .62s cubic-bezier(.76,0,.24,1),visibility 0s linear .62s;visibility:hidden;width:100vw;z-index:10000}
         .kiosk-idle-hero.is-active{pointer-events:auto;transform:translateY(0);transition:transform .62s cubic-bezier(.76,0,.24,1);visibility:visible}
         .kiosk-idle-hero.is-leaving{pointer-events:none;transform:translateY(-105%)}
-        .kiosk-idle-hero__image{height:100%;inset:0;object-fit:cover;object-position:center;position:absolute;width:100%}
-        .kiosk-idle-hero__shade{background:linear-gradient(180deg,rgba(255,255,255,.28) 0%,rgba(255,255,255,.06) 42%,rgba(10,14,18,.82) 100%);inset:0;position:absolute}
-        .kiosk-idle-hero__content{align-items:center;display:flex;flex-direction:column;height:100%;justify-content:space-between;padding:7vh 6vw 5vh;position:relative;text-align:center;z-index:1}
-        .kiosk-idle-hero__headline{align-items:center;display:flex;flex-direction:column}
-        .kiosk-idle-hero__route-mark{align-items:center;color:var(--booking-primary);display:flex;gap:22px;margin-bottom:18px}
-        .kiosk-idle-hero__route-mark::before,.kiosk-idle-hero__route-mark::after{background:currentColor;content:'';height:3px;width:110px}
-        .kiosk-idle-hero__route-mark i{font-size:42px}
-        .kiosk-idle-hero h1{color:#20252c;font-size:112px;font-weight:900;letter-spacing:0;line-height:.82;margin:0;text-shadow:0 2px 0 rgba(255,255,255,.15);white-space:pre-line}
-        .kiosk-idle-hero__tagline{align-items:center;color:var(--booking-primary);display:flex;font-size:22px;font-weight:800;gap:18px;margin:28px 0 0;text-transform:uppercase}
-        .kiosk-idle-hero__tagline::before,.kiosk-idle-hero__tagline::after{background:currentColor;content:'';height:2px;width:70px}
-        .kiosk-idle-hero__footer{width:min(900px,100%)}
-        .kiosk-idle-hero__benefits{align-items:stretch;display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:28px}
-        .kiosk-idle-hero__benefit{align-items:center;border-right:1px solid rgba(255,255,255,.45);display:flex;font-size:15px;font-weight:700;gap:10px;justify-content:center;padding:4px 18px;text-align:left;text-transform:uppercase;white-space:pre-line}
+        .kiosk-idle-hero__image{display:block;height:100%;inset:0;object-fit:cover;object-position:center;opacity:.82;position:absolute;width:100%}
+        .kiosk-idle-hero__shade{background:linear-gradient(180deg,rgba(10,14,18,.08) 35%,rgba(10,14,18,.92) 100%);inset:0;position:absolute}
+        .kiosk-idle-hero__content{align-items:center;display:flex;height:100%;justify-content:center;padding:5vh 5vw;position:relative;text-align:center;z-index:1}
+        .kiosk-idle-hero__footer{align-self:flex-end;padding:28px 32px;width:min(960px,100%)}
+        .kiosk-idle-hero__benefits{align-items:stretch;display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:26px}
+        .kiosk-idle-hero__benefit{align-items:center;border-right:1px solid rgba(255,255,255,.55);display:flex;font-size:18px;font-weight:800;gap:12px;justify-content:center;padding:5px 18px;text-align:left;text-shadow:0 2px 6px rgba(0,0,0,.85);text-transform:uppercase;white-space:pre-line}
         .kiosk-idle-hero__benefit:last-child{border-right:0}
-        .kiosk-idle-hero__benefit i{border:2px solid #fff;border-radius:50%;display:grid;font-size:21px;height:48px;place-items:center;width:48px}
-        .kiosk-idle-hero__cta{align-items:center;background:#fff;border:0;border-radius:999px;box-shadow:0 10px 28px rgba(0,0,0,.24);color:var(--booking-primary);display:inline-flex;font-size:22px;font-weight:900;gap:14px;justify-content:center;min-height:66px;padding:12px 42px;text-transform:uppercase}
-        .kiosk-idle-hero__cta i{background:var(--booking-primary);border-radius:50%;color:#fff;display:grid;font-size:26px;height:44px;place-items:center;width:44px}
+        .kiosk-idle-hero__benefit i{border:3px solid #fff;border-radius:50%;display:grid;flex:0 0 58px;font-size:27px;height:58px;place-items:center;width:58px}
+        .kiosk-idle-hero__cta{align-items:center;background:#fff;border:0;border-radius:999px;box-shadow:0 10px 28px rgba(0,0,0,.24);color:var(--booking-primary);display:inline-flex;font-size:30px;font-weight:900;gap:18px;justify-content:center;min-height:86px;min-width:min(560px,100%);padding:14px 52px;text-transform:uppercase}
+        .kiosk-idle-hero__cta i{background:var(--booking-primary);border-radius:50%;color:#fff;display:grid;flex:0 0 56px;font-size:30px;height:56px;place-items:center;width:56px}
         body.kiosk-attract-active{overflow:hidden}
-        @media(max-width:991px){.kiosk-idle-hero__content{padding:6vh 5vw 4vh}.kiosk-idle-hero h1{font-size:76px}.kiosk-idle-hero__tagline{font-size:18px}.kiosk-idle-hero__benefit{font-size:12px;padding:4px 10px}}
-        @media(max-width:575px){.kiosk-idle-hero__content{padding:5vh 18px 4vh}.kiosk-idle-hero__route-mark{gap:14px}.kiosk-idle-hero__route-mark::before,.kiosk-idle-hero__route-mark::after{width:52px}.kiosk-idle-hero__route-mark i{font-size:32px}.kiosk-idle-hero h1{font-size:54px;line-height:.86}.kiosk-idle-hero__tagline{font-size:13px;gap:8px;margin-top:18px}.kiosk-idle-hero__tagline::before,.kiosk-idle-hero__tagline::after{width:24px}.kiosk-idle-hero__benefits{gap:8px;margin-bottom:18px}.kiosk-idle-hero__benefit{border:0;display:block;font-size:9px;padding:0;text-align:center}.kiosk-idle-hero__benefit i{height:38px;margin:0 auto 6px;width:38px}.kiosk-idle-hero__cta{font-size:17px;min-height:56px;padding:8px 26px}.kiosk-idle-hero__cta i{font-size:21px;height:38px;width:38px}}
-        @media(orientation:landscape) and (max-height:700px){.kiosk-idle-hero__content{padding:5vh 5vw}.kiosk-idle-hero h1{font-size:64px}.kiosk-idle-hero__tagline{font-size:14px;margin-top:14px}.kiosk-idle-hero__benefits{margin-bottom:12px}.kiosk-idle-hero__benefit i{height:38px;width:38px}.kiosk-idle-hero__cta{font-size:17px;min-height:52px}}
+        @media(orientation:portrait){.kiosk-idle-hero__image{height:100dvh;object-position:center center;width:100vw}.kiosk-idle-hero__content{height:100dvh;padding:4vh 4vw}.kiosk-idle-hero__footer{padding:34px 28px;width:min(760px,100%)}.kiosk-idle-hero__benefits{margin-bottom:30px}.kiosk-idle-hero__benefit{font-size:20px;gap:10px;padding:6px 12px}.kiosk-idle-hero__benefit i{flex-basis:64px;font-size:30px;height:64px;width:64px}.kiosk-idle-hero__cta{font-size:32px;min-height:94px;min-width:min(600px,100%)}.kiosk-idle-hero__cta i{flex-basis:62px;font-size:34px;height:62px;width:62px}}
+        @media(max-width:575px){.kiosk-idle-hero__content{padding:18px}.kiosk-idle-hero__footer{padding:20px 14px}.kiosk-idle-hero__benefits{gap:6px;margin-bottom:20px}.kiosk-idle-hero__benefit{border-right:1px solid rgba(255,255,255,.4);display:flex;flex-direction:column;font-size:12px;gap:7px;padding:0 5px;text-align:center}.kiosk-idle-hero__benefit i{flex-basis:46px;font-size:21px;height:46px;width:46px}.kiosk-idle-hero__cta{font-size:21px;gap:10px;min-height:66px;min-width:100%;padding:8px 20px}.kiosk-idle-hero__cta i{flex-basis:44px;font-size:23px;height:44px;width:44px}}
+        @media(orientation:landscape) and (max-height:700px){.kiosk-idle-hero__content{padding:16px 4vw}.kiosk-idle-hero__footer{padding:14px 24px}.kiosk-idle-hero__benefits{margin-bottom:12px}.kiosk-idle-hero__benefit{font-size:13px}.kiosk-idle-hero__benefit i{flex-basis:42px;font-size:19px;height:42px;width:42px}.kiosk-idle-hero__cta{font-size:20px;min-height:58px;padding:7px 30px}.kiosk-idle-hero__cta i{flex-basis:40px;font-size:20px;height:40px;width:40px}}
     </style>
 
     @if ($kiosk_id)
         <section class="kiosk-idle-hero" id="kioskIdleHero" role="button" tabindex="-1"
-            aria-label="{{ str_replace(["\r", "\n"], ' ', $kioskHeroCopy['headline']) }}. {{ $kioskHeroCopy['button_text'] }}."
+            aria-label="{{ $kioskHeroCopy['button_text'] }}"
             aria-hidden="true">
             <img class="kiosk-idle-hero__image" src="{{ $kioskHeroUrl }}" alt="Florida bus on a scenic route">
             <span class="kiosk-idle-hero__shade" aria-hidden="true"></span>
             <div class="kiosk-idle-hero__content">
-                <div class="kiosk-idle-hero__headline">
-                    <span class="kiosk-idle-hero__route-mark" aria-hidden="true"><i class="fas fa-bus"></i></span>
-                    <h1>{{ $kioskHeroCopy['headline'] }}</h1>
-                    <p class="kiosk-idle-hero__tagline">{{ $kioskHeroCopy['tagline'] }}</p>
-                </div>
                 <div class="kiosk-idle-hero__footer">
                     <div class="kiosk-idle-hero__benefits" aria-hidden="true">
                         <span class="kiosk-idle-hero__benefit"><i class="fas fa-chair"></i> {{ $kioskHeroCopy['benefit_one'] }}</span>

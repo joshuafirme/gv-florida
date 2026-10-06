@@ -7,8 +7,6 @@ use RuntimeException;
 class KioskSettingsService
 {
     public const DEFAULTS = [
-        'headline' => "BOOK\nHERE",
-        'tagline' => 'YOUR TRIP STARTS HERE',
         'button_text' => 'TOUCH TO START',
         'benefit_one' => "EXECUTIVE\nSLEEPER",
         'benefit_two' => "SAFE &\nRELIABLE",
@@ -24,7 +22,11 @@ class KioskSettingsService
 
         $stored = json_decode((string) file_get_contents($path), true);
 
-        return array_merge(self::DEFAULTS, is_array($stored) ? $stored : []);
+        $stored = is_array($stored)
+            ? array_intersect_key($stored, self::DEFAULTS)
+            : [];
+
+        return array_merge(self::DEFAULTS, $stored);
     }
 
     public function save(array $settings): void

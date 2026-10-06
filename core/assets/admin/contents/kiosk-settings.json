@@ -1,8 +1,6 @@
 {
-    "headline": "BOOK\nHERE",
-    "tagline": "YOUR TRIP STARTS HERE",
     "button_text": "TOUCH TO START",
-    "benefit_one": "EXECUTIVE\nSLEEPER",
-    "benefit_two": "SAFE &\nRELIABLE",
-    "benefit_three": "WIDE ROUTE\nNETWORK"
+    "benefit_one": "EXECUTIVE\r\nSLEEPER",
+    "benefit_two": "SAFE &\r\nRELIABLE",
+    "benefit_three": "WIDE ROUTE\r\nNETWORK"
 }

@@ -31,8 +31,6 @@ class GeneralSettingController extends Controller
     {
         $validated = $request->validate([
             'hero_image' => ['nullable', 'image', 'max:8192', new FileTypeValidate(['jpg', 'jpeg', 'png'])],
-            'headline' => ['required', 'string', 'max:80'],
-            'tagline' => ['required', 'string', 'max:100'],
             'button_text' => ['required', 'string', 'max:50'],
             'benefit_one' => ['required', 'string', 'max:60'],
             'benefit_two' => ['required', 'string', 'max:60'],
