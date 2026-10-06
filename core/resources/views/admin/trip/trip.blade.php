@@ -693,6 +693,11 @@
                 z-index: 2;
             }
 
+            #cuModal .fare-preview-stop {
+                color: #303846 !important;
+                font-weight: 600;
+            }
+
             #cuModal .modal-footer {
                 background: #fff;
                 flex-shrink: 0;
@@ -818,10 +823,10 @@
                         }
 
                         html += `
-                    <tr style="border-bottom: 1px solid #2a2a2a;">
-                        <td class="text-light py-3 ps-0">${counter.name}</td>
+                    <tr style="border-bottom: 1px solid #dee2e6;">
+                        <td class="fare-preview-stop py-3 ps-4">${counter.name}</td>
                         <td class="text-muted py-3">${counter.km_post}</td>
-                        <td class="text-end py-3 pe-0 ${priceClass}">${priceText}</td>
+                        <td class="text-end py-3 pe-4 ${priceClass}">${priceText}</td>
                     </tr>
                 `;
                     });
