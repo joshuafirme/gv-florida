@@ -1146,7 +1146,7 @@ class VehicleTicketController extends Controller
                 'label' => 'Notify Passenger',
                 'icon' => 'las la-bell',
                 'class' => 'btn-outline--primary notify-passenger-btn',
-                'url' => route('admin.vehicle.ticket.notify', $ticket),
+                'url' => route('admin.vehicle.ticket.notify', $ticket, false),
                 'type' => 'notify',
                 'pnr' => $ticket->pnr_number,
             ];
