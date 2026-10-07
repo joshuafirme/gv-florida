@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Constants\Status;
 use App\Models\BookedTicket;
 use App\Models\Deposit;
+use App\Models\Kiosk;
 use App\Models\Trip;
 use App\Models\User;
 use App\Services\SeatLayoutService;
@@ -14,116 +15,176 @@ use RuntimeException;
 
 class ManifestStatusDemoSeeder extends Seeder
 {
-    private const TRIP_ID = 59;
-    private const JOURNEY_DATE = '2026-10-06';
+    private const TRIP_ID = 4;
+    private const JOURNEY_DATE = '2026-10-08';
 
     public function run(SeatLayoutService $seatLayout): void
     {
-        $trip = Trip::with(['fleetType', 'route'])->find(self::TRIP_ID);
-        $user = User::query()->orderBy('id')->first();
-        $paymentTemplate = Deposit::query()->latest('id')->first();
+        $trip = Trip::query()->with(['fleetType', 'ticketPrice'])->find(self::TRIP_ID);
 
-        if (!$trip?->fleetType || !$trip->route || !$user || !$paymentTemplate) {
-            throw new RuntimeException('Trip 59, a customer, and a payment template are required for the manifest demo.');
+        if (!$trip?->fleetType) {
+            throw new RuntimeException('Trip 4 with a fleet type is required for the manifest demo.');
         }
 
-        $availableSeats = collect($seatLayout->layout($trip->fleetType)['seat_ids'])
-            ->reject(fn (string $seat) => in_array(
-                $seat,
-                $seatLayout->disabledSeatIds($trip->fleetType),
-                true
-            ))
-            ->take(3)
+        $user = User::query()->where('status', Status::ENABLE)->orderBy('id')->first();
+        $kiosk = Kiosk::query()
+            ->where('status', Status::ENABLE)
+            ->where('counter_id', $trip->start_from)
+            ->orderBy('id')
+            ->first();
+
+        if (!$user || !$kiosk) {
+            throw new RuntimeException('An active user and an active kiosk at the trip origin are required.');
+        }
+
+        $records = $this->records();
+        $demoTickets = BookedTicket::query()
+            ->whereIn('pnr_number', collect($records)->pluck('pnr'))
+            ->get();
+        $occupiedSeats = BookedTicket::query()
+            ->where('trip_id', $trip->id)
+            ->whereDate('date_of_journey', self::JOURNEY_DATE)
+            ->whereNotIn('id', $demoTickets->pluck('id'))
+            ->holdingSeats()
+            ->get(['seats'])
+            ->flatMap(fn (BookedTicket $ticket) => $ticket->seats ?: [])
+            ->all();
+        $seats = $seatLayout->availableSeatIds($trip->fleetType, ['booked' => $occupiedSeats])
+            ->take(count($records))
             ->values();
 
-        if ($availableSeats->count() < 3) {
-            throw new RuntimeException('Three available fleet seats are required for the manifest demo.');
+        if ($seats->count() < count($records)) {
+            throw new RuntimeException('Four available seats are required to seed the manifest demo.');
         }
 
-        $samples = [
-            [
-                'pnr' => 'MAN59-COUNTER',
-                'name' => 'Counter Passenger',
-                'seat' => $availableSeats[0],
-                'online' => false,
-                'pending' => false,
-            ],
-            [
-                'pnr' => 'MAN59-ONLINE',
-                'name' => 'Online Passenger',
-                'seat' => $availableSeats[1],
-                'online' => true,
-                'pending' => false,
-            ],
-            [
-                'pnr' => 'MAN59-PENDING',
-                'name' => 'Pending Passenger',
-                'seat' => $availableSeats[2],
-                'online' => true,
-                'pending' => true,
-            ],
-        ];
+        $fare = (float) ($trip->ticketPrice?->price ?? 0);
+        $now = now();
 
-        foreach ($samples as $sample) {
-            DB::transaction(function () use ($trip, $user, $paymentTemplate, $sample) {
-                $fare = 950.00;
-                $ticket = BookedTicket::firstOrNew(['pnr_number' => $sample['pnr']]);
+        DB::transaction(function () use ($records, $seats, $trip, $user, $kiosk, $fare, $now): void {
+            foreach ($records as $index => $record) {
+                $seat = (string) $seats[$index];
+                $isOnline = $record['channel'] === 'online';
+                $isPending = $record['status'] === Status::BOOKED_PENDING;
+                $passengerManifest = [[
+                    'fare' => $fare,
+                    'name' => $record['passenger_name'],
+                    'seat' => $seat,
+                    'base_fare' => $fare,
+                    'id_number' => $record['id_number'],
+                    'discount_id' => null,
+                    'discount_name' => $record['passenger_type'] === 'regular'
+                        ? null
+                        : $record['passenger_type'],
+                    'passenger_type' => $record['passenger_type'] === 'regular'
+                        ? 'regular'
+                        : 'discounted',
+                    'discount_amount' => 0,
+                    'discount_percentage' => $record['passenger_type'] === 'regular' ? 0 : 20,
+                ]];
+
+                $ticket = BookedTicket::query()->firstOrNew(['pnr_number' => $record['pnr']]);
                 $ticket->forceFill([
-                    'user_id' => $sample['online'] ? $user->id : 0,
+                    'user_id' => $isOnline ? $user->id : null,
                     'gender' => 0,
                     'trip_id' => $trip->id,
-                    'kiosk_id' => null,
+                    'kiosk_id' => $isOnline ? null : $kiosk->id,
                     'approved_by' => null,
-                    'source_destination' => [$trip->route->start_from, $trip->route->end_to],
-                    'pickup_point' => $trip->route->start_from,
-                    'dropping_point' => $trip->route->end_to,
-                    'seats' => [$sample['seat']],
-                    'passenger_manifest' => [[
-                        'fare' => $fare,
-                        'name' => $sample['name'],
-                        'seat' => $sample['seat'],
-                        'base_fare' => $fare,
-                        'id_number' => null,
-                        'discount_id' => null,
-                        'discount_name' => null,
-                        'passenger_type' => 'regular',
-                        'discount_amount' => 0,
-                        'discount_percentage' => 0,
-                    ]],
+                    'source_destination' => [$trip->start_from, $trip->end_to],
+                    'pickup_point' => $trip->start_from,
+                    'dropping_point' => $trip->end_to,
+                    'seats' => [$seat],
+                    'passenger_manifest' => $passengerManifest,
                     'ticket_count' => 1,
                     'unit_price' => $fare,
                     'sub_total' => $fare,
                     'date_of_journey' => self::JOURNEY_DATE,
-                    'status' => $sample['pending'] ? Status::BOOKED_PENDING : Status::BOOKED_APPROVED,
+                    'status' => $record['status'],
                     'is_rebooked' => 0,
                     'payment_source_deposit_id' => null,
-                ]);
-                $ticket->save();
-                $ticket->slipSeriesNumbers()->firstOrCreate(['seat' => $sample['seat']]);
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])->save();
 
-                if (!$sample['online']) {
-                    return;
-                }
+                $ticket->slipSeriesNumbers()->where('seat', '!=', $seat)->delete();
+                $ticket->slipSeriesNumbers()->firstOrCreate(['seat' => $seat]);
 
-                $transactionId = $sample['pending'] ? 'MANIFEST-PENDING-59' : 'MANIFEST-ONLINE-59';
-                $deposit = Deposit::where('trx', $transactionId)->first()
-                    ?: $paymentTemplate->replicate();
+                $deposit = Deposit::query()->firstOrNew(['booked_ticket_id' => $ticket->id]);
                 $deposit->forceFill([
-                    'user_id' => $user->id,
+                    'user_id' => $isOnline ? $user->id : null,
                     'processed_by_admin_id' => null,
                     'processed_by_name' => null,
-                    'booked_ticket_id' => $ticket->id,
+                    'method_code' => $isOnline ? 126 : 1001,
+                    'pmethod' => $isOnline ? 'wallet' : 'cash',
+                    'pchannel' => $isOnline ? 'paymaya_ph' : null,
+                    'pay_reference' => null,
+                    'expiry_limit' => $isPending
+                        ? $now->copy()->addMinutes($isOnline ? 30 : 15)->format('Y-m-d H:i:s')
+                        : null,
                     'amount' => $fare,
+                    'method_currency' => 'PHP',
                     'charge' => 0,
                     'rate' => 1,
                     'final_amount' => $fare,
-                    'trx' => $transactionId,
-                    'pay_reference' => $sample['pending'] ? 'DEMO-PENDING' : 'DEMO-PAID',
-                    'status' => $sample['pending'] ? Status::PAYMENT_PENDING : Status::PAYMENT_SUCCESS,
-                    'expiry_limit' => $sample['pending'] ? now()->addHours(4) : null,
-                ]);
-                $deposit->save();
-            });
-        }
+                    'detail' => null,
+                    'btc_amount' => 0,
+                    'btc_wallet' => '',
+                    'trx' => $record['request_id'],
+                    'payment_try' => 0,
+                    'status' => $isPending ? Status::PAYMENT_PENDING : Status::PAYMENT_SUCCESS,
+                    'from_api' => 0,
+                    'success_url' => route('user.deposit.done'),
+                    'failed_url' => urlPath('ticket'),
+                    'last_cron' => 0,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])->save();
+            }
+        });
+
+        $this->command?->info(
+            'Manifest demo seeded for Trip 4 on October 8, 2026. Pending indicators remain active for 15/30 minutes.'
+        );
+    }
+
+    private function records(): array
+    {
+        return [
+            [
+                'pnr' => 'MAN4KIOSK01',
+                'request_id' => 'MANIFEST-KIOSK-PAID',
+                'channel' => 'kiosk',
+                'status' => Status::BOOKED_APPROVED,
+                'passenger_name' => 'Kiosk Passenger',
+                'passenger_type' => 'regular',
+                'id_number' => null,
+            ],
+            [
+                'pnr' => 'MAN4ONLINE1',
+                'request_id' => 'MANIFEST-ONLINE-PAID',
+                'channel' => 'online',
+                'status' => Status::BOOKED_APPROVED,
+                'passenger_name' => 'Online Senior Passenger',
+                'passenger_type' => 'Senior Citizen',
+                'id_number' => 'SC-DEMO-1001',
+            ],
+            [
+                'pnr' => 'MAN4KPEND1',
+                'request_id' => 'MANIFEST-KIOSK-PENDING',
+                'channel' => 'kiosk',
+                'status' => Status::BOOKED_PENDING,
+                'passenger_name' => 'Pending Kiosk Passenger',
+                'passenger_type' => 'regular',
+                'id_number' => null,
+            ],
+            [
+                'pnr' => 'MAN4OPEND1',
+                'request_id' => 'MANIFEST-ONLINE-PENDING',
+                'channel' => 'online',
+                'status' => Status::BOOKED_PENDING,
+                'passenger_name' => 'Pending Online Passenger',
+                'passenger_type' => 'regular',
+                'id_number' => null,
+            ],
+        ];
     }
 }

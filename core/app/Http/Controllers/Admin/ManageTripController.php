@@ -706,6 +706,9 @@ class ManageTripController extends Controller
                     ?: strtoupper(trim((string) $slip->seat));
                 $pendingPayment = (int) $booking->status === Status::BOOKED_PENDING;
                 $onlineBooking = (int) $booking->user_id > 0 && !$booking->isKioskBooking();
+                $bookingChannel = $onlineBooking
+                    ? 'Online'
+                    : ($booking->isKioskBooking() ? 'Kiosk' : 'Counter');
                 $haystack = strtolower(implode(' ', [
                     $slip->seat,
                     $slip->id,
@@ -713,7 +716,7 @@ class ManageTripController extends Controller
                     $passenger['name'],
                     $passenger['type'],
                     $passenger['id_number'],
-                    $onlineBooking ? 'online' : '',
+                    $bookingChannel,
                     $pendingPayment ? 'pending payment temporarily locked' : '',
                 ]));
                 $seatManifest->put($seatId, [
@@ -729,6 +732,7 @@ class ManageTripController extends Controller
                     'blocked' => $pendingPayment,
                     'pending_payment' => $pendingPayment,
                     'online_booking' => $onlineBooking,
+                    'booking_channel' => $bookingChannel,
                     'matches' => $search === '' || str_contains($haystack, strtolower($search)),
                 ]);
             }

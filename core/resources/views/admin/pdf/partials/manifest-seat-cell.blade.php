@@ -66,7 +66,8 @@
                     @endif
                 </span>
                 <span class="manifest-pending-reference">
-                    {{ $manifest['pnr'] ?: 'No. ' . $manifest['reference'] }}{{ $manifest['online_booking'] ? ' · Online' : '' }}
+                    {{ $manifest['pnr'] ?: 'No. ' . $manifest['reference'] }}
+                    &middot; {{ $manifest['booking_channel'] }}
                 </span>
             </div>
         @elseif ($manifest)

@@ -278,9 +278,13 @@
                                                         </span>
                                                         <span class="manifest-pending-reference">
                                                             {{ $manifest['pnr'] ?: 'No. ' . $manifest['reference'] }}
+                                                            &middot;
                                                             @if ($manifest['online_booking'])
-                                                                &middot; <i class="fas fa-globe"></i> Online
+                                                                <i class="fas fa-globe"></i>
+                                                            @else
+                                                                <i class="fas fa-desktop"></i>
                                                             @endif
+                                                            {{ $manifest['booking_channel'] }}
                                                         </span>
                                                     </div>
                                                 @else
