@@ -55,7 +55,7 @@ class DailyReportServiceTest extends TestCase
         $this->assertSame(900.0, $report['channel_collections'][1]['amount']);
     }
 
-    public function test_it_excludes_channel_only_sales_from_cashier_breakdown_and_totals(): void
+    public function test_it_includes_online_and_kiosk_sales_in_cashier_channel_and_report_totals(): void
     {
         $recorder = $this->createMock(CashierTransactionRecorder::class);
         $service = new DailyReportService(
@@ -71,11 +71,24 @@ class DailyReportServiceTest extends TestCase
 
         $report = $service->compile($transactions);
 
-        $this->assertSame(1, $report['summary']['tickets']);
-        $this->assertSame(300.0, $report['summary']['net_collection']);
-        $this->assertCount(1, $report['cashier_collections']);
-        $this->assertSame('Alice', $report['cashier_collections'][0]['cashier']);
-        $this->assertSame(['Counter'], $report['channel_collections']->pluck('channel')->all());
+        $this->assertSame(3, $report['summary']['tickets']);
+        $this->assertSame(1700.0, $report['summary']['net_collection']);
+        $this->assertSame(
+            ['Alice', 'Kiosk', 'Online'],
+            $report['cashier_collections']->pluck('cashier')->all()
+        );
+        $this->assertSame(
+            [300.0, 900.0, 500.0],
+            $report['cashier_collections']->pluck('summary.net_collection')->all()
+        );
+        $this->assertSame(
+            ['Counter', 'Kiosk', 'Online'],
+            $report['channel_collections']->pluck('channel')->all()
+        );
+        $this->assertSame(
+            [300.0, 900.0, 500.0],
+            $report['channel_collections']->pluck('amount')->all()
+        );
     }
 
     public function test_it_filters_transactions_by_type_source_processor_and_payment_method(): void
