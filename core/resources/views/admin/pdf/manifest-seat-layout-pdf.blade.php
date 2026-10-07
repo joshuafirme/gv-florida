@@ -24,6 +24,7 @@
         .manifest-stats .booked { background: #edfff4; color: #087a39; }
         .manifest-stats .blocked { background: #f2f6fa; color: #38566d; }
         .manifest-stats .locked { background: #fff7e7; color: #955400; }
+        .manifest-stats .online { background: #eef9ff; color: #168bb6; }
         .manifest-stats .discounted { background: #fff8e9; color: #9a6200; }
         .manifest-search-note { border: .65pt solid #d76796; color: #8f1749; font-size: 6.5px; margin-bottom: 4px; padding: 3px 5px; }
         .manifest-decks { page-break-inside: avoid; width: 100%; }
@@ -38,7 +39,10 @@
         .manifest-seat-number { color: #9ea7b2; float: left; font-size: 11px; font-weight: 800; line-height: 1; }
         .manifest-seat-status { color: #7f8995; float: right; font-size: 5px; font-style: italic; font-weight: 700; text-transform: uppercase; }
         .manifest-seat.occupied .manifest-seat-number { color: #0f1825; }
-        .manifest-seat.blocked { background: #fafbfc; }
+        .manifest-seat.blocked, .manifest-seat.pending-payment { background: #fff0f4; border-left: 2pt solid #e5557e; }
+        .manifest-seat.pending-payment .manifest-seat-number, .manifest-seat.pending-payment .manifest-seat-status { color: #b72c57; }
+        .manifest-seat.online-booking:not(.pending-payment) { background: #eef9ff; border-left: 2pt solid #35b9e8; }
+        .manifest-seat.online-booking:not(.pending-payment) .manifest-seat-status { color: #168bb6; }
         .manifest-seat.admin-locked { background: #fff8e8; border-left: 2pt solid #d99419; }
         .manifest-seat.admin-locked .manifest-seat-number, .manifest-seat.admin-locked .manifest-seat-status { color: #8b5100; }
         .manifest-seat.disabled { background: #eceff2; color: #7f8995; }
@@ -57,6 +61,10 @@
         .manifest-lock-details { clear: both; color: #744500; padding-top: 3px; }
         .manifest-lock-details strong { display: block; font-size: 6px; text-transform: uppercase; }
         .manifest-lock-details span { display: block; font-size: 5px; margin-top: 1px; }
+        .manifest-pending-details { clear: both; color: #9f224a; padding-top: 3px; }
+        .manifest-pending-details strong { display: block; font-size: 6px; text-transform: uppercase; }
+        .manifest-pending-details span { color: #8d5366; display: block; font-size: 5px; margin-top: 1px; }
+        .manifest-pending-reference { color: #b82758 !important; font-weight: 800; }
         .manifest-centered-wrap { padding: 0 !important; text-align: center; }
         .manifest-centered-table { margin: 0 auto; }
         .manifest-page--dense .manifest-reference { font-size: 8px; }
@@ -100,6 +108,7 @@
                 <td class="booked">Booked: {{ $stats['booked'] }}</td>
                 <td class="blocked">Pending/Held: {{ $stats['blocked'] }}</td>
                 <td class="locked">Admin Locked: {{ $stats['locked'] }}</td>
+                <td class="online">Online: {{ $stats['online'] }}</td>
                 <td>Available: {{ $stats['vacant'] }}</td>
                 <td class="discounted">SC/PWD: {{ $stats['discounted'] }}</td>
             </tr>
