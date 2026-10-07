@@ -70,13 +70,13 @@
     <style>
         .kiosk-settings-layout{align-items:start;display:grid;gap:24px;grid-template-columns:minmax(300px,.7fr) minmax(360px,1.3fr)}
         .kiosk-settings-form{border-radius:8px;overflow:hidden}
-        .kiosk-settings-preview{aspect-ratio:4/5;background:#151a20;border-radius:8px;max-height:680px;overflow:hidden;position:relative;width:100%}
-        .kiosk-settings-preview::after{background:linear-gradient(180deg,rgba(255,255,255,.04) 35%,rgba(16,20,26,.78) 100%);content:'';inset:0;position:absolute}
-        .kiosk-settings-preview>img{height:100%;object-fit:cover;width:100%}
+        .kiosk-settings-preview{aspect-ratio:9/16;background:#151a20;border-radius:8px;justify-self:center;max-height:760px;max-width:427px;overflow:hidden;position:relative;width:100%}
+        .kiosk-settings-preview::after{background:linear-gradient(180deg,rgba(16,20,26,.08) 35%,rgba(16,20,26,.9) 100%);content:'';inset:0;position:absolute}
+        .kiosk-settings-preview>img{height:100%;object-fit:cover;opacity:.82;width:100%}
         .kiosk-settings-preview__content{align-items:center;color:#fff;display:flex;inset:0;justify-content:center;padding:0 6% 6%;position:absolute;text-align:center;z-index:1}
-        .kiosk-settings-preview__footer{align-self:flex-end;background:rgba(210,30,119,.94);border-radius:8px;padding:18px 20px;width:100%}
+        .kiosk-settings-preview__footer{align-self:flex-end;padding:18px 20px;width:100%}
         .kiosk-settings-preview__benefits{align-items:start;display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:18px}
-        .kiosk-settings-preview__benefits span{align-items:center;border-right:1px solid rgba(255,255,255,.5);display:flex;flex-direction:column;font-size:12px;font-weight:700;gap:5px;padding:0 8px;text-transform:uppercase;white-space:pre-line}
+        .kiosk-settings-preview__benefits span{align-items:center;border-right:1px solid rgba(255,255,255,.5);display:flex;flex-direction:column;font-size:12px;font-weight:700;gap:5px;padding:0 8px;text-shadow:0 2px 5px rgba(0,0,0,.8);text-transform:uppercase;white-space:pre-line}
         .kiosk-settings-preview__benefits span:last-child{border-right:0}
         .kiosk-settings-preview__benefits i{border:2px solid #fff;border-radius:50%;display:grid;font-size:20px;height:42px;place-items:center;width:42px}
         .kiosk-settings-preview__benefits b{font:inherit}

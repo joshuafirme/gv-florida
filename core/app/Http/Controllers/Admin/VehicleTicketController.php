@@ -18,6 +18,7 @@ use App\Models\TicketCancellation;
 use App\Models\TicketRefund;
 use App\Models\TicketVoid;
 use App\Services\CashierTransactionRecorder;
+use App\Services\BookingNotificationService;
 use App\Services\RebookingPolicy;
 use App\Services\SeatConflictService;
 use App\Services\SeatLayoutService;
@@ -282,6 +283,15 @@ class VehicleTicketController extends Controller
             return $refund;
         });
 
+        $refund->loadMissing(['bookedTicket', 'slipSeriesNumber']);
+        app(BookingNotificationService::class)->send(
+            $refund->bookedTicket,
+            'ticket_refunded',
+            "ticket-refund:{$refund->id}",
+            auth('admin')->user(),
+            $refund->slipSeriesNumber
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Refund confirmed successfully. The seat has been released and the ticket was moved to Refunded Tickets.',
@@ -396,6 +406,15 @@ class VehicleTicketController extends Controller
 
             return $cancellation;
         });
+
+        $cancellation->loadMissing(['bookedTicket', 'slipSeriesNumber']);
+        app(BookingNotificationService::class)->send(
+            $cancellation->bookedTicket,
+            'ticket_cancelled',
+            "ticket-cancellation:{$cancellation->id}",
+            auth('admin')->user(),
+            $cancellation->slipSeriesNumber
+        );
 
         return response()->json([
             'success' => true,
@@ -1039,7 +1058,7 @@ class VehicleTicketController extends Controller
             'slip_id' => $slip->id,
         ]);
 
-        return match ($status) {
+        $actions = match ($status) {
             'Booked' => [
                 [
                     'label' => 'Reservation slip',
@@ -1121,6 +1140,55 @@ class VehicleTicketController extends Controller
             ]] : [],
             default => [],
         };
+
+        if ($ticket->user_id) {
+            $actions[] = [
+                'label' => 'Notify Passenger',
+                'icon' => 'las la-bell',
+                'class' => 'btn-outline--primary notify-passenger-btn',
+                'url' => route('admin.vehicle.ticket.notify', $ticket, false),
+                'type' => 'notify',
+                'pnr' => $ticket->pnr_number,
+            ];
+        }
+
+        return $actions;
+    }
+
+    public function notifyPassenger(Request $request, BookedTicket $ticket)
+    {
+        $validated = $request->validate([
+            'event_type' => 'required|string|in:' . implode(',', array_keys(BookingNotificationService::manualTemplates())),
+        ]);
+
+        abort_unless($ticket->user_id, 422, 'This booking is not linked to a passenger account.');
+
+        $service = app(BookingNotificationService::class);
+        $notification = $service->send(
+            $ticket,
+            $validated['event_type'],
+            'manual:' . $validated['event_type'] . ':' . $ticket->id . ':' . $service->stateFingerprint($ticket),
+            auth('admin')->user()
+        );
+
+        if (!$notification) {
+            return response()->json([
+                'message' => 'This notification was already sent for the current booking details.',
+                'duplicate' => true,
+            ], 409);
+        }
+
+        if ($notification->status === 'Failed') {
+            return response()->json([
+                'message' => 'The notification was recorded, but Pusher delivery failed. You can retry it.',
+                'notification_id' => $notification->id,
+            ], 503);
+        }
+
+        return response()->json([
+            'message' => 'Passenger notification sent successfully.',
+            'notification_id' => $notification->id,
+        ]);
     }
 
     private function rebookedTicketRelations(): array
@@ -1563,6 +1631,13 @@ class VehicleTicketController extends Controller
             $admin
         );
 
+        app(BookingNotificationService::class)->send(
+            $data,
+            'rebooking_completed',
+            'rebooking:' . $data->id . ':' . ($data->updated_at?->format('YmdHisv') ?: now()->format('YmdHisv')),
+            auth('admin')->user()
+        );
+
         $notify[] = ['success', "Booking Date and Seats Updated Successfully"];
         return redirect()->back()->withNotify($notify);
     }
@@ -1754,6 +1829,13 @@ class VehicleTicketController extends Controller
 
             return $result;
         });
+
+        app(BookingNotificationService::class)->send(
+            $result,
+            'rebooking_completed',
+            'rebooking:' . $result->id . ':' . ($result->updated_at?->format('YmdHisv') ?: now()->format('YmdHisv')),
+            auth('admin')->user()
+        );
 
         return response()->json([
             'success' => true,

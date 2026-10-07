@@ -72,6 +72,11 @@
                                         <a href="{{ $ticket['rebook_url'] }}" class="btn btn-sm btn-outline--primary" title="Rebook ticket"><i class="fa-solid fa-calendar-day"></i></a>
                                         <a href="{{ $ticket['refund_url'] }}" class="btn btn-sm btn-outline--warning" title="Refund ticket"><i class="las la-undo-alt"></i></a>
                                         <a href="{{ $ticket['cancel_url'] }}" class="btn btn-sm btn-outline--danger" title="Cancel ticket"><i class="las la-ban"></i></a>
+                                        <button type="button" class="btn btn-sm btn-outline--primary notify-passenger-btn"
+                                            data-notify-url="{{ $ticket['notify_url'] }}" data-pnr="{{ $ticket['pnr'] }}"
+                                            title="Notify Passenger">
+                                            <i class="las la-bell"></i>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -86,6 +91,8 @@
             <div class="card-footer py-4">{{ paginateLinks($tickets) }}</div>
         @endif
     </div>
+
+    @include('admin.ticket.partials.notify-passenger-modal')
 
     <div class="modal fade" id="onlineValidationModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered validation-dialog">
