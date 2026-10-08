@@ -24,6 +24,26 @@ class TicketPassengerResolverTest extends TestCase
         $this->assertSame('ORIGINAL-PAYMENT', $ticket->payment_record->trx);
     }
 
+    public function test_booking_history_can_expose_the_source_payment_as_its_deposit_relation(): void
+    {
+        $deposit = new Deposit();
+        $deposit->id = 42;
+        $deposit->trx = 'ORIGINAL-PAYMENT';
+        $deposit->status = 1;
+
+        $ticket = new BookedTicket();
+        $ticket->payment_source_deposit_id = 42;
+        $ticket->setRelation('deposit', null);
+        $ticket->setRelation('paymentSourceDeposit', $deposit);
+
+        $result = $ticket->useCanonicalPaymentRecord();
+
+        $this->assertSame($ticket, $result);
+        $this->assertTrue($ticket->relationLoaded('deposit'));
+        $this->assertSame($deposit, $ticket->deposit);
+        $this->assertSame(1, $ticket->deposit->status);
+    }
+
     public function test_it_resolves_each_reference_to_only_its_assigned_passenger(): void
     {
         $ticket = new BookedTicket();
