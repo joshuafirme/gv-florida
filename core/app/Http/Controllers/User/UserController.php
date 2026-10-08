@@ -36,9 +36,22 @@ class UserController extends Controller
             ->count();
 
         $widget['rejected'] = BookedTicket::rejected()->where('user_id', auth()->user()->id)->count();
-        $bookedTickets = BookedTicket::with(['trip.fleetType', 'trip.startFrom', 'trip.endTo', 'trip.schedule', 'pickup', 'drop'])
+        $bookedTickets = BookedTicket::with([
+            'trip.fleetType',
+            'trip.startFrom',
+            'trip.endTo',
+            'trip.schedule',
+            'pickup',
+            'drop',
+            'deposit.gateway',
+            'paymentSourceDeposit.gateway',
+        ])
             ->where('user_id', auth()->user()->id)->whereNotNull('seats')->orderBy('id', 'desc')
             ->paginate(getPaginate());
+        $bookedTickets->getCollection()->each(function (BookedTicket $ticket): void {
+            $ticket->useCanonicalPaymentRecord();
+        });
+
         return view('Template::user.dashboard', compact('pageTitle', 'bookedTickets', 'widget'));
     }
 
@@ -266,7 +279,16 @@ class UserController extends Controller
         $pageTitle = 'Booking History';
         $emptyMessage = 'No booked ticket found';
 
-        $query = BookedTicket::with(['trip.fleetType', 'trip.startFrom', 'trip.endTo', 'trip.schedule', 'pickup', 'drop'])
+        $query = BookedTicket::with([
+            'trip.fleetType',
+            'trip.startFrom',
+            'trip.endTo',
+            'trip.schedule',
+            'pickup',
+            'drop',
+            'deposit.gateway',
+            'paymentSourceDeposit.gateway',
+        ])
             ->where('user_id', auth()->user()->id)
             ->orderBy('id', 'desc');
 
@@ -274,6 +296,9 @@ class UserController extends Controller
             $query->where('pnr_number', $request->search);
         }
         $bookedTickets = $query->paginate(getPaginate());
+        $bookedTickets->getCollection()->each(function (BookedTicket $ticket): void {
+            $ticket->useCanonicalPaymentRecord();
+        });
 
         return view('Template::user.booking_history', compact('pageTitle', 'emptyMessage', 'bookedTickets'));
     }
@@ -289,10 +314,14 @@ class UserController extends Controller
             'pickup',
             'drop',
             'user',
-            'deposit'
+            'deposit.gateway',
+            'paymentSourceDeposit.gateway',
         ]);
 
-        return $ticket->findOrFail($id);
+        $ticket = $ticket->findOrFail($id);
+        $ticket->useCanonicalPaymentRecord();
+
+        return $ticket;
     }
 
     public function printTicket($id)

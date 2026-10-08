@@ -130,6 +130,14 @@ class BookedTicket extends Model
             : $this->paymentSourceDeposit()->first();
     }
 
+    public function useCanonicalPaymentRecord(): self
+    {
+        $paymentRecord = $this->payment_record;
+        $this->setRelation('deposit', $paymentRecord);
+
+        return $this;
+    }
+
     public function slipSeriesNumbers()
     {
         return $this->hasMany(SlipSeriesNumber::class, 'booked_ticket_id');
