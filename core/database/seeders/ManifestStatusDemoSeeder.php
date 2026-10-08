@@ -105,8 +105,12 @@ class ManifestStatusDemoSeeder extends Seeder
                     'updated_at' => $now,
                 ])->save();
 
-                $ticket->slipSeriesNumbers()->where('seat', '!=', $seat)->delete();
-                $ticket->slipSeriesNumbers()->firstOrCreate(['seat' => $seat]);
+                if ($isPending) {
+                    $ticket->slipSeriesNumbers()->delete();
+                } else {
+                    $ticket->slipSeriesNumbers()->where('seat', '!=', $seat)->delete();
+                    $ticket->slipSeriesNumbers()->firstOrCreate(['seat' => $seat]);
+                }
 
                 $deposit = Deposit::query()->firstOrNew(['booked_ticket_id' => $ticket->id]);
                 $deposit->forceFill([

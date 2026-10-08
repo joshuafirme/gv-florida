@@ -682,6 +682,7 @@ class ManageTripController extends Controller
             ->holdingSeats()
             ->with([
                 'activeSlipSeriesNumbers.onlineValidation.discount',
+                'slipSeriesNumbers:id,booked_ticket_id,seat',
                 'deposit.userDiscount',
                 'paymentSourceDeposit.userDiscount',
                 'user',
@@ -692,7 +693,27 @@ class ManageTripController extends Controller
         $seatManifest = collect();
 
         foreach ($bookings as $booking) {
-            foreach ($booking->activeSlipSeriesNumbers as $slip) {
+            $manifestSeats = $booking->activeSlipSeriesNumbers;
+
+            // Pending and legacy bookings may hold seats before reference numbers are issued.
+            if ($manifestSeats->isEmpty() && $booking->slipSeriesNumbers->isEmpty()) {
+                $heldSeats = collect($booking->seats ?: []);
+                if ($heldSeats->isEmpty()) {
+                    $heldSeats = collect($booking->passenger_manifest ?: [])->pluck('seat');
+                }
+
+                $manifestSeats = $heldSeats
+                    ->map(fn ($seat) => trim((string) $seat))
+                    ->filter()
+                    ->unique(fn ($seat) => strtoupper($seat))
+                    ->map(fn ($seat) => (object) [
+                        'id' => null,
+                        'seat' => $seat,
+                        'onlineValidation' => null,
+                    ]);
+            }
+
+            foreach ($manifestSeats as $slip) {
                 $passenger = $this->passengerResolver->forSeat($booking, (string) $slip->seat);
                 $validation = $slip->onlineValidation;
                 if ($validation?->discount_id) {
