@@ -15,7 +15,10 @@
         ?? ($isKioskBooking ?? false)
         || ($layout ?? null) === 'layouts.kiosk'
         || request()->filled('kiosk_id');
-    $showNavigation = $showNavigation ?? ($isKioskFlow ? $currentStep !== 'trip' : $currentStep === 'trip');
+    $showNavigation = $showNavigation
+        ?? ($isKioskFlow
+            ? $currentStep !== 'trip'
+            : !in_array($currentStep, ['trip', 'done'], true));
     $navigationTicket = $bookedTicket ?? $ticket ?? null;
     $navigationKioskId = $kiosk_id
         ?? request('kiosk_id')
