@@ -9,6 +9,7 @@ use App\Models\Frontend;
 use App\Models\Kiosk;
 use App\Models\Schedule;
 use App\Models\Trip;
+use App\Models\TripChannelAvailability;
 use App\Models\TicketPrice;
 use App\Models\BookedTicket;
 use App\Models\VehicleRoute;
@@ -341,6 +342,12 @@ class SiteController extends Controller
             $trips_query = $this->filterTrip($trips_query);
         }
 
+        if ($request->filled('province')) {
+            $trips_query->whereHas('endTo', function ($counter) use ($request) {
+                $counter->where('location', $request->province);
+            });
+        }
+
         // -------------------------------
         // 5. FINALIZE & PAGINATE
         // -------------------------------
@@ -355,6 +362,26 @@ class SiteController extends Controller
         $fleetType = FleetType::active()->get();
         $schedules = Schedule::all();
         $routes = VehicleRoute::active()->get();
+        $provinces = Counter::active()
+            ->whereNotNull('location')
+            ->where('location', '!=', '')
+            ->distinct()
+            ->orderBy('location')
+            ->pluck('location');
+        $selectedDestinationCounter = $destination
+            ? Counter::active()->find($destination)
+            : null;
+        $journeyDateStatuses = $this->journeyDateStatuses(
+            $request,
+            $tripIds,
+            $pickup,
+            $destination,
+            getAllowedAdvanceBookingDays($request->kiosk_id)
+        );
+        $availableJourneyDates = array_keys(array_filter(
+            $journeyDateStatuses,
+            fn ($status) => $status === 'available'
+        ));
 
         $layout = auth()->check() ? 'layouts.master' : 'layouts.frontend';
 
@@ -367,6 +394,10 @@ class SiteController extends Controller
             'schedules',
             'emptyMessage',
             'ticketPrices',
+            'provinces',
+            'selectedDestinationCounter',
+            'availableJourneyDates',
+            'journeyDateStatuses',
             'layout'
         ));
     }
@@ -1021,6 +1052,125 @@ class SiteController extends Controller
             ->active()
             ->forBookingChannel($kioskId, $journeyDate)
             ->whereHas('schedule');
+    }
+
+    private function journeyDateStatuses(
+        Request $request,
+        array $kioskTripIds,
+        $pickup,
+        $destination,
+        int $allowedDays
+    ): array {
+        $today = Carbon::today();
+        $lastDate = $today->copy()->addDays($allowedDays);
+        $channel = $request->kiosk_id
+            ? TripChannelAvailability::KIOSK
+            : TripChannelAvailability::ONLINE;
+        $defaultColumn = $request->kiosk_id
+            ? 'kiosk_booking_enabled'
+            : 'online_booking_enabled';
+
+        $query = Trip::query()
+            ->with([
+                'route',
+                'schedule',
+                'endTo',
+                'channelAvailabilities' => fn ($availability) => $availability
+                    ->whereBetween('journey_date', [$today->format('Y-m-d'), $lastDate->format('Y-m-d')]),
+            ])
+            ->active()
+            ->whereHas('schedule');
+
+        if ($request->kiosk_id) {
+            $query->whereIntegerInRaw('id', $kioskTripIds);
+        }
+        if ($pickup) {
+            $query->where('start_from', (int) $pickup);
+        }
+        if ($request->filled('fleetType')) {
+            $query->whereIn('fleet_type_id', (array) $request->fleetType);
+        }
+        if ($request->filled('province')) {
+            $query->whereHas('endTo', fn ($counter) => $counter->where('location', $request->province));
+        }
+
+        $trips = $query->get()
+            ->filter(fn (Trip $trip) => $this->tripMatchesJourney($trip, $pickup, $destination));
+        $cutoffMinutes = getBookingCutoffMinutes($request->kiosk_id);
+
+        return collect(range(0, $allowedDays))
+            ->mapWithKeys(function ($offset) use ($today, $trips, $channel, $defaultColumn, $cutoffMinutes) {
+                $date = $today->copy()->addDays($offset);
+                $dateKey = $date->format('Y-m-d');
+
+                if ($trips->isEmpty()) {
+                    return [$dateKey => 'no_trip'];
+                }
+
+                $available = $trips->contains(function (Trip $trip) use ($date, $channel, $defaultColumn, $cutoffMinutes) {
+                    if (collect($trip->day_off ?: [])->map(fn ($day) => (string) $day)
+                        ->contains((string) $date->dayOfWeek)) {
+                        return false;
+                    }
+
+                    $override = $trip->channelAvailabilities->first(
+                        fn ($availability) => $availability->channel === $channel
+                            && $availability->journey_date?->format('Y-m-d') === $date->format('Y-m-d')
+                    );
+                    $enabled = $override ? (bool) $override->is_enabled : (bool) $trip->{$defaultColumn};
+
+                    if (!$enabled) {
+                        return false;
+                    }
+
+                    if ($date->isToday()) {
+                        $departure = Carbon::parse($date->format('Y-m-d') . ' ' . $trip->schedule->start_from);
+
+                        return $departure->gt(now()->addMinutes($cutoffMinutes));
+                    }
+
+                    return true;
+                });
+
+                return [$dateKey => $available ? 'available' : 'not_open'];
+            })
+            ->all();
+    }
+
+    private function tripMatchesJourney(Trip $trip, $pickup, $destination): bool
+    {
+        if (!$destination) {
+            return true;
+        }
+
+        $stoppages = array_values(array_map('strval', (array) ($trip->route?->stoppages ?? [])));
+        $destinationId = (string) $destination;
+
+        if (!$pickup) {
+            return in_array($destinationId, $stoppages, true);
+        }
+
+        $orderedStops = $stoppages;
+        $tripStart = array_search((string) $trip->start_from, $orderedStops, true);
+        $tripEnd = array_search((string) $trip->end_to, $orderedStops, true);
+        if ($tripStart === false || $tripEnd === false) {
+            return false;
+        }
+        if ($tripStart > $tripEnd) {
+            $orderedStops = array_reverse($orderedStops);
+            $tripStart = array_search((string) $trip->start_from, $orderedStops, true);
+            $tripEnd = array_search((string) $trip->end_to, $orderedStops, true);
+        }
+
+        $pickupIndex = array_search((string) $pickup, $orderedStops, true);
+        $destinationIndex = array_search($destinationId, $orderedStops, true);
+
+        return $pickupIndex !== false
+            && $destinationIndex !== false
+            && $pickupIndex >= $tripStart
+            && $pickupIndex < $tripEnd
+            && $destinationIndex > $pickupIndex
+            && $destinationIndex <= $tripEnd;
     }
 
     public function placeholderImage($size = null)
