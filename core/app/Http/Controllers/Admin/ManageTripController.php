@@ -682,7 +682,9 @@ class ManageTripController extends Controller
             ->holdingSeats()
             ->with([
                 'activeSlipSeriesNumbers.onlineValidation.discount',
+                'slipSeriesNumbers:id,booked_ticket_id,seat',
                 'deposit.userDiscount',
+                'paymentSourceDeposit.userDiscount',
                 'user',
                 'pickup',
                 'drop',
@@ -691,7 +693,27 @@ class ManageTripController extends Controller
         $seatManifest = collect();
 
         foreach ($bookings as $booking) {
-            foreach ($booking->activeSlipSeriesNumbers as $slip) {
+            $manifestSeats = $booking->activeSlipSeriesNumbers;
+
+            // Pending and legacy bookings may hold seats before reference numbers are issued.
+            if ($manifestSeats->isEmpty() && $booking->slipSeriesNumbers->isEmpty()) {
+                $heldSeats = collect($booking->seats ?: []);
+                if ($heldSeats->isEmpty()) {
+                    $heldSeats = collect($booking->passenger_manifest ?: [])->pluck('seat');
+                }
+
+                $manifestSeats = $heldSeats
+                    ->map(fn ($seat) => trim((string) $seat))
+                    ->filter()
+                    ->unique(fn ($seat) => strtoupper($seat))
+                    ->map(fn ($seat) => (object) [
+                        'id' => null,
+                        'seat' => $seat,
+                        'onlineValidation' => null,
+                    ]);
+            }
+
+            foreach ($manifestSeats as $slip) {
                 $passenger = $this->passengerResolver->forSeat($booking, (string) $slip->seat);
                 $validation = $slip->onlineValidation;
                 if ($validation?->discount_id) {
@@ -703,12 +725,20 @@ class ManageTripController extends Controller
                     || strtolower(trim((string) $passenger['type'])) !== 'regular';
                 $seatId = $seatLayoutService->canonicalSeatId($trip->fleetType, (string) $slip->seat)
                     ?: strtoupper(trim((string) $slip->seat));
+                $pendingPayment = (int) $booking->status === Status::BOOKED_PENDING;
+                $onlineBooking = (int) $booking->user_id > 0 && !$booking->isKioskBooking();
+                $bookingChannel = $onlineBooking
+                    ? 'Online'
+                    : ($booking->isKioskBooking() ? 'Kiosk' : 'Counter');
                 $haystack = strtolower(implode(' ', [
                     $slip->seat,
                     $slip->id,
+                    $booking->pnr_number,
                     $passenger['name'],
                     $passenger['type'],
                     $passenger['id_number'],
+                    $bookingChannel,
+                    $pendingPayment ? 'pending payment temporarily locked' : '',
                 ]));
                 $seatManifest->put($seatId, [
                     'seat' => $seatId,
@@ -717,9 +747,13 @@ class ManageTripController extends Controller
                     'passenger_id' => $passenger['id_number'],
                     'discount_applied' => $discountApplied,
                     'reference' => $slip->id,
+                    'pnr' => $booking->pnr_number,
                     'destination' => $booking->drop?->name,
                     'km_post' => $booking->drop?->km_post,
-                    'blocked' => $booking->status === Status::BOOKED_PENDING,
+                    'blocked' => $pendingPayment,
+                    'pending_payment' => $pendingPayment,
+                    'online_booking' => $onlineBooking,
+                    'booking_channel' => $bookingChannel,
                     'matches' => $search === '' || str_contains($haystack, strtolower($search)),
                 ]);
             }
@@ -768,6 +802,7 @@ class ManageTripController extends Controller
             'booked' => $bookedCount,
             'blocked' => $blockedCount,
             'locked' => $lockedSeats->count(),
+            'online' => $seatManifest->where('online_booking', true)->count(),
             'vacant' => max($capacity - $unavailableCount, 0),
             'discounted' => $seatManifest->filter(fn ($seat) => str_contains(strtolower($seat['passenger_type']), 'senior')
                 || str_contains(strtolower($seat['passenger_type']), 'pwd'))->count(),
