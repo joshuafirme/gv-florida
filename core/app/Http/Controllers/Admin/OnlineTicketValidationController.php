@@ -122,6 +122,8 @@ class OnlineTicketValidationController extends Controller
             $record = OnlineTicketValidation::query()->firstOrNew([
                 'slip_series_number_id' => $lockedSlip->id,
             ]);
+            $record->booked_ticket_id = $lockedSlip->booked_ticket_id;
+            $record->deposit_id = $lockedSlip->bookedTicket->payment_record?->id;
             if ($record->validated_at) {
                 throw ValidationException::withMessages([
                     'discount_id' => 'A discount cannot be applied after the ticket has been validated.',
@@ -173,12 +175,12 @@ class OnlineTicketValidationController extends Controller
             $record = OnlineTicketValidation::query()->firstOrNew([
                 'slip_series_number_id' => $lockedSlip->id,
             ]);
+            $record->booked_ticket_id = $lockedSlip->booked_ticket_id;
+            $record->deposit_id = $lockedSlip->bookedTicket->payment_record?->id;
             if (!$record->exists) {
                 $snapshot = $this->transactionRecorder->ticketSnapshotFor($lockedSlip->bookedTicket, $lockedSlip);
                 $fare = (float) ($snapshot['fare'] ?? 0);
                 $record->fill([
-                    'booked_ticket_id' => $lockedSlip->booked_ticket_id,
-                    'deposit_id' => $lockedSlip->bookedTicket->payment_record?->id,
                     'original_fare' => $fare,
                     'net_fare' => $fare,
                 ]);
@@ -189,6 +191,8 @@ class OnlineTicketValidationController extends Controller
                 $record->validated_at = now();
                 $record->save();
                 $this->transactionRecorder->recordOnlineValidation($record->fresh());
+            } elseif ($record->isDirty(['booked_ticket_id', 'deposit_id'])) {
+                $record->save();
             }
 
             return $record;

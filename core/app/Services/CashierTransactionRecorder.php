@@ -216,17 +216,19 @@ class CashierTransactionRecorder
 
         $validation->loadMissing([
             'bookedTicket',
-            'slipSeriesNumber',
+            'slipSeriesNumber.bookedTicket',
             'discount',
             'discountAppliedBy:id,name,username',
             'discountAuthorizedBy:id,name,username',
         ]);
 
-        if (!$validation->bookedTicket || !$validation->slipSeriesNumber) {
+        $ticket = $this->synchronizeOnlineValidationTicket($validation);
+
+        if (!$ticket || !$validation->slipSeriesNumber) {
             return;
         }
 
-        $snapshot = $this->ticketSnapshot($validation->bookedTicket, $validation->slipSeriesNumber);
+        $snapshot = $this->ticketSnapshot($ticket, $validation->slipSeriesNumber);
         $originalPassenger = [
             'name' => $snapshot['passenger_name'] ?? 'Guest',
             'type' => $snapshot['passenger_type'] ?? 'Regular',
@@ -282,17 +284,19 @@ class CashierTransactionRecorder
 
         $validation->loadMissing([
             'bookedTicket',
-            'slipSeriesNumber',
+            'slipSeriesNumber.bookedTicket',
             'validator:id,name,username',
             'discount',
             'discountAuthorizedBy:id,name,username',
         ]);
 
-        if (!$validation->bookedTicket || !$validation->slipSeriesNumber) {
+        $ticket = $this->synchronizeOnlineValidationTicket($validation);
+
+        if (!$ticket || !$validation->slipSeriesNumber) {
             return;
         }
 
-        $snapshot = $this->ticketSnapshot($validation->bookedTicket, $validation->slipSeriesNumber);
+        $snapshot = $this->ticketSnapshot($ticket, $validation->slipSeriesNumber);
         if ($validation->discount_id) {
             $snapshot['passenger_name'] = $validation->passenger_name ?: $snapshot['passenger_name'];
             $snapshot['passenger_type'] = $validation->discount?->name ?: 'Discounted';
@@ -327,6 +331,27 @@ class CashierTransactionRecorder
         $placeholder->seat = collect($ticket->seats ?? [])->first();
 
         return $this->ticketSnapshot($ticket, $placeholder);
+    }
+
+    private function synchronizeOnlineValidationTicket(OnlineTicketValidation $validation): ?BookedTicket
+    {
+        $currentTicket = $validation->slipSeriesNumber?->bookedTicket;
+        if (!$currentTicket) {
+            return $validation->bookedTicket;
+        }
+
+        $currentDepositId = $currentTicket->payment_record?->id;
+        if ((int) $validation->booked_ticket_id !== (int) $currentTicket->id
+            || (int) $validation->deposit_id !== (int) $currentDepositId) {
+            $validation->forceFill([
+                'booked_ticket_id' => $currentTicket->id,
+                'deposit_id' => $currentDepositId,
+            ])->saveQuietly();
+        }
+
+        $validation->setRelation('bookedTicket', $currentTicket);
+
+        return $currentTicket;
     }
 
     private function withAuthorizationAudit(
