@@ -39,6 +39,8 @@ class CashierTransactionRecorder
             return;
         }
 
+        $completedAt = $deposit->completed_at ?: $deposit->created_at ?: now();
+
         foreach ($ticket->slipSeriesNumbers as $slip) {
             $snapshot = $this->ticketSnapshot($ticket, $slip);
             $soldEvent = $this->store(
@@ -48,7 +50,7 @@ class CashierTransactionRecorder
                 $snapshot,
                 (float) $snapshot['fare'] + (float) $snapshot['surcharge_amount'],
                 null,
-                $deposit->updated_at ?: now()
+                $completedAt
             );
             $this->restoreOriginalSoldTravelDetails($soldEvent);
         }
@@ -395,7 +397,7 @@ class CashierTransactionRecorder
 
         Deposit::successful()
             ->where('processed_by_admin_id', $admin->id)
-            ->whereBetween('updated_at', [$start, $end])
+            ->whereBetween('completed_at', [$start, $end])
             ->with($this->depositRelations())
             ->get()
             ->each(fn ($deposit) => $this->safely(fn () => $this->recordSold($deposit)));
@@ -438,7 +440,7 @@ class CashierTransactionRecorder
         // Kiosk and online payments can complete without a cashier account. Record
         // them before the cashier-specific action backfill below.
         Deposit::successful()
-            ->whereBetween('updated_at', [$start, $end])
+            ->whereBetween('completed_at', [$start, $end])
             ->with($this->depositRelations())
             ->get()
             ->each(fn ($deposit) => $this->safely(fn () => $this->recordSold($deposit)));
@@ -447,7 +449,7 @@ class CashierTransactionRecorder
             ->merge(
                 Deposit::successful()
                     ->whereNotNull('processed_by_admin_id')
-                    ->whereBetween('updated_at', [$start, $end])
+                    ->whereBetween('completed_at', [$start, $end])
                     ->pluck('processed_by_admin_id')
             )
             ->merge(
@@ -498,7 +500,17 @@ class CashierTransactionRecorder
     ): CashierTransactionEvent {
         $existingEvent = CashierTransactionEvent::where('event_key', $eventKey)->first();
 
-        if ($existingEvent && ($status === 'Sold' || $existingEvent->status === 'Sold')) {
+        if ($existingEvent && $status === 'Sold' && $existingEvent->status === 'Sold') {
+            $authoritativeProcessedAt = Carbon::parse($processedAt);
+
+            if (!$existingEvent->processed_at?->equalTo($authoritativeProcessedAt)) {
+                $existingEvent->forceFill(['processed_at' => $authoritativeProcessedAt])->save();
+            }
+
+            return $existingEvent;
+        }
+
+        if ($existingEvent && $existingEvent->status === 'Sold') {
             return $existingEvent;
         }
 
