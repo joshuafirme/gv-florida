@@ -1797,15 +1797,18 @@ class VehicleTicketController extends Controller
 
                 return [
                     'id' => $trip->id,
-                    'label' => ($trip->route?->name ?: $trip->title ?: 'Trip')
+                    'label' => ((int) $trip->id === (int) $ticket->trip_id ? '(Current) ' : '')
+                        . ($trip->route?->name ?: $trip->title ?: 'Trip')
                         . ' - ' . Carbon::parse($trip->schedule->start_from)->format('g:i A'),
                     'route' => $trip->route?->name ?: $trip->title ?: 'Trip',
                     'schedule' => Carbon::parse($trip->schedule->start_from)->format('g:i A'),
                     'bus_type' => $trip->fleetType?->name ?: 'Bus',
+                    'is_current' => (int) $trip->id === (int) $ticket->trip_id,
                     'drops' => $drops->values(),
                 ];
             })
             ->filter()
+            ->sortByDesc('is_current')
             ->values();
         $maxDate = now()->addDays(getAllowedAdvanceBookingDays(true))->format('Y-m-d');
         $originalDate = Carbon::parse($ticket->date_of_journey)->format('Y-m-d');
@@ -1814,9 +1817,26 @@ class VehicleTicketController extends Controller
             $defaultDate = today()->format('Y-m-d');
         }
 
+        $initialAvailability = null;
+        if ($trips->contains(fn (array $trip) => $trip['is_current']) && $ticket->drop) {
+            $initialAvailability = $this->transferSeatMapPayload(
+                $ticket,
+                $slip,
+                $ticket->trip,
+                $originalDate,
+                (int) $ticket->dropping_point,
+                true
+            ) + [
+                'same_trip_drop_edit' => true,
+                'date_display' => Carbon::parse($originalDate)->format('M j, Y'),
+                'time' => Carbon::parse($ticket->trip->schedule->start_from)->format('g:i A'),
+            ];
+        }
+
         return response()->json([
             'booking' => $this->transferBookingSummary($ticket, $slip),
             'trips' => $trips,
+            'initial_availability' => $initialAvailability,
             'management_reasons' => $this->managementTransferReasons(),
             'default_date' => $defaultDate,
             'min_date' => today()->format('Y-m-d'),
@@ -1830,39 +1850,30 @@ class VehicleTicketController extends Controller
     {
         $validated = $request->validate([
             'transfer_type' => 'required|in:passenger,management',
-            'date' => 'required|date|after_or_equal:today',
+            'date' => 'required|date',
             'trip_id' => 'required|integer',
             'dropping_point' => 'required|integer',
         ]);
         $slip = $this->transferableSlip($slip);
         $ticket = $slip->bookedTicket;
         [$trip, $drop, $date, $fare] = $this->resolveTransferTarget($ticket, $slip, $validated);
-        $availability = $this->seatAvailability(
+        $sameTripDropEdit = (int) $trip->id === (int) $ticket->trip_id;
+        $seatMap = $this->transferSeatMapPayload(
             $ticket,
+            $slip,
             $trip,
             $date,
-            false,
-            collect([$slip]),
-            (int) $ticket->pickup_point,
-            (int) $drop->id
+            (int) $drop->id,
+            $sameTripDropEdit
         );
-        $seatLayout = app(SeatLayoutService::class)->layout($trip->fleetType, [
-            'booked' => $availability['booked'],
-        ]);
-        $fleetType = $trip->fleetType;
-        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'seatLayout'))->render();
         $quote = app(TicketTransferService::class)->quote(
             $validated['transfer_type'],
             $this->ticketFare($ticket, $slip),
             $fare['fare']
         );
 
-        return response()->json([
-            'html' => $html,
-            'booked_seats' => $availability['booked'],
-            'disabled_seats' => $availability['disabled'],
-            'required_seats' => 1,
-            'selected_seats' => [],
+        return response()->json($seatMap + [
+            'same_trip_drop_edit' => $sameTripDropEdit,
             'before' => $this->transferBookingSummary($ticket, $slip),
             'after' => [
                 'date' => $date,
@@ -1884,7 +1895,7 @@ class VehicleTicketController extends Controller
     {
         $validated = $request->validate([
             'transfer_type' => 'required|in:passenger,management',
-            'date' => 'required|date|after_or_equal:today',
+            'date' => 'required|date',
             'trip_id' => 'required|integer',
             'dropping_point' => 'required|integer',
             'seats' => 'required|array|size:1',
@@ -1915,6 +1926,17 @@ class VehicleTicketController extends Controller
                 throw ValidationException::withMessages([
                     'seats' => 'Select one valid seat from the new trip seat map.',
                 ]);
+            }
+
+            if ((int) $trip->id === (int) $ticket->trip_id) {
+                $currentSeat = app(SeatLayoutService::class)
+                    ->canonicalizeSeats($trip->fleetType, [(string) $slip->seat])[0] ?? (string) $slip->seat;
+
+                if ($requestedSeats[0] !== $currentSeat) {
+                    throw ValidationException::withMessages([
+                        'seats' => 'The seat cannot be changed when editing only the dropping point.',
+                    ]);
+                }
             }
 
             $availability = $this->seatAvailability(
@@ -2053,7 +2075,6 @@ class VehicleTicketController extends Controller
     private function transferTripQuery(BookedTicket $ticket)
     {
         return Trip::active()
-            ->where('id', '!=', $ticket->trip_id)
             ->whereNotIn('trip_status', [Status::TRIP_CANCELLED, Status::TRIP_DEPARTED, Status::TRIP_ARRIVED])
             ->whereHas('schedule', fn ($query) => $query->where('status', Status::ENABLE))
             ->whereHas('route', fn ($query) => $query->where('status', Status::ENABLE))
@@ -2128,6 +2149,14 @@ class VehicleTicketController extends Controller
             $tripQuery->lockForUpdate();
         }
         $trip = $tripQuery->findOrFail($data['trip_id']);
+        $originalDate = Carbon::parse($ticket->date_of_journey)->format('Y-m-d');
+        $sameTrip = (int) $trip->id === (int) $ticket->trip_id;
+
+        if ($sameTrip && $date !== $originalDate) {
+            throw ValidationException::withMessages([
+                'date' => 'The travel date cannot be changed when editing only the dropping point.',
+            ]);
+        }
 
         if (!app(RebookingPolicy::class)->isOperational($trip)) {
             throw ValidationException::withMessages([
@@ -2135,27 +2164,35 @@ class VehicleTicketController extends Controller
             ]);
         }
 
-        if (Carbon::parse($date)->isAfter(now()->addDays(getAllowedAdvanceBookingDays(true))->endOfDay())) {
-            throw ValidationException::withMessages([
-                'date' => 'The travel date exceeds the allowed advance-booking period.',
-            ]);
-        }
+        if (!$sameTrip) {
+            if (Carbon::parse($date)->isBefore(today())) {
+                throw ValidationException::withMessages([
+                    'date' => 'Select today or a future travel date.',
+                ]);
+            }
 
-        $departure = Carbon::parse($date . ' ' . $trip->schedule->start_from);
-        $cutoffMinutes = getBookingCutoffMinutes(true);
-        if (now()->gte($departure->copy()->subMinutes($cutoffMinutes))) {
-            throw ValidationException::withMessages([
-                'date' => $cutoffMinutes === 0
-                    ? 'The selected trip has already departed.'
-                    : "Booking for the selected trip closes {$cutoffMinutes} minute(s) before departure.",
-            ]);
-        }
+            if (Carbon::parse($date)->isAfter(now()->addDays(getAllowedAdvanceBookingDays(true))->endOfDay())) {
+                throw ValidationException::withMessages([
+                    'date' => 'The travel date exceeds the allowed advance-booking period.',
+                ]);
+            }
 
-        $dayOff = array_map('intval', $trip->day_off ?? []);
-        if (in_array((int) Carbon::parse($date)->format('w'), $dayOff, true)) {
-            throw ValidationException::withMessages([
-                'date' => 'The selected trip is not available on ' . Carbon::parse($date)->format('l') . '.',
-            ]);
+            $departure = Carbon::parse($date . ' ' . $trip->schedule->start_from);
+            $cutoffMinutes = getBookingCutoffMinutes(true);
+            if (now()->gte($departure->copy()->subMinutes($cutoffMinutes))) {
+                throw ValidationException::withMessages([
+                    'date' => $cutoffMinutes === 0
+                        ? 'The selected trip has already departed.'
+                        : "Booking for the selected trip closes {$cutoffMinutes} minute(s) before departure.",
+                ]);
+            }
+
+            $dayOff = array_map('intval', $trip->day_off ?? []);
+            if (in_array((int) Carbon::parse($date)->format('w'), $dayOff, true)) {
+                throw ValidationException::withMessages([
+                    'date' => 'The selected trip is not available on ' . Carbon::parse($date)->format('l') . '.',
+                ]);
+            }
         }
 
         $drop = Counter::active()->findOrFail($data['dropping_point']);
@@ -2163,6 +2200,12 @@ class VehicleTicketController extends Controller
         if (!in_array((int) $drop->id, $validDropIds, true)) {
             throw ValidationException::withMessages([
                 'dropping_point' => 'The selected dropping point is not available after this ticket\'s pickup point.',
+            ]);
+        }
+
+        if ($sameTrip && (int) $drop->id === (int) $ticket->dropping_point) {
+            throw ValidationException::withMessages([
+                'dropping_point' => 'Select a different dropping point when keeping the current trip.',
             ]);
         }
 
@@ -2201,6 +2244,40 @@ class VehicleTicketController extends Controller
             'discount_percentage' => round($percentage, 2),
             'discount_amount' => round(max($baseFare - $fare, 0), 2),
             'fare' => round($fare, 2),
+        ];
+    }
+
+    private function transferSeatMapPayload(
+        BookedTicket $ticket,
+        SlipSeriesNumber $slip,
+        Trip $trip,
+        string $date,
+        int $dropPoint,
+        bool $preselectCurrentSeat = false
+    ): array {
+        $availability = $this->seatAvailability(
+            $ticket,
+            $trip,
+            $date,
+            false,
+            collect([$slip]),
+            (int) $ticket->pickup_point,
+            $dropPoint
+        );
+        $seatLayout = app(SeatLayoutService::class)->layout($trip->fleetType, [
+            'booked' => $availability['booked'],
+        ]);
+        $fleetType = $trip->fleetType;
+        $selectedSeats = $preselectCurrentSeat
+            ? app(SeatLayoutService::class)->canonicalizeSeats($trip->fleetType, [(string) $slip->seat])
+            : [];
+
+        return [
+            'html' => view('templates.basic.partials.seat_layout', compact('fleetType', 'seatLayout'))->render(),
+            'booked_seats' => $availability['booked'],
+            'disabled_seats' => $availability['disabled'],
+            'required_seats' => 1,
+            'selected_seats' => $selectedSeats,
         ];
     }
 
@@ -2245,6 +2322,8 @@ class VehicleTicketController extends Controller
             'trip_id' => $ticket->trip_id,
             'trip' => $ticket->trip?->route?->name ?: $ticket->trip?->title ?: 'Trip',
             'bus_type' => $ticket->trip?->fleetType?->name ?: 'Bus',
+            'pickup_id' => (int) $ticket->pickup_point,
+            'drop_id' => (int) $ticket->dropping_point,
             'pickup' => $ticket->pickup?->name,
             'drop' => $ticket->drop?->name,
             'seat' => $slip->seat,

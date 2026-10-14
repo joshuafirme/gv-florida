@@ -424,6 +424,9 @@
                                 <div class="form-group mb-0">
                                     <label for="transferDrop" class="rebook-label">Dropping Point</label>
                                     <select id="transferDrop" class="form-control"></select>
+                                    <small id="transferDropHint" class="text-primary d-none mt-1">
+                                        Choose a different dropping point to keep this trip, date, and seat.
+                                    </small>
                                 </div>
                             </div>
 
@@ -445,7 +448,7 @@
                                 <p class="text-muted mt-2 mb-0">Checking trip and seats...</p>
                             </div>
                             <div id="transferAvailability" class="d-none">
-                                <div class="transfer-quote-card mt-3">
+                                <div id="transferQuoteCard" class="transfer-quote-card mt-3 d-none">
                                     <div><span>Transfer Status</span><strong id="transferStatus"></strong></div>
                                     <div><span>Original Paid Fare</span><strong id="transferOriginalFare"></strong></div>
                                     <div><span>Selected Trip Fare</span><strong id="transferSelectedFare"></strong></div>
@@ -1487,6 +1490,7 @@
                 $('.transfer-type-card').removeClass('selected');
                 $('#transferForm, #transferSelection, #transferAvailability, #transferAvailabilityLoader')
                     .addClass('d-none');
+                $('#transferQuoteCard, #transferDropHint').addClass('d-none');
                 $('#transferLoader').removeClass('d-none');
                 $('#transferAuthorizationCode, #transferApprovalRemarks, #transferPassengerReason, #transferOtherReason').val('');
                 $('#transferPaymentMethod').val('');
@@ -1507,18 +1511,26 @@
                     $('#transferCurrentTrip').text(`${booking.trip} · ${booking.pickup} to ${booking.drop}`);
                     $('#transferCurrentSchedule').text(`${booking.date_display} · ${booking.time}`);
                     $('#transferCurrentSeatFare').text(`${formatSeatLabel(booking.seat)} · ${currency.format(booking.fare)}`);
-                    $('#transferDate').attr({ min: data.min_date, max: data.max_date }).val(data.default_date);
+                    $('#transferDate').attr({ min: data.min_date, max: data.max_date }).val(booking.date);
                     $('#transferTrip').html(data.trips.map(trip =>
                         `<option value="${trip.id}">${escapeHtml(trip.label)} · ${escapeHtml(trip.bus_type)}</option>`
                     ).join(''));
+                    if (data.trips.some(trip => String(trip.id) === String(booking.trip_id))) {
+                        $('#transferTrip').val(String(booking.trip_id));
+                    }
                     $('#transferManagementReason').html('<option value="">Select reason</option>' +
                         data.management_reasons.map(reason => `<option value="${escapeHtml(reason)}">${escapeHtml(reason)}</option>`).join(''));
-                    updateTransferDrops();
+                    updateTransferDrops(isCurrentTransferTrip() ? booking.drop_id : null);
+                    syncTransferTargetMode();
                     $('#transferLoader').addClass('d-none');
-                    $('#transferForm').removeClass('d-none');
+                    $('#transferForm, #transferSelection').removeClass('d-none');
+
+                    if (isCurrentTransferTrip() && data.initial_availability) {
+                        renderInitialTransferAvailability();
+                    }
 
                     if (!data.trips.length) {
-                        notify('error', 'No active alternate trip is available from this pickup point.');
+                        notify('error', 'No active trip is available from this pickup point.');
                     }
                 }).fail(function(xhr) {
                     notify('error', errorMessage(xhr));
@@ -1535,7 +1547,6 @@
                 transferType = $(this).data('transfer-type');
                 $('.transfer-type-card').removeClass('selected');
                 $(this).addClass('selected');
-                $('#transferSelection').removeClass('d-none');
                 $('#transferManagementReasonField').toggleClass('d-none', transferType !== 'management');
                 $('#transferPassengerReasonField').toggleClass('d-none', transferType !== 'passenger');
                 $('#transferOtherReasonField').toggleClass(
@@ -1549,18 +1560,62 @@
                 return data?.trips?.find(trip => String(trip.id) === String($('#transferTrip').val()));
             }
 
-            function updateTransferDrops() {
+            function isCurrentTransferTrip() {
+                return data && String($('#transferTrip').val()) === String(data.booking.trip_id);
+            }
+
+            function isUnchangedCurrentTarget() {
+                return isCurrentTransferTrip() &&
+                    String($('#transferDrop').val()) === String(data.booking.drop_id);
+            }
+
+            function updateTransferDrops(preferredDrop = null) {
                 const trip = selectedTrip();
                 $('#transferDrop').html((trip?.drops || []).map(drop =>
                     `<option value="${drop.id}">${escapeHtml(drop.name)} · ${currency.format(drop.fare)}</option>`
                 ).join(''));
+
+                if (preferredDrop !== null && (trip?.drops || []).some(drop => String(drop.id) === String(preferredDrop))) {
+                    $('#transferDrop').val(String(preferredDrop));
+                }
+            }
+
+            function syncTransferTargetMode() {
+                const sameTrip = isCurrentTransferTrip();
+                $('#transferDate').prop('disabled', sameTrip);
+                if (sameTrip) {
+                    $('#transferDate').val(data.booking.date);
+                } else if ($('#transferDate').val() < data.min_date || $('#transferDate').val() > data.max_date) {
+                    $('#transferDate').val(data.default_date);
+                }
+                $('#transferDropHint').toggleClass('d-none', !isUnchangedCurrentTarget());
+            }
+
+            function renderInitialTransferAvailability() {
+                const response = data.initial_availability;
+                if (!response) return;
+
+                availability = null;
+                $('#transferQuoteCard, #transferPaymentMethodField').addClass('d-none');
+                $('#transferSeatMap').html(response.html);
+                applyTransferSeatAvailability(response);
+                $('#transferAvailabilityDate').text(`${response.date_display} · ${response.time}`);
+                $('#transferAvailability').removeClass('d-none');
             }
 
             $('#transferTrip').on('change', function() {
-                updateTransferDrops();
+                updateTransferDrops(isCurrentTransferTrip() ? data.booking.drop_id : null);
+                syncTransferTargetMode();
+
+                if (isCurrentTransferTrip() && data.initial_availability) {
+                    renderInitialTransferAvailability();
+                }
                 loadTransferAvailability();
             });
-            $('#transferDate, #transferDrop').on('change', loadTransferAvailability);
+            $('#transferDate, #transferDrop').on('change', function() {
+                syncTransferTargetMode();
+                loadTransferAvailability();
+            });
             $('#transferManagementReason').on('change', function() {
                 $('#transferOtherReasonField').toggleClass(
                     'd-none',
@@ -1573,14 +1628,25 @@
             function loadTransferAvailability() {
                 if (!data || !transferType || !$('#transferDate').val() || !$('#transferTrip').val() || !$('#transferDrop').val()) {
                     availability = null;
-                    selectedSeat = null;
-                    $('#transferAvailability').addClass('d-none');
+                    if (!data?.initial_availability || !isCurrentTransferTrip()) {
+                        selectedSeat = null;
+                        $('#transferAvailability').addClass('d-none');
+                    }
+                    updateTransferConfirmState();
+                    return;
+                }
+
+                if (isUnchangedCurrentTarget()) {
+                    availability = null;
+                    $('#transferDropHint').removeClass('d-none');
+                    renderInitialTransferAvailability();
                     updateTransferConfirmState();
                     return;
                 }
 
                 availability = null;
                 selectedSeat = null;
+                $('#transferDropHint').addClass('d-none');
                 $('#transferAvailability').addClass('d-none');
                 $('#transferAvailabilityLoader').removeClass('d-none');
                 updateTransferConfirmState();
@@ -1616,23 +1682,33 @@
             function applyTransferSeatAvailability(response) {
                 const booked = response.booked_seats || [];
                 const disabled = response.disabled_seats || [];
+                const preselected = response.selected_seats || [];
+                const restrictToCurrentSeat = Boolean(response.same_trip_drop_edit);
+                selectedSeat = null;
                 $('#transferSeatMap .seat').each(function() {
                     if ($(this).hasClass('comfort-room')) return;
                     const label = String($(this).attr('data-label') || '').trim();
                     const id = transferSeatId(this);
+                    const isPreselected = preselected.includes(id) || preselected.includes(label);
                     const isDisabled = disabled.includes(label) || disabled.includes(id) || $(this).find('del').length;
                     $(this).removeClass('selected booked-seat disabled-seat');
-                    if (isDisabled) {
+                    if (isPreselected) {
+                        $(this).addClass('selected');
+                        selectedSeat = id;
+                    } else if (restrictToCurrentSeat || isDisabled) {
                         $(this).addClass('disabled-seat');
                     } else if (booked.includes(id)) {
                         $(this).addClass('booked-seat');
                     }
                 });
-                $('#transferSeatStatus').text('0 of 1 assigned');
+                $('#transferSeatStatus').text(selectedSeat
+                    ? `Assigned · ${formatSeatLabel(selectedSeat)}`
+                    : '0 of 1 assigned');
             }
 
             function showTransferQuote(response) {
                 const quote = response.quote;
+                $('#transferQuoteCard').removeClass('d-none');
                 $('#transferStatus').text(quote.status);
                 $('#transferOriginalFare').text(currency.format(quote.original_fare));
                 $('#transferSelectedFare').text(currency.format(quote.selected_fare));
