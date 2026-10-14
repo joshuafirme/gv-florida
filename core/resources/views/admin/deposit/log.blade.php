@@ -291,7 +291,7 @@
                                         };
                                     @endphp
                                     @if ($enhancedPaymentTable)
-                                        <tr>
+                                        <tr @if ($status == 'pending') data-pending-deposit-id="{{ $deposit->id }}" @endif>
                                             <td>
                                                 <span class="pending-cell-title">{{ $gatewayName ?: __('Payment') }}</span>
                                                 <span class="pending-cell-meta">{{ $deposit->trx }}</span>
@@ -392,7 +392,7 @@
                                             </td>
                                         </tr>
                                     @else
-                                        <tr>
+                                        <tr @if ($status == 'pending') data-pending-deposit-id="{{ $deposit->id }}" @endif>
                                             <td>
                                                 @if ($status == 'pending')
                                                     <span class="pending-cell-title">
@@ -1546,7 +1546,12 @@
                 const confirmPaymentModal = new bootstrap.Modal(document.getElementById('confirmPaymentModal'));
                 const rejectPaymentModal = new bootstrap.Modal(document.getElementById('posRejectModal'));
                 let activePayment = null;
+                let processingHeartbeatTimer = null;
+                let paymentFinalizationInProgress = false;
                 const appBaseUrl = @json(url('/'));
+                const processingAdminId = {{ auth('admin')->id() }};
+                const csrfToken = @json(csrf_token());
+                const pendingStatusUrl = @json(route('admin.deposit.pending.status'));
                 const params = new URLSearchParams(window.location.search);
 
                 if (params.get('newly_approved')) {
@@ -1579,6 +1584,94 @@
                         `<option value="${escapeHtml(discount.id)}">${escapeHtml(discount.name)} - ${escapeHtml(discount.percentage)}%</option>`
                     ).join('');
                 }
+
+                function stopProcessingHeartbeat() {
+                    window.clearInterval(processingHeartbeatTimer);
+                    processingHeartbeatTimer = null;
+                }
+
+                function renewProcessingLease() {
+                    if (!activePayment?.processing_token) {
+                        return Promise.reject(new Error('No active payment processing session.'));
+                    }
+
+                    return $.ajax({
+                        url: activePayment.heartbeat_url,
+                        method: 'POST',
+                        data: {
+                            _token: csrfToken,
+                            deposit_id: activePayment.deposit_id,
+                            processing_token: activePayment.processing_token
+                        },
+                        dataType: 'json'
+                    });
+                }
+
+                function startProcessingHeartbeat() {
+                    stopProcessingHeartbeat();
+                    processingHeartbeatTimer = window.setInterval(function() {
+                        renewProcessingLease().fail(function(xhr) {
+                            stopProcessingHeartbeat();
+                            notify('error', xhr.responseJSON?.message ||
+                                'This payment processing session has ended.');
+                            activePayment = null;
+                            processPaymentModal.hide();
+                            confirmPaymentModal.hide();
+                            rejectPaymentModal.hide();
+                        });
+                    }, 30000);
+                }
+
+                function releaseActivePayment(useBeacon = false) {
+                    if (!activePayment?.processing_token) return;
+
+                    const payment = activePayment;
+                    activePayment = null;
+                    stopProcessingHeartbeat();
+
+                    if (useBeacon && navigator.sendBeacon) {
+                        const data = new FormData();
+                        data.append('_token', csrfToken);
+                        data.append('deposit_id', payment.deposit_id);
+                        data.append('processing_token', payment.processing_token);
+                        navigator.sendBeacon(payment.release_url, data);
+                        return;
+                    }
+
+                    $.ajax({
+                        url: payment.release_url,
+                        method: 'POST',
+                        data: {
+                            _token: csrfToken,
+                            deposit_id: payment.deposit_id,
+                            processing_token: payment.processing_token
+                        }
+                    });
+                }
+
+                function pollPendingPayments() {
+                    const rows = $('tr[data-pending-deposit-id]');
+                    const ids = rows.map(function() {
+                        return Number(this.dataset.pendingDepositId);
+                    }).get();
+
+                    if (!ids.length) return;
+
+                    $.getJSON(pendingStatusUrl, { ids }).done(function(result) {
+                        const activeIds = new Set((result.active_ids || []).map(Number));
+
+                        rows.each(function() {
+                            const row = $(this);
+                            if (!activeIds.has(Number(this.dataset.pendingDepositId))) {
+                                row.fadeOut(180, function() {
+                                    row.remove();
+                                });
+                            }
+                        });
+                    });
+                }
+
+                window.setInterval(pollPendingPayments, 3000);
 
                 function ticketRowsHtml(payment, editable = false) {
                     return payment.tickets.map(ticket => `
@@ -1768,6 +1861,8 @@
                         }
                     }).done(function(payment) {
                         activePayment = payment;
+                        paymentFinalizationInProgress = false;
+                        startProcessingHeartbeat();
                         fillProcessModal(payment);
 
                         if (typeof afterOpen === 'function') {
@@ -1809,6 +1904,17 @@
                     $('#posCashReceived').trigger('focus');
                 });
 
+                $('#processPaymentModal, #confirmPaymentModal, #posRejectModal').on('hidden.bs.modal', function() {
+                    window.setTimeout(function() {
+                        const flowStillOpen = $('#processPaymentModal, #confirmPaymentModal, #posRejectModal')
+                            .is('.show');
+
+                        if (!flowStillOpen && !paymentFinalizationInProgress) {
+                            releaseActivePayment();
+                        }
+                    }, 150);
+                });
+
                 $('#posCashReceived').on('input', updateTenderedAmount).on('keydown', function(event) {
                     if (event.key === 'Enter' && updateTenderedAmount()) {
                         event.preventDefault();
@@ -1837,6 +1943,10 @@
                     $('#posRejectMessage').val('');
                     $('#processPaymentModal').one('hidden.bs.modal', () => rejectPaymentModal.show());
                     processPaymentModal.hide();
+                });
+
+                $('#posRejectForm').on('submit', function() {
+                    paymentFinalizationInProgress = true;
                 });
 
                 async function printReservation(fileUrl) {
@@ -1875,9 +1985,15 @@
                     button.prop('disabled', true).html(
                         '<i class="las la-spinner la-spin"></i> Processing...'
                     );
+                    paymentFinalizationInProgress = true;
 
                     try {
-                        const validation = await $.getJSON(activePayment.validate_url);
+                        await renewProcessingLease();
+
+                        const validation = await $.getJSON(activePayment.validate_url, {
+                            processing_token: activePayment.processing_token,
+                            admin_id: processingAdminId
+                        });
 
                         if (!validation.success) {
                             throw {
@@ -1887,7 +2003,8 @@
 
                         const result = await $.getJSON(activePayment.print_url, {
                             admin_request: true,
-                            admin_id: {{ auth('admin')->id() }}
+                            admin_id: processingAdminId,
+                            processing_token: activePayment.processing_token
                         });
 
                         if (!result.success || !result.file_url) {
@@ -1910,6 +2027,8 @@
                             'Payment confirmed and reservation slip prepared.'
                         );
 
+                        activePayment = null;
+                        stopProcessingHeartbeat();
                         confirmPaymentModal.hide();
 
                         const reloadParams = new URLSearchParams(window.location.search);
@@ -1919,6 +2038,7 @@
                             window.location.search = reloadParams.toString();
                         }, 900);
                     } catch (error) {
+                        paymentFinalizationInProgress = false;
                         const message =
                             error.responseJSON?.message ||
                             error.message ||
@@ -1946,6 +2066,12 @@
 
                     event.preventDefault();
                     confirmAndPrintPayment();
+                });
+
+                window.addEventListener('beforeunload', function() {
+                    if (!paymentFinalizationInProgress) {
+                        releaseActivePayment(true);
+                    }
                 });
             @endif
 

@@ -7,6 +7,7 @@ use App\Models\BookedTicket;
 use App\Models\Deposit;
 use App\Services\PaynamicsPaymentBroadcaster;
 use App\Services\PendingPaymentExpirationService;
+use App\Services\PendingPaymentProcessingService;
 use App\Services\ScheduleBoardBroadcaster;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Schema\Blueprint;
@@ -40,6 +41,10 @@ class PendingSeatExpirationTest extends TestCase
             $table->decimal('final_amount', 12, 2)->default(0);
             $table->unsignedTinyInteger('status')->default(Status::PAYMENT_PENDING);
             $table->string('expiry_limit')->nullable();
+            $table->unsignedBigInteger('processing_admin_id')->nullable();
+            $table->string('processing_token', 64)->nullable();
+            $table->timestamp('processing_started_at')->nullable();
+            $table->timestamp('processing_lease_expires_at')->nullable();
             $table->timestamps();
         });
     }
@@ -102,6 +107,71 @@ class PendingSeatExpirationTest extends TestCase
             'id' => $ticketId,
             'status' => Status::BOOKED_EXPIRED,
         ]);
+    }
+
+    public function test_processing_claim_started_before_expiry_keeps_voucher_and_seat_active(): void
+    {
+        $expiresAt = CarbonImmutable::parse('2026-09-10 10:30:00');
+        $ticketId = $this->insertPendingTicket($expiresAt->subMinutes(30));
+        $depositId = $this->insertPendingDeposit($ticketId, $expiresAt);
+        $expirationService = new PendingPaymentExpirationService();
+        $processingService = new PendingPaymentProcessingService($expirationService);
+
+        $claim = $processingService->claim(
+            Deposit::findOrFail($depositId),
+            12,
+            $expiresAt->subSeconds(10)
+        );
+
+        $this->assertSame('claimed', $claim['status']);
+        $this->assertSame(0, $expirationService->expireDue($expiresAt->addSeconds(30)));
+        $this->assertDatabaseHas('deposits', [
+            'id' => $depositId,
+            'status' => Status::PAYMENT_PENDING,
+        ]);
+        $this->assertTrue(
+            BookedTicket::query()
+                ->holdingSeats($expiresAt->addSeconds(30))
+                ->whereKey($ticketId)
+                ->exists()
+        );
+    }
+
+    public function test_abandoned_processing_claim_eventually_expires_and_releases_the_seat(): void
+    {
+        $expiresAt = CarbonImmutable::parse('2026-09-10 10:30:00');
+        $ticketId = $this->insertPendingTicket($expiresAt->subMinutes(30));
+        $depositId = $this->insertPendingDeposit($ticketId, $expiresAt);
+
+        $paymentBroadcaster = Mockery::mock(PaynamicsPaymentBroadcaster::class);
+        $paymentBroadcaster->shouldReceive('paymentUpdated')->once();
+        $scheduleBroadcaster = Mockery::mock(ScheduleBoardBroadcaster::class);
+        $scheduleBroadcaster->shouldReceive('passengerTransaction')->once();
+        $this->app->instance(ScheduleBoardBroadcaster::class, $scheduleBroadcaster);
+
+        $expirationService = new PendingPaymentExpirationService($paymentBroadcaster);
+        $processingService = new PendingPaymentProcessingService($expirationService);
+        $processingService->claim(
+            Deposit::findOrFail($depositId),
+            12,
+            $expiresAt->subSeconds(10)
+        );
+
+        $expired = $expirationService->expireDue(
+            $expiresAt->addSeconds(PendingPaymentProcessingService::LEASE_SECONDS + 1)
+        );
+
+        $this->assertSame(1, $expired);
+        $this->assertDatabaseHas('deposits', [
+            'id' => $depositId,
+            'status' => Status::PAYMENT_EXPIRED,
+        ]);
+        $this->assertFalse(
+            BookedTicket::query()
+                ->holdingSeats($expiresAt->addSeconds(PendingPaymentProcessingService::LEASE_SECONDS + 1))
+                ->whereKey($ticketId)
+                ->exists()
+        );
     }
 
     private function insertPendingTicket(CarbonImmutable $createdAt): int

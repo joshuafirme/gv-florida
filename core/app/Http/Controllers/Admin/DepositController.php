@@ -10,6 +10,8 @@ use App\Models\BookedTicket;
 use App\Models\Discount;
 use App\Services\CashierTransactionRecorder;
 use App\Services\PendingPaymentDiscountService;
+use App\Services\PendingPaymentExpirationService;
+use App\Services\PendingPaymentProcessingService;
 use App\Services\PaymentSuccessNotifier;
 use Carbon\Carbon;
 use DB;
@@ -22,6 +24,8 @@ class DepositController extends Controller
 {
     public function pending($userId = null)
     {
+        app(PendingPaymentExpirationService::class)->expireDue();
+
         $pageTitle = 'Pending Deposits';
         $status = 'pending';
         $deposits = $this->depositData($status, userId: $userId);
@@ -30,6 +34,8 @@ class DepositController extends Controller
 
     public function scanPending(Request $request)
     {
+        app(PendingPaymentExpirationService::class)->expireDue();
+
         $request->validate([
             'scan' => 'required|string|max:2048',
         ]);
@@ -69,7 +75,29 @@ class DepositController extends Controller
         }
 
         if ($request->expectsJson()) {
-            return response()->json($this->pendingPaymentPayload($deposit));
+            $claim = app(PendingPaymentProcessingService::class)->claim(
+                $deposit,
+                (int) auth('admin')->id()
+            );
+
+            if ($claim['status'] !== 'claimed') {
+                if ($claim['status'] === 'expired') {
+                    app(PendingPaymentExpirationService::class)->expireIfDue($deposit);
+                }
+
+                $message = match ($claim['status']) {
+                    'busy' => 'This voucher is already being processed by another staff member.',
+                    'expired' => 'This voucher has expired and was removed from pending payments.',
+                    default => 'This voucher has already been processed.',
+                };
+
+                return response()->json(['message' => $message], $claim['status'] === 'busy' ? 409 : 410);
+            }
+
+            return response()->json(array_merge(
+                $this->pendingPaymentPayload($deposit),
+                $this->pendingProcessingPayload($deposit, $claim)
+            ));
         }
 
         $notify[] = ['info', 'Pending payments must be processed through the new POS modal on the Pending Payments page.'];
@@ -103,10 +131,71 @@ class DepositController extends Controller
             'message' => $validated['action'] === 'apply'
                 ? 'Discount applied to the selected ticket.'
                 : 'Discount removed from the selected ticket.',
-            'payment' => $this->pendingPaymentPayload($deposit),
+            'payment' => array_merge(
+                $this->pendingPaymentPayload($deposit),
+                $this->pendingProcessingPayload($deposit)
+            ),
         ]);
     }
 
+    public function pendingStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'max:100'],
+            'ids.*' => ['required', 'integer'],
+        ]);
+
+        app(PendingPaymentExpirationService::class)->expireDue();
+
+        return response()->json([
+            'active_ids' => Deposit::pending()
+                ->whereIntegerInRaw('id', array_values(array_unique($validated['ids'])))
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values(),
+        ]);
+    }
+
+    public function renewProcessing(Request $request)
+    {
+        $validated = $request->validate([
+            'deposit_id' => ['required', 'integer'],
+            'processing_token' => ['required', 'string', 'size:64'],
+        ]);
+        $deposit = Deposit::findOrFail($validated['deposit_id']);
+        $renewed = app(PendingPaymentProcessingService::class)->renew(
+            $deposit,
+            (int) auth('admin')->id(),
+            $validated['processing_token']
+        );
+
+        if (!$renewed) {
+            return response()->json([
+                'message' => 'This payment processing session is no longer active.',
+            ], 409);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function releaseProcessing(Request $request)
+    {
+        $validated = $request->validate([
+            'deposit_id' => ['required', 'integer'],
+            'processing_token' => ['required', 'string', 'size:64'],
+        ]);
+        $deposit = Deposit::find($validated['deposit_id']);
+
+        if ($deposit) {
+            app(PendingPaymentProcessingService::class)->release(
+                $deposit,
+                (int) auth('admin')->id(),
+                $validated['processing_token']
+            );
+        }
+
+        return response()->json(['success' => true]);
+    }
 
     public function approved($userId = null)
     {
@@ -351,6 +440,17 @@ class DepositController extends Controller
             'validate_url' => url("api/ticket/validate-deposit/{$deposit->id}"),
             'print_url' => url("api/ticket/download/reservation-slip/{$ticket->id}"),
             'reservation_slip_url' => route('admin.trip.reservationSlip', $ticket->id),
+        ];
+    }
+
+    private function pendingProcessingPayload(Deposit $deposit, ?array $claim = null): array
+    {
+        return [
+            'processing_token' => $claim['token'] ?? $deposit->processing_token,
+            'processing_lease_expires_at' => $claim['lease_expires_at']
+                ?? $deposit->processing_lease_expires_at?->toIso8601String(),
+            'heartbeat_url' => route('admin.deposit.pending.processing.heartbeat'),
+            'release_url' => route('admin.deposit.pending.processing.release'),
         ];
     }
 
