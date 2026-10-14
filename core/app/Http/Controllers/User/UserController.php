@@ -10,6 +10,7 @@ use App\Models\BookedTicket;
 use App\Models\Transaction;
 use App\Models\PassengerNotification;
 use App\Support\UserIdentitySanitizer;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -20,39 +21,15 @@ class UserController extends Controller
     public function home()
     {
         $pageTitle = 'Dashboard';
-        $user = auth()->user()->load('tickets');
-        $widget['booked'] = $user->tickets()->booked()->count();
-        // $widget['pending'] = $user->tickets()->pending()->whereNotNull('seats')->count();
-        $widget['rejected'] = $user->tickets()->rejected()->count();
-
-        $widget['pending'] = BookedTicket::pending()
-            ->whereDoesntHave('trip.schedule', function ($query) {
-                $query->whereRaw(
-                    "CONCAT(booked_tickets.date_of_journey, ' ', schedules.start_from) < ?",
-                    [now()->format('Y-m-d H:i:s')]
-                );
-            })
-            ->whereNotNull('seats')->where('user_id', auth()->user()->id)
-            ->count();
-
-        $widget['rejected'] = BookedTicket::rejected()->where('user_id', auth()->user()->id)->count();
-        $bookedTickets = BookedTicket::with([
-            'trip.fleetType',
-            'trip.startFrom',
-            'trip.endTo',
-            'trip.schedule',
-            'pickup',
-            'drop',
-            'deposit.gateway',
-            'paymentSourceDeposit.gateway',
-        ])
-            ->where('user_id', auth()->user()->id)->whereNotNull('seats')->orderBy('id', 'desc')
+        $emptyMessage = 'No booked ticket found';
+        $user = auth()->user();
+        $widget = $this->ticketWidgets($user->id);
+        $bookedTickets = $this->userTicketsQuery($user->id)
+            ->whereNotNull('seats')
             ->paginate(getPaginate());
-        $bookedTickets->getCollection()->each(function (BookedTicket $ticket): void {
-            $ticket->useCanonicalPaymentRecord();
-        });
+        $this->prepareTicketCollection($bookedTickets);
 
-        return view('Template::user.dashboard', compact('pageTitle', 'bookedTickets', 'widget'));
+        return view('Template::user.dashboard', compact('pageTitle', 'emptyMessage', 'bookedTickets', 'widget'));
     }
 
     public function depositHistory(Request $request)
@@ -285,10 +262,25 @@ class UserController extends Controller
 
     public function ticketHistory(Request $request)
     {
-        $pageTitle = 'Booking History';
+        $pageTitle = 'My Tickets';
         $emptyMessage = 'No booked ticket found';
+        $userId = auth()->id();
+        $widget = $this->ticketWidgets($userId);
 
-        $query = BookedTicket::with([
+        $query = $this->userTicketsQuery($userId);
+
+        if ($request->search) {
+            $query->where('pnr_number', $request->search);
+        }
+        $bookedTickets = $query->paginate(getPaginate());
+        $this->prepareTicketCollection($bookedTickets);
+
+        return view('Template::user.booking_history', compact('pageTitle', 'emptyMessage', 'bookedTickets', 'widget'));
+    }
+
+    private function userTicketsQuery(int $userId)
+    {
+        return BookedTicket::with([
             'trip.fleetType',
             'trip.startFrom',
             'trip.endTo',
@@ -298,18 +290,123 @@ class UserController extends Controller
             'deposit.gateway',
             'paymentSourceDeposit.gateway',
         ])
-            ->where('user_id', auth()->user()->id)
-            ->orderBy('id', 'desc');
+            ->where('user_id', $userId)
+            ->orderByDesc('id');
+    }
 
-        if ($request->search) {
-            $query->where('pnr_number', $request->search);
-        }
-        $bookedTickets = $query->paginate(getPaginate());
-        $bookedTickets->getCollection()->each(function (BookedTicket $ticket): void {
+    private function ticketWidgets(int $userId): array
+    {
+        return [
+            'booked' => BookedTicket::booked()->where('user_id', $userId)->count(),
+            'pending' => BookedTicket::pending()
+                ->whereDoesntHave('trip.schedule', function ($query) {
+                    $query->whereRaw(
+                        "CONCAT(booked_tickets.date_of_journey, ' ', schedules.start_from) < ?",
+                        [now()->format('Y-m-d H:i:s')]
+                    );
+                })
+                ->whereNotNull('seats')
+                ->where('user_id', $userId)
+                ->count(),
+            'rejected' => BookedTicket::rejected()->where('user_id', $userId)->count(),
+        ];
+    }
+
+    private function prepareTicketCollection($bookedTickets): void
+    {
+        $bookedTickets->getCollection()->transform(function (BookedTicket $ticket): array {
             $ticket->useCanonicalPaymentRecord();
-        });
 
-        return view('Template::user.booking_history', compact('pageTitle', 'emptyMessage', 'bookedTickets'));
+            return $this->ticketDisplayData($ticket);
+        });
+    }
+
+    private function ticketDisplayData(BookedTicket $ticket): array
+    {
+        $payment = $ticket->deposit;
+        $journeyPassed = false;
+
+        try {
+            $journeyPassed = Carbon::parse(
+                $ticket->date_of_journey . ' ' . ($ticket->trip?->schedule?->start_from ?: '00:00:00')
+            )->isPast();
+        } catch (\Throwable $exception) {
+            $journeyPassed = false;
+        }
+
+        [$ticketStatus, $ticketTone] = match ((int) $ticket->status) {
+            Status::BOOKED_APPROVED => ['Booked', 'success'],
+            Status::BOOKED_PENDING => $journeyPassed && (int) $payment?->status !== Status::PAYMENT_SUCCESS
+                ? ['Expired', 'warning']
+                : ['Pending', 'warning'],
+            Status::BOOKED_EXPIRED => ['Expired', 'warning'],
+            Status::BOOKED_REFUNDED => ['Refunded', 'info'],
+            Status::BOOKED_CANCELLED => ['Cancelled', 'danger'],
+            Status::BOOKED_VOIDED => ['Voided', 'danger'],
+            default => ['Rejected', 'danger'],
+        };
+
+        $paymentExpired = $payment
+            && (int) $payment->status !== Status::PAYMENT_SUCCESS
+            && ((int) $payment->status === Status::PAYMENT_EXPIRED
+                || (filled($payment->expiry_limit) && isExpired($payment->expiry_limit)));
+        [$paymentStatus, $paymentTone] = $paymentExpired
+            ? ['Expired', 'warning']
+            : match ((int) $payment?->status) {
+                Status::PAYMENT_SUCCESS => ['Paid', 'success'],
+                Status::PAYMENT_REJECT => ['Rejected', 'danger'],
+                Status::PAYMENT_EXPIRED => ['Expired', 'warning'],
+                default => ['Pending', 'warning'],
+            };
+
+        $paymentMethod = $payment?->gateway?->name ?: '-';
+        if ($payment?->gateway?->name === 'Paynamics' && filled($payment->pchannel)) {
+            $paymentMethod = getPaynamicsPChannel($payment->pchannel, true);
+        }
+
+        $fareAmount = (float) $ticket->sub_total;
+        $paymentFee = (float) ($payment?->charge ?? 0) * (float) ($payment?->rate ?: 1);
+        $totalAmount = (float) ($payment?->final_amount ?? $fareAmount);
+        $canAccessVoucher = ((int) $ticket->status === Status::BOOKED_APPROVED
+                && (!$payment?->expiry_limit || !isExpired($payment->expiry_limit)))
+            || (int) $payment?->status === Status::PAYMENT_SUCCESS;
+        $canPay = (int) $payment?->status === Status::PAYMENT_PENDING
+            && filled($payment?->expiry_limit)
+            && !isExpired($payment->expiry_limit);
+
+        return [
+            'id' => $ticket->id,
+            'pnr' => $ticket->pnr_number ?: '-',
+            'origin' => $ticket->pickup?->name ?: $ticket->trip?->startFrom?->name ?: '-',
+            'destination' => $ticket->drop?->name ?: $ticket->trip?->endTo?->name ?: '-',
+            'travel_date' => $ticket->date_of_journey
+                ? Carbon::parse($ticket->date_of_journey)->format('d M, Y')
+                : '-',
+            'travel_date_long' => $ticket->date_of_journey
+                ? Carbon::parse($ticket->date_of_journey)->format('D, M j, Y')
+                : '-',
+            'departure_time' => $ticket->trip?->schedule?->start_from
+                ? Carbon::parse($ticket->trip->schedule->start_from)->format('g:i A')
+                : '-',
+            'bus_class' => $ticket->trip?->fleetType?->name ?: '-',
+            'seats' => $ticket->seats ? formatSeatLabel($ticket->seats) : '-',
+            'ticket_status' => $ticketStatus,
+            'ticket_tone' => $ticketTone,
+            'fare' => showAmount($fareAmount),
+            'payment_method' => $paymentMethod,
+            'payment_status' => $paymentStatus,
+            'payment_tone' => $paymentTone,
+            'transaction_id' => $payment?->trx ?: '-',
+            'fare_amount' => showAmount($fareAmount),
+            'payment_fee' => showAmount($paymentFee),
+            'total_amount' => showAmount($totalAmount),
+            'can_access_voucher' => $canAccessVoucher,
+            'can_pay' => $canPay,
+            'print_url' => $canAccessVoucher ? route('user.ticket.print', $ticket->id) : null,
+            'download_url' => $canAccessVoucher ? route('user.ticket.download', $ticket->id) : null,
+            'voucher_url' => $canAccessVoucher ? route('user.ticket.view', $ticket->id) : null,
+            'pay_url' => $canPay ? url("/user/payment/deposit?booked_ticket_id={$ticket->id}") : null,
+        ];
     }
 
     public function getTicketDetails($id)

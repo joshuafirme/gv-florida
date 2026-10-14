@@ -6,6 +6,8 @@
         'home',
         'ticket',
         'search',
+        'user.home',
+        'user.ticket.history',
         'user.deposit.index',
         'user.notifications.index',
     ]))
