@@ -12,6 +12,10 @@ class DailyReportService
     private const ACTIVITY_STATUSES = [
         'sold' => 'Sold',
         'rebooked' => 'Rebooked',
+        'upgraded' => 'Upgraded',
+        'downgraded' => 'Downgraded',
+        'transferred' => 'Transferred',
+        'management_transferred' => 'Management Transferred',
         'cancelled' => 'Cancelled',
         'voided' => 'Voided',
         'refunded' => 'Refunded',
@@ -116,6 +120,8 @@ class DailyReportService
                 $key => $transactions->where('status', $status)->count(),
             ])
             ->all();
+        $activity['transfers'] = collect(TicketTransferService::TRANSACTION_STATUSES)
+            ->sum(fn (string $status) => $transactions->where('status', $status)->count());
 
         return [
             'summary' => $this->dashboardService->summarize($transactions),

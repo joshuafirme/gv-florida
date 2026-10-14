@@ -27,6 +27,7 @@ class LocalPaymentStatusOverrideTest extends TestCase
             $table->unsignedBigInteger('user_id')->nullable();
             $table->unsignedBigInteger('booked_ticket_id')->nullable();
             $table->unsignedTinyInteger('status')->default(Status::PAYMENT_INITIATE);
+            $table->timestamp('completed_at')->nullable();
             $table->unsignedBigInteger('processed_by_admin_id')->nullable();
             $table->string('processed_by_name')->nullable();
             $table->timestamps();
@@ -125,6 +126,7 @@ class LocalPaymentStatusOverrideTest extends TestCase
             'processed_by_admin_id' => 7,
             'processed_by_name' => 'Local Admin',
         ]);
+        $this->assertNotNull(Deposit::findOrFail($depositId)->completed_at);
         $this->assertDatabaseHas('booked_tickets', [
             'id' => $ticketId,
             'status' => Status::BOOKED_APPROVED,

@@ -63,6 +63,8 @@
                                                 : 'Regular')
                                             : getPassengerType($paymentRecord);
                                         $passengerIdNumber = $seatPassenger['id_number'] ?? $paymentRecord?->userDiscount?->id_number;
+                                        $latestTransfer = $ticketSlip?->transactionEvents?->first();
+                                        $transferAuthorization = $latestTransfer ? data_get($latestTransfer->snapshot, 'authorization', []) : [];
                                     @endphp
                                     <tr>
                                         <td data-label="@lang('User')">
@@ -144,7 +146,9 @@
                                             @endif
                                         </td>
                                         <td>
-                                            @if ($item?->approved_by)
+                                            @if ($latestTransfer)
+                                                {{ data_get($latestTransfer->snapshot, 'authorization.performed_by_name') ?: 'Administrator' }}
+                                            @elseif ($item?->approved_by)
                                                 {{ $item->approvedBy->name }}
                                             @elseif ($item->kiosk_id)
                                                 {{ $item->kiosk->name }}
@@ -152,9 +156,12 @@
                                                 Paynamics
                                             @endif
                                         </td>
-                                        <td>&mdash;</td>
+                                        <td>{{ $latestTransfer ? ($transferAuthorization['authorized_by_name'] ?? '—') : '—' }}</td>
                                         <td>
-                                            @if ($item->status == 1)
+                                            @if ($latestTransfer)
+                                                <span class="badge badge--info font-weight-normal text--small">{{ $latestTransfer->status }}</span>
+                                                <small class="d-block text-muted mt-1">Transfer #{{ data_get($latestTransfer->snapshot, 'transfer.sequence', 1) }}</small>
+                                            @elseif ($item->status == 1)
                                                 <span
                                                     class="badge badge--success font-weight-normal text--samll">@lang('Booked')</span>
                                             @elseif($item->status == 2)
@@ -194,6 +201,12 @@
                                             @endif
 
                                             @if ($item->status == Status::BOOKED_APPROVED && $ticketSlip)
+                                                     <button type="button" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                         title="Transfer Ticket"
+                                                         class="btn btn-sm btn-outline--primary ms-1 transfer-ticket-btn"
+                                                         data-options-url="{{ route('admin.trip.ticket.transfer.options', $ticketSlip->id) }}">
+                                                         <i class="las la-exchange-alt"></i>
+                                                     </button>
                                                       <button type="button" data-bs-toggle="tooltip" data-bs-placement="bottom"
                                                          title="Refund Ticket"
                                                          class="btn btn-sm btn-outline--warning ms-1 refund-ticket-btn"
@@ -366,6 +379,129 @@
                     <button type="button" class="btn btn--primary" id="rebookContinueBtn" disabled>Continue →</button>
                     <button type="button" class="btn btn--primary d-none" id="rebookConfirmBtn">
                         <i class="las la-redo-alt me-1"></i> Confirm Rebook
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="transferTicketModal" class="modal fade" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered transfer-dialog">
+            <div class="modal-content transfer-modal-content">
+                <div class="modal-header transfer-header">
+                    <div>
+                        <h5 class="modal-title">Transfer Ticket · <span id="transferPnr"></span></h5>
+                        <p class="mb-0">Reference <strong id="transferReference"></strong> · <span id="transferPassenger"></span></p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body transfer-body">
+                    <div id="transferLoader" class="text-center py-5">
+                        <div class="spinner-border text-primary"></div>
+                        <p class="text-muted mt-2 mb-0">Loading available trips...</p>
+                    </div>
+                    <div id="transferForm" class="d-none">
+                        <div class="transfer-current-card">
+                            <div><span>Current trip</span><strong id="transferCurrentTrip"></strong></div>
+                            <div><span>Schedule</span><strong id="transferCurrentSchedule"></strong></div>
+                            <div><span>Seat / Fare</span><strong id="transferCurrentSeatFare"></strong></div>
+                        </div>
+
+                        <label class="rebook-label mt-3">Transfer Type</label>
+                        <div class="transfer-type-grid">
+                            <button type="button" class="transfer-type-card" data-transfer-type="passenger">
+                                <i class="las la-user"></i>
+                                <strong>Passenger-Requested</strong>
+                                <span>Fare difference is based on the selected trip.</span>
+                            </button>
+                            <button type="button" class="transfer-type-card" data-transfer-type="management">
+                                <i class="las la-building"></i>
+                                <strong>Management-Initiated</strong>
+                                <span>No additional payment is charged to the passenger.</span>
+                            </button>
+                        </div>
+
+                        <div id="transferSelection" class="d-none mt-3">
+                            <div class="transfer-fields">
+                                <div class="form-group mb-0">
+                                    <label for="transferDate" class="rebook-label">Travel Date</label>
+                                    <input type="date" id="transferDate" class="form-control">
+                                </div>
+                                <div class="form-group mb-0">
+                                    <label for="transferTrip" class="rebook-label">New Trip / Schedule</label>
+                                    <select id="transferTrip" class="form-control"></select>
+                                </div>
+                                <div class="form-group mb-0">
+                                    <label for="transferDrop" class="rebook-label">Dropping Point</label>
+                                    <select id="transferDrop" class="form-control"></select>
+                                </div>
+                            </div>
+
+                            <div id="transferManagementReasonField" class="form-group mt-3 mb-0 d-none">
+                                <label for="transferManagementReason" class="rebook-label">Transfer Reason</label>
+                                <select id="transferManagementReason" class="form-control"></select>
+                            </div>
+                            <div id="transferOtherReasonField" class="form-group mt-3 mb-0 d-none">
+                                <label for="transferOtherReason" class="rebook-label">Company Operational Reason</label>
+                                <textarea id="transferOtherReason" class="form-control" rows="2" maxlength="1000"></textarea>
+                            </div>
+                            <div id="transferPassengerReasonField" class="form-group mt-3 mb-0 d-none">
+                                <label for="transferPassengerReason" class="rebook-label">Passenger Request Details (optional)</label>
+                                <textarea id="transferPassengerReason" class="form-control" rows="2" maxlength="1000"></textarea>
+                            </div>
+
+                            <div id="transferAvailabilityLoader" class="text-center d-none py-4">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="text-muted mt-2 mb-0">Checking trip and seats...</p>
+                            </div>
+                            <div id="transferAvailability" class="d-none">
+                                <div class="transfer-quote-card mt-3">
+                                    <div><span>Transfer Status</span><strong id="transferStatus"></strong></div>
+                                    <div><span>Original Paid Fare</span><strong id="transferOriginalFare"></strong></div>
+                                    <div><span>Selected Trip Fare</span><strong id="transferSelectedFare"></strong></div>
+                                    <div><span id="transferAdjustmentLabel">Fare Adjustment</span><strong id="transferAdjustment"></strong></div>
+                                </div>
+                                <div id="transferPaymentMethodField" class="form-group mt-3 mb-0 d-none">
+                                    <label for="transferPaymentMethod" class="rebook-label">Fare Difference Payment Method</label>
+                                    <select id="transferPaymentMethod" class="form-control">
+                                        <option value="">Select payment method</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="GCash">GCash</option>
+                                        <option value="Card">Card</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="rebook-seat-heading">
+                                    <span>Select one seat for <strong id="transferAvailabilityDate"></strong></span>
+                                    <span class="text-success" id="transferSeatStatus">0 of 1 assigned</span>
+                                </div>
+                                <div class="rebook-legend">
+                                    <span><i class="available"></i>Available</span>
+                                    <span><i class="selected"></i>Selected</span>
+                                    <span><i class="taken"></i>Taken</span>
+                                </div>
+                                <div id="transferSeatMap" class="rebook-seat-map"></div>
+                            </div>
+
+                            <div class="transfer-authorization mt-3">
+                                <div class="form-group mb-0">
+                                    <label for="transferAuthorizationCode" class="rebook-label">Authorization Code</label>
+                                    <input type="password" id="transferAuthorizationCode" class="form-control"
+                                        autocomplete="new-password" autocapitalize="none" autocorrect="off"
+                                        spellcheck="false" data-lpignore="true" data-1p-ignore>
+                                </div>
+                                <div class="form-group mb-0">
+                                    <label for="transferApprovalRemarks" class="rebook-label">Approval Remarks (optional)</label>
+                                    <textarea id="transferApprovalRemarks" class="form-control" rows="2" maxlength="1000"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer transfer-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn--primary" id="transferConfirmBtn" disabled>
+                        <i class="las la-exchange-alt me-1"></i> Confirm Transfer
                     </button>
                 </div>
             </div>
@@ -650,6 +786,29 @@
         .rebook-success-alert i { background: #13a451; border-radius: 50%; color: #fff; flex: 0 0 auto; padding: 2px; }
         .rebook-footer { border-color: #e6e7eb; justify-content: space-between; padding: 14px 24px; }
         .rebook-footer .btn { border-radius: 7px; font-weight: 600; min-width: 92px; }
+        .transfer-dialog { max-width: 820px; }
+        .transfer-modal-content { border: 0; border-radius: 14px; box-shadow: 0 22px 60px rgba(0, 0, 0, .28); overflow: hidden; }
+        .transfer-header { align-items: flex-start; border-color: #e6e7eb; padding: 20px 24px; }
+        .transfer-header .modal-title { color: #17191e; font-size: 19px; font-weight: 700; }
+        .transfer-header p { color: #747984; font-size: 12px; margin-top: 4px; }
+        .transfer-body { max-height: 72vh; overflow-y: auto; padding: 22px 24px; }
+        .transfer-current-card { background: #f5f6f8; border: 1px solid #dfe1e5; border-radius: 8px; display: grid; gap: 14px; grid-template-columns: 1.5fr 1fr 1fr; padding: 14px 16px; }
+        .transfer-current-card span, .transfer-quote-card span { color: #747984; display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+        .transfer-current-card strong { color: #242830; display: block; font-size: 13px; margin-top: 4px; }
+        .transfer-type-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); margin-top: 7px; }
+        .transfer-type-card { align-items: center; background: #fff; border: 1px solid #dcdfe4; border-radius: 8px; color: #30343b; display: grid; gap: 2px 10px; grid-template-columns: 36px 1fr; min-height: 82px; padding: 13px 15px; text-align: left; }
+        .transfer-type-card i { color: #6e747e; font-size: 25px; grid-row: 1 / 3; }
+        .transfer-type-card strong { font-size: 13px; }
+        .transfer-type-card span { color: #7b808a; font-size: 10px; line-height: 1.35; }
+        .transfer-type-card:hover, .transfer-type-card.selected { background: #fff5f9; border-color: #e3196b; box-shadow: 0 0 0 1px #e3196b; }
+        .transfer-type-card.selected i, .transfer-type-card.selected strong { color: #e3196b; }
+        .transfer-fields { display: grid; gap: 12px; grid-template-columns: .8fr 1.4fr 1fr; }
+        .transfer-quote-card { background: #f6f7f9; border: 1px solid #dfe1e5; border-radius: 8px; display: grid; gap: 10px; grid-template-columns: repeat(4, 1fr); padding: 13px 15px; }
+        .transfer-quote-card strong { display: block; font-size: 13px; margin-top: 4px; }
+        .transfer-quote-card > div:last-child strong { color: #e3196b; }
+        .transfer-authorization { background: #fafafa; border: 1px solid #dfe1e5; border-radius: 8px; display: grid; gap: 12px; grid-template-columns: 1fr 1fr; padding: 14px; }
+        .transfer-footer { border-color: #e6e7eb; justify-content: space-between; padding: 14px 24px; }
+        .transfer-footer .btn { border-radius: 7px; font-weight: 600; min-width: 110px; }
         .refund-dialog { max-width: 570px; }
         .refund-modal-content { border: 0; border-radius: 15px; box-shadow: 0 22px 60px rgba(0, 0, 0, .28); }
         .refund-modal-content .modal-header { padding: 24px 26px 8px; }
@@ -720,7 +879,8 @@
         .cancel-review-total strong { color: #d83535; font-size: 20px; }
         .cancel-footer { justify-content: flex-end; gap: 12px; padding: 8px 30px 28px; }
         .cancel-footer .btn { border-radius: 9px; font-weight: 600; min-height: 43px; padding-left: 22px; padding-right: 22px; }
-        @media (max-width: 575.98px) { .rebook-type-grid { grid-template-columns: 1fr; } .rebook-body { max-height: 68vh; padding: 18px 16px; } .rebook-review-grid { grid-template-columns: 58px 1fr 1fr; } }
+        @media (max-width: 767.98px) { .transfer-fields, .transfer-quote-card { grid-template-columns: 1fr 1fr; } .transfer-authorization { grid-template-columns: 1fr; } }
+        @media (max-width: 575.98px) { .rebook-type-grid, .transfer-type-grid, .transfer-current-card, .transfer-fields, .transfer-quote-card { grid-template-columns: 1fr; } .rebook-body, .transfer-body { max-height: 68vh; padding: 18px 16px; } .rebook-review-grid { grid-template-columns: 58px 1fr 1fr; } }
     </style>
 
     <x-confirmation-modal />
@@ -1311,6 +1471,264 @@
 
             $('#rebookModal').on('hide.bs.modal hidden.bs.modal', function() {
                 $('#rebookAuthorizationCode').val('').attr('type', 'password');
+            });
+        })(jQuery);
+
+        (function($) {
+            const modal = new bootstrap.Modal(document.getElementById('transferTicketModal'));
+            const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
+            const csrfToken = "{{ csrf_token() }}";
+            let data = null;
+            let transferType = null;
+            let availability = null;
+            let selectedSeat = null;
+
+            const escapeHtml = value => $('<div>').text(value ?? '').html();
+            const errorMessage = xhr => {
+                const errors = xhr.responseJSON?.errors;
+                return errors ? Object.values(errors).flat()[0] :
+                    (xhr.responseJSON?.message || 'Unable to process this ticket transfer.');
+            };
+
+            function resetTransfer() {
+                data = null;
+                transferType = null;
+                availability = null;
+                selectedSeat = null;
+                $('.transfer-type-card').removeClass('selected');
+                $('#transferForm, #transferSelection, #transferAvailability, #transferAvailabilityLoader')
+                    .addClass('d-none');
+                $('#transferLoader').removeClass('d-none');
+                $('#transferAuthorizationCode, #transferApprovalRemarks, #transferPassengerReason, #transferOtherReason').val('');
+                $('#transferPaymentMethod').val('');
+                $('#transferConfirmBtn').prop('disabled', true);
+            }
+
+            function openTransfer(optionsUrl) {
+                resetTransfer();
+                $('#transferPnr, #transferReference, #transferPassenger').text('...');
+                modal.show();
+
+                $.getJSON(optionsUrl).done(function(response) {
+                    data = response;
+                    const booking = data.booking;
+                    $('#transferPnr').text(booking.pnr);
+                    $('#transferReference').text(booking.reference);
+                    $('#transferPassenger').text(`${booking.passenger_name} · ${booking.passenger_type}`);
+                    $('#transferCurrentTrip').text(`${booking.trip} · ${booking.pickup} to ${booking.drop}`);
+                    $('#transferCurrentSchedule').text(`${booking.date_display} · ${booking.time}`);
+                    $('#transferCurrentSeatFare').text(`${formatSeatLabel(booking.seat)} · ${currency.format(booking.fare)}`);
+                    $('#transferDate').attr({ min: data.min_date, max: data.max_date }).val(data.default_date);
+                    $('#transferTrip').html(data.trips.map(trip =>
+                        `<option value="${trip.id}">${escapeHtml(trip.label)} · ${escapeHtml(trip.bus_type)}</option>`
+                    ).join(''));
+                    $('#transferManagementReason').html('<option value="">Select reason</option>' +
+                        data.management_reasons.map(reason => `<option value="${escapeHtml(reason)}">${escapeHtml(reason)}</option>`).join(''));
+                    updateTransferDrops();
+                    $('#transferLoader').addClass('d-none');
+                    $('#transferForm').removeClass('d-none');
+
+                    if (!data.trips.length) {
+                        notify('error', 'No active alternate trip is available from this pickup point.');
+                    }
+                }).fail(function(xhr) {
+                    notify('error', errorMessage(xhr));
+                    modal.hide();
+                });
+            }
+
+            $(document).on('click', '.transfer-ticket-btn', function(event) {
+                event.preventDefault();
+                openTransfer($(this).data('options-url'));
+            });
+
+            $('.transfer-type-card').on('click', function() {
+                transferType = $(this).data('transfer-type');
+                $('.transfer-type-card').removeClass('selected');
+                $(this).addClass('selected');
+                $('#transferSelection').removeClass('d-none');
+                $('#transferManagementReasonField').toggleClass('d-none', transferType !== 'management');
+                $('#transferPassengerReasonField').toggleClass('d-none', transferType !== 'passenger');
+                $('#transferOtherReasonField').toggleClass(
+                    'd-none',
+                    transferType !== 'management' || $('#transferManagementReason').val() !== 'Other Company Operational Reasons'
+                );
+                loadTransferAvailability();
+            });
+
+            function selectedTrip() {
+                return data?.trips?.find(trip => String(trip.id) === String($('#transferTrip').val()));
+            }
+
+            function updateTransferDrops() {
+                const trip = selectedTrip();
+                $('#transferDrop').html((trip?.drops || []).map(drop =>
+                    `<option value="${drop.id}">${escapeHtml(drop.name)} · ${currency.format(drop.fare)}</option>`
+                ).join(''));
+            }
+
+            $('#transferTrip').on('change', function() {
+                updateTransferDrops();
+                loadTransferAvailability();
+            });
+            $('#transferDate, #transferDrop').on('change', loadTransferAvailability);
+            $('#transferManagementReason').on('change', function() {
+                $('#transferOtherReasonField').toggleClass(
+                    'd-none',
+                    $(this).val() !== 'Other Company Operational Reasons'
+                );
+                updateTransferConfirmState();
+            });
+            $('#transferOtherReason, #transferAuthorizationCode, #transferPaymentMethod').on('input change', updateTransferConfirmState);
+
+            function loadTransferAvailability() {
+                if (!data || !transferType || !$('#transferDate').val() || !$('#transferTrip').val() || !$('#transferDrop').val()) {
+                    availability = null;
+                    selectedSeat = null;
+                    $('#transferAvailability').addClass('d-none');
+                    updateTransferConfirmState();
+                    return;
+                }
+
+                availability = null;
+                selectedSeat = null;
+                $('#transferAvailability').addClass('d-none');
+                $('#transferAvailabilityLoader').removeClass('d-none');
+                updateTransferConfirmState();
+
+                $.getJSON(data.availability_url, {
+                    transfer_type: transferType,
+                    date: $('#transferDate').val(),
+                    trip_id: $('#transferTrip').val(),
+                    dropping_point: $('#transferDrop').val()
+                }).done(function(response) {
+                    availability = response;
+                    $('#transferSeatMap').html(response.html);
+                    applyTransferSeatAvailability(response);
+                    showTransferQuote(response);
+                    $('#transferAvailabilityDate').text(`${response.after.date_display} · ${response.after.time}`);
+                    $('#transferAvailability').removeClass('d-none');
+                }).fail(function(xhr) {
+                    notify('error', errorMessage(xhr));
+                }).always(function() {
+                    $('#transferAvailabilityLoader').addClass('d-none');
+                    updateTransferConfirmState();
+                });
+            }
+
+            function transferSeatId(element) {
+                const canonical = $(element).attr('data-seat');
+                if (canonical) return String(canonical).trim();
+                const label = $(element).attr('data-label') || $(element).clone().children().remove().end().text().trim();
+                const deck = $(element).closest('.seat-plan-inner').data('deck');
+                return `${deck}-${label}`;
+            }
+
+            function applyTransferSeatAvailability(response) {
+                const booked = response.booked_seats || [];
+                const disabled = response.disabled_seats || [];
+                $('#transferSeatMap .seat').each(function() {
+                    if ($(this).hasClass('comfort-room')) return;
+                    const label = String($(this).attr('data-label') || '').trim();
+                    const id = transferSeatId(this);
+                    const isDisabled = disabled.includes(label) || disabled.includes(id) || $(this).find('del').length;
+                    $(this).removeClass('selected booked-seat disabled-seat');
+                    if (isDisabled) {
+                        $(this).addClass('disabled-seat');
+                    } else if (booked.includes(id)) {
+                        $(this).addClass('booked-seat');
+                    }
+                });
+                $('#transferSeatStatus').text('0 of 1 assigned');
+            }
+
+            function showTransferQuote(response) {
+                const quote = response.quote;
+                $('#transferStatus').text(quote.status);
+                $('#transferOriginalFare').text(currency.format(quote.original_fare));
+                $('#transferSelectedFare').text(currency.format(quote.selected_fare));
+
+                if (Number(quote.amount_due) > 0) {
+                    $('#transferAdjustmentLabel').text('Amount Due');
+                    $('#transferAdjustment').text(currency.format(quote.amount_due));
+                } else if (Number(quote.refund_amount) > 0) {
+                    $('#transferAdjustmentLabel').text('Refund Due');
+                    $('#transferAdjustment').text(`-${currency.format(quote.refund_amount)}`);
+                } else if (quote.status === 'Downgraded') {
+                    $('#transferAdjustmentLabel').text('Fare Retained');
+                    $('#transferAdjustment').text(currency.format(quote.final_fare));
+                } else {
+                    $('#transferAdjustmentLabel').text('Fare Adjustment');
+                    $('#transferAdjustment').text(currency.format(0));
+                }
+
+                $('#transferPaymentMethodField').toggleClass('d-none', Number(quote.amount_due) <= 0);
+                if (Number(quote.amount_due) <= 0) $('#transferPaymentMethod').val('');
+            }
+
+            $(document).on('click.transfer', '#transferSeatMap .seat:not(.disabled-seat):not(.booked-seat):not(.comfort-room)', function() {
+                $('#transferSeatMap .seat').removeClass('selected');
+                $(this).addClass('selected');
+                selectedSeat = transferSeatId(this);
+                $('#transferSeatStatus').text(`Assigned · ${formatSeatLabel(selectedSeat)}`);
+                updateTransferConfirmState();
+            });
+
+            function updateTransferConfirmState() {
+                const managementReasonValid = transferType !== 'management' || (
+                    $('#transferManagementReason').val() &&
+                    ($('#transferManagementReason').val() !== 'Other Company Operational Reasons' || $('#transferOtherReason').val().trim())
+                );
+                const paymentValid = !availability || Number(availability.quote.amount_due) <= 0 || $('#transferPaymentMethod').val();
+                $('#transferConfirmBtn').prop('disabled', !(
+                    availability && selectedSeat && managementReasonValid && paymentValid && $('#transferAuthorizationCode').val().trim()
+                ));
+            }
+
+            $('#transferConfirmBtn').on('click', function() {
+                const button = $(this);
+                const originalLabel = button.html();
+                const printWindow = window.open('', '_blank');
+                button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Transferring...');
+
+                $.ajax({
+                    url: data.confirm_url,
+                    method: 'POST',
+                    dataType: 'json',
+                    data: {
+                        _token: csrfToken,
+                        transfer_type: transferType,
+                        date: $('#transferDate').val(),
+                        trip_id: $('#transferTrip').val(),
+                        dropping_point: $('#transferDrop').val(),
+                        seats: [selectedSeat],
+                        management_reason: $('#transferManagementReason').val(),
+                        other_reason: $('#transferOtherReason').val(),
+                        passenger_reason: $('#transferPassengerReason').val(),
+                        payment_method: $('#transferPaymentMethod').val(),
+                        authorization_code: $('#transferAuthorizationCode').val(),
+                        approval_remarks: $('#transferApprovalRemarks').val()
+                    }
+                }).done(function(response) {
+                    notify('success', response.message);
+                    if (printWindow) {
+                        printWindow.location = response.print_url;
+                    } else {
+                        window.open(response.print_url, '_blank');
+                    }
+                    modal.hide();
+                    setTimeout(() => window.location.reload(), 1200);
+                }).fail(function(xhr) {
+                    if (printWindow) printWindow.close();
+                    notify('error', errorMessage(xhr));
+                    $('#transferAuthorizationCode').val('');
+                    button.html(originalLabel);
+                    loadTransferAvailability();
+                });
+            });
+
+            $('#transferTicketModal').on('hide.bs.modal hidden.bs.modal', function() {
+                $('#transferAuthorizationCode').val('').attr('type', 'password');
             });
         })(jQuery);
 

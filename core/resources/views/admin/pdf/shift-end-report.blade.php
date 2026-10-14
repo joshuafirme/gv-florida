@@ -132,6 +132,7 @@
 
         .status-sold { color: #087a4b; background: #e9f8f0; }
         .status-rebooked { color: #1264a3; background: #e8f4fd; }
+        .status-upgraded, .status-downgraded, .status-transferred, .status-management-transferred { color: #0f6f75; background: #e8f8f8; }
         .status-cancelled { color: #8a5700; background: #fff4df; }
         .status-voided { color: #7423a5; background: #f4eafa; }
         .status-refunded { color: #b42318; background: #fff0ef; }
@@ -260,6 +261,7 @@
                     $amount = (float) $transaction->amount;
                     $statusClass = \Illuminate\Support\Str::slug($transaction->status);
                     $adjustmentAmount = in_array($transaction->status, ['Discount Override', 'Refunded'], true)
+                        || ($transaction->status === 'Management Transferred' && $amount < 0)
                         ? abs($amount)
                         : 0;
                 @endphp
@@ -322,7 +324,7 @@
     </table>
 
     <div class="note">
-        Net Collection = Fares + Surcharges - Refunds - Voids. Cancelled and same-fare rebooked transactions have no cash impact.
+        Net Collection = Fares + Surcharges and transfer upgrades - Refunds and management transfer credits - Voids.
     </div>
 </body>
 </html>

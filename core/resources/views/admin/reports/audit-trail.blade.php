@@ -84,6 +84,7 @@
                                 $statusClass = match ($transaction->status) {
                                     'Sold' => 'sold',
                                     'Rebooked' => 'rebooked',
+                                    'Upgraded', 'Downgraded', 'Transferred', 'Management Transferred' => 'transferred',
                                     'Cancelled' => 'cancelled',
                                     'Voided' => 'voided',
                                     'Refunded' => 'refunded',
@@ -383,6 +384,12 @@
             background: #eff8ff;
             border-color: #b9e0f7;
             color: #116b91;
+        }
+
+        .audit-status--transferred {
+            background: #e8f8f8;
+            border-color: #b8dfe1;
+            color: #0f6f75;
         }
 
         .audit-status--cancelled,

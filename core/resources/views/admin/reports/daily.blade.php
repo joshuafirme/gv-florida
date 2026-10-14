@@ -130,6 +130,7 @@
                         <tr>
                             <th class="text-end">Sold</th>
                             <th class="text-end">Rebooked</th>
+                            <th class="text-end">Transfers</th>
                             <th class="text-end">Cancelled</th>
                             <th class="text-end">Voided</th>
                             <th class="text-end">Refunded</th>
@@ -140,6 +141,7 @@
                         <tr>
                             <td class="text-end">{{ $activity['sold'] }}</td>
                             <td class="text-end">{{ $activity['rebooked'] }}</td>
+                            <td class="text-end">{{ $activity['transfers'] }}</td>
                             <td class="text-end">{{ $activity['cancelled'] }}</td>
                             <td class="text-end">{{ $activity['voided'] }}</td>
                             <td class="text-end">{{ $activity['refunded'] }}</td>
@@ -285,6 +287,7 @@
                                     ? \Carbon\Carbon::parse($transaction->departure_time)->format('h:i A')
                                     : null;
                                 $adjustmentAmount = in_array($transaction->status, ['Discount Override', 'Refunded'], true)
+                                    || ($transaction->status === 'Management Transferred' && (float) $transaction->amount < 0)
                                     ? abs((float) $transaction->amount)
                                     : 0;
                             @endphp
@@ -339,8 +342,7 @@
         </section>
 
         <footer class="daily-report__footer">
-            Net Revenue = Ticket Sales + Surcharges - Refunds - Voids. Rebooked and cancelled transactions are
-            included in activity counts and have no cash impact.
+            Net Revenue = Ticket Sales + Surcharges and transfer upgrades - Refunds and management transfer credits - Voids.
         </footer>
     </div>
 @endsection
@@ -556,6 +558,10 @@
 
         .daily-status--sold { color: #167944; background: #ecfdf3; border-color: #b6ead0; }
         .daily-status--rebooked { color: #1c6b9e; background: #eef8ff; border-color: #b9dff7; }
+        .daily-status--upgraded,
+        .daily-status--downgraded,
+        .daily-status--transferred,
+        .daily-status--management-transferred { color: #0f6f75; background: #e8f8f8; border-color: #b8dfe1; }
         .daily-status--cancelled,
         .daily-status--refunded { color: #b42318; background: #fff3f2; border-color: #ffc8c2; }
         .daily-status--voided { color: #7f3bb1; background: #f7f0ff; border-color: #dec5fa; }

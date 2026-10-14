@@ -204,6 +204,7 @@
             <tr>
                 <th class="right">Sold</th>
                 <th class="right">Rebooked</th>
+                <th class="right">Transfers</th>
                 <th class="right">Cancelled</th>
                 <th class="right">Voided</th>
                 <th class="right">Refunded</th>
@@ -214,6 +215,7 @@
             <tr>
                 <td class="right">{{ $activity['sold'] }}</td>
                 <td class="right">{{ $activity['rebooked'] }}</td>
+                <td class="right">{{ $activity['transfers'] }}</td>
                 <td class="right">{{ $activity['cancelled'] }}</td>
                 <td class="right">{{ $activity['voided'] }}</td>
                 <td class="right">{{ $activity['refunded'] }}</td>
@@ -339,6 +341,7 @@
                         ? \Carbon\Carbon::parse($transaction->departure_time)->format('h:i A')
                         : null;
                     $adjustmentAmount = in_array($transaction->status, ['Discount Override', 'Refunded'], true)
+                        || ($transaction->status === 'Management Transferred' && (float) $transaction->amount < 0)
                         ? abs((float) $transaction->amount)
                         : 0;
                 @endphp
@@ -372,7 +375,7 @@
     </table>
 
     <div class="note">
-        Net Revenue = Ticket Sales + Surcharges - Refunds - Voids. Rebooked and cancelled transactions are included in activity counts and have no cash impact.
+        Net Revenue = Ticket Sales + Surcharges and transfer upgrades - Refunds and management transfer credits - Voids.
     </div>
 </body>
 </html>

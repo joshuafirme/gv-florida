@@ -206,6 +206,9 @@ Route::middleware('admin')->group(function () {
         Route::get('rebook/{id}/options', 'rebookingOptions')->name('rebook.options');
         Route::get('rebook/{id}/availability', 'rebookingAvailability')->name('rebook.availability');
         Route::post('rebook/{id}/confirm', 'confirmRebooking')->name('rebook.confirm');
+        Route::get('transfer/{slip}/options', 'transferOptions')->name('transfer.options');
+        Route::get('transfer/{slip}/availability', 'transferAvailability')->name('transfer.availability');
+        Route::post('transfer/{slip}/confirm', 'confirmTransfer')->name('transfer.confirm');
     });
 
     Route::controller('VehicleTicketController')->prefix('tickets')->name('vehicle.ticket.')->group(function () {

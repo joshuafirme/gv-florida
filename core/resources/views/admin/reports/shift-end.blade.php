@@ -85,6 +85,7 @@
                                 $statusClass = match ($transaction->status) {
                                     'Sold' => 'sold',
                                     'Rebooked' => 'rebooked',
+                                    'Upgraded', 'Downgraded', 'Transferred', 'Management Transferred' => 'transferred',
                                     'Cancelled' => 'cancelled',
                                     'Voided' => 'voided',
                                     'Refunded' => 'refunded',
@@ -94,6 +95,7 @@
                                 };
                                 $amount = (float) $transaction->amount;
                                 $adjustmentAmount = in_array($transaction->status, ['Discount Override', 'Refunded'], true)
+                                    || ($transaction->status === 'Management Transferred' && $amount < 0)
                                     ? abs($amount)
                                     : 0;
                             @endphp
@@ -156,7 +158,7 @@
         </section>
 
         <footer class="shift-report-footer">
-            Net Collection = Fares + Surcharges - Refunds - Voids. Cancelled and same-fare rebooked transactions have no cash impact.
+            Net Collection = Fares + Surcharges and transfer upgrades - Refunds and management transfer credits - Voids.
         </footer>
     </div>
 @endsection
@@ -330,6 +332,7 @@
 
         .shift-status--sold { color: #087a4b; background: #e9f8f0; border-color: #bce5cf; }
         .shift-status--rebooked { color: #1264a3; background: #e8f4fd; border-color: #bfdef4; }
+        .shift-status--transferred { color: #0f6f75; background: #e8f8f8; border-color: #b8dfe1; }
         .shift-status--cancelled { color: #a15c00; background: #fff4df; border-color: #f0d59d; }
         .shift-status--voided { color: #812bb4; background: #f4eafa; border-color: #ddc1ec; }
         .shift-status--refunded { color: #b42318; background: #fff0ef; border-color: #f4c7c3; }

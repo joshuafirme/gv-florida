@@ -3,7 +3,11 @@
 namespace Tests\Unit;
 
 use App\Models\Admin;
+use App\Models\BookedTicket;
 use App\Models\CashierTransactionEvent;
+use App\Models\Deposit;
+use App\Models\OnlineTicketValidation;
+use App\Models\SlipSeriesNumber;
 use App\Services\CashierTransactionRecorder;
 use App\Services\TicketPassengerResolver;
 use Carbon\Carbon;
@@ -58,6 +62,14 @@ class CashierTransactionRecorderTest extends TestCase
             $table->decimal('amount', 14, 2)->default(0);
             $table->text('reason')->nullable();
             $table->json('snapshot')->nullable();
+            $table->timestamps();
+        });
+
+        $this->database->schema()->create('online_ticket_validations', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('slip_series_number_id');
+            $table->unsignedBigInteger('booked_ticket_id');
+            $table->unsignedBigInteger('deposit_id')->nullable();
             $table->timestamps();
         });
     }
@@ -177,6 +189,69 @@ class CashierTransactionRecorderTest extends TestCase
         $this->assertSame('Counter Cashier', $authorization['performed_by_name']);
         $this->assertSame('2026-08-14T14:35:10+08:00', $authorization['authorized_at']);
         $this->assertSame('Approved as an operational correction.', $authorization['approval_remarks']);
+    }
+
+    public function test_transfer_history_sequence_has_no_one_transfer_limit(): void
+    {
+        $this->database->table('cashier_transaction_events')->insert([
+            'admin_id' => 1,
+            'slip_series_number_id' => 100677,
+            'event_key' => 'transferred:first:100677',
+            'status' => 'Transferred',
+            'processed_at' => '2026-10-14 09:00:00',
+            'amount' => 0,
+            'created_at' => '2026-10-14 09:00:00',
+            'updated_at' => '2026-10-14 09:00:00',
+        ]);
+        $slip = (new SlipSeriesNumber())->forceFill(['id' => 100677]);
+        $recorder = new CashierTransactionRecorder(new TicketPassengerResolver());
+        $method = new ReflectionMethod($recorder, 'withTransferHistory');
+
+        $snapshot = $method->invoke($recorder, [], ['status' => 'Upgraded'], $slip);
+
+        $this->assertSame(2, $snapshot['transfer']['sequence']);
+        $this->assertSame(2, $snapshot['transfer_sequence']);
+    }
+
+    public function test_online_validation_uses_the_slips_current_ticket_after_rebooking(): void
+    {
+        $this->database->table('online_ticket_validations')->insert([
+            'id' => 50,
+            'slip_series_number_id' => 100677,
+            'booked_ticket_id' => 20,
+            'deposit_id' => 10,
+            'created_at' => '2026-09-15 09:00:00',
+            'updated_at' => '2026-09-15 09:00:00',
+        ]);
+
+        $oldTicket = (new BookedTicket())->forceFill([
+            'id' => 20,
+            'date_of_journey' => '2026-09-15',
+        ]);
+        $currentTicket = (new BookedTicket())->forceFill([
+            'id' => 21,
+            'date_of_journey' => '2026-10-13',
+        ]);
+        $currentTicket->setRelation('deposit', (new Deposit())->forceFill(['id' => 11]));
+        $slip = (new SlipSeriesNumber())->forceFill([
+            'id' => 100677,
+            'booked_ticket_id' => 21,
+        ]);
+        $slip->setRelation('bookedTicket', $currentTicket);
+
+        $validation = OnlineTicketValidation::findOrFail(50);
+        $validation->setRelation('bookedTicket', $oldTicket);
+        $validation->setRelation('slipSeriesNumber', $slip);
+
+        $recorder = new CashierTransactionRecorder(new TicketPassengerResolver());
+        $synchronize = new ReflectionMethod($recorder, 'synchronizeOnlineValidationTicket');
+        $resolvedTicket = $synchronize->invoke($recorder, $validation);
+
+        $this->assertSame(21, $resolvedTicket->id);
+        $this->assertSame('2026-10-13', $resolvedTicket->date_of_journey);
+        $this->assertSame(21, (int) $validation->booked_ticket_id);
+        $this->assertSame(11, (int) $validation->deposit_id);
+        $this->assertSame(21, (int) OnlineTicketValidation::findOrFail(50)->booked_ticket_id);
     }
 
     private function snapshot(string $date, string $seat, string $route): array

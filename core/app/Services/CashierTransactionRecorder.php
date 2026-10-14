@@ -203,6 +203,53 @@ class CashierTransactionRecorder
         }
     }
 
+    public function recordTransfer(
+        BookedTicket $ticket,
+        Collection $slips,
+        int $adminId,
+        string $status,
+        string $reason,
+        string $batchKey,
+        array $history,
+        float $cashAdjustment,
+        ?Admin $authorizedBy = null,
+        ?string $approvalRemarks = null,
+        ?string $paymentMethod = null
+    ): void {
+        if (!in_array($status, TicketTransferService::TRANSACTION_STATUSES, true)) {
+            throw new \InvalidArgumentException('Unsupported ticket transfer status.');
+        }
+
+        $ticket->loadMissing($this->ticketRelations());
+        $performedBy = Admin::find($adminId);
+
+        foreach ($slips->values() as $slip) {
+            $snapshot = $this->ticketSnapshot($ticket, $slip);
+            if (filled($paymentMethod)) {
+                $snapshot['payment_method'] = trim($paymentMethod);
+            }
+            $snapshot = $this->withTransferHistory($snapshot, $history, $slip);
+            $snapshot = $this->withAuthorizationAudit(
+                $snapshot,
+                $authorizedBy,
+                $performedBy,
+                TransactionAuthorizationService::TRANSFER,
+                now(),
+                $approvalRemarks
+            );
+
+            $this->store(
+                "transferred:{$batchKey}:{$slip->id}",
+                $adminId,
+                $status,
+                $snapshot,
+                $cashAdjustment,
+                $reason,
+                now()
+            );
+        }
+    }
+
     public function ticketSnapshotFor(BookedTicket $ticket, SlipSeriesNumber $slip): array
     {
         return $this->ticketSnapshot($ticket, $slip);
@@ -216,17 +263,19 @@ class CashierTransactionRecorder
 
         $validation->loadMissing([
             'bookedTicket',
-            'slipSeriesNumber',
+            'slipSeriesNumber.bookedTicket',
             'discount',
             'discountAppliedBy:id,name,username',
             'discountAuthorizedBy:id,name,username',
         ]);
 
-        if (!$validation->bookedTicket || !$validation->slipSeriesNumber) {
+        $ticket = $this->synchronizeOnlineValidationTicket($validation);
+
+        if (!$ticket || !$validation->slipSeriesNumber) {
             return;
         }
 
-        $snapshot = $this->ticketSnapshot($validation->bookedTicket, $validation->slipSeriesNumber);
+        $snapshot = $this->ticketSnapshot($ticket, $validation->slipSeriesNumber);
         $originalPassenger = [
             'name' => $snapshot['passenger_name'] ?? 'Guest',
             'type' => $snapshot['passenger_type'] ?? 'Regular',
@@ -282,17 +331,19 @@ class CashierTransactionRecorder
 
         $validation->loadMissing([
             'bookedTicket',
-            'slipSeriesNumber',
+            'slipSeriesNumber.bookedTicket',
             'validator:id,name,username',
             'discount',
             'discountAuthorizedBy:id,name,username',
         ]);
 
-        if (!$validation->bookedTicket || !$validation->slipSeriesNumber) {
+        $ticket = $this->synchronizeOnlineValidationTicket($validation);
+
+        if (!$ticket || !$validation->slipSeriesNumber) {
             return;
         }
 
-        $snapshot = $this->ticketSnapshot($validation->bookedTicket, $validation->slipSeriesNumber);
+        $snapshot = $this->ticketSnapshot($ticket, $validation->slipSeriesNumber);
         if ($validation->discount_id) {
             $snapshot['passenger_name'] = $validation->passenger_name ?: $snapshot['passenger_name'];
             $snapshot['passenger_type'] = $validation->discount?->name ?: 'Discounted';
@@ -327,6 +378,27 @@ class CashierTransactionRecorder
         $placeholder->seat = collect($ticket->seats ?? [])->first();
 
         return $this->ticketSnapshot($ticket, $placeholder);
+    }
+
+    private function synchronizeOnlineValidationTicket(OnlineTicketValidation $validation): ?BookedTicket
+    {
+        $currentTicket = $validation->slipSeriesNumber?->bookedTicket;
+        if (!$currentTicket) {
+            return $validation->bookedTicket;
+        }
+
+        $currentDepositId = $currentTicket->payment_record?->id;
+        if ((int) $validation->booked_ticket_id !== (int) $currentTicket->id
+            || (int) $validation->deposit_id !== (int) $currentDepositId) {
+            $validation->forceFill([
+                'booked_ticket_id' => $currentTicket->id,
+                'deposit_id' => $currentDepositId,
+            ])->saveQuietly();
+        }
+
+        $validation->setRelation('bookedTicket', $currentTicket);
+
+        return $currentTicket;
     }
 
     private function withAuthorizationAudit(
@@ -386,6 +458,22 @@ class CashierTransactionRecorder
             'new_seat' => $newSeat,
         ]);
         $snapshot['rebooking_sequence'] = $sequence;
+
+        return $snapshot;
+    }
+
+    private function withTransferHistory(
+        array $snapshot,
+        array $history,
+        SlipSeriesNumber $slip
+    ): array {
+        $sequence = CashierTransactionEvent::query()
+            ->where('slip_series_number_id', $slip->id)
+            ->whereIn('status', TicketTransferService::TRANSACTION_STATUSES)
+            ->count() + 1;
+
+        $snapshot['transfer'] = array_merge($history, ['sequence' => $sequence]);
+        $snapshot['transfer_sequence'] = $sequence;
 
         return $snapshot;
     }
