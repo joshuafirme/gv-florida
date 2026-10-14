@@ -27,6 +27,7 @@ class PassengerNotificationBroadcaster
         }
 
         $path = "/apps/{$appId}/events";
+        $presentation = app(PassengerNotificationPresenter::class)->present($notification);
         $body = json_encode([
             'name' => self::EVENT,
             'channel' => self::channelFor((int) $notification->user_id),
@@ -41,6 +42,9 @@ class PassengerNotificationBroadcaster
                 'created_at_label' => showDateTime($notification->created_at),
                 'history_url' => route('user.notifications.index'),
                 'read_url' => route('user.notifications.read', $notification),
+                'detail_url' => route('user.notifications.show', $notification),
+                'tone' => $presentation['tone'],
+                'icon' => $presentation['icon'],
             ]),
         ]);
 
