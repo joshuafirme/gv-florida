@@ -305,6 +305,9 @@ Route::middleware('admin')->group(function () {
         Route::get('all/{user_id?}', 'deposit')->name('list');
         Route::get('export', 'export');
         Route::get('pending/scan', 'scanPending')->name('pending.scan');
+        Route::get('pending/status', 'pendingStatus')->name('pending.status');
+        Route::post('pending/processing/heartbeat', 'renewProcessing')->name('pending.processing.heartbeat');
+        Route::post('pending/processing/release', 'releaseProcessing')->name('pending.processing.release');
         Route::get('pending/{user_id?}', 'pending')->name('pending');
         Route::get('rejected/{user_id?}', 'rejected')->name('rejected');
         Route::get('approved/{user_id?}', 'approved')->name('approved');

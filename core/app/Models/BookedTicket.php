@@ -269,18 +269,21 @@ class BookedTicket extends Model
                                         $currentTimestamp,
                                         $legacyCutoff
                                     ) {
-                                        $expirationQuery->where(function (Builder $configuredExpiry) use (
-                                            $currentTimestamp
-                                        ) {
-                                            $configuredExpiry->whereNotNull('expiry_limit')
-                                                ->where('expiry_limit', '!=', '')
-                                                ->where('expiry_limit', '>', $currentTimestamp);
-                                        })->orWhere(function (Builder $legacyExpiry) use ($legacyCutoff) {
-                                            $legacyExpiry->where(function (Builder $missingExpiry) {
-                                                $missingExpiry->whereNull('expiry_limit')
-                                                    ->orWhere('expiry_limit', '');
-                                            })->where('created_at', '>', $legacyCutoff);
-                                        });
+                                        $expirationQuery->where('processing_lease_expires_at', '>', $currentTimestamp)
+                                            ->orWhere(function (Builder $voucherExpiry) use ($currentTimestamp, $legacyCutoff) {
+                                                $voucherExpiry->where(function (Builder $configuredExpiry) use (
+                                                    $currentTimestamp
+                                                ) {
+                                                    $configuredExpiry->whereNotNull('expiry_limit')
+                                                        ->where('expiry_limit', '!=', '')
+                                                        ->where('expiry_limit', '>', $currentTimestamp);
+                                                })->orWhere(function (Builder $legacyExpiry) use ($legacyCutoff) {
+                                                    $legacyExpiry->where(function (Builder $missingExpiry) {
+                                                        $missingExpiry->whereNull('expiry_limit')
+                                                            ->orWhere('expiry_limit', '');
+                                                    })->where('created_at', '>', $legacyCutoff);
+                                                });
+                                            });
                                     });
                             });
                         });

@@ -31,6 +31,10 @@ class PendingPaymentExpirationService
 
         Deposit::query()
             ->whereIn('status', [Status::PAYMENT_INITIATE, Status::PAYMENT_PENDING])
+            ->where(function ($processingQuery) use ($currentTime) {
+                $processingQuery->whereNull('processing_lease_expires_at')
+                    ->orWhere('processing_lease_expires_at', '<=', $currentTime->format('Y-m-d H:i:s'));
+            })
             ->where(function ($query) use ($currentTime, $legacyCutoff) {
                 $query->where(function ($configuredExpiry) use ($currentTime) {
                     $configuredExpiry->whereNotNull('expiry_limit')
@@ -67,7 +71,9 @@ class PendingPaymentExpirationService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$lockedDeposit || !$this->isDue($lockedDeposit, $currentTime)) {
+            if (!$lockedDeposit
+                || !$this->isDue($lockedDeposit, $currentTime)
+                || $this->hasActiveProcessingLease($lockedDeposit, $currentTime)) {
                 return null;
             }
 
@@ -111,6 +117,13 @@ class PendingPaymentExpirationService
         }
 
         return $this->expiresAt($deposit->created_at);
+    }
+
+    private function hasActiveProcessingLease(Deposit $deposit, CarbonInterface $now): bool
+    {
+        return filled($deposit->processing_token)
+            && $deposit->processing_lease_expires_at
+            && CarbonImmutable::parse($deposit->processing_lease_expires_at)->greaterThan($now);
     }
 
     private function broadcastExpiration(Deposit $deposit): void
