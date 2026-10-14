@@ -25,7 +25,7 @@
         $dateOfJourneyQuery = request('date_of_journey')
             ? Carbon::parse(request('date_of_journey'))->format('m/d/Y')
             : date('m/d/Y');
-        $dateOfJourneyDisplay = Carbon::parse($date_of_journey)->format('d M Y');
+        $dateOfJourneyDisplay = Carbon::parse($date_of_journey)->format('D, M j, Y');
     @endphp
     @extends($activeTemplate . $layout)
 
@@ -136,10 +136,10 @@
         }
 
         .trip-search-label {
-            color: #718096;
-            font-size: 10px;
+            color: #64748b;
+            font-size: 9px;
             font-weight: 800;
-            left: 44px;
+            left: 48px;
             line-height: 1;
             margin: 0;
             pointer-events: none;
@@ -152,21 +152,22 @@
         .ticket-form .ticket-search-field > i {
             align-items: center;
             bottom: auto;
+            color: var(--booking-primary);
             display: flex;
-            font-size: 21px;
-            height: 60px;
+            font-size: 20px;
+            height: 64px;
             justify-content: center;
-            left: 13px;
+            left: 15px;
             line-height: 1;
             padding: 0;
             pointer-events: none;
             top: 0;
-            width: 20px;
+            width: 22px;
         }
 
         .ticket-form .ticket-search-field .select2-container {
             display: block;
-            height: 60px !important;
+            height: 64px;
             width: 100% !important;
         }
 
@@ -174,26 +175,24 @@
         .ticket-form .ticket-search-field .select2-container--default .select2-selection--single {
             background: #fff;
             border: 1px solid #d7dde6 !important;
-            border-radius: 10px;
+            border-radius: 12px;
             box-shadow: 0 1px 2px rgba(15, 23, 42, .03);
             box-sizing: border-box;
-            color: #1f2937;
-            font-size: 14px;
-            font-weight: 700;
-            height: 60px !important;
-            min-height: 60px;
+            color: #111827;
+            font-size: 18px;
+            font-weight: 900;
+            height: 64px;
+            min-height: 64px;
             line-height: 20px;
             transition: border-color .2s ease, box-shadow .2s ease;
         }
 
         .ticket-form .ticket-search-field > .form--control {
-            padding: 25px 38px 7px 44px !important;
+            padding: 25px 38px 7px 48px !important;
         }
 
         .ticket-form .ticket-search-field .select2-container--default .select2-selection--single {
-            align-items: flex-end;
-            display: flex;
-            padding: 0 38px 9px 44px !important;
+            padding: 0 !important;
         }
 
         .ticket-form .ticket-search-field > .form--control:focus,
@@ -205,19 +204,21 @@
         }
 
         .ticket-form .ticket-search-field .select2-selection__rendered {
-            color: #1f2937;
+            bottom: 11px;
+            color: #111827;
             display: block;
-            font-size: 14px;
-            font-weight: 700;
+            font-size: 18px;
+            font-weight: 900;
             height: auto;
-            line-height: 18px !important;
+            left: 48px;
+            line-height: 20px !important;
             margin-left: 0;
             overflow: hidden;
             padding: 0 !important;
-            position: static;
+            position: absolute;
+            right: 30px;
             text-overflow: ellipsis;
             white-space: nowrap;
-            width: 100%;
         }
 
         .ticket-form .ticket-search-field .select2-selection__placeholder {
@@ -226,23 +227,29 @@
         }
 
         .ticket-form .ticket-search-field .select2-selection__arrow {
-            height: 58px;
-            top: 0;
+            right: 12px;
+            top: 18px;
         }
 
         .bus-search-header {
             border: 1px solid #e2e7ee;
             border-radius: 12px 12px 0 0;
             box-shadow: 0 8px 24px rgba(15, 23, 42, .08);
-            padding: 18px;
         }
 
         .ticket-search-actions {
+            align-items: center;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
             padding-top: 0;
         }
 
         .ticket-search-actions .btn {
-            min-height: 60px;
+            border-radius: 11px;
+            font-size: 15px;
+            font-weight: 900;
+            min-height: 52px;
         }
 
         .ticket-search-actions .btn i {
@@ -569,11 +576,14 @@
 
         .bus-search-header {
             background: #fff;
+            padding: 14px 0 10px;
         }
 
         .journey-point-selector {
             align-items: stretch;
-            column-gap: 52px;
+            border: 1px solid #d7dde6;
+            border-radius: 12px;
+            column-gap: 0;
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
             position: relative;
@@ -583,16 +593,50 @@
             min-width: 0;
         }
 
+        .journey-point-selector__field:first-child {
+            border-right: 1px solid #e5e7eb;
+        }
+
+        .journey-point-selector .trip-search-label {
+            left: 16px;
+            z-index: 30;
+        }
+
+        .journey-point-selector .ticket-search-field > i {
+            display: none;
+        }
+
         .journey-point-selector .select2-selection--single {
-            border: 1px solid #d7dde6 !important;
-            border-radius: 10px;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, .03) !important;
+            border: 0 !important;
+            border-radius: 12px;
+            box-shadow: none !important;
+            height: 64px !important;
+        }
+
+        .journey-point-selector .ticket-search-field:first-child .select2-selection--single {
+            border-radius: 12px 0 0 12px;
+        }
+
+        .journey-point-selector .ticket-search-field:last-child .select2-selection--single {
+            border-radius: 0 12px 12px 0;
+        }
+
+        .journey-point-selector .select2-selection__rendered {
+            left: 16px !important;
+        }
+
+        .journey-point-selector__field:last-child .trip-search-label {
+            left: 32px;
+        }
+
+        .journey-point-selector__field:last-child .select2-selection__rendered {
+            left: 32px !important;
         }
 
         .journey-point-selector .select2-container--focus .select2-selection--single,
         .journey-point-selector .select2-container--open .select2-selection--single {
-            border-color: var(--booking-primary) !important;
-            box-shadow: 0 0 0 3px var(--booking-primary-soft) !important;
+            background: var(--booking-primary-soft);
+            box-shadow: none !important;
         }
 
         .journey-point-selector__direction {
@@ -602,30 +646,39 @@
             border-radius: 50%;
             color: var(--booking-primary);
             display: flex;
-            font-size: 18px;
-            height: 36px;
+            box-shadow: 0 4px 10px rgba(15, 23, 42, .14);
+            font-size: 21px;
+            height: 44px;
             justify-content: center;
             left: 50%;
             position: absolute;
             top: 50%;
             transform: translate(-50%, -50%);
-            width: 36px;
+            width: 44px;
             z-index: 14;
         }
 
         .ticket-search-actions .js-clear-trip-search {
             align-items: center;
-            color: #fff;
+            background: transparent;
+            border: 0;
+            color: #8a93a0;
             display: inline-flex;
-            flex: 0 0 58px;
-            font-size: 21px;
+            font-size: 12px;
+            font-weight: 700;
+            gap: 4px;
             justify-content: center;
-            padding: 0;
+            min-height: 24px;
+            padding: 0 10px;
         }
 
         .ticket-search-actions .js-clear-trip-search:hover,
         .ticket-search-actions .js-clear-trip-search:focus {
-            color: #fff;
+            color: var(--booking-primary);
+        }
+
+        .ticket-search-actions .js-clear-trip-search i {
+            font-size: 14px;
         }
 
         .ticket-section {
@@ -634,11 +687,15 @@
 
         .trip-results-toolbar {
             align-items: center;
+            background: #f6f8fa;
+            border: 1px solid #e4e8ee;
+            border-radius: 8px;
             display: flex;
             gap: 24px;
             justify-content: space-between;
             margin-bottom: 14px;
             min-height: 46px;
+            padding: 12px 14px;
         }
 
         .trip-results-summary {
@@ -671,11 +728,19 @@
             color: #7a8492;
             display: flex;
             gap: 6px;
-            min-height: 42px;
-            padding: 0 10px;
+            min-height: 46px;
+            padding: 0 12px;
+            position: relative;
+            transition: border-color .18s ease, box-shadow .18s ease;
+        }
+
+        .trip-results-filters label:focus-within {
+            border-color: var(--booking-primary);
+            box-shadow: 0 0 0 3px var(--booking-primary-focus);
         }
 
         .trip-results-filters i {
+            color: var(--booking-primary);
             font-size: 18px;
         }
 
@@ -690,6 +755,79 @@
             min-width: 150px;
             outline: 0;
             padding: 0 20px 0 0;
+        }
+
+        .trip-results-filters .select2-container {
+            min-width: 160px;
+            width: 100% !important;
+        }
+
+        .trip-results-filters .select2-selection--single {
+            background: transparent !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            height: 44px !important;
+        }
+
+        .trip-results-filters .select2-selection__rendered {
+            color: #344054 !important;
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 44px !important;
+            padding: 0 28px 0 0 !important;
+        }
+
+        .trip-results-filters .select2-selection__arrow {
+            height: 44px !important;
+            right: 0 !important;
+            top: 0 !important;
+        }
+
+        .trip-result-filter-dropdown {
+            border: 1px solid #d7dde6 !important;
+            border-radius: 8px !important;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, .16);
+            margin-top: 6px;
+            min-width: 220px;
+            overflow: hidden;
+            padding: 6px;
+        }
+
+        .trip-results-filters label > .select2-container--open:not(.select2) {
+            left: 0 !important;
+            top: 100% !important;
+            width: 220px !important;
+            z-index: 1060;
+        }
+
+        .trip-results-filters label:last-child > .select2-container--open:not(.select2) {
+            left: auto !important;
+            right: 0 !important;
+        }
+
+        .trip-result-filter-dropdown .select2-results__options {
+            max-height: 260px !important;
+        }
+
+        .trip-result-filter-dropdown .select2-results__option {
+            border-radius: 6px;
+            color: #344054;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin: 1px 0;
+            padding: 10px 12px;
+        }
+
+        .trip-result-filter-dropdown .select2-results__option--selected {
+            background: #f2f4f7;
+            color: #111827;
+        }
+
+        .trip-result-filter-dropdown .select2-results__option--highlighted[aria-selected] {
+            background: var(--booking-primary-soft);
+            color: var(--booking-primary);
         }
 
         .ticket-item {
@@ -756,20 +894,12 @@
             text-transform: uppercase;
         }
 
-        .trip-departure-date,
-        .trip-duration-text,
-        .trip-arrival-time {
+        .trip-duration-text {
             color: #64748b;
             display: block;
             font-size: 12px;
             font-weight: 700;
             margin-top: 7px;
-        }
-
-        .trip-departure-date i {
-            color: var(--booking-primary);
-            font-size: 16px;
-            margin-right: 4px;
         }
 
         .trip-card-main .trip-card-route {
@@ -857,16 +987,16 @@
             border-top: 1px solid #e5e7eb;
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 8px;
-            padding: 10px 8px 3px;
+            gap: 18px;
+            margin-top: 12px;
+            padding: 13px 8px 3px;
         }
 
         .booking-date-guide span {
             align-items: center;
             color: #64748b;
             display: inline-flex;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 700;
             gap: 5px;
         }
@@ -902,16 +1032,36 @@
         }
 
         .daterangepicker.single {
-            width: min(430px, calc(100vw - 24px));
+            border: 1px solid #dfe4ea;
+            border-radius: 8px;
+            box-shadow: 0 18px 42px rgba(15, 23, 42, .16);
+            padding: 14px;
+            width: min(760px, calc(100vw - 24px));
         }
 
         .daterangepicker.single .drp-calendar.single {
             max-width: none;
+            padding: 0;
             width: 100%;
         }
 
-        .daterangepicker.single td {
+        .daterangepicker.single .calendar-table th {
+            color: #778195;
+            font-size: 12px;
+            font-weight: 900;
             height: 40px;
+        }
+
+        .daterangepicker.single .calendar-table th.month {
+            color: #1f2937;
+            font-size: 15px;
+        }
+
+        .daterangepicker.single td {
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 800;
+            height: 58px;
             line-height: 1.1;
             position: relative;
         }
@@ -920,7 +1070,7 @@
         .daterangepicker.single td.trip-date-unavailable::after,
         .daterangepicker.single td.trip-date-not-open::after {
             display: block;
-            font-size: 7px;
+            font-size: 9px;
             font-weight: 700;
             margin-top: 2px;
         }
@@ -941,6 +1091,151 @@
         .daterangepicker td.active:hover {
             background: var(--booking-primary) !important;
             color: var(--booking-on-primary);
+        }
+
+        .ticket-item {
+            overflow: hidden;
+            padding: 0;
+        }
+
+        .trip-card-heading {
+            margin: 0;
+            padding: 12px 18px;
+        }
+
+        .trip-card-heading .trip-route-title {
+            color: var(--booking-primary);
+            font-size: 21px;
+        }
+
+        .trip-card-heading .fleet-pill {
+            background: var(--booking-primary);
+            border: 0;
+            border-radius: 7px;
+            color: #fff;
+            line-height: 1.2;
+            padding: 6px 12px;
+        }
+
+        .trip-card-heading .fleet-pill i {
+            display: none;
+        }
+
+        .trip-card-main {
+            padding: 13px 18px 2px;
+        }
+
+        .trip-card-departure,
+        .trip-card-route,
+        .trip-card-price {
+            padding-bottom: 2px;
+            padding-top: 2px;
+        }
+
+        .trip-card-departure > small,
+        .trip-card-price > small,
+        .trip-card-section-label {
+            line-height: 1.2;
+        }
+
+        .trip-card-main .trip-point {
+            padding-bottom: 6px;
+        }
+
+        .trip-card-main .trip-point strong {
+            line-height: 1.25;
+        }
+
+        .trip-card-main .trip-point small {
+            line-height: 1.2;
+        }
+
+        .trip-card-main .trip-card-price {
+            border-left: 0;
+        }
+
+        .trip-card-main .trip-time-main,
+        .trip-card-main .trip-price {
+            color: var(--booking-primary);
+            font-size: 40px;
+        }
+
+        .trip-duration-text {
+            line-height: 1.3;
+            margin-top: 8px;
+        }
+
+        .trip-availability {
+            margin: 10px 18px 0;
+            min-height: 42px;
+            padding: 7px 14px;
+        }
+
+        .trip-availability-separator {
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .trip-card-meta {
+            gap: 0;
+            margin: 0;
+            padding: 10px 18px 12px;
+        }
+
+        .trip-card-meta > strong {
+            line-height: 1.2;
+            margin-bottom: 5px;
+        }
+
+        .trip-card-meta span {
+            color: #667080;
+            font-weight: 500;
+            line-height: 1.3;
+            padding: 0 13px;
+        }
+
+        .trip-card-meta span:nth-of-type(1) {
+            padding-left: 0;
+        }
+
+        .trip-card-meta span + span {
+            border-left: 1px solid #dfe3e8;
+        }
+
+        .route-details {
+            border-top: 1px solid #edf0f3;
+            margin: 0;
+            padding: 0;
+        }
+
+        .route-details__toggle {
+            align-items: center;
+            color: #8b95a3;
+            display: flex;
+            gap: 7px;
+            justify-content: flex-end;
+            line-height: 1.2;
+            min-height: 34px;
+            padding: 7px 18px;
+            width: 100%;
+        }
+
+        .route-details__toggle i {
+            font-size: 15px;
+            transition: transform .2s ease;
+        }
+
+        .route-details__toggle i.is-expanded {
+            transform: rotate(90deg);
+        }
+
+        .route-details__stops {
+            align-items: center;
+            border-top: 1px dashed #e5e7eb;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            padding: 10px 18px;
         }
 
         .trip-item-empty {
@@ -1037,39 +1332,26 @@
 
             .ticket-form .ticket-search-field > i {
                 font-size: 18px;
-                height: 52px;
-            }
-
-            .ticket-form .ticket-search-field .select2-container {
-                height: 52px !important;
+                height: 56px;
             }
 
             .ticket-form .ticket-search-field > .form--control,
-            .ticket-form .ticket-search-field .select2-container--default .select2-selection--single {
-                font-size: 13px;
-                height: 52px !important;
-                min-height: 52px;
-            }
-
-            .ticket-form .ticket-search-field > .form--control {
-                padding: 21px 34px 6px 44px !important;
-            }
-
-            .ticket-form .ticket-search-field .select2-container--default .select2-selection--single {
-                padding: 0 34px 7px 44px !important;
+            .ticket-form .ticket-search-field .select2-selection--single {
+                font-size: 16px;
+                height: 56px;
             }
 
             .ticket-form .ticket-search-field .select2-selection__rendered {
-                font-size: 13px;
+                bottom: 8px;
+                font-size: 16px;
             }
 
             .ticket-form .ticket-search-field .select2-selection__arrow {
-                height: 50px;
-                top: 0;
+                top: 13px;
             }
 
             .ticket-search-actions .btn {
-                min-height: 40px;
+                min-height: 46px;
             }
 
             .ticket-section {
@@ -1115,7 +1397,7 @@
             }
 
             .ticket-item {
-                padding: 15px;
+                padding: 0;
             }
 
             .trip-card-top {
@@ -1123,23 +1405,49 @@
             }
 
             .journey-point-selector__direction {
-                height: 30px;
-                width: 30px;
+                height: 38px;
+                width: 38px;
             }
 
             .journey-point-selector {
-                column-gap: 42px;
+                column-gap: 0;
             }
 
             .trip-results-toolbar {
                 align-items: stretch;
                 flex-direction: column;
                 gap: 10px;
+                padding: 12px;
             }
 
             .trip-results-filters {
                 display: grid;
+                gap: 8px;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .trip-results-filters label {
+                gap: 4px;
+                min-width: 0;
+                padding-left: 8px;
+                padding-right: 6px;
+            }
+
+            .trip-results-filters i {
+                font-size: 16px;
+            }
+
+            .trip-results-filters .select2-container {
+                min-width: 0;
+            }
+
+            .trip-results-filters .select2-selection__rendered {
+                font-size: 12px;
+                padding-right: 18px !important;
+            }
+
+            .trip-results-filters .select2-selection__arrow {
+                width: 16px;
             }
 
             .trip-result-filter {
@@ -1155,13 +1463,14 @@
 
             .trip-card-main {
                 grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+                padding: 10px 14px 2px;
             }
 
             .trip-card-departure,
             .trip-card-route,
             .trip-card-price {
                 border: 0;
-                padding: 10px 0;
+                padding: 7px 0;
             }
 
             .trip-card-departure {
@@ -1182,10 +1491,6 @@
                 flex-basis: 100%;
             }
 
-            .trip-card-main .trip-card-price .trip-arrival-time {
-                margin-left: auto;
-            }
-
             .trip-card-price {
                 text-align: left;
             }
@@ -1201,6 +1506,54 @@
             .trip-time-main,
             .trip-price {
                 font-size: 30px;
+            }
+
+            .trip-card-heading {
+                padding: 11px 14px;
+            }
+
+            .trip-card-heading .trip-route-title {
+                font-size: 16px;
+            }
+
+            .trip-card-heading .fleet-pill {
+                font-size: 10px;
+                padding: 5px 8px;
+            }
+
+            .trip-availability {
+                margin-left: 14px;
+                margin-right: 14px;
+            }
+
+            .trip-card-meta {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+
+            .trip-card-meta span {
+                padding: 0 8px;
+            }
+
+            .route-details__toggle,
+            .route-details__stops {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+
+            .daterangepicker.single {
+                padding: 8px;
+            }
+
+            .daterangepicker.single td {
+                font-size: 11px;
+                height: 44px;
+            }
+
+            .daterangepicker.single td.trip-date-available::after,
+            .daterangepicker.single td.trip-date-unavailable::after,
+            .daterangepicker.single td.trip-date-not-open::after {
+                font-size: 7px;
             }
 
             .trip-card-route {
@@ -1308,7 +1661,7 @@
                         </div>
                     </div>
 
-                    <div class="col-md-8">
+                    <div class="col-12">
                         <div class="form--group ticket-search-field">
                             <label class="trip-search-label" for="ticket-travel-date">@lang('Departure')</label>
                             <i class="las la-calendar-check"></i>
@@ -1318,14 +1671,14 @@
                         </div>
                     </div>
 
-                    <div class="col-md-4">
-                        <div class="form--group ticket-search-actions d-flex gap-2">
+                    <div class="col-12">
+                        <div class="form--group ticket-search-actions">
                             <button type="submit" class="btn btn--base w-100">
                                 <i class="las la-search"></i> @lang('Find Trip')
                             </button>
-                            <button type="button" class="btn btn-dark js-clear-trip-search"
+                            <button type="button" class="js-clear-trip-search"
                                 aria-label="@lang('Clear search')" title="@lang('Clear search')">
-                                <i class="las la-times"></i>
+                                <i class="las la-times-circle" aria-hidden="true"></i> <span>@lang('Clear')</span>
                             </button>
                         </div>
                     </div>
@@ -1455,15 +1808,11 @@
                                 $pickupIndex = $routeStopIds->search($requestedPickupId);
                                 $dropIndex = $routeStopIds->search($displayDropId);
                                 $fullTripMinutes = max((int) round($start->diffInMinutes($end)), 0);
-                                $arrivalMinutes = $fullTripMinutes;
                                 $displayDurationMinutes = $fullTripMinutes;
 
                                 if ($tripStartIndex !== false && $tripEndIndex !== false && $dropIndex !== false) {
                                     $totalLegs = abs($tripEndIndex - $tripStartIndex);
                                     if ($totalLegs > 0) {
-                                        $arrivalMinutes = (int) round(
-                                            ($fullTripMinutes * abs($dropIndex - $tripStartIndex)) / $totalLegs,
-                                        );
                                         if ($pickupIndex !== false) {
                                             $displayDurationMinutes = (int) round(
                                                 ($fullTripMinutes * abs($dropIndex - $pickupIndex)) / $totalLegs,
@@ -1481,12 +1830,6 @@
                                             : '') . ($durationRemainder ? ' ' . $durationRemainder . ' mins' : ''),
                                     ) ?:
                                     '0 mins';
-                                $departureAt = Carbon::parse(
-                                    Carbon::parse($date_of_journey)->format('Y-m-d') .
-                                        ' ' .
-                                        $trip->schedule->start_from,
-                                );
-                                $estimatedArrivalAt = $departureAt->copy()->addMinutes($arrivalMinutes);
                                 $selectSeatUrl = route('ticket.seats', [
                                     $trip->id,
                                     slug($trip->title),
@@ -1497,8 +1840,6 @@
                                     'date_of_journey' => $dateOfJourneyQuery,
                                 ]);
                                 $routeId = uniqid('route_');
-                                $totalStops = $routeSequence?->count() ?? 0;
-                                $shouldCollapse = $totalStops >= 5;
                                 $availableSeatLabel = $available_seats_ctr === 1 ? 'Seat Available' : 'Seats Available';
                             @endphp
 
@@ -1517,10 +1858,6 @@
                                     <div class="trip-card-departure">
                                         <small>@lang('Departure Time')</small>
                                         <p class="trip-time-main">{{ showDateTime($trip->schedule->start_from, 'h:i A') }}</p>
-                                        <span class="trip-departure-date">
-                                            <i class="las la-calendar-alt"></i>
-                                            {{ Carbon::parse($date_of_journey)->format('D, M d, Y') }}
-                                        </span>
                                         <span class="trip-duration-text">@lang('Approx.') {{ $displayDurationLabel }}</span>
                                     </div>
 
@@ -1557,7 +1894,6 @@
                                             <div class="trip-price-range">{{ showAmount($minPrice) }} -
                                                 {{ showAmount($maxPrice) }}</div>
                                         @endif
-                                        <span class="trip-arrival-time">@lang('Arrives') {{ $estimatedArrivalAt->format('h:i A') }}</span>
                                     </div>
                                 </div>
 
@@ -1567,6 +1903,8 @@
                                         @lang('Fully Booked')
                                     @else
                                         {{ $available_seats_ctr }} {{ __($availableSeatLabel) }}
+                                        <span class="trip-availability-separator" aria-hidden="true">&middot;</span>
+                                        <span>@lang('Select Seat')</span>
                                         <i class="las la-arrow-right"></i>
                                     @endif
                                 </div>
@@ -1583,48 +1921,19 @@
 
                                 @if ($routeSequence && $routeSequence->count() > 0)
                                     <div class="route-details">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span class="d-block text-muted"
-                                                style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0;">
-                                                <i class="las la-map-marked-alt"></i> @lang('Route')
-                                            </span>
+                                        <a href="javascript:void(0)" class="route-details__toggle"
+                                            onclick="toggleRouteStops('{{ $routeId }}')" data-trip-card-ignore>
+                                            <span id="text-{{ $routeId }}">@lang('View Route')</span>
+                                            <i class="las la-angle-right" id="icon-{{ $routeId }}"></i>
+                                        </a>
 
-                                            @if ($shouldCollapse)
-                                                <a href="javascript:void(0)" class="route-details__toggle"
-                                                    onclick="toggleRouteStops('{{ $routeId }}')"
-                                                    data-trip-card-ignore>
-                                                    <span id="text-{{ $routeId }}">@lang('View Route')</span>
-                                                </a>
-                                            @endif
-                                        </div>
-
-                                        <div class="d-flex align-items-center flex-wrap gap-2 user-select-none"
-                                            style="font-size: 12px;">
+                                        <div class="route-details__stops d-none" id="{{ $routeId }}">
                                             @foreach ($routeSequence as $stop)
-                                                @if ($loop->first)
-                                                    <span class="badge bg-success px-2 py-1">{{ $stop->name }}</span>
-
-                                                    @if ($totalStops > 1)
-                                                        <i class="las la-long-arrow-alt-right text-muted fs-6"></i>
-                                                    @endif
-
-                                                    @if ($shouldCollapse)
-                                                        <span
-                                                            class="badge bg-light text-muted border px-2 py-1 dots-{{ $routeId }}">
-                                                            +{{ $totalStops - 2 }} @lang('Locations')
-                                                        </span>
-                                                        <i
-                                                            class="las la-long-arrow-alt-right text-muted fs-6 dots-{{ $routeId }}"></i>
-                                                    @endif
-                                                @elseif ($loop->last)
-                                                    <span class="badge bg-danger px-2 py-1">{{ $stop->name }}</span>
-                                                @else
-                                                    <span
-                                                        class="badge bg-secondary px-2 py-1 stops-{{ $routeId }} {{ $shouldCollapse ? 'd-none' : '' }}">
-                                                        {{ $stop->name }}
-                                                    </span>
-                                                    <i
-                                                        class="las la-long-arrow-alt-right text-muted fs-6 stops-{{ $routeId }} {{ $shouldCollapse ? 'd-none' : '' }}"></i>
+                                                <span class="badge {{ $loop->first ? 'bg-success' : ($loop->last ? 'bg-danger' : 'bg-secondary') }} px-2 py-1">
+                                                    {{ $stop->name }}
+                                                </span>
+                                                @unless ($loop->last)
+                                                    <i class="las la-long-arrow-alt-right text-muted fs-6"></i>
                                                 @endif
                                             @endforeach
                                         </div>
@@ -1665,23 +1974,15 @@
 @push('script')
     <script>
         function toggleRouteStops(id) {
-            const stops = document.querySelectorAll('.stops-' + id);
-            const dots = document.querySelectorAll('.dots-' + id);
+            const stops = document.getElementById(id);
             const textElem = document.getElementById('text-' + id);
+            const icon = document.getElementById('icon-' + id);
 
-            let isHidden = stops[0].classList.contains('d-none');
+            if (!stops || !textElem) return;
 
-            if (isHidden) {
-                // Expand
-                stops.forEach(el => el.classList.remove('d-none'));
-                dots.forEach(el => el.classList.add('d-none'));
-                textElem.innerText = "@lang('Hide Route')";
-            } else {
-                // Collapse
-                stops.forEach(el => el.classList.add('d-none'));
-                dots.forEach(el => el.classList.remove('d-none'));
-                textElem.innerText = "@lang('View Route')";
-            }
+            const isHidden = stops.classList.toggle('d-none');
+            textElem.innerText = isHidden ? "@lang('View Route')" : "@lang('Hide Route')";
+            icon?.classList.toggle('is-expanded', !isHidden);
         }
 
         (function($) {
@@ -1749,6 +2050,25 @@
                 return document.getElementById('ticketResultsRegion');
             }
 
+            function initializeResultFilters(scope = document) {
+                $(scope).find('.trip-result-filter').each(function() {
+                    const filter = $(this);
+
+                    if (filter.hasClass('select2-hidden-accessible')) return;
+
+                    filter.select2({
+                        dropdownParent: filter.closest('label'),
+                        dropdownCssClass: 'trip-result-filter-dropdown',
+                        minimumResultsForSearch: Infinity,
+                        width: 'resolve'
+                    });
+
+                    filter.on('select2:select.tripResultFilter select2:clear.tripResultFilter', function() {
+                        scheduleTripRefresh(40);
+                    });
+                });
+            }
+
             function readDateStatuses(region) {
                 if (!region) return {};
 
@@ -1780,6 +2100,22 @@
                 return url;
             }
 
+            function syncTripStartOverNavigation(url = new URL(window.location.href)) {
+                const navigation = document.querySelector('[data-trip-start-over]');
+                if (!navigation) return;
+
+                const filterKeys = ['pickup', 'destination', 'date_of_journey', 'fleetType[]', 'province'];
+                const hasFilters = filterKeys.some(function(key) {
+                    return url.searchParams.getAll(key).some(value => String(value).trim() !== '');
+                });
+                const shell = navigation.closest('.booking-flow-stepper-shell');
+                const stepper = navigation.closest('.booking-flow-stepper');
+
+                navigation.classList.toggle('d-none', !hasFilters);
+                shell?.classList.toggle('has-navigation', hasFilters);
+                stepper?.classList.toggle('has-navigation', hasFilters);
+            }
+
             async function refreshTripResults(url, historyMode = 'replace') {
                 if (!searchForm) return;
 
@@ -1804,6 +2140,7 @@
                     if (!nextRegion || !currentRegion) throw new Error('Trip results were not found in the response.');
 
                     currentRegion.replaceWith(nextRegion);
+                    initializeResultFilters(nextRegion);
                     journeyDateStatuses = readDateStatuses(nextRegion);
                     tripListRealtime.journeyDate = nextRegion.dataset.journeyDate || tripListRealtime.journeyDate;
 
@@ -1813,6 +2150,7 @@
                         window.history.replaceState({}, '', response.url);
                     }
 
+                    syncTripStartOverNavigation(new URL(response.url));
                     syncMobileSearchClearance();
                 } catch (error) {
                     if (error.name !== 'AbortError') {
@@ -1872,10 +2210,8 @@
                 scheduleTripRefresh(40);
             });
 
-            document.addEventListener('change', function(event) {
-                if (event.target.matches('.trip-result-filter')) {
-                    scheduleTripRefresh(40);
-                }
+            $(document).on('change', '.trip-result-filter', function() {
+                scheduleTripRefresh(40);
             });
 
             document.addEventListener('click', function(event) {
@@ -1909,6 +2245,7 @@
             });
 
             journeyDateStatuses = readDateStatuses(getResultsRegion());
+            initializeResultFilters(getResultsRegion());
 
             const datePicker = $('.date-range').daterangepicker({
                 autoUpdateInput: true,
@@ -1918,7 +2255,7 @@
                 minDate: new Date(),
                 maxDate: moment().add("{{ $allowed_advance_booking_days }}", 'days'),
                 locale: {
-                    format: 'DD MMM YYYY'
+                    format: 'ddd, MMM D, YYYY'
                 },
                 isCustomDate: function(date) {
                     const status = journeyDateStatuses[date.format('YYYY-MM-DD')];
@@ -1947,7 +2284,7 @@
             });
 
             datePicker.on('apply.daterangepicker', function(event, picker) {
-                const newJourneyDate = picker.startDate.format('DD MMM YYYY');
+                const newJourneyDate = picker.startDate.format('ddd, MMM D, YYYY');
                 this.value = newJourneyDate;
 
                 if (newJourneyDate === selectedJourneyDate || !this.form) return;
@@ -1983,10 +2320,10 @@
 
                 $(pickup).val(defaultPickup).trigger('change');
                 $(destination).val('').trigger('change');
-                $('.date-range').val(today.format('DD MMM YYYY'));
+                $('.date-range').val(today.format('ddd, MMM D, YYYY'));
                 datePicker.data('daterangepicker').setStartDate(today);
                 datePicker.data('daterangepicker').setEndDate(today);
-                selectedJourneyDate = today.format('DD MMM YYYY');
+                selectedJourneyDate = today.format('ddd, MMM D, YYYY');
 
                 const region = getResultsRegion();
                 if (region) {
@@ -2001,6 +2338,8 @@
             window.addEventListener('popstate', function() {
                 refreshTripResults(new URL(window.location.href), false);
             });
+
+            syncTripStartOverNavigation();
 
         })(jQuery)
     </script>
