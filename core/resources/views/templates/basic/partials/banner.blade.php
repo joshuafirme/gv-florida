@@ -19,7 +19,7 @@
                 <div class="tab-content">
                     <div class="tab-pane fade show active" id="one-way">
                         <form action="{{ route('ticket') }}" method="GET"
-                            class="ticket-form row g-3 justify-content-center m-0">
+                            class="ticket-form row g-3 justify-content-center m-0 js-passenger-reminder-form">
                             <div class="col-md-6">
                                 <div class="form--group">
                                     <i class="las la-location-arrow"></i>

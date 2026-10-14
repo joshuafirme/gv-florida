@@ -165,6 +165,25 @@ Route::middleware('admin')->group(function () {
         });
     });
 
+    Route::controller('BookingReminderController')
+        ->prefix('manage/booking-reminders')
+        ->name('trip.booking-reminders.')
+        ->middleware('role:admin.trip.booking-reminders.index')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::post('{reminder}', 'update')->name('update');
+            Route::post('{reminder}/status', 'status')->name('status');
+            Route::post('{reminder}/move', 'move')->name('move');
+            Route::post('{reminder}/delete', 'destroy')->name('destroy');
+
+            Route::post('trip-codes/store', 'storeTripCode')->name('trip-codes.store');
+            Route::post('trip-codes/{tripCode}', 'updateTripCode')->name('trip-codes.update');
+            Route::post('trip-codes/{tripCode}/status', 'statusTripCode')->name('trip-codes.status');
+            Route::post('trip-codes/{tripCode}/move', 'moveTripCode')->name('trip-codes.move');
+            Route::post('trip-codes/{tripCode}/delete', 'destroyTripCode')->name('trip-codes.destroy');
+        });
+
     Route::controller('AdminSeatLockController')
         ->prefix('manage/trip/{trip}/seat-locks')
         ->name('trip.seat-locks.')
