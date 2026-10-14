@@ -221,6 +221,7 @@
             .always(()=>button.prop('disabled',false));
     });
     $('#validateTicketBtn').on('click',function(){
+        if(!window.confirm(@json(__('Are you sure you want to validate this ticket?')))){return;}
         const button=$(this).prop('disabled',true);$.post($(this).data('url'),{_token:'{{ csrf_token() }}'})
             .done(result=>{notify('success',result.message);window.open(result.print_url,'_blank','noopener');setTimeout(()=>window.location.reload(),500);})
             .fail(xhr=>{notify('error',errorMessage(xhr));button.prop('disabled',false);});
