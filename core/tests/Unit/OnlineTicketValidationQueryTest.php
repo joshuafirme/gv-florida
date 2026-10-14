@@ -23,6 +23,16 @@ class OnlineTicketValidationQueryTest extends TestCase
             $table->unsignedBigInteger('kiosk_id')->nullable();
             $table->unsignedTinyInteger('status');
             $table->unsignedBigInteger('payment_source_deposit_id')->nullable();
+            $table->unsignedBigInteger('trip_id')->nullable();
+            $table->date('date_of_journey')->nullable();
+        });
+        Schema::create('schedules', function (Blueprint $table) {
+            $table->id();
+            $table->time('start_from');
+        });
+        Schema::create('trips', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('schedule_id');
         });
         Schema::create('slip_series_numbers', function (Blueprint $table) {
             $table->id();
@@ -51,6 +61,15 @@ class OnlineTicketValidationQueryTest extends TestCase
 
     public function test_eligible_query_handles_both_payment_links_and_excludes_inactive_tickets(): void
     {
+        DB::table('schedules')->insert([
+            ['id' => 1, 'start_from' => '07:30:00'],
+            ['id' => 2, 'start_from' => '09:00:00'],
+        ]);
+        DB::table('trips')->insert([
+            ['id' => 1, 'schedule_id' => 1],
+            ['id' => 2, 'schedule_id' => 2],
+        ]);
+
         foreach (range(1, 9) as $ticketId) {
             DB::table('booked_tickets')->insert([
                 'id' => $ticketId,
@@ -58,6 +77,8 @@ class OnlineTicketValidationQueryTest extends TestCase
                 'kiosk_id' => $ticketId === 3 ? 1 : null,
                 'status' => $ticketId === 9 ? Status::BOOKED_PENDING : Status::BOOKED_APPROVED,
                 'payment_source_deposit_id' => $ticketId === 2 ? 20 : null,
+                'trip_id' => $ticketId === 2 ? 2 : 1,
+                'date_of_journey' => $ticketId === 2 ? '2026-10-15' : '2026-10-14',
             ]);
             DB::table('slip_series_numbers')->insert([
                 'id' => 100 + $ticketId,
@@ -112,5 +133,64 @@ class OnlineTicketValidationQueryTest extends TestCase
         $this->assertSame(2, (int) $counts->total_count);
         $this->assertSame(1, (int) $counts->to_validate_count);
         $this->assertSame(1, (int) $counts->validated_count);
+    }
+
+    public function test_eligible_query_filters_by_travel_date_and_departure_time(): void
+    {
+        DB::table('schedules')->insert([
+            ['id' => 1, 'start_from' => '07:30:00'],
+            ['id' => 2, 'start_from' => '09:00:00'],
+        ]);
+        DB::table('trips')->insert([
+            ['id' => 1, 'schedule_id' => 1],
+            ['id' => 2, 'schedule_id' => 2],
+        ]);
+
+        foreach ([
+            ['id' => 1, 'trip_id' => 1, 'date' => '2026-10-14'],
+            ['id' => 2, 'trip_id' => 2, 'date' => '2026-10-15'],
+        ] as $ticket) {
+            DB::table('booked_tickets')->insert([
+                'id' => $ticket['id'],
+                'user_id' => 10,
+                'kiosk_id' => null,
+                'status' => Status::BOOKED_APPROVED,
+                'payment_source_deposit_id' => null,
+                'trip_id' => $ticket['trip_id'],
+                'date_of_journey' => $ticket['date'],
+            ]);
+            DB::table('slip_series_numbers')->insert([
+                'id' => 100 + $ticket['id'],
+                'booked_ticket_id' => $ticket['id'],
+                'seat' => 'D' . $ticket['id'],
+            ]);
+            DB::table('deposits')->insert([
+                'id' => $ticket['id'],
+                'booked_ticket_id' => $ticket['id'],
+                'status' => Status::PAYMENT_SUCCESS,
+            ]);
+        }
+
+        $controller = new OnlineTicketValidationController(
+            $this->createMock(CashierTransactionRecorder::class)
+        );
+        $method = new ReflectionMethod($controller, 'eligibleTicketsQuery');
+
+        $this->assertSame(
+            [101],
+            $method->invoke($controller, '2026-10-14')->pluck('slip_series_numbers.id')->all()
+        );
+        $this->assertSame(
+            [102],
+            $method->invoke($controller, null, '09:00')->pluck('slip_series_numbers.id')->all()
+        );
+        $this->assertSame(
+            [102],
+            $method->invoke($controller, '2026-10-15', '09:00')->pluck('slip_series_numbers.id')->all()
+        );
+        $this->assertSame(
+            [],
+            $method->invoke($controller, '2026-10-14', '09:00')->pluck('slip_series_numbers.id')->all()
+        );
     }
 }
