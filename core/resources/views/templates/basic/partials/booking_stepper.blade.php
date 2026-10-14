@@ -15,37 +15,72 @@
         ?? ($isKioskBooking ?? false)
         || ($layout ?? null) === 'layouts.kiosk'
         || request()->filled('kiosk_id');
-    $showNavigation = $showNavigation
-        ?? ($isKioskFlow
-            ? $currentStep !== 'trip'
-            : !in_array($currentStep, ['trip', 'done'], true));
     $navigationTicket = $bookedTicket ?? $ticket ?? null;
     $navigationKioskId = $kiosk_id
         ?? request('kiosk_id')
         ?? data_get($navigationTicket, 'kiosk_id')
         ?? session('kiosk_id');
-    $navigationCounterId = request('counter_id')
+    $navigationPickup = request('pickup')
         ?? request('start_from')
+        ?? data_get($navigationTicket, 'pickup_point')
         ?? data_get($navigationTicket, 'trip.start_from');
-    $startOverUrl = route('ticket', array_filter([
+    $navigationDestination = request('destination')
+        ?? request('dropping_point')
+        ?? request('end_to')
+        ?? data_get($navigationTicket, 'dropping_point')
+        ?? data_get($navigationTicket, 'trip.end_to');
+    $navigationDate = request('date_of_journey')
+        ?? data_get($navigationTicket, 'date_of_journey');
+    $navigationDate = $navigationDate
+        ? \Carbon\Carbon::parse($navigationDate)->format('m/d/Y')
+        : null;
+    $navigationCounterId = request('counter_id')
+        ?? ($isKioskFlow
+            ? ($navigationPickup ?? data_get($navigationTicket, 'trip.start_from'))
+            : null);
+    $filterKeys = ['pickup', 'destination', 'date_of_journey', 'fleetType', 'province'];
+    $hasTripFilters = collect($filterKeys)->contains(function ($key) {
+        $value = request($key);
+
+        return is_array($value) ? collect($value)->filter()->isNotEmpty() : filled($value);
+    });
+    $showNavigation = $showNavigation
+        ?? ($currentStep === 'trip' ? $hasTripFilters : true);
+    $renderNavigation = $currentStep === 'trip' || $showNavigation;
+    $navigationLabel = $currentStep === 'trip' ? 'Start Over' : 'Go Back';
+    $startOverUrl = $isKioskFlow
+        ? route('ticket', array_filter([
+            'kiosk_id' => $navigationKioskId,
+            'counter_id' => $navigationCounterId,
+        ], fn ($value) => $value !== null && $value !== ''))
+        : route('ticket');
+    $goBackUrl = route('ticket', array_filter([
         'kiosk_id' => $navigationKioskId,
         'counter_id' => $navigationCounterId,
+        'pickup' => $navigationPickup,
+        'destination' => $navigationDestination,
+        'date_of_journey' => $navigationDate,
     ], fn ($value) => $value !== null && $value !== ''));
+    $navigationUrl = $currentStep === 'trip' ? $startOverUrl : $goBackUrl;
+    $navigationFormId = $navigationFormId ?? null;
 @endphp
 
 <div class="booking-flow-stepper-shell {{ $isKioskFlow ? 'is-kiosk' : 'is-online' }} {{ $showNavigation ? 'has-navigation' : '' }}">
     <div class="booking-flow-stepper {{ $showNavigation ? 'has-navigation' : '' }}"
         style="--booking-flow-progress: {{ $progress }};">
-        @if ($showNavigation)
-            @if ($isKioskFlow)
-                <a class="booking-flow-navigation" href="{{ $startOverUrl }}">
+        @if ($renderNavigation)
+            @if ($navigationFormId && $currentStep !== 'trip')
+                <button type="submit" form="{{ $navigationFormId }}"
+                    class="booking-flow-navigation" data-booking-back>
                     <i class="las la-arrow-left"></i>
-                    <span>@lang('Start Over')</span>
-                </a>
+                    <span>{{ __($navigationLabel) }}</span>
+                </button>
             @else
-                <a class="booking-flow-navigation" href="{{ route('home') }}">
-                    <i class="las la-home"></i>
-                    <span>@lang('Home')</span>
+                <a class="booking-flow-navigation {{ $showNavigation ? '' : 'd-none' }}"
+                    href="{{ $navigationUrl }}"
+                    @if ($currentStep === 'trip') data-trip-start-over @else data-booking-back @endif>
+                    <i class="las la-arrow-left"></i>
+                    <span>{{ __($navigationLabel) }}</span>
                 </a>
             @endif
         @endif
@@ -102,7 +137,9 @@
                 background: transparent;
                 border: 0;
                 color: var(--booking-primary);
+                cursor: pointer;
                 display: inline-flex;
+                font-family: inherit;
                 font-size: 13px;
                 font-weight: 900;
                 gap: 7px;
@@ -111,6 +148,7 @@
                 padding: 6px;
                 position: absolute;
                 text-decoration: none;
+                text-transform: none;
                 top: 9px;
                 z-index: 3;
             }

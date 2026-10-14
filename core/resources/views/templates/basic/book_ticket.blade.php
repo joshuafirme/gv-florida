@@ -19,16 +19,6 @@
         <div class="container">
             @include('templates.basic.partials.booking_stepper', ['currentStep' => 'seat'])
             <div class="booking-stepper-content-gap" aria-hidden="true"></div>
-            <a class="seat-back-link"
-                href="{{ url('/tickets?' . urldecode(http_build_query([
-                    'kiosk_id' => $kiosk_id,
-                    'counter_id' => $selectedPickupPoint,
-                    'pickup' => $selectedPickupPoint,
-                    'destination' => $selectedDroppingPoint,
-                    'date_of_journey' => $dateOfJourneyQuery,
-                ]))) }}">
-                <i class="las la-arrow-left"></i> Go Back
-            </a>
             <div class="card border-0 shadow-sm rounded-4 mb-4 trip-header-banner">
                 <div class="card-body p-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
 
@@ -275,22 +265,6 @@
 
             .seat-overview-wrapper {
                 scroll-margin-top: var(--seat-overview-sticky-top);
-            }
-
-            .seat-back-link {
-                align-items: center;
-                color: #7b8490;
-                display: inline-flex;
-                font-weight: 700;
-                gap: 6px;
-                margin-bottom: 10px;
-                text-decoration: none;
-            }
-
-            .seat-back-link:hover,
-            .seat-back-link:focus {
-                color: #df2a82;
-                text-decoration: none;
             }
 
             .trip-header-banner {
@@ -655,14 +629,6 @@
                 .booking-seat-flow > .container {
                     padding-left: 10px;
                     padding-right: 10px;
-                }
-
-                .seat-back-link {
-                    display: flex;
-                    font-size: 12px;
-                    margin-bottom: 5px;
-                    position: relative;
-                    z-index: 1;
                 }
 
                 .trip-header-banner {
@@ -1062,7 +1028,7 @@
                 // 2. Listen to Dropping Point changes
                 $('select[name="dropping_point"]').on('change', function() {
                     const selectedDroppingPoint = String($(this).val() || '');
-                    const backLink = document.querySelector('.seat-back-link');
+                    const backLink = document.querySelector('.booking-flow-navigation[data-booking-back]');
 
                     if (selectedDroppingPoint && backLink) {
                         const backUrl = new URL(backLink.href, window.location.origin);
