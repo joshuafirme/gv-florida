@@ -18,9 +18,12 @@ use App\Models\TicketCancellation;
 use App\Models\TicketRefund;
 use App\Models\TicketVoid;
 use App\Services\CashierTransactionRecorder;
+use App\Services\FareDiscountService;
 use App\Services\RebookingPolicy;
 use App\Services\SeatConflictService;
 use App\Services\SeatLayoutService;
+use App\Services\TicketPassengerResolver;
+use App\Services\TicketTransferService;
 use App\Services\TransactionAuthorizationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -823,6 +826,10 @@ class VehicleTicketController extends Controller
                 'bookedTicket.paymentSourceDeposit.userDiscount',
                 'bookedTicket.slipSeriesNumbers',
                 'bookedTicket.approvedBy',
+                'transactionEvents' => fn ($eventQuery) => $eventQuery
+                    ->whereIn('status', TicketTransferService::TRANSACTION_STATUSES)
+                    ->latest('processed_at')
+                    ->latest('id'),
             ])
             ->orderByDesc('booked_ticket_id')
             ->orderBy('id');
@@ -1762,6 +1769,666 @@ class VehicleTicketController extends Controller
         ]);
     }
 
+    public function transferOptions($slip)
+    {
+        $slip = $this->transferableSlip($slip);
+        $ticket = $slip->bookedTicket;
+        $counters = Counter::active()->get()->keyBy(fn ($counter) => (string) $counter->id);
+        $availableTrips = $this->transferTripQuery($ticket)->get();
+        $prices = TicketPrice::query()
+            ->whereIn('fleet_type_id', $availableTrips->pluck('fleet_type_id')->unique())
+            ->whereIn('vehicle_route_id', $availableTrips->pluck('vehicle_route_id')->unique())
+            ->with('prices')
+            ->get()
+            ->keyBy(fn (TicketPrice $price) => $price->fleet_type_id . ':' . $price->vehicle_route_id);
+        $availableTrips->each(fn (Trip $trip) => $trip->setRelation(
+            'ticketPrice',
+            $prices->get($trip->fleet_type_id . ':' . $trip->vehicle_route_id)
+        ));
+
+        $trips = $availableTrips
+            ->filter(fn (Trip $trip) => app(RebookingPolicy::class)->isOperational($trip))
+            ->map(function (Trip $trip) use ($ticket, $slip, $counters) {
+                $drops = $this->transferDropOptions($trip, $ticket, $slip, $counters);
+
+                if ($drops->isEmpty()) {
+                    return null;
+                }
+
+                return [
+                    'id' => $trip->id,
+                    'label' => ($trip->route?->name ?: $trip->title ?: 'Trip')
+                        . ' - ' . Carbon::parse($trip->schedule->start_from)->format('g:i A'),
+                    'route' => $trip->route?->name ?: $trip->title ?: 'Trip',
+                    'schedule' => Carbon::parse($trip->schedule->start_from)->format('g:i A'),
+                    'bus_type' => $trip->fleetType?->name ?: 'Bus',
+                    'drops' => $drops->values(),
+                ];
+            })
+            ->filter()
+            ->values();
+        $maxDate = now()->addDays(getAllowedAdvanceBookingDays(true))->format('Y-m-d');
+        $originalDate = Carbon::parse($ticket->date_of_journey)->format('Y-m-d');
+        $defaultDate = Carbon::parse($originalDate)->isBefore(today()) ? today()->format('Y-m-d') : $originalDate;
+        if (Carbon::parse($defaultDate)->isAfter(Carbon::parse($maxDate))) {
+            $defaultDate = today()->format('Y-m-d');
+        }
+
+        return response()->json([
+            'booking' => $this->transferBookingSummary($ticket, $slip),
+            'trips' => $trips,
+            'management_reasons' => $this->managementTransferReasons(),
+            'default_date' => $defaultDate,
+            'min_date' => today()->format('Y-m-d'),
+            'max_date' => $maxDate,
+            'availability_url' => route('admin.trip.ticket.transfer.availability', $slip->id),
+            'confirm_url' => route('admin.trip.ticket.transfer.confirm', $slip->id),
+        ]);
+    }
+
+    public function transferAvailability(Request $request, $slip)
+    {
+        $validated = $request->validate([
+            'transfer_type' => 'required|in:passenger,management',
+            'date' => 'required|date|after_or_equal:today',
+            'trip_id' => 'required|integer',
+            'dropping_point' => 'required|integer',
+        ]);
+        $slip = $this->transferableSlip($slip);
+        $ticket = $slip->bookedTicket;
+        [$trip, $drop, $date, $fare] = $this->resolveTransferTarget($ticket, $slip, $validated);
+        $availability = $this->seatAvailability(
+            $ticket,
+            $trip,
+            $date,
+            false,
+            collect([$slip]),
+            (int) $ticket->pickup_point,
+            (int) $drop->id
+        );
+        $seatLayout = app(SeatLayoutService::class)->layout($trip->fleetType, [
+            'booked' => $availability['booked'],
+        ]);
+        $fleetType = $trip->fleetType;
+        $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'seatLayout'))->render();
+        $quote = app(TicketTransferService::class)->quote(
+            $validated['transfer_type'],
+            $this->ticketFare($ticket, $slip),
+            $fare['fare']
+        );
+
+        return response()->json([
+            'html' => $html,
+            'booked_seats' => $availability['booked'],
+            'disabled_seats' => $availability['disabled'],
+            'required_seats' => 1,
+            'selected_seats' => [],
+            'before' => $this->transferBookingSummary($ticket, $slip),
+            'after' => [
+                'date' => $date,
+                'date_display' => Carbon::parse($date)->format('M j, Y'),
+                'time' => Carbon::parse($trip->schedule->start_from)->format('g:i A'),
+                'trip_id' => $trip->id,
+                'trip' => $trip->route?->name ?: $trip->title ?: 'Trip',
+                'bus_type' => $trip->fleetType?->name ?: 'Bus',
+                'pickup' => $ticket->pickup?->name,
+                'drop' => $drop->name,
+                'base_fare' => $fare['base_fare'],
+                'fare' => $fare['fare'],
+            ],
+            'quote' => $quote,
+        ]);
+    }
+
+    public function confirmTransfer(Request $request, $slip)
+    {
+        $validated = $request->validate([
+            'transfer_type' => 'required|in:passenger,management',
+            'date' => 'required|date|after_or_equal:today',
+            'trip_id' => 'required|integer',
+            'dropping_point' => 'required|integer',
+            'seats' => 'required|array|size:1',
+            'seats.*' => 'required|string|max:30',
+            'management_reason' => 'nullable|string|max:100',
+            'other_reason' => 'nullable|string|max:1000',
+            'passenger_reason' => 'nullable|string|max:1000',
+            'payment_method' => 'nullable|string|max:100',
+            'approval_remarks' => 'nullable|string|max:1000',
+            'authorization_code' => 'required|string|max:100',
+        ]);
+        $reason = $this->transferReason($validated);
+
+        $authorizedBy = app(TransactionAuthorizationService::class)->authorize(
+            $validated['authorization_code'],
+            TransactionAuthorizationService::TRANSFER,
+            $this->authorizationContextForSlip($slip, $reason)
+        );
+
+        $result = DB::transaction(function () use ($slip, $validated, $reason, $authorizedBy) {
+            $slip = $this->transferableSlip($slip, true);
+            $ticket = $slip->bookedTicket;
+            [$trip, $drop, $date, $fare] = $this->resolveTransferTarget($ticket, $slip, $validated, true);
+            $submittedSeats = array_values(array_unique($validated['seats']));
+            $requestedSeats = app(SeatLayoutService::class)->canonicalizeSeats($trip->fleetType, $submittedSeats);
+
+            if (count($requestedSeats) !== 1 || count($requestedSeats) !== count($submittedSeats)) {
+                throw ValidationException::withMessages([
+                    'seats' => 'Select one valid seat from the new trip seat map.',
+                ]);
+            }
+
+            $availability = $this->seatAvailability(
+                $ticket,
+                $trip,
+                $date,
+                true,
+                collect([$slip]),
+                (int) $ticket->pickup_point,
+                (int) $drop->id
+            );
+            $unavailable = array_merge($availability['booked'], $availability['disabled_full']);
+            $conflicts = array_values(array_intersect($requestedSeats, $unavailable));
+            if ($conflicts) {
+                throw ValidationException::withMessages([
+                    'seats' => 'This seat is no longer available: ' . formatSeatLabel($conflicts),
+                ]);
+            }
+
+            $quote = app(TicketTransferService::class)->quote(
+                $validated['transfer_type'],
+                $this->ticketFare($ticket, $slip),
+                $fare['fare']
+            );
+            if ($quote['amount_due'] > 0 && blank($validated['payment_method'] ?? null)) {
+                throw ValidationException::withMessages([
+                    'payment_method' => 'Select how the passenger paid the upgrade fare difference.',
+                ]);
+            }
+
+            if ($ticket->payment_record) {
+                app(CashierTransactionRecorder::class)->recordSold($ticket->payment_record);
+            }
+
+            $history = $this->transferHistory(
+                $ticket,
+                $slip,
+                $trip,
+                $drop,
+                $date,
+                $requestedSeats[0],
+                $fare,
+                $quote,
+                $validated['transfer_type']
+            );
+            $transferredTicket = $this->applyTransfer(
+                $ticket,
+                $slip,
+                $trip,
+                $drop,
+                $date,
+                $requestedSeats[0],
+                $fare,
+                $quote
+            );
+            $transferredSlip = SlipSeriesNumber::findOrFail($slip->id);
+
+            app(CashierTransactionRecorder::class)->recordTransfer(
+                $transferredTicket,
+                collect([$transferredSlip]),
+                (int) auth('admin')->id(),
+                $quote['status'],
+                $reason,
+                Str::uuid()->toString(),
+                $history,
+                $quote['cash_adjustment'],
+                $authorizedBy,
+                $validated['approval_remarks'] ?? null,
+                $validated['payment_method'] ?? null
+            );
+
+            return ['ticket' => $transferredTicket, 'quote' => $quote];
+        });
+
+        $message = match ($result['quote']['status']) {
+            TicketTransferService::STATUS_UPGRADED => 'Ticket transferred and the fare difference was recorded as paid.',
+            TicketTransferService::STATUS_DOWNGRADED => 'Ticket transferred. The original paid fare was retained and no refund was issued.',
+            TicketTransferService::STATUS_MANAGEMENT_TRANSFERRED => $result['quote']['refund_amount'] > 0
+                ? 'Management transfer completed and the fare difference was recorded as refunded.'
+                : 'Management transfer completed with no passenger payment required.',
+            default => 'Ticket transferred with no fare adjustment.',
+        };
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'status' => $result['quote']['status'],
+            'print_url' => route('admin.trip.reservationSlip', $result['ticket']->id),
+        ]);
+    }
+
+    private function transferableSlip($id, bool $lockForUpdate = false): SlipSeriesNumber
+    {
+        $slipQuery = SlipSeriesNumber::query()
+            ->whereDoesntHave('refund')
+            ->whereDoesntHave('cancellation')
+            ->whereDoesntHave('voidRecord');
+
+        if ($lockForUpdate) {
+            $slipQuery->lockForUpdate();
+        }
+
+        $slip = $slipQuery->findOrFail($id);
+        $ticketQuery = BookedTicket::query()
+            ->booked()
+            ->with([
+                'trip.route',
+                'trip.schedule',
+                'trip.fleetType',
+                'pickup',
+                'drop',
+                'user',
+                'kiosk',
+                'deposit.userDiscount',
+                'paymentSourceDeposit.userDiscount',
+                'slipSeriesNumbers',
+                'activeSlipSeriesNumbers',
+            ]);
+
+        if ($lockForUpdate) {
+            $ticketQuery->lockForUpdate();
+        }
+
+        $ticket = $ticketQuery->find($slip->booked_ticket_id);
+        if (!$ticket) {
+            throw ValidationException::withMessages([
+                'ticket' => 'Only active paid tickets may be transferred.',
+            ]);
+        }
+
+        $slip->setRelation('bookedTicket', $ticket);
+
+        return $slip;
+    }
+
+    private function transferTripQuery(BookedTicket $ticket)
+    {
+        return Trip::active()
+            ->where('id', '!=', $ticket->trip_id)
+            ->whereNotIn('trip_status', [Status::TRIP_CANCELLED, Status::TRIP_DEPARTED, Status::TRIP_ARRIVED])
+            ->whereHas('schedule', fn ($query) => $query->where('status', Status::ENABLE))
+            ->whereHas('route', fn ($query) => $query->where('status', Status::ENABLE))
+            ->with(['route', 'schedule', 'fleetType'])
+            ->withMin('schedule as earliest_start', 'start_from')
+            ->orderBy('earliest_start')
+            ->orderBy('id');
+    }
+
+    private function transferDropOptions(Trip $trip, BookedTicket $ticket, SlipSeriesNumber $slip, $counters = null)
+    {
+        $dropIds = $this->transferDropIds($trip, (int) $ticket->pickup_point);
+        $counters ??= Counter::active()->whereIn('id', $dropIds)->get()->keyBy(fn ($counter) => (string) $counter->id);
+
+        return collect($dropIds)->map(function ($dropId) use ($trip, $ticket, $slip, $counters) {
+            $counter = $counters->get((string) $dropId);
+            $fare = $counter ? $this->transferFareDetails($trip, $ticket, $slip, (int) $dropId) : null;
+
+            if (!$counter || !$fare) {
+                return null;
+            }
+
+            return [
+                'id' => (int) $counter->id,
+                'name' => $counter->name,
+                'base_fare' => $fare['base_fare'],
+                'fare' => $fare['fare'],
+            ];
+        })->filter()->values();
+    }
+
+    private function transferDropIds(Trip $trip, int $pickupPoint): array
+    {
+        $stoppages = array_map('strval', array_values($trip->route?->stoppages ?? []));
+        $start = array_search((string) $trip->start_from, $stoppages, true);
+        $end = array_search((string) $trip->end_to, $stoppages, true);
+        $pickup = array_search((string) $pickupPoint, $stoppages, true);
+
+        if ($start === false || $end === false || $pickup === false || $start === $end) {
+            return [];
+        }
+
+        if ($start < $end) {
+            if ($pickup < $start || $pickup >= $end) {
+                return [];
+            }
+
+            return array_map('intval', array_slice($stoppages, $pickup + 1, $end - $pickup));
+        }
+
+        if ($pickup > $start || $pickup <= $end) {
+            return [];
+        }
+
+        $ids = [];
+        for ($index = $pickup - 1; $index >= $end; $index--) {
+            $ids[] = (int) $stoppages[$index];
+        }
+
+        return $ids;
+    }
+
+    private function resolveTransferTarget(
+        BookedTicket $ticket,
+        SlipSeriesNumber $slip,
+        array $data,
+        bool $lockForUpdate = false
+    ): array {
+        $date = Carbon::parse($data['date'])->format('Y-m-d');
+        $tripQuery = $this->transferTripQuery($ticket);
+        if ($lockForUpdate) {
+            $tripQuery->lockForUpdate();
+        }
+        $trip = $tripQuery->findOrFail($data['trip_id']);
+
+        if (!app(RebookingPolicy::class)->isOperational($trip)) {
+            throw ValidationException::withMessages([
+                'trip_id' => 'The selected trip is no longer available.',
+            ]);
+        }
+
+        if (Carbon::parse($date)->isAfter(now()->addDays(getAllowedAdvanceBookingDays(true))->endOfDay())) {
+            throw ValidationException::withMessages([
+                'date' => 'The travel date exceeds the allowed advance-booking period.',
+            ]);
+        }
+
+        $departure = Carbon::parse($date . ' ' . $trip->schedule->start_from);
+        $cutoffMinutes = getBookingCutoffMinutes(true);
+        if (now()->gte($departure->copy()->subMinutes($cutoffMinutes))) {
+            throw ValidationException::withMessages([
+                'date' => $cutoffMinutes === 0
+                    ? 'The selected trip has already departed.'
+                    : "Booking for the selected trip closes {$cutoffMinutes} minute(s) before departure.",
+            ]);
+        }
+
+        $dayOff = array_map('intval', $trip->day_off ?? []);
+        if (in_array((int) Carbon::parse($date)->format('w'), $dayOff, true)) {
+            throw ValidationException::withMessages([
+                'date' => 'The selected trip is not available on ' . Carbon::parse($date)->format('l') . '.',
+            ]);
+        }
+
+        $drop = Counter::active()->findOrFail($data['dropping_point']);
+        $validDropIds = $this->transferDropIds($trip, (int) $ticket->pickup_point);
+        if (!in_array((int) $drop->id, $validDropIds, true)) {
+            throw ValidationException::withMessages([
+                'dropping_point' => 'The selected dropping point is not available after this ticket\'s pickup point.',
+            ]);
+        }
+
+        $fare = $this->transferFareDetails($trip, $ticket, $slip, (int) $drop->id);
+        if (!$fare) {
+            throw ValidationException::withMessages([
+                'dropping_point' => 'No fare is configured for the selected trip and dropping point.',
+            ]);
+        }
+
+        return [$trip, $drop, $date, $fare];
+    }
+
+    private function transferFareDetails(
+        Trip $trip,
+        BookedTicket $ticket,
+        SlipSeriesNumber $slip,
+        int $dropPoint
+    ): ?array {
+        $baseFare = $this->fareForSegment($trip, (int) $ticket->pickup_point, $dropPoint);
+        if ($baseFare === null) {
+            return null;
+        }
+
+        $passenger = app(TicketPassengerResolver::class)->forSeat($ticket, (string) $slip->seat);
+        $percentage = (float) ($passenger['entry']['discount_percentage'] ?? 0);
+        if ($percentage <= 0 && strcasecmp((string) $passenger['type'], 'Regular') !== 0) {
+            $percentage = (float) ($ticket->payment_record?->userDiscount?->percentage ?? 0);
+        }
+        $fare = $percentage > 0
+            ? app(FareDiscountService::class)->discountedFare($baseFare, $percentage)
+            : $baseFare;
+
+        return [
+            'base_fare' => round($baseFare, 2),
+            'discount_percentage' => round($percentage, 2),
+            'discount_amount' => round(max($baseFare - $fare, 0), 2),
+            'fare' => round($fare, 2),
+        ];
+    }
+
+    private function fareForSegment(Trip $trip, int $pickupPoint, int $dropPoint): ?float
+    {
+        $price = $trip->relationLoaded('ticketPrice')
+            ? $trip->ticketPrice
+            : TicketPrice::where('fleet_type_id', $trip->fleet_type_id)
+                ->where('vehicle_route_id', $trip->vehicle_route_id)
+                ->with('prices')
+                ->first();
+
+        if (!$price) {
+            return null;
+        }
+
+        $price->loadMissing('prices');
+        $segment = [(string) $pickupPoint, (string) $dropPoint];
+        foreach ($price->prices as $segmentPrice) {
+            $pricedSegment = array_map('strval', $segmentPrice->source_destination ?? []);
+            if ($pricedSegment === $segment || $pricedSegment === array_reverse($segment)) {
+                return (float) $segmentPrice->price;
+            }
+        }
+
+        return null;
+    }
+
+    private function transferBookingSummary(BookedTicket $ticket, SlipSeriesNumber $slip): array
+    {
+        $passenger = $this->ticketPassenger($ticket, $slip);
+
+        return [
+            'id' => $ticket->id,
+            'pnr' => $ticket->pnr_number,
+            'reference' => (string) $slip->id,
+            'passenger_name' => $passenger['name'],
+            'passenger_type' => $passenger['type'],
+            'date' => Carbon::parse($ticket->date_of_journey)->format('Y-m-d'),
+            'date_display' => Carbon::parse($ticket->date_of_journey)->format('M j, Y'),
+            'time' => Carbon::parse($ticket->trip->schedule->start_from)->format('g:i A'),
+            'trip_id' => $ticket->trip_id,
+            'trip' => $ticket->trip?->route?->name ?: $ticket->trip?->title ?: 'Trip',
+            'bus_type' => $ticket->trip?->fleetType?->name ?: 'Bus',
+            'pickup' => $ticket->pickup?->name,
+            'drop' => $ticket->drop?->name,
+            'seat' => $slip->seat,
+            'fare' => $this->ticketFare($ticket, $slip),
+        ];
+    }
+
+    private function managementTransferReasons(): array
+    {
+        return [
+            'Trip Cancellation',
+            'Bus Breakdown',
+            'Schedule Disruption',
+            'Bus/Unit Change',
+            'Other Company Operational Reasons',
+        ];
+    }
+
+    private function transferReason(array $data): string
+    {
+        if ($data['transfer_type'] === TicketTransferService::PASSENGER_REQUESTED) {
+            return trim((string) ($data['passenger_reason'] ?? '')) ?: 'Passenger-requested transfer';
+        }
+
+        $reason = trim((string) ($data['management_reason'] ?? ''));
+        if (!in_array($reason, $this->managementTransferReasons(), true)) {
+            throw ValidationException::withMessages([
+                'management_reason' => 'Select a valid management transfer reason.',
+            ]);
+        }
+
+        if ($reason === 'Other Company Operational Reasons') {
+            $details = trim((string) ($data['other_reason'] ?? ''));
+            if ($details === '') {
+                throw ValidationException::withMessages([
+                    'other_reason' => 'Enter the company operational reason for this transfer.',
+                ]);
+            }
+
+            return $reason . ': ' . $details;
+        }
+
+        return $reason;
+    }
+
+    private function transferHistory(
+        BookedTicket $ticket,
+        SlipSeriesNumber $slip,
+        Trip $newTrip,
+        Counter $newDrop,
+        string $newDate,
+        string $newSeat,
+        array $fare,
+        array $quote,
+        string $type
+    ): array {
+        $previousDate = Carbon::parse($ticket->date_of_journey)->format('Y-m-d');
+
+        return [
+            'type' => $type,
+            'status' => $quote['status'],
+            'previous' => [
+                'trip_id' => $ticket->trip_id,
+                'trip' => $ticket->trip?->route?->name ?: $ticket->trip?->title ?: 'Trip',
+                'trip_class' => $ticket->trip?->fleetType?->name,
+                'journey_date' => $previousDate,
+                'departure_at' => Carbon::parse($previousDate . ' ' . $ticket->trip->schedule->start_from)->toIso8601String(),
+                'seat' => $slip->seat,
+                'pickup' => $ticket->pickup?->name,
+                'drop_off' => $ticket->drop?->name,
+                'km_post' => $ticket->drop?->km_post,
+                'fare' => $quote['original_fare'],
+            ],
+            'new' => [
+                'trip_id' => $newTrip->id,
+                'trip' => $newTrip->route?->name ?: $newTrip->title ?: 'Trip',
+                'trip_class' => $newTrip->fleetType?->name,
+                'journey_date' => $newDate,
+                'departure_at' => Carbon::parse($newDate . ' ' . $newTrip->schedule->start_from)->toIso8601String(),
+                'seat' => $newSeat,
+                'pickup' => $ticket->pickup?->name,
+                'drop_off' => $newDrop->name,
+                'km_post' => $newDrop->km_post,
+                'base_fare' => $fare['base_fare'],
+                'calculated_fare' => $fare['fare'],
+                'fare' => $quote['final_fare'],
+            ],
+            'amount_due' => $quote['amount_due'],
+            'refund_amount' => $quote['refund_amount'],
+            'cash_adjustment' => $quote['cash_adjustment'],
+        ];
+    }
+
+    private function applyTransfer(
+        BookedTicket $ticket,
+        SlipSeriesNumber $slip,
+        Trip $trip,
+        Counter $drop,
+        string $date,
+        string $seat,
+        array $fare,
+        array $quote
+    ): BookedTicket {
+        $ticket->loadMissing('activeSlipSeriesNumbers');
+        $isPartial = $ticket->activeSlipSeriesNumbers->count() > 1;
+        $oldSeat = (string) $slip->seat;
+
+        if ($isPartial) {
+            $newTicket = $ticket->replicate();
+            $newTicket->trip_id = $trip->id;
+            $newTicket->source_destination = [(int) $ticket->pickup_point, (int) $drop->id];
+            $newTicket->dropping_point = $drop->id;
+            $newTicket->date_of_journey = $date;
+            $newTicket->seats = [$seat];
+            $newTicket->ticket_count = 1;
+            $newTicket->unit_price = $quote['final_fare'];
+            $newTicket->sub_total = $quote['final_fare'];
+            $newTicket->passenger_manifest = null;
+            $newTicket->payment_source_deposit_id = $ticket->payment_record?->id;
+            $newTicket->save();
+
+            $slip->booked_ticket_id = $newTicket->id;
+            $slip->seat = $seat;
+            $slip->save();
+
+            $this->movePassengerManifest($ticket, $newTicket, [$oldSeat], [$seat]);
+            $this->updateTransferredManifestFare($newTicket, $seat, $fare, $quote['final_fare']);
+            $this->syncTicketSeats($ticket);
+            $this->syncRebookingFlag($ticket);
+
+            return $newTicket->fresh([
+                'trip.route', 'trip.schedule', 'trip.fleetType', 'pickup', 'drop',
+                'user', 'kiosk', 'activeSlipSeriesNumbers', 'slipSeriesNumbers',
+                'deposit.userDiscount', 'paymentSourceDeposit.userDiscount',
+            ]);
+        }
+
+        $slip->seat = $seat;
+        $slip->save();
+        $ticket->trip_id = $trip->id;
+        $ticket->source_destination = [(int) $ticket->pickup_point, (int) $drop->id];
+        $ticket->dropping_point = $drop->id;
+        $ticket->date_of_journey = $date;
+        $ticket->seats = [$seat];
+        $ticket->ticket_count = 1;
+        $ticket->unit_price = $quote['final_fare'];
+        $ticket->sub_total = $quote['final_fare'];
+        $this->replacePassengerManifestSeats($ticket, [$oldSeat], [$seat]);
+        $this->updateTransferredManifestFare($ticket, $seat, $fare, $quote['final_fare']);
+        $ticket->save();
+
+        return $ticket->fresh([
+            'trip.route', 'trip.schedule', 'trip.fleetType', 'pickup', 'drop',
+            'user', 'kiosk', 'activeSlipSeriesNumbers', 'slipSeriesNumbers',
+            'deposit.userDiscount', 'paymentSourceDeposit.userDiscount',
+        ]);
+    }
+
+    private function updateTransferredManifestFare(
+        BookedTicket $ticket,
+        string $seat,
+        array $fare,
+        float $finalFare
+    ): void {
+        $manifest = collect($ticket->passenger_manifest ?? [])->map(function ($entry) use ($seat, $fare, $finalFare) {
+            $entry = is_array($entry) ? $entry : (array) $entry;
+            if (strcasecmp(trim((string) ($entry['seat'] ?? '')), trim($seat)) !== 0) {
+                return $entry;
+            }
+
+            $entry['base_fare'] = $fare['base_fare'];
+            $entry['discount_percentage'] = $fare['discount_percentage'];
+            $entry['discount_amount'] = $fare['discount_amount'];
+            $entry['fare'] = round($finalFare, 2);
+
+            return $entry;
+        })->values()->all();
+
+        if ($manifest) {
+            $ticket->passenger_manifest = $manifest;
+            $ticket->save();
+        }
+    }
+
     private function rebookingTicket($id, ?int $slipId = null, bool $lockForUpdate = false)
     {
         $ticketId = (int) $id;
@@ -1965,25 +2632,11 @@ class VehicleTicketController extends Controller
 
     private function fareForTrip(Trip $trip, BookedTicket $ticket): ?float
     {
-        $price = TicketPrice::where('fleet_type_id', $trip->fleet_type_id)
-            ->where('vehicle_route_id', $trip->vehicle_route_id)
-            ->with('prices')
-            ->first();
-
-        if (!$price) {
-            return null;
-        }
-
-        $segment = [(string) $ticket->pickup_point, (string) $ticket->dropping_point];
-
-        foreach ($price->prices as $segmentPrice) {
-            $pricedSegment = array_map('strval', $segmentPrice->source_destination ?? []);
-            if ($pricedSegment === $segment || $pricedSegment === array_reverse($segment)) {
-                return (float) $segmentPrice->price;
-            }
-        }
-
-        return null;
+        return $this->fareForSegment(
+            $trip,
+            (int) $ticket->pickup_point,
+            (int) $ticket->dropping_point
+        );
     }
 
     private function rebookingSeatCount(BookedTicket $ticket, $targetSlips): int
@@ -2181,7 +2834,10 @@ class VehicleTicketController extends Controller
 
     private function movePassengerManifest(BookedTicket $sourceTicket, BookedTicket $targetTicket, array $oldSeats, array $newSeats): void
     {
-        $manifest = collect($sourceTicket->passenger_manifest ?? []);
+        $manifest = collect(
+            $sourceTicket->passenger_manifest
+                ?: ($sourceTicket->payment_record?->userDiscount?->passenger_manifest ?: [])
+        );
 
         if ($manifest->isEmpty()) {
             return;
@@ -2196,7 +2852,10 @@ class VehicleTicketController extends Controller
 
     private function replacePassengerManifestSeats(BookedTicket $ticket, array $oldSeats, array $newSeats): void
     {
-        $manifest = collect($ticket->passenger_manifest ?? []);
+        $manifest = collect(
+            $ticket->passenger_manifest
+                ?: ($ticket->payment_record?->userDiscount?->passenger_manifest ?: [])
+        );
 
         if ($manifest->isEmpty()) {
             return;
@@ -2229,14 +2888,22 @@ class VehicleTicketController extends Controller
         return [$moving, $remaining];
     }
 
-    private function seatAvailability(BookedTicket $ticket, Trip $trip, string $date, bool $lock = false, $targetSlips = null): array
+    private function seatAvailability(
+        BookedTicket $ticket,
+        Trip $trip,
+        string $date,
+        bool $lock = false,
+        $targetSlips = null,
+        ?int $pickupPoint = null,
+        ?int $droppingPoint = null
+    ): array
     {
         $seatConflicts = app(SeatConflictService::class);
         $booked = collect($seatConflicts->unavailableSeats(
             $trip,
             $date,
-            $ticket->pickup_point,
-            $ticket->dropping_point,
+            $pickupPoint ?? (int) $ticket->pickup_point,
+            $droppingPoint ?? (int) $ticket->dropping_point,
             $ticket->id,
             $lock
         ));

@@ -69,6 +69,7 @@ class TransactionAuthorizationServiceTest extends TestCase
         $this->assertTrue($service->canAuthorize($admin, TransactionAuthorizationService::REFUND));
         $this->assertTrue($service->canAuthorize($admin, TransactionAuthorizationService::CHANNEL_ACCESS));
         $this->assertFalse($service->canAuthorize($admin, TransactionAuthorizationService::REBOOKING));
+        $this->assertFalse($service->canAuthorize($admin, TransactionAuthorizationService::TRANSFER));
         $this->assertFalse($service->canAuthorize($admin, TransactionAuthorizationService::SEAT_LOCKING));
         $this->assertFalse($service->canAuthorize($admin, TransactionAuthorizationService::VOID));
     }

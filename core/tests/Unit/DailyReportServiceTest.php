@@ -36,11 +36,16 @@ class DailyReportServiceTest extends TestCase
         $this->assertSame([
             'sold' => 2,
             'rebooked' => 1,
+            'upgraded' => 0,
+            'downgraded' => 0,
+            'transferred' => 0,
+            'management_transferred' => 0,
             'cancelled' => 1,
             'voided' => 1,
             'refunded' => 1,
             'discount_override' => 1,
             'validated' => 1,
+            'transfers' => 0,
         ], $report['activity']);
 
         $this->assertSame('Alice', $report['cashier_collections'][0]['cashier']);

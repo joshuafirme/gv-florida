@@ -99,6 +99,43 @@ class TransactionReasonFormatterTest extends TestCase
         $this->assertSame('Refund: Change of plans', $formatter->format($this->transaction('Refunded', 'Change of plans')));
     }
 
+    public function test_management_transfer_reason_includes_trip_changes_and_refund(): void
+    {
+        $transaction = new CashierTransactionEvent([
+            'status' => 'Management Transferred',
+            'reason' => 'Bus Breakdown',
+            'snapshot' => [
+                'transfer' => [
+                    'sequence' => 3,
+                    'refund_amount' => 420,
+                    'previous' => [
+                        'trip_id' => 4,
+                        'trip' => 'Aparri via Roxas',
+                        'seat' => '1-D5',
+                        'drop_off' => 'Aparri',
+                        'fare' => 2100,
+                    ],
+                    'new' => [
+                        'trip_id' => 7,
+                        'trip' => 'Tuguegarao via Ilagan',
+                        'seat' => '1-D2',
+                        'drop_off' => 'Tuguegarao',
+                        'calculated_fare' => 1680,
+                        'fare' => 1680,
+                    ],
+                ],
+            ],
+        ]);
+
+        $reason = (new TransactionReasonFormatter())->format($transaction);
+
+        $this->assertStringContainsString('Management Transferred #3:', $reason);
+        $this->assertStringContainsString('Trip: Aparri via Roxas to Tuguegarao via Ilagan', $reason);
+        $this->assertStringContainsString('Seat No.: D5 to D2', $reason);
+        $this->assertStringContainsString('Refund: PHP 420.00', $reason);
+        $this->assertStringContainsString('Reason: Bus Breakdown', $reason);
+    }
+
     public function test_discount_override_reason_lists_passenger_and_fare_changes(): void
     {
         $transaction = new CashierTransactionEvent([

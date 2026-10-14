@@ -14,6 +14,7 @@ class TransactionReasonFormatter
         return match ($transaction->status) {
             'Sold' => $reason !== '' ? "Sale: {$reason}" : 'Ticket sold.',
             'Rebooked' => $this->formatRebooking($transaction, $reason),
+            'Upgraded', 'Downgraded', 'Transferred', 'Management Transferred' => $this->formatTransfer($transaction, $reason),
             'Cancelled' => $reason !== '' ? "Cancellation: {$reason}" : 'Ticket cancelled.',
             'Voided' => $reason !== '' ? "Void: {$reason}" : 'Ticket voided.',
             'Refunded' => $reason !== '' ? "Refund: {$reason}" : 'Ticket refunded.',
@@ -115,6 +116,69 @@ class TransactionReasonFormatter
         }
 
         return $label . ': ' . implode('; ', $changes);
+    }
+
+    private function formatTransfer(CashierTransactionEvent $transaction, string $reason): string
+    {
+        $history = data_get($transaction->snapshot, 'transfer', []);
+        $previous = $history['previous'] ?? [];
+        $new = $history['new'] ?? [];
+        $changes = [];
+
+        $this->addChange(
+            $changes,
+            'Travel Date',
+            $this->formatDate($previous['journey_date'] ?? null),
+            $this->formatDate($new['journey_date'] ?? null)
+        );
+        $this->addChange(
+            $changes,
+            'Departure Time',
+            $this->formatTime($previous['departure_at'] ?? null),
+            $this->formatTime($new['departure_at'] ?? null)
+        );
+        [$previousTrip, $newTrip] = $this->tripLabels($previous, $new);
+        $this->addChange($changes, 'Trip', $previousTrip, $newTrip);
+        $this->addChange(
+            $changes,
+            'Bus Class',
+            $this->text($previous['trip_class'] ?? null),
+            $this->text($new['trip_class'] ?? null)
+        );
+        $this->addChange(
+            $changes,
+            'Seat No.',
+            $this->seat($previous['seat'] ?? null),
+            $this->seat($new['seat'] ?? null)
+        );
+        $this->addChange($changes, 'Drop-Off', $this->dropOff($previous), $this->dropOff($new));
+
+        $originalFare = (float) ($previous['fare'] ?? 0);
+        $selectedFare = (float) ($new['calculated_fare'] ?? $new['fare'] ?? 0);
+        $finalFare = (float) ($new['fare'] ?? 0);
+        $amountDue = (float) ($history['amount_due'] ?? 0);
+        $refund = (float) ($history['refund_amount'] ?? 0);
+        if ($originalFare > 0 || $selectedFare > 0) {
+            $changes[] = 'Fare: ' . $this->money($originalFare) . ' to ' . $this->money($selectedFare);
+        }
+        if ($amountDue > 0) {
+            $changes[] = 'Additional payment: ' . $this->money($amountDue);
+        } elseif ($refund > 0) {
+            $changes[] = 'Refund: ' . $this->money($refund);
+        } elseif ($transaction->status === 'Downgraded' && $finalFare > 0) {
+            $changes[] = 'Original paid fare retained: ' . $this->money($finalFare) . '; no refund';
+        } elseif ($transaction->status === 'Management Transferred') {
+            $changes[] = 'No additional passenger payment';
+        }
+
+        if ($reason !== '') {
+            $changes[] = 'Reason: ' . $reason;
+        }
+
+        $sequence = (int) ($history['sequence'] ?? data_get($transaction->snapshot, 'transfer_sequence', 0));
+        $label = $sequence > 0 ? "{$transaction->status} #{$sequence}" : $transaction->status;
+
+        return $changes ? $label . ': ' . implode('; ', $changes) : $label . ' completed.';
     }
 
     private function addChange(array &$changes, string $label, string $previous, string $new): void

@@ -191,6 +191,28 @@ class CashierTransactionRecorderTest extends TestCase
         $this->assertSame('Approved as an operational correction.', $authorization['approval_remarks']);
     }
 
+    public function test_transfer_history_sequence_has_no_one_transfer_limit(): void
+    {
+        $this->database->table('cashier_transaction_events')->insert([
+            'admin_id' => 1,
+            'slip_series_number_id' => 100677,
+            'event_key' => 'transferred:first:100677',
+            'status' => 'Transferred',
+            'processed_at' => '2026-10-14 09:00:00',
+            'amount' => 0,
+            'created_at' => '2026-10-14 09:00:00',
+            'updated_at' => '2026-10-14 09:00:00',
+        ]);
+        $slip = (new SlipSeriesNumber())->forceFill(['id' => 100677]);
+        $recorder = new CashierTransactionRecorder(new TicketPassengerResolver());
+        $method = new ReflectionMethod($recorder, 'withTransferHistory');
+
+        $snapshot = $method->invoke($recorder, [], ['status' => 'Upgraded'], $slip);
+
+        $this->assertSame(2, $snapshot['transfer']['sequence']);
+        $this->assertSame(2, $snapshot['transfer_sequence']);
+    }
+
     public function test_online_validation_uses_the_slips_current_ticket_after_rebooking(): void
     {
         $this->database->table('online_ticket_validations')->insert([
