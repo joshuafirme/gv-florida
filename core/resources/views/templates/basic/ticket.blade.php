@@ -739,7 +739,7 @@
             @endif
             <div class="bus-search-header">
                 <form action="{{ route('ticket') }}" method="GET"
-                    class="ticket-form ticket-form-two row g-3 justify-content-center">
+                    class="ticket-form ticket-form-two row g-3 justify-content-center {{ $kiosk_id ? '' : 'js-passenger-reminder-form' }}">
                     @if (request()->kiosk_id)
                         <input type="hidden" name="kiosk_id" value="{{ request()->kiosk_id }}">
                     @endif
@@ -1093,6 +1093,9 @@
             </div>
         </div>
     </section>
+    @unless ($kiosk_id)
+        @include($activeTemplate . 'partials.passenger-reminders-modal')
+    @endunless
 @endsection
 
 @push('style-lib')

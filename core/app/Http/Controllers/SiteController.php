@@ -19,6 +19,7 @@ use App\Models\SupportMessage;
 use App\Models\SupportTicket;
 use App\Services\SeatConflictService;
 use App\Services\SeatLayoutService;
+use App\Services\PassengerReminderService;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -39,8 +40,9 @@ class SiteController extends Controller
             request()->date_of_journey
         );
         $counters = $this->availableOriginCounters($originTrips);
+        $bookingNotices = app(PassengerReminderService::class)->activeContent();
 
-        return view('Template::home', compact('pageTitle', 'sections', 'seoContents', 'seoImage', 'counters'));
+        return view('Template::home', compact('pageTitle', 'sections', 'seoContents', 'seoImage', 'counters', 'bookingNotices'));
     }
 
     public function pages($slug)
@@ -357,6 +359,7 @@ class SiteController extends Controller
         $routes = VehicleRoute::active()->get();
 
         $layout = auth()->check() ? 'layouts.master' : 'layouts.frontend';
+        $bookingNotices = app(PassengerReminderService::class)->activeContent();
 
         return view("Template::ticket", compact(
             'pageTitle',
@@ -367,7 +370,8 @@ class SiteController extends Controller
             'schedules',
             'emptyMessage',
             'ticketPrices',
-            'layout'
+            'layout',
+            'bookingNotices'
         ));
     }
 
