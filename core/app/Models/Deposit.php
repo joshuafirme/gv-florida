@@ -10,10 +10,25 @@ class Deposit extends Model
 {
 
     protected $casts = [
-        'detail' => 'object'
+        'detail' => 'object',
+        'completed_at' => 'datetime',
     ];
 
     protected $hidden = ['detail'];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Deposit $deposit) {
+            $becameSuccessful = (int) $deposit->status === Status::PAYMENT_SUCCESS
+                && (!$deposit->exists
+                    || ($deposit->isDirty('status')
+                        && (int) $deposit->getOriginal('status') !== Status::PAYMENT_SUCCESS));
+
+            if ($becameSuccessful && !$deposit->completed_at) {
+                $deposit->completed_at = now();
+            }
+        });
+    }
 
     public function user()
     {
