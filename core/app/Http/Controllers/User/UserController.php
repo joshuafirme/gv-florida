@@ -211,6 +211,15 @@ class UserController extends Controller
         return view('Template::user.notifications', compact('pageTitle', 'notifications'));
     }
 
+    public function notificationDetails(PassengerNotification $notification)
+    {
+        abort_unless((int) $notification->user_id === (int) auth()->id(), 404);
+
+        return response()->json(
+            app(\App\Services\PassengerNotificationPresenter::class)->present($notification)
+        );
+    }
+
     public function readNotification(PassengerNotification $notification)
     {
         abort_unless((int) $notification->user_id === (int) auth()->id(), 404);
