@@ -181,10 +181,14 @@ class SiteController extends Controller
             }
 
             if ($formattedDate && $request->date_of_journey !== $formattedDate) {
-                $query = $request->query();
-                $query['date_of_journey'] = $formattedDate;
+                if ($request->expectsJson()) {
+                    $request->merge(['date_of_journey' => $formattedDate]);
+                } else {
+                    $query = $request->query();
+                    $query['date_of_journey'] = $formattedDate;
 
-                return redirect()->to($request->url() . '?' . urldecode(http_build_query($query)));
+                    return redirect()->to($request->url() . '?' . urldecode(http_build_query($query)));
+                }
             }
         }
 
@@ -387,6 +391,22 @@ class SiteController extends Controller
 
         $layout = auth()->check() ? 'layouts.master' : 'layouts.frontend';
         $bookingNotices = app(PassengerReminderService::class)->activeContent();
+
+        if ($request->expectsJson()) {
+            $query = $request->query();
+            $query['date_of_journey'] = Carbon::parse($request->date_of_journey ?: now())
+                ->format('m/d/Y');
+
+            return response()->json([
+                'html' => view('Template::partials.trip-list', compact(
+                    'trips',
+                    'emptyMessage',
+                    'ticketPrices'
+                ))->render(),
+                'journey_date' => Carbon::parse($query['date_of_journey'])->format('Y-m-d'),
+                'url' => $request->url() . '?' . http_build_query($query),
+            ]);
+        }
 
         return view("Template::ticket", compact(
             'pageTitle',

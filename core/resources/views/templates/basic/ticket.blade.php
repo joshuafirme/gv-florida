@@ -1242,6 +1242,80 @@
             cursor: default;
         }
 
+        .trip-list-region {
+            min-height: 180px;
+            position: relative;
+        }
+
+        .trip-list-skeleton {
+            display: grid;
+            gap: 12px;
+        }
+
+        .trip-card-skeleton {
+            background: #fff;
+            border: 1px solid #edf0f3;
+            border-radius: 16px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+            min-height: 248px;
+            overflow: hidden;
+            padding: 17px;
+        }
+
+        .trip-card-skeleton__top,
+        .trip-card-skeleton__route,
+        .trip-card-skeleton__meta {
+            display: flex;
+            gap: 12px;
+            justify-content: space-between;
+        }
+
+        .trip-card-skeleton__route {
+            background: #f8fafc;
+            border-radius: 12px;
+            margin-top: 18px;
+            padding: 16px;
+        }
+
+        .trip-card-skeleton__meta {
+            justify-content: flex-start;
+            margin-top: 16px;
+        }
+
+        .trip-skeleton-line {
+            background: #e8edf2;
+            border-radius: 6px;
+            display: block;
+            height: 14px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .trip-skeleton-line::after {
+            animation: trip-skeleton-shimmer 1.15s ease-in-out infinite;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .85), transparent);
+            content: '';
+            inset: 0;
+            position: absolute;
+            transform: translateX(-100%);
+        }
+
+        .trip-skeleton-line--title { height: 20px; width: min(360px, 58vw); }
+        .trip-skeleton-line--time { height: 34px; margin-top: 14px; width: 150px; }
+        .trip-skeleton-line--pill { height: 27px; width: 150px; }
+        .trip-skeleton-line--fare { height: 32px; margin-left: auto; margin-top: 14px; width: 130px; }
+        .trip-skeleton-line--point { height: 34px; width: 38%; }
+        .trip-skeleton-line--meta { width: 110px; }
+        .trip-skeleton-line--action { height: 38px; margin-top: 16px; width: 100%; }
+
+        @keyframes trip-skeleton-shimmer {
+            to { transform: translateX(100%); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .trip-skeleton-line::after { animation: none; }
+        }
+
         /* Seats badge */
         .seat-count {
             font-weight: 600;
@@ -1398,6 +1472,19 @@
 
             .ticket-item {
                 padding: 0;
+            }
+
+            .trip-card-skeleton {
+                min-height: 280px;
+                padding: 15px;
+            }
+
+            .trip-card-skeleton__top {
+                flex-direction: column;
+            }
+
+            .trip-skeleton-line--fare {
+                margin-left: 0;
             }
 
             .trip-card-top {
@@ -1742,216 +1829,8 @@
                 </div>
             </div>
 
-            <div class="ticket-wrapper">
-                        @forelse ($trips as $trip)
-                            @php
-                                $start = Carbon::parse($trip->schedule->start_from);
-                                $end = Carbon::parse($trip->schedule->end_at);
-
-                                if ($end->lt($start)) {
-                                    $end->addDay();
-                                }
-
-                                $requestedPickupId =
-                                    (string) (request('pickup') ?: request('counter_id') ?: $trip->start_from);
-                                $requestedDestinationId =
-                                    (string) (request('destination') ?: request('selected_destination') ?: '');
-                                $requestedDropId = $requestedDestinationId ?: (string) $trip->end_to;
-                                $unavailableSeatIds = app(App\Services\SeatConflictService::class)->unavailableSeats(
-                                    $trip,
-                                    $date_of_journey,
-                                    $requestedPickupId,
-                                    $requestedDropId,
-                                );
-                                $available_seats_ctr = app(App\Services\SeatLayoutService::class)->availableSeatCount(
-                                    $trip->fleetType,
-                                    ['booked' => $unavailableSeatIds],
-                                );
-
-                                $stoppageArr = $trip->route->stoppages ?? [];
-                                $routeSequence = App\Models\Counter::routeStoppages($stoppageArr);
-                                $isFullyBooked = $available_seats_ctr < 1;
-                                $routeStopIds = $routeSequence->pluck('id')->map(fn($id) => (string) $id)->values();
-                                $displayDrop = $requestedDestinationId
-                                    ? $routeSequence->first(
-                                        fn($counter) => (string) $counter->id === $requestedDestinationId,
-                                    )
-                                    : null;
-                                $displayDrop = $displayDrop ?: $trip->endTo;
-                                $displayDropId = (string) $displayDrop->id;
-
-                                $ticket_price = $ticketPrices->get(
-                                    $trip->vehicle_route_id . ':' . $trip->fleet_type_id,
-                                );
-                                $prices = $ticket_price?->prices ?? collect();
-                                $segmentPrice = null;
-
-                                if ($requestedDestinationId) {
-                                    $segmentPrice = $prices->first(function ($price) use (
-                                        $requestedPickupId,
-                                        $displayDropId,
-                                    ) {
-                                        $segment = array_values(
-                                            array_map('strval', (array) ($price->source_destination ?? [])),
-                                        );
-
-                                        return $segment === [$requestedPickupId, $displayDropId] ||
-                                            $segment === [$displayDropId, $requestedPickupId];
-                                    });
-                                }
-
-                                $minPrice = $prices->where('price', '>', 0)->min('price') ?? 0;
-                                $maxPrice = $prices->max('price') ?? $minPrice;
-                                $displayPrice = $segmentPrice?->price;
-
-                                $tripStartIndex = $routeStopIds->search((string) $trip->start_from);
-                                $tripEndIndex = $routeStopIds->search((string) $trip->end_to);
-                                $pickupIndex = $routeStopIds->search($requestedPickupId);
-                                $dropIndex = $routeStopIds->search($displayDropId);
-                                $fullTripMinutes = max((int) round($start->diffInMinutes($end)), 0);
-                                $displayDurationMinutes = $fullTripMinutes;
-
-                                if ($tripStartIndex !== false && $tripEndIndex !== false && $dropIndex !== false) {
-                                    $totalLegs = abs($tripEndIndex - $tripStartIndex);
-                                    if ($totalLegs > 0) {
-                                        if ($pickupIndex !== false) {
-                                            $displayDurationMinutes = (int) round(
-                                                ($fullTripMinutes * abs($dropIndex - $pickupIndex)) / $totalLegs,
-                                            );
-                                        }
-                                    }
-                                }
-
-                                $durationHours = intdiv($displayDurationMinutes, 60);
-                                $durationRemainder = $displayDurationMinutes % 60;
-                                $displayDurationLabel =
-                                    trim(
-                                        ($durationHours
-                                            ? $durationHours . ' ' . ($durationHours === 1 ? 'hr' : 'hrs')
-                                            : '') . ($durationRemainder ? ' ' . $durationRemainder . ' mins' : ''),
-                                    ) ?:
-                                    '0 mins';
-                                $selectSeatUrl = route('ticket.seats', [
-                                    $trip->id,
-                                    slug($trip->title),
-                                    'start_from' => $requestedPickupId,
-                                    'end_to' => $trip->end_to,
-                                    'dropping_point' => $requestedDestinationId ?: $trip->end_to,
-                                    'kiosk_id' => $kiosk_id,
-                                    'date_of_journey' => $dateOfJourneyQuery,
-                                ]);
-                                $routeId = uniqid('route_');
-                                $availableSeatLabel = $available_seats_ctr === 1 ? 'Seat Available' : 'Seats Available';
-                            @endphp
-
-                            <div class="ticket-item js-trip-card {{ $isFullyBooked ? 'is-disabled' : '' }}"
-                                data-trip-id="{{ $trip->id }}"
-                                @unless ($isFullyBooked) data-href="{{ $selectSeatUrl }}" tabindex="0" role="link" @endunless
-                                aria-disabled="{{ $isFullyBooked ? 'true' : 'false' }}">
-                                <div class="trip-card-heading">
-                                    <h5 class="trip-route-title">{{ __($trip->route->name) }}</h5>
-                                    <span class="fleet-pill">
-                                        <i class="las la-bus"></i> {{ __($trip->fleetType->name) }}
-                                    </span>
-                                </div>
-
-                                <div class="trip-card-main">
-                                    <div class="trip-card-departure">
-                                        <small>@lang('Departure Time')</small>
-                                        <p class="trip-time-main">{{ showDateTime($trip->schedule->start_from, 'h:i A') }}</p>
-                                        <span class="trip-duration-text">@lang('Approx.') {{ $displayDurationLabel }}</span>
-                                    </div>
-
-                                    <div class="trip-card-route">
-                                        <small class="trip-card-section-label">@lang('Route')</small>
-                                        <div class="trip-point">
-                                            <span class="trip-route-dot is-origin" aria-hidden="true"></span>
-                                            <div>
-                                                <strong>{{ __($trip->startFrom->name) }}</strong>
-                                                <small>@lang('Origin')</small>
-                                            </div>
-                                        </div>
-                                        <div class="trip-point">
-                                            <span class="trip-route-dot is-destination" aria-hidden="true"></span>
-                                            <div>
-                                                <strong>{{ __($displayDrop->name) }}</strong>
-                                                <small>@lang('Drop-off Point')</small>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="trip-card-price">
-                                        <small>@lang('Fare')</small>
-                                        <p class="trip-price">
-                                            @if ($requestedDestinationId && $displayPrice !== null)
-                                                {{ showAmount($displayPrice) }}
-                                            @elseif ($requestedDestinationId)
-                                                <span class="trip-price-unavailable">@lang('Fare unavailable')</span>
-                                            @else
-                                                {{ showAmount($maxPrice) }}
-                                            @endif
-                                        </p>
-                                        @if (!$requestedDestinationId && $minPrice > 0 && $minPrice != $maxPrice)
-                                            <div class="trip-price-range">{{ showAmount($minPrice) }} -
-                                                {{ showAmount($maxPrice) }}</div>
-                                        @endif
-                                    </div>
-                                </div>
-
-                                <div class="trip-availability {{ $isFullyBooked ? 'is-full' : 'is-available' }}">
-                                    <i class="las {{ $isFullyBooked ? 'la-times-circle' : 'la-couch' }}"></i>
-                                    @if ($isFullyBooked)
-                                        @lang('Fully Booked')
-                                    @else
-                                        {{ $available_seats_ctr }} {{ __($availableSeatLabel) }}
-                                        <span class="trip-availability-separator" aria-hidden="true">&middot;</span>
-                                        <span>@lang('Select Seat')</span>
-                                        <i class="las la-arrow-right"></i>
-                                    @endif
-                                </div>
-
-                                <div class="trip-card-meta">
-                                    <strong>@lang('Amenities')</strong>
-                                    <span><i class="las la-chair"></i>{{ __($trip->fleetType->seat_layout) }}</span>
-                                    @if ($trip->fleetType->facilities)
-                                        @foreach (collect($trip->fleetType->facilities)->take(5) as $facility)
-                                            <span><i class="las la-check-circle"></i>{{ __($facility) }}</span>
-                                        @endforeach
-                                    @endif
-                                </div>
-
-                                @if ($routeSequence && $routeSequence->count() > 0)
-                                    <div class="route-details">
-                                        <a href="javascript:void(0)" class="route-details__toggle"
-                                            onclick="toggleRouteStops('{{ $routeId }}')" data-trip-card-ignore>
-                                            <span id="text-{{ $routeId }}">@lang('View Route')</span>
-                                            <i class="las la-angle-right" id="icon-{{ $routeId }}"></i>
-                                        </a>
-
-                                        <div class="route-details__stops d-none" id="{{ $routeId }}">
-                                            @foreach ($routeSequence as $stop)
-                                                <span class="badge {{ $loop->first ? 'bg-success' : ($loop->last ? 'bg-danger' : 'bg-secondary') }} px-2 py-1">
-                                                    {{ $stop->name }}
-                                                </span>
-                                                @unless ($loop->last)
-                                                    <i class="las la-long-arrow-alt-right text-muted fs-6"></i>
-                                                @endif
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                @endif
-                            </div>
-                        @empty
-                            <div class="ticket-item trip-item-empty">
-                                <h5>{{ __($emptyMessage) }}</h5>
-                            </div>
-                        @endforelse
-
-                        @if ($trips->hasPages())
-                            <div class="custom-pagination">
-                                {{ paginateLinks($trips) }}
-                            </div>
-                        @endif
+            <div class="trip-list-region" id="tripListRegion" aria-live="polite" aria-busy="false">
+                @include('templates.basic.partials.trip-list')
             </div>
         </div>
     </section>
@@ -1969,7 +1848,6 @@
     <script src="{{ asset('assets/global/js/select2.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/moment.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/daterangepicker.min.js') }}"></script>
-    <script src="{{ asset('assets/global/js/dropping-points.js?v=' . buildVer()) }}"></script>
     @if (config('services.pusher.key'))
         <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
     @endif
@@ -2042,20 +1920,38 @@
             @endif
 
             $('.select2').select2();
+            $('.search-multiple').select2({
+                placeholder: "Select an option"
+            });
 
             const searchForm = document.getElementById('tripSearchForm');
             const mobileSearchPanel = document.querySelector('.bus-search-header');
+            const pickupSelect = document.getElementById('ticket-pickup');
+            const destinationSelect = document.getElementById('ticket-destination');
+            const travelDateInput = document.getElementById('ticket-travel-date');
+            const tripListRegion = document.getElementById('tripListRegion');
+            const requestedDestination = String(@json(request('destination') ?: request('selected_destination') ?: ''));
+            const droppingPointsEndpoint = @json(route('getDroppingPoints', ['counter_id' => '__COUNTER__']));
             let tripRequestController = null;
-            let tripRefreshTimer = null;
-            let selectedJourneyDate = @json($dateOfJourneyDisplay);
-            let journeyDateStatuses = {};
+            let destinationRequestController = null;
+            let lastSuccessfulTripMarkup = tripListRegion.innerHTML;
+            let journeyDateStatuses = readDateStatuses();
 
             function getResultsRegion() {
                 return document.getElementById('ticketResultsRegion');
             }
 
-            function initializeResultFilters(scope = document) {
-                $(scope).find('.trip-result-filter').each(function() {
+            function readDateStatuses() {
+                try {
+                    return JSON.parse(getResultsRegion()?.dataset.dateStatuses || '{}');
+                } catch (error) {
+                    console.error('Unable to read trip date availability.', error);
+                    return {};
+                }
+            }
+
+            function initializeResultFilters() {
+                $('.trip-result-filter').each(function() {
                     const filter = $(this);
 
                     if (filter.hasClass('select2-hidden-accessible')) return;
@@ -2066,42 +1962,7 @@
                         minimumResultsForSearch: Infinity,
                         width: 'resolve'
                     });
-
-                    filter.on('select2:select.tripResultFilter select2:clear.tripResultFilter', function() {
-                        scheduleTripRefresh(40);
-                    });
                 });
-            }
-
-            function readDateStatuses(region) {
-                if (!region) return {};
-
-                try {
-                    return JSON.parse(region.dataset.dateStatuses || '{}');
-                } catch (error) {
-                    console.error('Unable to read trip date availability.', error);
-                    return {};
-                }
-            }
-
-            function buildTripSearchUrl(baseUrl) {
-                const url = new URL(baseUrl || searchForm.action, window.location.origin);
-                const page = baseUrl ? url.searchParams.get('page') : null;
-                const params = new URLSearchParams(new FormData(searchForm));
-                const region = getResultsRegion();
-                const fleetType = region?.querySelector('[name="result_fleet_type"]')?.value || '';
-                const province = region?.querySelector('[name="result_province"]')?.value || '';
-
-                params.delete('fleetType');
-                params.delete('fleetType[]');
-                params.delete('province');
-
-                if (fleetType) params.append('fleetType[]', fleetType);
-                if (province) params.set('province', province);
-                if (page) params.set('page', page);
-
-                url.search = params.toString();
-                return url;
             }
 
             function syncTripStartOverNavigation(url = new URL(window.location.href)) {
@@ -2120,54 +1981,234 @@
                 stepper?.classList.toggle('has-navigation', hasFilters);
             }
 
-            async function refreshTripResults(url, historyMode = 'replace') {
-                if (!searchForm) return;
+            const skeletonCard = `
+                <div class="trip-card-skeleton" aria-hidden="true">
+                    <div class="trip-card-skeleton__top">
+                        <div>
+                            <span class="trip-skeleton-line trip-skeleton-line--title"></span>
+                            <span class="trip-skeleton-line trip-skeleton-line--time"></span>
+                        </div>
+                        <div>
+                            <span class="trip-skeleton-line trip-skeleton-line--pill"></span>
+                            <span class="trip-skeleton-line trip-skeleton-line--fare"></span>
+                        </div>
+                    </div>
+                    <div class="trip-card-skeleton__route">
+                        <span class="trip-skeleton-line trip-skeleton-line--point"></span>
+                        <span class="trip-skeleton-line trip-skeleton-line--point"></span>
+                    </div>
+                    <div class="trip-card-skeleton__meta">
+                        <span class="trip-skeleton-line trip-skeleton-line--meta"></span>
+                        <span class="trip-skeleton-line trip-skeleton-line--meta"></span>
+                    </div>
+                    <span class="trip-skeleton-line trip-skeleton-line--action"></span>
+                </div>`;
 
-                if (tripRequestController) tripRequestController.abort();
-                tripRequestController = new AbortController();
+            function showTripSkeleton() {
+                tripListRegion.setAttribute('aria-busy', 'true');
+                tripListRegion.innerHTML = `
+                    <div class="trip-list-skeleton" role="status" aria-label="@lang('Updating trips')">
+                        <span class="visually-hidden">@lang('Updating available trips')</span>
+                        ${skeletonCard.repeat(3)}
+                    </div>`;
+            }
+
+            function reportTripListError(message) {
+                if (typeof window.notify === 'function') {
+                    window.notify('error', message);
+                    return;
+                }
+
+                console.error(message);
+            }
+
+            function setUrlParam(url, name, value) {
+                const normalizedValue = String(value || '').trim();
+                if (normalizedValue) {
+                    url.searchParams.set(name, normalizedValue);
+                } else {
+                    url.searchParams.delete(name);
+                }
+            }
+
+            function buildTripListUrl(baseUrl = window.location.href, preservePage = false) {
+                const url = new URL(baseUrl, window.location.href);
+                const kioskInput = searchForm.querySelector('input[name="kiosk_id"]');
+                const counterInput = searchForm.querySelector('input[name="counter_id"]');
+                const fleetType = document.querySelector('[name="result_fleet_type"]')?.value || '';
+                const province = document.querySelector('[name="result_province"]')?.value || '';
+
+                setUrlParam(url, 'pickup', pickupSelect.value);
+                setUrlParam(url, 'destination', destinationSelect.value);
+                setUrlParam(url, 'date_of_journey', travelDateInput.value);
+                setUrlParam(url, 'kiosk_id', kioskInput ? kioskInput.value : '');
+                url.searchParams.delete('fleetType');
+                url.searchParams.delete('fleetType[]');
+                if (fleetType) url.searchParams.append('fleetType[]', fleetType);
+                setUrlParam(url, 'province', province);
+                url.searchParams.delete('selected_destination');
+
+                if (kioskInput && counterInput) {
+                    setUrlParam(url, 'counter_id', counterInput.value);
+                } else {
+                    url.searchParams.delete('counter_id');
+                }
+
+                if (!preservePage) {
+                    url.searchParams.delete('page');
+                }
+
+                return url;
+            }
+
+            function syncFilterContext() {
+                $('.ticket-filter-form input[name="counter_id"]').val(pickupSelect.value);
+                $('.ticket-filter-form input[name="selected_destination"]').val(destinationSelect.value);
+            }
+
+            async function refreshTripList(url, options = {}) {
+                const settings = Object.assign({ history: 'replace', skeleton: true }, options);
+
+                if (tripRequestController) {
+                    tripRequestController.abort();
+                }
+
+                const requestController = new AbortController();
+                tripRequestController = requestController;
+
+                if (settings.skeleton) {
+                    showTripSkeleton();
+                } else {
+                    tripListRegion.setAttribute('aria-busy', 'true');
+                }
 
                 try {
                     const response = await fetch(url.toString(), {
                         headers: {
-                            'Accept': 'text/html',
+                            'Accept': 'application/json',
                             'X-Requested-With': 'XMLHttpRequest'
                         },
-                        signal: tripRequestController.signal
+                        signal: requestController.signal
                     });
+                    const payload = await response.json();
 
-                    if (!response.ok) throw new Error(`Trip refresh failed (${response.status})`);
-
-                    const page = new DOMParser().parseFromString(await response.text(), 'text/html');
-                    const nextRegion = page.getElementById('ticketResultsRegion');
-                    const currentRegion = getResultsRegion();
-
-                    if (!nextRegion || !currentRegion) throw new Error('Trip results were not found in the response.');
-
-                    currentRegion.replaceWith(nextRegion);
-                    initializeResultFilters(nextRegion);
-                    journeyDateStatuses = readDateStatuses(nextRegion);
-                    tripListRealtime.journeyDate = nextRegion.dataset.journeyDate || tripListRealtime.journeyDate;
-
-                    if (historyMode === 'push') {
-                        window.history.pushState({}, '', response.url);
-                    } else if (historyMode === 'replace') {
-                        window.history.replaceState({}, '', response.url);
+                    if (!response.ok) {
+                        throw new Error(payload.message || '@lang('Unable to update the trip list.')');
                     }
 
-                    syncTripStartOverNavigation(new URL(response.url));
+                    if (requestController !== tripRequestController) {
+                        return;
+                    }
+
+                    tripListRegion.innerHTML = payload.html;
+                    tripListRegion.setAttribute('aria-busy', 'false');
+                    lastSuccessfulTripMarkup = payload.html;
+                    tripListRealtime.journeyDate = payload.journey_date;
+                    syncFilterContext();
+
+                    if (settings.history !== 'none') {
+                        const method = settings.history === 'push' ? 'pushState' : 'replaceState';
+                        window.history[method]({}, '', payload.url);
+                    }
+
+                    syncTripStartOverNavigation(new URL(payload.url));
                     syncMobileSearchClearance();
                 } catch (error) {
-                    if (error.name !== 'AbortError') {
-                        console.error(error);
+                    if (error.name === 'AbortError' || requestController !== tripRequestController) {
+                        return;
+                    }
+
+                    tripListRegion.innerHTML = lastSuccessfulTripMarkup;
+                    tripListRegion.setAttribute('aria-busy', 'false');
+                    reportTripListError(error.message || '@lang('Unable to update the trip list.')');
+                } finally {
+                    if (requestController === tripRequestController) {
+                        tripRequestController = null;
                     }
                 }
             }
 
-            function scheduleTripRefresh(delay = 180) {
-                window.clearTimeout(tripRefreshTimer);
-                tripRefreshTimer = window.setTimeout(function() {
-                    refreshTripResults(buildTripSearchUrl());
-                }, delay);
+            async function loadDroppingPoints(preferredDestination = '') {
+                if (destinationRequestController) {
+                    destinationRequestController.abort();
+                }
+
+                const pickup = String(pickupSelect.value || '');
+                if (!pickup) {
+                    destinationSelect.replaceChildren(new Option(destinationSelect.dataset.defaultOption, ''));
+                    $(destinationSelect).val('').trigger('change.select2');
+                    return;
+                }
+
+                const requestController = new AbortController();
+                destinationRequestController = requestController;
+                const url = new URL(droppingPointsEndpoint.replace('__COUNTER__', encodeURIComponent(pickup)));
+                const kioskInput = searchForm.querySelector('input[name="kiosk_id"]');
+
+                if (kioskInput && kioskInput.value) {
+                    url.searchParams.set('kiosk_id', kioskInput.value);
+                }
+                if (travelDateInput.value) {
+                    url.searchParams.set('date_of_journey', travelDateInput.value);
+                }
+
+                $(destinationSelect).prop('disabled', true).trigger('change.select2');
+
+                try {
+                    const response = await fetch(url.toString(), {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        signal: requestController.signal
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('@lang('Unable to load destinations.')');
+                    }
+
+                    const destinations = await response.json();
+                    if (requestController !== destinationRequestController) {
+                        return;
+                    }
+
+                    const options = [new Option(destinationSelect.dataset.defaultOption, '')];
+                    destinations.forEach(function(destination) {
+                        options.push(new Option(destination.name, destination.id));
+                    });
+                    destinationSelect.replaceChildren(...options);
+
+                    const destinationExists = destinations.some(function(destination) {
+                        return String(destination.id) === String(preferredDestination);
+                    });
+                    $(destinationSelect)
+                        .val(destinationExists ? String(preferredDestination) : '')
+                        .trigger('change.select2');
+                } finally {
+                    if (requestController === destinationRequestController) {
+                        destinationRequestController = null;
+                        $(destinationSelect).prop('disabled', false).trigger('change.select2');
+                    }
+                }
+            }
+
+            async function refreshForRouteChange(preferredDestination) {
+                if (tripRequestController) {
+                    tripRequestController.abort();
+                    tripRequestController = null;
+                }
+                showTripSkeleton();
+
+                try {
+                    await loadDroppingPoints(preferredDestination);
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        return;
+                    }
+                    reportTripListError(error.message || '@lang('Unable to load destinations.')');
+                }
+
+                await refreshTripList(buildTripListUrl(), { skeleton: false });
             }
 
             const tripListRealtime = {
@@ -2192,37 +2233,57 @@
 
                     window.clearTimeout(tripListRefreshTimer);
                     tripListRefreshTimer = window.setTimeout(function() {
-                        refreshTripResults(buildTripSearchUrl(), false);
+                        refreshTripList(buildTripListUrl(window.location.href, true), {
+                            history: 'none'
+                        });
                     }, 300);
                 });
             }
 
-            $('.search-multiple').select2({
-                placeholder: "Select an option"
+            $(pickupSelect).on('change', function() {
+                refreshForRouteChange(destinationSelect.value);
             });
 
-            searchForm.addEventListener('submit', function(event) {
-                event.preventDefault();
-                refreshTripResults(buildTripSearchUrl());
-            });
-
-            $(document).on('change', 'select[name="destination"]', function() {
-                scheduleTripRefresh();
-            });
-
-            document.addEventListener('droppingPoints:updated', function() {
-                scheduleTripRefresh(40);
+            $(destinationSelect).on('change', function() {
+                refreshTripList(buildTripListUrl());
             });
 
             $(document).on('change', '.trip-result-filter', function() {
-                scheduleTripRefresh(40);
+                refreshTripList(buildTripListUrl());
             });
 
-            document.addEventListener('click', function(event) {
-                const paginationLink = event.target.closest('#ticketResultsRegion .pagination a');
-                if (paginationLink) {
-                    event.preventDefault();
-                    refreshTripResults(buildTripSearchUrl(paginationLink.href), 'push');
+            $(searchForm).on('submit', function(event) {
+                event.preventDefault();
+                refreshTripList(buildTripListUrl());
+            });
+
+            $(document).on('submit', '.ticket-filter-form', function(event) {
+                event.preventDefault();
+                const url = buildTripListUrl();
+                const multipleFilterNames = ['fleetType[]', 'routes[]', 'schedules[]'];
+                const formData = new FormData(this);
+
+                Array.from(url.searchParams.keys()).forEach(function(name) {
+                    if (multipleFilterNames.some(filterName => name === filterName || name.startsWith(filterName.slice(0, -1)))) {
+                        url.searchParams.delete(name);
+                    }
+                });
+                formData.forEach(function(value, name) {
+                    if (multipleFilterNames.includes(name) && value) {
+                        url.searchParams.append(name, value);
+                    }
+                });
+
+                refreshTripList(url);
+            });
+
+            $(document).on('click', '#tripListRegion .custom-pagination a', function(event) {
+                event.preventDefault();
+                refreshTripList(buildTripListUrl(this.href, true), { history: 'push' });
+            });
+
+            $(document).on('click', '#tripListRegion .js-trip-card', function(event) {
+                if ($(event.target).closest('a, button, [data-trip-card-ignore]').length) {
                     return;
                 }
 
@@ -2235,7 +2296,7 @@
                 }
             });
 
-            document.addEventListener('keydown', function(event) {
+            $(document).on('keydown', '#tripListRegion .js-trip-card', function(event) {
                 if (!['Enter', ' '].includes(event.key)) {
                     return;
                 }
@@ -2248,8 +2309,7 @@
                 }
             });
 
-            journeyDateStatuses = readDateStatuses(getResultsRegion());
-            initializeResultFilters(getResultsRegion());
+            initializeResultFilters();
 
             const datePicker = $('.date-range').daterangepicker({
                 autoUpdateInput: true,
@@ -2273,6 +2333,8 @@
 
             });
 
+            let selectedJourneyDate = @json($dateOfJourneyDisplay);
+
             datePicker.on('show.daterangepicker', function(event, picker) {
                 if (picker.container.find('.booking-date-guide').length) return;
 
@@ -2291,12 +2353,22 @@
                 const newJourneyDate = picker.startDate.format('ddd, MMM D, YYYY');
                 this.value = newJourneyDate;
 
-                if (newJourneyDate === selectedJourneyDate || !this.form) return;
+                if (newJourneyDate === selectedJourneyDate) {
+                    return;
+                }
 
                 selectedJourneyDate = newJourneyDate;
-                tripListRealtime.journeyDate = picker.startDate.format('YYYY-MM-DD');
-                $(this).trigger('change');
-                scheduleTripRefresh(260);
+                refreshForRouteChange(destinationSelect.value);
+            });
+
+            loadDroppingPoints(requestedDestination).catch(function(error) {
+                if (error.name !== 'AbortError') {
+                    reportTripListError(error.message || '@lang('Unable to load destinations.')');
+                }
+            });
+
+            window.addEventListener('popstate', function() {
+                refreshTripList(new URL(window.location.href), { history: 'none' });
             });
 
             function syncMobileSearchClearance() {
@@ -2322,25 +2394,21 @@
                 const defaultPickup = kioskId ? (counterId?.value || '') : '';
                 const today = moment();
 
-                $(pickup).val(defaultPickup).trigger('change');
-                $(destination).val('').trigger('change');
+                $(pickup).val(defaultPickup).trigger('change.select2');
+                $(destination).val('').trigger('change.select2');
+                $('.trip-result-filter').val('').trigger('change.select2');
                 $('.date-range').val(today.format('ddd, MMM D, YYYY'));
                 datePicker.data('daterangepicker').setStartDate(today);
                 datePicker.data('daterangepicker').setEndDate(today);
                 selectedJourneyDate = today.format('ddd, MMM D, YYYY');
 
-                const region = getResultsRegion();
-                if (region) {
-                    region.querySelectorAll('.trip-result-filter').forEach(function(filter) {
-                        filter.value = '';
-                    });
-                }
-
-                scheduleTripRefresh(260);
+                refreshForRouteChange('');
             });
 
-            window.addEventListener('popstate', function() {
-                refreshTripResults(new URL(window.location.href), false);
+            $('.reset-button').on('click', function() {
+                const form = $(this).closest('form');
+                form.find('.search').prop('checked', false);
+                form.trigger('submit');
             });
 
             syncTripStartOverNavigation();
