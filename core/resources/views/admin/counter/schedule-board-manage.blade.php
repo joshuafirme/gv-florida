@@ -49,17 +49,18 @@
                     <h5><i class="las la-bus"></i> @lang('Displayed Trips')</h5>
                     <p>@lang('Select trips and arrange their display priority. This list is used when the display mode is set to selected trips.')</p>
                 </div>
-                <span class="board-count">{{ $selectedTrips->count() }} @lang('selected')</span>
+                <span class="board-count">{{ $selectedTrips->where('is_visible', true)->whereIn('trip_id', $trips->pluck('id'))->count() }} @lang('selected')</span>
             </div>
             <form action="{{ route('admin.counter.schedule-board.trips', $counter) }}" method="POST">
                 @csrf
                 <div id="boardTripList" class="board-trip-list">
                     @forelse($trips as $trip)
                         @php($selected = $selectedTrips->get($trip->id))
-                        <div class="board-trip-row" data-selected="{{ $selected ? 1 : 0 }}" data-order="{{ $selected?->sort_order ?? 999999 }}">
+                        <div class="board-trip-row" data-selected="{{ $selected?->is_visible ? 1 : 0 }}" data-order="{{ $selected?->sort_order ?? 999999 }}">
+                            <input type="hidden" name="trip_order[]" value="{{ $trip->id }}">
                             <span class="trip-drag" title="@lang('Use the arrows to reorder')"><i class="las la-grip-vertical"></i></span>
                             <label class="trip-select">
-                                <input type="checkbox" name="trip_ids[]" value="{{ $trip->id }}" @checked($selected)>
+                                <input type="checkbox" name="trip_ids[]" value="{{ $trip->id }}" @checked($selected?->is_visible)>
                                 <span></span>
                             </label>
                             <div class="trip-time">{{ $trip->schedule?->start_from ? showDateTime($trip->schedule->start_from, 'h:i A') : '--' }}</div>
@@ -192,6 +193,15 @@
     <script>
         (function($) {
             'use strict';
+
+            const refreshCounterId = @json(session('schedule_board_refresh_counter'));
+            if (refreshCounterId) {
+                try {
+                    localStorage.setItem(`schedule-board-refresh:${refreshCounterId}`, Date.now().toString());
+                } catch (error) {
+                    // Pusher and the board's fallback polling still deliver the update.
+                }
+            }
 
             const tripList = $('#boardTripList');
             tripList.children('.board-trip-row').sort(function(a, b) {
