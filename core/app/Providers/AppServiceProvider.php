@@ -74,9 +74,7 @@ class AppServiceProvider extends ServiceProvider
         // Laravel's base path instead of in core/public. DomPDF resolves its
         // base path from configuration (not Laravel's public_path helper), so
         // both paths must point to the actual web root.
-        $publicPath = is_dir(base_path('public'))
-            ? base_path('public')
-            : dirname(base_path());
+        $publicPath = dirname(base_path());
 
         App::usePublicPath($publicPath);
         config(['dompdf.public_path' => $publicPath]);

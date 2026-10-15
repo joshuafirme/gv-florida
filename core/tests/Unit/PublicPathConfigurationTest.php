@@ -10,6 +10,7 @@ class PublicPathConfigurationTest extends TestCase
     public function test_dompdf_resolves_the_deployment_public_path(): void
     {
         $this->assertDirectoryExists(public_path());
+        $this->assertSame(realpath(dirname(base_path())), realpath(public_path()));
         $this->assertSame(realpath(public_path()), realpath(config('dompdf.public_path')));
         $this->assertInstanceOf(Dompdf::class, app('dompdf'));
 
