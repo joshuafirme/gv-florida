@@ -864,7 +864,7 @@
         .trip-card-main {
             align-items: stretch;
             display: grid;
-            grid-template-columns: minmax(170px, .75fr) minmax(260px, 1.5fr) minmax(170px, .75fr);
+            grid-template-columns: minmax(150px, .7fr) minmax(220px, 1.25fr) minmax(230px, .85fr);
         }
 
         .trip-card-departure,
@@ -880,6 +880,7 @@
 
         .trip-card-price {
             border-left: 1px solid #e5e7eb;
+            min-width: 0;
             padding-right: 0;
         }
 
@@ -941,7 +942,10 @@
         }
 
         .trip-card-main .trip-price {
-            font-size: 38px;
+            font-size: 36px;
+            line-height: 1.05;
+            max-width: 100%;
+            overflow-wrap: anywhere;
         }
 
         .trip-availability {
@@ -1157,7 +1161,57 @@
         .trip-card-main .trip-time-main,
         .trip-card-main .trip-price {
             color: var(--booking-primary);
-            font-size: 40px;
+            font-size: 36px;
+        }
+
+        @media screen and (min-width: 768px) and (max-width: 1199px) {
+            .trip-card-main {
+                grid-template-columns: minmax(130px, .65fr) minmax(190px, 1.1fr) minmax(205px, .9fr);
+            }
+
+            .trip-card-main .trip-time-main,
+            .trip-card-main .trip-price {
+                font-size: 32px;
+            }
+
+            .trip-card-departure,
+            .trip-card-route,
+            .trip-card-price {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+
+            .trip-card-departure {
+                padding-left: 0;
+            }
+
+            .trip-card-price {
+                padding-right: 0;
+            }
+        }
+
+        @media screen and (min-width: 768px) and (max-width: 900px) {
+            .trip-card-main {
+                grid-template-columns: minmax(150px, .75fr) minmax(220px, 1.25fr);
+            }
+
+            .trip-card-main .trip-card-price {
+                align-items: baseline;
+                border-left: 0;
+                border-top: 1px solid #e5e7eb;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px 12px;
+                grid-column: 1 / -1;
+                margin-top: 8px;
+                padding: 10px 0 2px;
+                text-align: left;
+            }
+
+            .trip-card-main .trip-card-price > small {
+                flex-basis: 100%;
+                margin-bottom: 0;
+            }
         }
 
         .trip-duration-text {

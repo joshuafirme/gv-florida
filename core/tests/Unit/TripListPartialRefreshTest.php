@@ -43,5 +43,8 @@ class TripListPartialRefreshTest extends TestCase
         $this->assertStringNotContainsString('class="trip-card-top"', $partial);
         $this->assertStringContainsString('padding: 13px 18px 2px;', $ticketView);
         $this->assertStringContainsString('margin: 10px 18px 0;', $ticketView);
+        $this->assertStringContainsString('minmax(230px, .85fr)', $ticketView);
+        $this->assertStringContainsString('overflow-wrap: anywhere;', $ticketView);
+        $this->assertStringContainsString('@media screen and (min-width: 768px) and (max-width: 900px)', $ticketView);
     }
 }
