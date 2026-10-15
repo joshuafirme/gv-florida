@@ -107,13 +107,13 @@ class CounterController extends Controller
             'departure_grace_minutes' => 60,
         ]);
         $tripQuery = $this->getTripQuery($counter->id);
-        $selectedTrips = $counter->scheduleBoardTrips()->orderBy('sort_order')->get();
+        $configuredTrips = $counter->scheduleBoardTrips()->orderBy('sort_order')->get();
 
         if (!$setting->show_all_trips) {
-            $tripQuery->whereIn('id', $selectedTrips->pluck('trip_id'));
+            $tripQuery->whereIn('id', $configuredTrips->where('is_visible', true)->pluck('trip_id'));
         }
 
-        $selectedOrder = $selectedTrips->pluck('sort_order', 'trip_id');
+        $configuredOrder = $configuredTrips->pluck('sort_order', 'trip_id');
         $graceMinutes = (int) $setting->departure_grace_minutes;
         $trips = $tripQuery->get()
             ->filter(function (Trip $trip) use ($graceMinutes) {
@@ -125,12 +125,12 @@ class CounterController extends Controller
 
                 return now()->lessThanOrEqualTo($departure->addMinutes($graceMinutes));
             })
-            ->sortBy(function (Trip $trip) use ($setting, $selectedOrder) {
-                if (!$setting->show_all_trips) {
-                    return sprintf('%08d', $selectedOrder->get($trip->id, PHP_INT_MAX));
-                }
-
-                return $trip->schedule?->start_from ?: '99:99:99';
+            ->sortBy(function (Trip $trip) use ($configuredOrder) {
+                return sprintf(
+                    '%010d-%s',
+                    $configuredOrder->get($trip->id, PHP_INT_MAX),
+                    $trip->schedule?->start_from ?: '99:99:99'
+                );
             })
             ->values();
         $journeyDate = now()->toDateString();

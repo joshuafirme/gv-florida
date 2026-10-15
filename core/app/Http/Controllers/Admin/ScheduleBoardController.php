@@ -33,7 +33,30 @@ class ScheduleBoardController extends Controller
             ->get()
             ->sortBy(fn (Trip $trip) => $trip->schedule?->start_from ?: '99:99:99')
             ->values();
-        $selectedTrips = $counter->scheduleBoardTrips()->orderBy('sort_order')->get()->keyBy('trip_id');
+        $storedTrips = $counter->scheduleBoardTrips()->get()->keyBy('trip_id');
+        $nextSortOrder = ((int) $storedTrips->max('sort_order')) + 10;
+
+        foreach ($trips as $trip) {
+            if ($storedTrips->has($trip->id)) {
+                $storedTrip = $storedTrips->get($trip->id);
+
+                if ($setting->show_all_trips && !$storedTrip->is_visible) {
+                    $storedTrip->update(['is_visible' => true]);
+                }
+
+                continue;
+            }
+
+            $storedTrips->put($trip->id, ScheduleBoardTrip::create([
+                'counter_id' => $counter->id,
+                'trip_id' => $trip->id,
+                'sort_order' => $nextSortOrder,
+                'is_visible' => (bool) $setting->show_all_trips,
+            ]));
+            $nextSortOrder += 10;
+        }
+
+        $selectedTrips = $storedTrips->sortBy('sort_order')->keyBy('trip_id');
         $advertisements = $counter->scheduleBoardAdvertisements()->orderBy('sort_order')->orderBy('id')->get();
         $notices = $counter->scheduleBoardNotices()->orderBy('sort_order')->orderBy('id')->get();
 
@@ -64,27 +87,35 @@ class ScheduleBoardController extends Controller
     public function updateTrips(Request $request, Counter $counter)
     {
         $validated = $request->validate([
+            'trip_order' => ['required', 'array', 'min:1'],
+            'trip_order.*' => ['integer', 'distinct'],
             'trip_ids' => ['nullable', 'array'],
             'trip_ids.*' => ['integer', 'distinct'],
         ]);
-        $requestedIds = collect($validated['trip_ids'] ?? [])->map(fn ($id) => (int) $id)->values();
+        $orderedIds = collect($validated['trip_order'])->map(fn ($id) => (int) $id)->values();
+        $selectedIds = collect($validated['trip_ids'] ?? [])->map(fn ($id) => (int) $id)->values();
         $validIds = Trip::where('start_from', $counter->id)
-            ->whereIn('id', $requestedIds)
+            ->active()
+            ->whereIn('id', $orderedIds)
             ->pluck('id')
             ->map(fn ($id) => (int) $id);
 
-        if ($validIds->count() !== $requestedIds->count()) {
+        if ($orderedIds->diff($validIds)->isNotEmpty() || $selectedIds->diff($orderedIds)->isNotEmpty()) {
             return back()->withErrors(['trip_ids' => 'One or more selected trips do not belong to this counter.']);
         }
 
-        DB::transaction(function () use ($counter, $validIds) {
-            $counter->scheduleBoardTrips()->delete();
-            $validIds->each(function (int $tripId, int $index) use ($counter) {
-                ScheduleBoardTrip::create([
-                    'counter_id' => $counter->id,
-                    'trip_id' => $tripId,
-                    'sort_order' => ($index + 1) * 10,
-                ]);
+        DB::transaction(function () use ($counter, $orderedIds, $selectedIds) {
+            $orderedIds->each(function (int $tripId, int $index) use ($counter, $selectedIds) {
+                ScheduleBoardTrip::updateOrCreate(
+                    [
+                        'counter_id' => $counter->id,
+                        'trip_id' => $tripId,
+                    ],
+                    [
+                        'sort_order' => ($index + 1) * 10,
+                        'is_visible' => $selectedIds->contains($tripId),
+                    ]
+                );
             });
         });
         $this->broadcast($counter, 'trips');

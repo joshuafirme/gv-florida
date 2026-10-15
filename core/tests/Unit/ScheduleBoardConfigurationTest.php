@@ -12,7 +12,8 @@ class ScheduleBoardConfigurationTest extends TestCase
 
         $this->assertStringContainsString('departure_grace_minutes', $controller);
         $this->assertStringContainsString('lessThanOrEqualTo($departure->addMinutes($graceMinutes))', $controller);
-        $this->assertStringContainsString('whereIn(\'id\', $selectedTrips->pluck(\'trip_id\'))', $controller);
+        $this->assertStringContainsString("where('is_visible', true)->pluck('trip_id')", $controller);
+        $this->assertStringContainsString('$configuredOrder->get($trip->id, PHP_INT_MAX)', $controller);
         $this->assertStringContainsString('->currentlyVisible()', $controller);
     }
 
@@ -33,5 +34,22 @@ class ScheduleBoardConfigurationTest extends TestCase
 
         $this->assertStringContainsString("role:admin.counter.schedule-board.manage", $routes);
         $this->assertStringContainsString("->name('counter.schedule-board.')", $routes);
+    }
+
+    public function test_trip_selection_saves_the_submitted_display_order(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/Admin/ScheduleBoardController.php'));
+
+        $this->assertStringContainsString('DB::transaction(function () use ($counter, $orderedIds, $selectedIds)', $controller);
+        $this->assertStringContainsString('$orderedIds->each(function (int $tripId, int $index)', $controller);
+        $this->assertStringContainsString("'is_visible' => \$selectedIds->contains(\$tripId)", $controller);
+        $this->assertStringContainsString('$setting->show_all_trips && !$storedTrip->is_visible', $controller);
+
+        $view = file_get_contents(resource_path('views/admin/counter/schedule-board-manage.blade.php'));
+        $this->assertStringContainsString('name="trip_order[]"', $view);
+        $this->assertStringContainsString('@checked($selected?->is_visible)', $view);
+
+        $model = file_get_contents(app_path('Models/ScheduleBoardTrip.php'));
+        $this->assertStringContainsString("'is_visible' => 'boolean'", $model);
     }
 }
