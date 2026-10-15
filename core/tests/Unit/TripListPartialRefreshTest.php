@@ -45,6 +45,8 @@ class TripListPartialRefreshTest extends TestCase
         $this->assertStringContainsString('margin: 10px 18px 0;', $ticketView);
         $this->assertStringContainsString('minmax(230px, .85fr)', $ticketView);
         $this->assertStringContainsString('overflow-wrap: anywhere;', $ticketView);
+        $this->assertMatchesRegularExpression('/\\.trip-time-main\\s*\\{[^}]*white-space:\\s*nowrap;/s', $ticketView);
+        $this->assertStringContainsString('font-size: clamp(26px, 2.8vw, 32px);', $ticketView);
         $this->assertStringContainsString('@media screen and (min-width: 768px) and (max-width: 900px)', $ticketView);
     }
 }

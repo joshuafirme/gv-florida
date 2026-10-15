@@ -368,8 +368,10 @@
             color: #07162f;
             font-size: 36px;
             font-weight: 900;
+            letter-spacing: 0;
             line-height: 1;
             margin: 0;
+            white-space: nowrap;
         }
 
         .trip-duration {
@@ -1172,6 +1174,10 @@
             .trip-card-main .trip-time-main,
             .trip-card-main .trip-price {
                 font-size: 32px;
+            }
+
+            .trip-card-main .trip-time-main {
+                font-size: clamp(26px, 2.8vw, 32px);
             }
 
             .trip-card-departure,
