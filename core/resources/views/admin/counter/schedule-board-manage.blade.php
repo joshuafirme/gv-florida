@@ -194,6 +194,15 @@
         (function($) {
             'use strict';
 
+            const refreshCounterId = @json(session('schedule_board_refresh_counter'));
+            if (refreshCounterId) {
+                try {
+                    localStorage.setItem(`schedule-board-refresh:${refreshCounterId}`, Date.now().toString());
+                } catch (error) {
+                    // Pusher and the board's fallback polling still deliver the update.
+                }
+            }
+
             const tripList = $('#boardTripList');
             tripList.children('.board-trip-row').sort(function(a, b) {
                 return Number(a.dataset.order) - Number(b.dataset.order);

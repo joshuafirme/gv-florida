@@ -22,7 +22,9 @@ class ScheduleBoardConfigurationTest extends TestCase
         $view = file_get_contents(resource_path('views/admin/counter/board.blade.php'));
 
         $this->assertStringContainsString("channel.bind('schedule-data-updated'", $view);
-        $this->assertStringContainsString('setInterval(scheduleBoard, 60000)', $view);
+        $this->assertStringContainsString('setFallbackRefreshInterval(60000)', $view);
+        $this->assertStringContainsString('setFallbackRefreshInterval(5000)', $view);
+        $this->assertStringContainsString("event.key === scheduleBoardStorageKey", $view);
         $this->assertStringContainsString('renderBoardContent()', $view);
         $this->assertStringContainsString('boardAdvertisementImage', $view);
         $this->assertStringContainsString('boardNoticeList', $view);
@@ -43,11 +45,15 @@ class ScheduleBoardConfigurationTest extends TestCase
         $this->assertStringContainsString('DB::transaction(function () use ($counter, $orderedIds, $selectedIds)', $controller);
         $this->assertStringContainsString('$orderedIds->each(function (int $tripId, int $index)', $controller);
         $this->assertStringContainsString("'is_visible' => \$selectedIds->contains(\$tripId)", $controller);
-        $this->assertStringContainsString('$setting->show_all_trips && !$storedTrip->is_visible', $controller);
+        $this->assertStringContainsString('$selectedIds->count() < $orderedIds->count()', $controller);
+        $this->assertStringContainsString("'show_all_trips' => false", $controller);
+        $this->assertStringContainsString("scheduleBoardTrips()->update(['is_visible' => true])", $controller);
+        $this->assertStringContainsString("with('schedule_board_refresh_counter', \$counter->id)", $controller);
 
         $view = file_get_contents(resource_path('views/admin/counter/schedule-board-manage.blade.php'));
         $this->assertStringContainsString('name="trip_order[]"', $view);
         $this->assertStringContainsString('@checked($selected?->is_visible)', $view);
+        $this->assertStringContainsString('schedule-board-refresh:${refreshCounterId}', $view);
 
         $model = file_get_contents(app_path('Models/ScheduleBoardTrip.php'));
         $this->assertStringContainsString("'is_visible' => 'boolean'", $model);

@@ -38,12 +38,6 @@ class ScheduleBoardController extends Controller
 
         foreach ($trips as $trip) {
             if ($storedTrips->has($trip->id)) {
-                $storedTrip = $storedTrips->get($trip->id);
-
-                if ($setting->show_all_trips && !$storedTrip->is_visible) {
-                    $storedTrip->update(['is_visible' => true]);
-                }
-
                 continue;
             }
 
@@ -78,7 +72,13 @@ class ScheduleBoardController extends Controller
             'departure_grace_minutes' => ['required', 'integer', 'min:0', 'max:1440'],
         ]);
 
-        $counter->scheduleBoardSetting()->updateOrCreate([], $validated);
+        DB::transaction(function () use ($counter, $validated) {
+            $counter->scheduleBoardSetting()->updateOrCreate([], $validated);
+
+            if ($validated['show_all_trips']) {
+                $counter->scheduleBoardTrips()->update(['is_visible' => true]);
+            }
+        });
         $this->broadcast($counter, 'settings');
 
         return back()->withNotify([['success', 'Schedule board settings updated.']]);
@@ -117,10 +117,18 @@ class ScheduleBoardController extends Controller
                     ]
                 );
             });
+
+            if ($selectedIds->count() < $orderedIds->count()) {
+                $counter->scheduleBoardSetting()->updateOrCreate([], [
+                    'show_all_trips' => false,
+                ]);
+            }
         });
         $this->broadcast($counter, 'trips');
 
-        return back()->withNotify([['success', 'Displayed trips updated.']]);
+        return back()
+            ->withNotify([['success', 'Displayed trips updated.']])
+            ->with('schedule_board_refresh_counter', $counter->id);
     }
 
     public function storeAdvertisement(Request $request, Counter $counter)

@@ -585,8 +585,10 @@
         let advertisementTimer = null;
         let last_updated = null;
         let refreshTimer = null;
+        let fallbackRefreshTimer = null;
         const counterId = window.location.pathname.split('/').filter(Boolean).pop();
         const scheduleBoardUrl = @json(route('admin.counter.scheduleBoardJSON', '__COUNTER_ID__')).replace('__COUNTER_ID__', counterId);
+        const scheduleBoardStorageKey = `schedule-board-refresh:${counterId}`;
         const pusherKey = @json($pusherKey);
         const pusherCluster = @json($pusherCluster);
         const tripStatusLabels = {
@@ -600,6 +602,13 @@
 
         scheduleBoard();
         connectScheduleBoardUpdates();
+        setFallbackRefreshInterval(5000);
+
+        window.addEventListener('storage', function(event) {
+            if (event.key === scheduleBoardStorageKey) {
+                queueScheduleRefresh();
+            }
+        });
 
         function tickLastUpdate() {
             document.getElementById('lastUpdated').textContent =
@@ -872,6 +881,11 @@
             }
         }
 
+        function setFallbackRefreshInterval(milliseconds) {
+            clearInterval(fallbackRefreshTimer);
+            fallbackRefreshTimer = setInterval(scheduleBoard, milliseconds);
+        }
+
         function connectScheduleBoardUpdates() {
             if (!pusherKey || typeof Pusher === 'undefined') {
                 setConnectionStatus('Live updates unavailable');
@@ -886,14 +900,17 @@
 
             pusher.connection.bind('connected', function() {
                 setConnectionStatus('Live updates connected');
+                setFallbackRefreshInterval(60000);
             });
 
             pusher.connection.bind('unavailable', function() {
                 setConnectionStatus('Live updates reconnecting');
+                setFallbackRefreshInterval(5000);
             });
 
             pusher.connection.bind('failed', function() {
                 setConnectionStatus('Live updates disconnected');
+                setFallbackRefreshInterval(5000);
             });
 
             const channel = pusher.subscribe('schedule-board');
@@ -914,9 +931,6 @@
                 }
             });
         }
-
-        // Re-evaluate departure cutoffs and scheduled content even without a live event.
-        setInterval(scheduleBoard, 60000);
 
         // --- Clock Logic ---
         function updateClock() {
