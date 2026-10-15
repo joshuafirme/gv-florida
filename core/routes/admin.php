@@ -85,6 +85,22 @@ Route::middleware('admin')->group(function () {
         Route::post('status/{id}', 'status')->name('status');
     });
 
+    Route::controller('ScheduleBoardController')
+        ->name('counter.schedule-board.')
+        ->prefix('counter/{counter}/schedule-board/manage')
+        ->middleware('role:admin.counter.schedule-board.manage')
+        ->group(function () {
+            Route::get('/', 'index')->name('manage');
+            Route::post('settings', 'updateSettings')->name('settings');
+            Route::post('trips', 'updateTrips')->name('trips');
+            Route::post('advertisements', 'storeAdvertisement')->name('advertisements.store');
+            Route::post('advertisements/{advertisement}', 'updateAdvertisement')->name('advertisements.update');
+            Route::post('advertisements/{advertisement}/delete', 'destroyAdvertisement')->name('advertisements.destroy');
+            Route::post('notices', 'storeNotice')->name('notices.store');
+            Route::post('notices/{notice}', 'updateNotice')->name('notices.update');
+            Route::post('notices/{notice}/delete', 'destroyNotice')->name('notices.destroy');
+        });
+
     Route::controller('KioskController')->name('kiosk.')->prefix('kiosk')->group(function () {
         Route::get('', 'kiosks')->name('index');
         Route::post('/{id?}', 'kioskStore')->name('store');

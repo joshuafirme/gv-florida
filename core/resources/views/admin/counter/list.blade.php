@@ -1,5 +1,11 @@
 @extends('admin.layouts.app')
 
+@push('style')
+    <style>
+        .button--group .btn i { margin-right: 0; }
+    </style>
+@endpush
+
 @section('panel')
     @php
         $sortUrl = function ($field)
@@ -123,39 +129,52 @@
                                                 <div class="button--group">
                                                     <a target="_blank"
                                                         href="{{ route('admin.counter.scheduleBoard', $item->id) }}"
-                                                        class="btn btn-sm btn-outline--primary">
-                                                        <i class="la la-tv"></i>@lang('Schedule Board')
+                                                        class="btn btn-sm btn-outline--primary" data-bs-toggle="tooltip"
+                                                        title="@lang('Open Schedule Board')" aria-label="@lang('Open Schedule Board')">
+                                                        <i class="la la-tv"></i>
                                                     </a>
+                                                    @if(auth('admin')->user()->isPermitted('admin.counter.schedule-board.manage'))
+                                                        <a href="{{ route('admin.counter.schedule-board.manage', $item) }}"
+                                                            class="btn btn-sm btn-outline--primary" data-bs-toggle="tooltip"
+                                                            title="@lang('Manage Schedule Board')" aria-label="@lang('Manage Schedule Board')">
+                                                            <i class="las la-sliders-h"></i>
+                                                        </a>
+                                                    @endif
                                                     <button type="button"
                                                         class="btn btn-sm btn-outline--primary cuModalBtn"
                                                         data-resource="{{ $item }}"
-                                                        data-modal_title="@lang('Edit Counter')">
-                                                        <i class="la la-pencil"></i>@lang('Edit')
+                                                        data-modal_title="@lang('Edit Counter')" data-bs-toggle="tooltip"
+                                                        title="@lang('Edit Counter')" aria-label="@lang('Edit Counter')">
+                                                        <i class="la la-pencil"></i>
                                                     </button>
                                                     <a target="_blank"
                                                         href="{{ route('admin.counter.reservation-slip', ['counter_id' => $item->id]) }}"
-                                                        class="btn btn-sm btn-outline--primary">@lang('Reservation Slip')
+                                                        class="btn btn-sm btn-outline--primary" data-bs-toggle="tooltip"
+                                                        title="@lang('Reservation Slip')" aria-label="@lang('Reservation Slip')"><i class="las la-receipt"></i>
                                                     </a>
 
                                                     @if (!$item->status)
                                                         <button type="button"
                                                             class="btn btn-sm btn-outline--success confirmationBtn"
                                                             data-action="{{ route('admin.counter.status', $item->id) }}"
-                                                            data-question="@lang('Are you sure to enable this counter?')">
-                                                            <i class="la la-eye"></i>@lang('Enable')
+                                                            data-question="@lang('Are you sure to enable this counter?')" data-bs-toggle="tooltip"
+                                                            title="@lang('Enable Counter')" aria-label="@lang('Enable Counter')">
+                                                            <i class="la la-eye"></i>
                                                         </button>
                                                     @else
                                                         <button type="button"
                                                             class="btn btn-sm btn-outline--danger  confirmationBtn"
                                                             data-action="{{ route('admin.counter.status', $item->id) }}"
-                                                            data-question="@lang('Are you sure to disable this counter?')">
-                                                            <i class="la la-eye-slash"></i>@lang('Disable')
+                                                            data-question="@lang('Are you sure to disable this counter?')" data-bs-toggle="tooltip"
+                                                            title="@lang('Disable Counter')" aria-label="@lang('Disable Counter')">
+                                                            <i class="la la-eye-slash"></i>
                                                         </button>
                                                     @endif
                                                     <button type="button"
                                                         class="btn btn-sm btn-outline--danger delete-counter-btn"
-                                                        data-action="{{ route('admin.counter.remove', $item->id) }}">
-                                                        <i class="la la-trash"></i>@lang('Delete')
+                                                        data-action="{{ route('admin.counter.remove', $item->id) }}" data-bs-toggle="tooltip"
+                                                        title="@lang('Delete Counter')" aria-label="@lang('Delete Counter')">
+                                                        <i class="la la-trash"></i>
                                                     </button>
                                                 </div>
                                             </td>

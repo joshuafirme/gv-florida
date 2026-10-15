@@ -567,7 +567,16 @@
         "title": "Counter",
         "icon": "las la-warehouse",
         "route_name": "admin.counter.index",
-        "menu_active": "admin.counter.index"
+        "menu_active": [
+            "admin.counter.index",
+            "admin.counter.schedule-board.*"
+        ],
+        "additional_permissions": [
+            {
+                "title": "Manage Schedule Board",
+                "value": "admin.counter.schedule-board.manage"
+            }
+        ]
     },
     "kiosk": {
         "keyword": [

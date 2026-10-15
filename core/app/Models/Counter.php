@@ -28,4 +28,24 @@ class Counter extends Model
     {
         return $this->hasMany(Trip::class, 'start_from');
     }
+
+    public function scheduleBoardSetting()
+    {
+        return $this->hasOne(ScheduleBoardSetting::class);
+    }
+
+    public function scheduleBoardTrips()
+    {
+        return $this->hasMany(ScheduleBoardTrip::class);
+    }
+
+    public function scheduleBoardAdvertisements()
+    {
+        return $this->hasMany(ScheduleBoardAdvertisement::class);
+    }
+
+    public function scheduleBoardNotices()
+    {
+        return $this->hasMany(ScheduleBoardNotice::class);
+    }
 }

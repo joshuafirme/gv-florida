@@ -6,9 +6,14 @@ use App\Constants\Status;
 use App\Http\Controllers\Controller;
 use App\Models\BookedTicket;
 use App\Models\AdminSeatLock;
+use App\Models\ScheduleBoardAdvertisement;
+use App\Models\ScheduleBoardNotice;
+use App\Models\ScheduleBoardSetting;
+use App\Models\ScheduleBoardTrip;
 use App\Models\Trip;
 use App\Services\SeatConflictService;
 use App\Services\SeatLayoutService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\Counter;
 
@@ -85,7 +90,10 @@ class CounterController extends Controller
 
     public function scheduleBoard(Request $request, $counter_id)
     {
+        $counter = Counter::findOrFail($counter_id);
+
         return view('admin.counter.board', [
+            'counter' => $counter,
             'pusherKey' => config('services.pusher.key'),
             'pusherCluster' => config('services.pusher.cluster', 'ap1'),
         ]);
@@ -93,7 +101,38 @@ class CounterController extends Controller
 
     public function scheduleBoardJSON($counter_id)
     {
-        $trips = $this->getTripQuery($counter_id)->get();
+        $counter = Counter::findOrFail($counter_id);
+        $setting = $counter->scheduleBoardSetting()->first() ?? new ScheduleBoardSetting([
+            'show_all_trips' => true,
+            'departure_grace_minutes' => 60,
+        ]);
+        $tripQuery = $this->getTripQuery($counter->id);
+        $selectedTrips = $counter->scheduleBoardTrips()->orderBy('sort_order')->get();
+
+        if (!$setting->show_all_trips) {
+            $tripQuery->whereIn('id', $selectedTrips->pluck('trip_id'));
+        }
+
+        $selectedOrder = $selectedTrips->pluck('sort_order', 'trip_id');
+        $graceMinutes = (int) $setting->departure_grace_minutes;
+        $trips = $tripQuery->get()
+            ->filter(function (Trip $trip) use ($graceMinutes) {
+                if (!$trip->schedule?->start_from) {
+                    return false;
+                }
+
+                $departure = Carbon::today()->setTimeFromTimeString($trip->schedule->start_from);
+
+                return now()->lessThanOrEqualTo($departure->addMinutes($graceMinutes));
+            })
+            ->sortBy(function (Trip $trip) use ($setting, $selectedOrder) {
+                if (!$setting->show_all_trips) {
+                    return sprintf('%08d', $selectedOrder->get($trip->id, PHP_INT_MAX));
+                }
+
+                return $trip->schedule?->start_from ?: '99:99:99';
+            })
+            ->values();
         $journeyDate = now()->toDateString();
         $seatConflicts = app(SeatConflictService::class);
         $seatLayouts = app(SeatLayoutService::class);
@@ -123,12 +162,48 @@ class CounterController extends Controller
             $data[] = $trip;
         }
 
+        $advertisements = $counter->scheduleBoardAdvertisements()
+            ->currentlyVisible()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (ScheduleBoardAdvertisement $advertisement) => [
+                'id' => $advertisement->id,
+                'title' => $advertisement->title,
+                'image_url' => asset('assets/images/schedule-board/' . $advertisement->image),
+            ]);
+        $notices = $counter->scheduleBoardNotices()
+            ->currentlyVisible()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (ScheduleBoardNotice $notice) => [
+                'id' => $notice->id,
+                'title' => $notice->title,
+                'content' => $notice->content,
+            ]);
+
         return response()->json([
             'res' => $data,
+            'counter' => [
+                'id' => $counter->id,
+                'name' => $counter->name,
+                'city' => $counter->city,
+            ],
+            'settings' => [
+                'show_all_trips' => (bool) $setting->show_all_trips,
+                'departure_grace_minutes' => $graceMinutes,
+            ],
+            'advertisements' => $advertisements,
+            'notices' => $notices,
             'last_updated' => max(
                 (string) Trip::max('updated_at'),
                 (string) BookedTicket::whereDate('date_of_journey', date('Y-m-d'))->max('updated_at'),
-                (string) AdminSeatLock::whereDate('date_of_journey', date('Y-m-d'))->max('updated_at')
+                (string) AdminSeatLock::whereDate('date_of_journey', date('Y-m-d'))->max('updated_at'),
+                (string) ScheduleBoardSetting::where('counter_id', $counter->id)->max('updated_at'),
+                (string) ScheduleBoardTrip::where('counter_id', $counter->id)->max('updated_at'),
+                (string) ScheduleBoardAdvertisement::where('counter_id', $counter->id)->max('updated_at'),
+                (string) ScheduleBoardNotice::where('counter_id', $counter->id)->max('updated_at')
             )
         ]);
     }

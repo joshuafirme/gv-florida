@@ -64,9 +64,14 @@ class AppServiceProvider extends ServiceProvider
             $model::observe(ScheduleBoardDataObserver::class);
         }
 
-        if (!file_exists(public_path())) {
-            App::usePublicPath(base_path('public'));
-        }
+        // This installation keeps index.php and web assets one directory above
+        // Laravel's base path instead of in core/public. DomPDF resolves its
+        // base path from configuration (not Laravel's public_path helper), so
+        // both paths must point to the actual web root.
+        $publicPath = dirname(base_path());
+
+        App::usePublicPath($publicPath);
+        config(['dompdf.public_path' => $publicPath]);
 
         if (!cache()->get('SystemInstalled')) {
             $envFilePath = base_path('.env');
