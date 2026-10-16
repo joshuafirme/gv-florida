@@ -29,12 +29,16 @@ class OnlineTicketValidationController extends Controller
         $validated = $request->validate([
             'search' => 'nullable|string|max:255',
             'status' => ['nullable', Rule::in(['all', 'to_validate', 'validated'])],
+            'travel_date' => 'nullable|date_format:Y-m-d',
+            'departure_time' => 'nullable|date_format:H:i',
         ]);
         $pageTitle = 'Online Ticket Validation';
         $search = trim((string) ($validated['search'] ?? ''));
         $status = $validated['status'] ?? 'all';
+        $travelDate = $validated['travel_date'] ?? '';
+        $departureTime = $validated['departure_time'] ?? '';
 
-        $countRow = $this->eligibleTicketsQuery()
+        $countRow = $this->eligibleTicketsQuery($travelDate, $departureTime)
             ->reorder()
             ->select([
                 DB::raw('COUNT(*) AS total_count'),
@@ -47,7 +51,7 @@ class OnlineTicketValidationController extends Controller
             'to_validate' => (int) ($countRow?->to_validate_count ?? 0),
             'validated' => (int) ($countRow?->validated_count ?? 0),
         ];
-        $query = $this->eligibleTicketsQuery()
+        $query = $this->eligibleTicketsQuery($travelDate, $departureTime)
             ->when($status === 'to_validate', fn ($query) => $query->whereNull('validation_record.validated_at'))
             ->when($status === 'validated', fn ($query) => $query->whereNotNull('validation_record.validated_at'))
             ->with($this->indexRelations())
@@ -68,6 +72,8 @@ class OnlineTicketValidationController extends Controller
             'tickets',
             'search',
             'status',
+            'travelDate',
+            'departureTime',
             'counts'
         ));
     }
@@ -197,9 +203,9 @@ class OnlineTicketValidationController extends Controller
         ]);
     }
 
-    private function eligibleTicketsQuery(): Builder
+    private function eligibleTicketsQuery(?string $travelDate = null, ?string $departureTime = null): Builder
     {
-        return SlipSeriesNumber::query()
+        $query = SlipSeriesNumber::query()
             ->join('booked_tickets as validation_ticket', 'validation_ticket.id', '=', 'slip_series_numbers.booked_ticket_id')
             ->leftJoin('online_ticket_validations as validation_record', 'validation_record.slip_series_number_id', '=', 'slip_series_numbers.id')
             ->whereNotNull('validation_ticket.user_id')
@@ -234,8 +240,22 @@ class OnlineTicketValidationController extends Controller
                 $void->selectRaw('1')
                     ->from('ticket_voids')
                     ->whereColumn('ticket_voids.slip_series_number_id', 'slip_series_numbers.id');
-            })
-            ->select('slip_series_numbers.*');
+            });
+
+        if ($travelDate) {
+            $query->where('validation_ticket.date_of_journey', $travelDate);
+        }
+
+        if ($departureTime) {
+            $query->join('trips as validation_trip', 'validation_trip.id', '=', 'validation_ticket.trip_id')
+                ->join('schedules as validation_schedule', 'validation_schedule.id', '=', 'validation_trip.schedule_id')
+                ->where(
+                    'validation_schedule.start_from',
+                    Carbon::createFromFormat('H:i', $departureTime)->format('H:i:s')
+                );
+        }
+
+        return $query->select('slip_series_numbers.*');
     }
 
     private function applySearch(Builder $query, string $term): void

@@ -23,8 +23,18 @@ class OnlineTicketValidationQueryTest extends TestCase
             $table->unsignedBigInteger('kiosk_id')->nullable();
             $table->unsignedTinyInteger('status');
             $table->unsignedBigInteger('payment_source_deposit_id')->nullable();
+            $table->unsignedBigInteger('trip_id')->nullable();
+            $table->date('date_of_journey')->nullable();
             $table->string('pnr_number')->nullable();
             $table->text('passenger_manifest')->nullable();
+        });
+        Schema::create('schedules', function (Blueprint $table) {
+            $table->id();
+            $table->time('start_from');
+        });
+        Schema::create('trips', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('schedule_id');
         });
         Schema::create('slip_series_numbers', function (Blueprint $table) {
             $table->id();
@@ -56,9 +66,7 @@ class OnlineTicketValidationQueryTest extends TestCase
     {
         $this->seedEligibilityRecords();
 
-        $controller = new OnlineTicketValidationController(
-            $this->createMock(CashierTransactionRecorder::class)
-        );
+        $controller = $this->controller();
         $method = new ReflectionMethod($controller, 'eligibleTicketsQuery');
         $query = $method->invoke($controller);
 
@@ -82,9 +90,7 @@ class OnlineTicketValidationQueryTest extends TestCase
     {
         $this->seedEligibilityRecords();
 
-        $controller = new OnlineTicketValidationController(
-            $this->createMock(CashierTransactionRecorder::class)
-        );
+        $controller = $this->controller();
         $eligible = new ReflectionMethod($controller, 'eligibleTicketsQuery');
         $search = new ReflectionMethod($controller, 'applySearch');
 
@@ -100,8 +106,49 @@ class OnlineTicketValidationQueryTest extends TestCase
         }
     }
 
+    public function test_eligible_query_filters_by_travel_date_and_departure_time(): void
+    {
+        $this->seedEligibilityRecords();
+
+        $controller = $this->controller();
+        $method = new ReflectionMethod($controller, 'eligibleTicketsQuery');
+
+        $this->assertSame(
+            [101],
+            $method->invoke($controller, '2026-10-14')->pluck('slip_series_numbers.id')->all()
+        );
+        $this->assertSame(
+            [102],
+            $method->invoke($controller, null, '09:00')->pluck('slip_series_numbers.id')->all()
+        );
+        $this->assertSame(
+            [102],
+            $method->invoke($controller, '2026-10-15', '09:00')->pluck('slip_series_numbers.id')->all()
+        );
+        $this->assertSame(
+            [],
+            $method->invoke($controller, '2026-10-14', '09:00')->pluck('slip_series_numbers.id')->all()
+        );
+    }
+
+    private function controller(): OnlineTicketValidationController
+    {
+        return new OnlineTicketValidationController(
+            $this->createMock(CashierTransactionRecorder::class)
+        );
+    }
+
     private function seedEligibilityRecords(): void
     {
+        DB::table('schedules')->insert([
+            ['id' => 1, 'start_from' => '07:30:00'],
+            ['id' => 2, 'start_from' => '09:00:00'],
+        ]);
+        DB::table('trips')->insert([
+            ['id' => 1, 'schedule_id' => 1],
+            ['id' => 2, 'schedule_id' => 2],
+        ]);
+
         foreach (range(1, 9) as $ticketId) {
             DB::table('booked_tickets')->insert([
                 'id' => $ticketId,
@@ -109,6 +156,8 @@ class OnlineTicketValidationQueryTest extends TestCase
                 'kiosk_id' => $ticketId === 3 ? 1 : null,
                 'status' => $ticketId === 9 ? Status::BOOKED_PENDING : Status::BOOKED_APPROVED,
                 'payment_source_deposit_id' => $ticketId === 2 ? 20 : null,
+                'trip_id' => $ticketId === 2 ? 2 : 1,
+                'date_of_journey' => $ticketId === 2 ? '2026-10-15' : '2026-10-14',
                 'pnr_number' => 'PNR-' . $ticketId,
                 'passenger_manifest' => null,
             ]);
