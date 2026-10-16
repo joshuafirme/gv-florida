@@ -24,6 +24,7 @@ use App\Services\SeatLayoutService;
 use App\Services\TransactionAuthorizationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -757,7 +758,10 @@ class VehicleTicketController extends Controller
 
     public function search(Request $request, $scope)
     {
-        $search = $request->search;
+        $validated = $request->validate([
+            'search' => 'nullable|string|max:100',
+        ]);
+        $search = trim((string) ($validated['search'] ?? ''));
         $pageTitle = '';
 
         $ticket = BookedTicket::where('pnr_number', $search);
@@ -787,30 +791,19 @@ class VehicleTicketController extends Controller
         return view('admin.ticket.log', compact('pageTitle', 'search', 'scope', 'tickets', 'ticketRows'));
     }
 
-    private function bookedTicketRows(?string $search = null)
+    private function bookedTicketRows(?string $search = null): Builder
     {
-        return SlipSeriesNumber::query()
+        $query = SlipSeriesNumber::query()
+            ->select('slip_series_numbers.*')
+            ->join('booked_tickets as booked_search_tickets', function ($join) {
+                $join->on('booked_search_tickets.id', '=', 'slip_series_numbers.booked_ticket_id')
+                    ->where('booked_search_tickets.status', Status::BOOKED_APPROVED);
+            })
             ->whereDoesntHave('refund')
             ->whereDoesntHave('cancellation')
             ->whereDoesntHave('voidRecord')
             ->whereDoesntHave('transactionEvents', function ($query) {
                 $query->where('status', 'Rebooked');
-            })
-            ->whereHas('bookedTicket', function ($query) {
-                $query->booked();
-            })
-            ->when($search !== null && trim($search) !== '', function ($query) use ($search) {
-                $term = trim($search);
-                $query->where(function ($rowQuery) use ($term) {
-                    $rowQuery->where('id', 'like', "%{$term}%")
-                        ->orWhereHas('bookedTicket', function ($ticketQuery) use ($term) {
-                            $ticketQuery->where('pnr_number', 'like', "%{$term}%")
-                                ->orWhere('series_number', 'like', "%{$term}%")
-                                ->orWhereHas('deposit.userDiscount', function ($discountQuery) use ($term) {
-                                    $discountQuery->where('passenger_name', 'like', "%{$term}%");
-                                });
-                        });
-                });
             })
             ->with([
                 'bookedTicket.trip.schedule',
@@ -824,8 +817,99 @@ class VehicleTicketController extends Controller
                 'bookedTicket.slipSeriesNumbers',
                 'bookedTicket.approvedBy',
             ])
-            ->orderByDesc('booked_ticket_id')
-            ->orderBy('id');
+            ->orderByDesc('slip_series_numbers.booked_ticket_id')
+            ->orderBy('slip_series_numbers.id');
+
+        $term = trim((string) $search);
+        if ($term !== '') {
+            $this->applyBookedTicketSearch($query, $term);
+        }
+
+        return $query;
+    }
+
+    private function applyBookedTicketSearch(Builder $query, string $term): void
+    {
+        $isNumeric = ctype_digit($term);
+        $exactTicketIds = BookedTicket::query()
+            ->booked()
+            ->where('pnr_number', $term)
+            ->pluck('id');
+
+        if ($isNumeric) {
+            $seriesTicketId = BookedTicket::query()
+                ->booked()
+                ->where('series_number', (int) $term)
+                ->value('id');
+
+            if ($seriesTicketId) {
+                $exactTicketIds->push($seriesTicketId);
+            }
+        }
+
+        $exactTicketIds = $exactTicketIds->unique()->values();
+        $exactReference = $isNumeric
+            && SlipSeriesNumber::query()->whereKey((int) $term)->exists();
+
+        // Exact identifiers are the common POS lookup and should never trigger a passenger scan.
+        if ($exactReference || $exactTicketIds->isNotEmpty()) {
+            $query->where(function (Builder $rowQuery) use ($exactReference, $exactTicketIds, $term) {
+                if ($exactReference) {
+                    $rowQuery->where('slip_series_numbers.id', (int) $term);
+
+                    if ($exactTicketIds->isNotEmpty()) {
+                        $rowQuery->orWhereIn('slip_series_numbers.booked_ticket_id', $exactTicketIds);
+                    }
+
+                    return;
+                }
+
+                $rowQuery->whereIn('slip_series_numbers.booked_ticket_id', $exactTicketIds);
+            });
+
+            return;
+        }
+
+        $exactPassenger = DB::table('deposits')
+            ->join('user_discounts', 'user_discounts.deposit_id', '=', 'deposits.id')
+            ->where('user_discounts.passenger_name', $term)
+            ->whereNotNull('deposits.booked_ticket_id')
+            ->exists();
+
+        if ($exactPassenger) {
+            $query->whereIn('booked_search_tickets.id', function ($passengerQuery) use ($term) {
+                $passengerQuery->select('deposits.booked_ticket_id')
+                    ->from('deposits')
+                    ->join('user_discounts', 'user_discounts.deposit_id', '=', 'deposits.id')
+                    ->where('user_discounts.passenger_name', $term);
+            });
+
+            return;
+        }
+
+        $escapedTerm = addcslashes($term, '\\%_');
+        $pnrPrefix = $escapedTerm . '%';
+        $passengerContains = '%' . $escapedTerm . '%';
+
+        $query->where(function (Builder $rowQuery) use (
+            $isNumeric,
+            $term,
+            $pnrPrefix,
+            $passengerContains
+        ) {
+            $rowQuery->where('booked_search_tickets.pnr_number', 'like', $pnrPrefix);
+
+            if ($isNumeric) {
+                $rowQuery->orWhere('booked_search_tickets.series_number', (int) $term);
+            }
+
+            $rowQuery->orWhereIn('booked_search_tickets.id', function ($passengerQuery) use ($passengerContains) {
+                $passengerQuery->select('deposits.booked_ticket_id')
+                    ->from('deposits')
+                    ->join('user_discounts', 'user_discounts.deposit_id', '=', 'deposits.id')
+                    ->where('user_discounts.passenger_name', 'like', $passengerContains);
+            });
+        });
     }
 
     private function allTicketRows(
