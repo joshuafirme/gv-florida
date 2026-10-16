@@ -4,15 +4,12 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    private const LOCK_WAIT_SECONDS = 30;
-
-    private const LOCK_RETRY_ATTEMPTS = 4;
-
-    private const LOCK_RETRY_DELAY_MICROSECONDS = 2_000_000;
+    private const LOCK_WAIT_SECONDS = 10;
 
     private const INDEXES = [
         ['booked_tickets', 'booked_tickets_pnr_index', ['pnr_number']],
@@ -61,8 +58,10 @@ return new class extends Migration
         }
 
         foreach ($clausesByTable as $table => $clauses) {
+            // The optimized query works without these indexes, so a busy table must not block deployment.
             $this->runOnlineDdl(
-                "ALTER TABLE `{$table}` " . implode(', ', $clauses) . ', ALGORITHM=INPLACE, LOCK=NONE'
+                "ALTER TABLE `{$table}` " . implode(', ', $clauses) . ', ALGORITHM=INPLACE, LOCK=NONE',
+                true
             );
         }
     }
@@ -108,7 +107,7 @@ return new class extends Migration
         });
     }
 
-    private function runOnlineDdl(string $statement): void
+    private function runOnlineDdl(string $statement, bool $skipLockTimeout = false): void
     {
         $originalTimeout = (int) DB::selectOne(
             'SELECT @@SESSION.lock_wait_timeout AS lock_wait_timeout'
@@ -117,19 +116,16 @@ return new class extends Migration
         DB::statement('SET SESSION lock_wait_timeout = ' . self::LOCK_WAIT_SECONDS);
 
         try {
-            for ($attempt = 1; $attempt <= self::LOCK_RETRY_ATTEMPTS; $attempt++) {
-                try {
-                    DB::statement($statement);
-
-                    return;
-                } catch (QueryException $exception) {
-                    if (!$this->isLockWaitTimeout($exception) || $attempt === self::LOCK_RETRY_ATTEMPTS) {
-                        throw $exception;
-                    }
-
-                    usleep(self::LOCK_RETRY_DELAY_MICROSECONDS);
-                }
+            DB::statement($statement);
+        } catch (QueryException $exception) {
+            if (!$skipLockTimeout || !$this->isLockWaitTimeout($exception)) {
+                throw $exception;
             }
+
+            Log::warning('Skipped optional All Tickets search indexes because the table is metadata-locked.', [
+                'mysql_error' => $exception->errorInfo[1] ?? null,
+                'sql_state' => $exception->errorInfo[0] ?? null,
+            ]);
         } finally {
             DB::statement("SET SESSION lock_wait_timeout = {$originalTimeout}");
         }
