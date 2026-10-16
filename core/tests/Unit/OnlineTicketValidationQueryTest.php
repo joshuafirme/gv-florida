@@ -23,6 +23,8 @@ class OnlineTicketValidationQueryTest extends TestCase
             $table->unsignedBigInteger('kiosk_id')->nullable();
             $table->unsignedTinyInteger('status');
             $table->unsignedBigInteger('payment_source_deposit_id')->nullable();
+            $table->string('pnr_number')->nullable();
+            $table->text('passenger_manifest')->nullable();
         });
         Schema::create('slip_series_numbers', function (Blueprint $table) {
             $table->id();
@@ -33,6 +35,7 @@ class OnlineTicketValidationQueryTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('booked_ticket_id')->nullable();
             $table->unsignedTinyInteger('status');
+            $table->string('trx')->nullable();
         });
 
         foreach (['ticket_refunds', 'ticket_cancellations', 'ticket_voids'] as $tableName) {
@@ -51,46 +54,7 @@ class OnlineTicketValidationQueryTest extends TestCase
 
     public function test_eligible_query_handles_both_payment_links_and_excludes_inactive_tickets(): void
     {
-        foreach (range(1, 9) as $ticketId) {
-            DB::table('booked_tickets')->insert([
-                'id' => $ticketId,
-                'user_id' => $ticketId === 8 ? null : 10,
-                'kiosk_id' => $ticketId === 3 ? 1 : null,
-                'status' => $ticketId === 9 ? Status::BOOKED_PENDING : Status::BOOKED_APPROVED,
-                'payment_source_deposit_id' => $ticketId === 2 ? 20 : null,
-            ]);
-            DB::table('slip_series_numbers')->insert([
-                'id' => 100 + $ticketId,
-                'booked_ticket_id' => $ticketId,
-                'seat' => 'D' . $ticketId,
-            ]);
-        }
-
-        foreach ([1, 3, 5, 6, 7, 8, 9] as $ticketId) {
-            DB::table('deposits')->insert([
-                'id' => $ticketId,
-                'booked_ticket_id' => $ticketId,
-                'status' => Status::PAYMENT_SUCCESS,
-            ]);
-        }
-        DB::table('deposits')->insert([
-            'id' => 4,
-            'booked_ticket_id' => 4,
-            'status' => Status::PAYMENT_PENDING,
-        ]);
-        DB::table('deposits')->insert([
-            'id' => 20,
-            'booked_ticket_id' => null,
-            'status' => Status::PAYMENT_SUCCESS,
-        ]);
-
-        DB::table('ticket_refunds')->insert(['slip_series_number_id' => 105]);
-        DB::table('ticket_cancellations')->insert(['slip_series_number_id' => 106]);
-        DB::table('ticket_voids')->insert(['slip_series_number_id' => 107]);
-        DB::table('online_ticket_validations')->insert([
-            'slip_series_number_id' => 102,
-            'validated_at' => now(),
-        ]);
+        $this->seedEligibilityRecords();
 
         $controller = new OnlineTicketValidationController(
             $this->createMock(CashierTransactionRecorder::class)
@@ -112,5 +76,85 @@ class OnlineTicketValidationQueryTest extends TestCase
         $this->assertSame(2, (int) $counts->total_count);
         $this->assertSame(1, (int) $counts->to_validate_count);
         $this->assertSame(1, (int) $counts->validated_count);
+    }
+
+    public function test_exact_search_uses_pnr_reference_and_payment_identifiers(): void
+    {
+        $this->seedEligibilityRecords();
+
+        $controller = new OnlineTicketValidationController(
+            $this->createMock(CashierTransactionRecorder::class)
+        );
+        $eligible = new ReflectionMethod($controller, 'eligibleTicketsQuery');
+        $search = new ReflectionMethod($controller, 'applySearch');
+
+        foreach ([
+            'PNR-1' => [101],
+            '102' => [102],
+            'TRX-SOURCE' => [102],
+        ] as $term => $expectedIds) {
+            $query = $eligible->invoke($controller);
+            $search->invoke($controller, $query, $term);
+
+            $this->assertSame($expectedIds, $query->pluck('slip_series_numbers.id')->all());
+        }
+    }
+
+    private function seedEligibilityRecords(): void
+    {
+        foreach (range(1, 9) as $ticketId) {
+            DB::table('booked_tickets')->insert([
+                'id' => $ticketId,
+                'user_id' => $ticketId === 8 ? null : 10,
+                'kiosk_id' => $ticketId === 3 ? 1 : null,
+                'status' => $ticketId === 9 ? Status::BOOKED_PENDING : Status::BOOKED_APPROVED,
+                'payment_source_deposit_id' => $ticketId === 2 ? 20 : null,
+                'pnr_number' => 'PNR-' . $ticketId,
+                'passenger_manifest' => null,
+            ]);
+            DB::table('slip_series_numbers')->insert([
+                'id' => 100 + $ticketId,
+                'booked_ticket_id' => $ticketId,
+                'seat' => 'D' . $ticketId,
+            ]);
+        }
+
+        foreach ([1, 3, 5, 6, 7, 8, 9] as $ticketId) {
+            DB::table('deposits')->insert([
+                'id' => $ticketId,
+                'booked_ticket_id' => $ticketId,
+                'status' => Status::PAYMENT_SUCCESS,
+                'trx' => 'TRX-' . $ticketId,
+            ]);
+        }
+
+        DB::table('deposits')->insert([
+            [
+                'id' => 4,
+                'booked_ticket_id' => 4,
+                'status' => Status::PAYMENT_PENDING,
+                'trx' => 'TRX-4',
+            ],
+            [
+                'id' => 20,
+                'booked_ticket_id' => null,
+                'status' => Status::PAYMENT_SUCCESS,
+                'trx' => 'TRX-SOURCE',
+            ],
+            [
+                'id' => 21,
+                'booked_ticket_id' => 1,
+                'status' => Status::PAYMENT_SUCCESS,
+                'trx' => 'TRX-1-RETRY',
+            ],
+        ]);
+
+        DB::table('ticket_refunds')->insert(['slip_series_number_id' => 105]);
+        DB::table('ticket_cancellations')->insert(['slip_series_number_id' => 106]);
+        DB::table('ticket_voids')->insert(['slip_series_number_id' => 107]);
+        DB::table('online_ticket_validations')->insert([
+            'slip_series_number_id' => 102,
+            'validated_at' => now(),
+        ]);
     }
 }
