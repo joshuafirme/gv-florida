@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('deposit_id')->nullable()->index();
             $table->string('event_key', 191)->unique();
             $table->string('status', 30);
-            $table->timestamp('processed_at')->index();
+            $table->timestamp('processed_at')->useCurrent()->index();
             $table->string('source', 30)->nullable();
             $table->string('pnr', 50)->nullable();
             $table->string('reference_no', 50)->nullable();

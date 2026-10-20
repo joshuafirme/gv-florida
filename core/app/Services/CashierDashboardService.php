@@ -26,13 +26,10 @@ class CashierDashboardService
     {
         $this->transactionRecorder->backfillForDate($admin, $date->copy());
 
-        $start = $date->copy()->startOfDay();
-        $end = $date->copy()->endOfDay();
-
         $transactions = CashierTransactionEvent::query()
             ->bookingTransactions()
             ->where('admin_id', $admin->id)
-            ->whereBetween('processed_at', [$start, $end])
+            ->reportableForDate($date)
             ->orderBy('processed_at')
             ->orderBy('id')
             ->get();
@@ -43,7 +40,7 @@ class CashierDashboardService
         $latestTransactions = CashierTransactionEvent::query()
             ->bookingTransactions()
             ->where('cashier_transaction_events.admin_id', $admin->id)
-            ->whereBetween('cashier_transaction_events.processed_at', [$start, $end])
+            ->reportableForDate($date)
             ->whereNotExists(function ($newerEvent) use ($newerStatusPriority, $currentStatusPriority) {
                 $newerEvent
                     ->selectRaw('1')
@@ -92,6 +89,7 @@ class CashierDashboardService
             ->get();
 
         return [
+            'transactions' => $transactions,
             'summary' => $this->summarize($transactions),
             'status_metrics' => $this->statusMetrics($transactions, $latestTransactions),
             'latest_transactions' => $latestTransactions->take(5),

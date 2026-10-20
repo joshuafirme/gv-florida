@@ -10,6 +10,7 @@ use App\Models\OnlineTicketValidation;
 use App\Models\SlipSeriesNumber;
 use App\Services\CashierTransactionRecorder;
 use App\Services\TransactionAuthorizationService;
+use App\Support\BusinessTime;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -136,7 +137,7 @@ class OnlineTicketValidationController extends Controller
                 'discount_id' => $discount->id,
                 'discount_applied_by_admin_id' => auth('admin')->id(),
                 'discount_authorized_by_admin_id' => $authorizedBy->id,
-                'discount_authorized_at' => now(),
+                'discount_authorized_at' => BusinessTime::now(),
                 'original_fare' => $originalFare,
                 'discount_percentage' => (float) $discount->percentage,
                 'discount_amount' => $discountAmount,
@@ -183,7 +184,7 @@ class OnlineTicketValidationController extends Controller
 
             if (!$record->validated_at) {
                 $record->validated_by_admin_id = auth('admin')->id();
-                $record->validated_at = now();
+                $record->validated_at = BusinessTime::now();
                 $record->save();
                 $this->transactionRecorder->recordOnlineValidation($record->fresh());
             } elseif ($record->isDirty(['booked_ticket_id', 'deposit_id'])) {
@@ -240,7 +241,12 @@ class OnlineTicketValidationController extends Controller
                 $void->selectRaw('1')
                     ->from('ticket_voids')
                     ->whereColumn('ticket_voids.slip_series_number_id', 'slip_series_numbers.id');
-            });
+            })
+            ->whereDate(
+                'validation_ticket.date_of_journey',
+                '>=',
+                BusinessTime::today()->toDateString()
+            );
 
         if ($travelDate) {
             $query->where('validation_ticket.date_of_journey', $travelDate);
@@ -358,6 +364,13 @@ class OnlineTicketValidationController extends Controller
         if (!$active) {
             throw ValidationException::withMessages([
                 'ticket' => 'This ticket is not an active, successfully paid online ticket.',
+            ]);
+        }
+
+        if (!$ticket->date_of_journey
+            || BusinessTime::parse($ticket->date_of_journey)->startOfDay()->lt(BusinessTime::today())) {
+            throw ValidationException::withMessages([
+                'ticket' => 'This ticket can no longer be validated because its travel date has passed.',
             ]);
         }
     }

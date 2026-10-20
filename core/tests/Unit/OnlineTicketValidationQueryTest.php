@@ -5,6 +5,8 @@ namespace Tests\Unit;
 use App\Constants\Status;
 use App\Http\Controllers\Admin\OnlineTicketValidationController;
 use App\Services\CashierTransactionRecorder;
+use App\Support\BusinessTime;
+use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -16,6 +18,8 @@ class OnlineTicketValidationQueryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Carbon::setTestNow(Carbon::parse('2026-10-14 06:00:00', BusinessTime::TIMEZONE));
 
         Schema::create('booked_tickets', function (Blueprint $table) {
             $table->id();
@@ -60,6 +64,13 @@ class OnlineTicketValidationQueryTest extends TestCase
             $table->unsignedBigInteger('slip_series_number_id')->unique();
             $table->timestamp('validated_at')->nullable();
         });
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_eligible_query_handles_both_payment_links_and_excludes_inactive_tickets(): void
@@ -129,6 +140,10 @@ class OnlineTicketValidationQueryTest extends TestCase
             [],
             $method->invoke($controller, '2026-10-14', '09:00')->pluck('slip_series_numbers.id')->all()
         );
+        $this->assertSame(
+            [],
+            $method->invoke($controller, '2026-10-13')->pluck('slip_series_numbers.id')->all()
+        );
     }
 
     private function controller(): OnlineTicketValidationController
@@ -149,7 +164,7 @@ class OnlineTicketValidationQueryTest extends TestCase
             ['id' => 2, 'schedule_id' => 2],
         ]);
 
-        foreach (range(1, 9) as $ticketId) {
+        foreach (range(1, 10) as $ticketId) {
             DB::table('booked_tickets')->insert([
                 'id' => $ticketId,
                 'user_id' => $ticketId === 8 ? null : 10,
@@ -157,7 +172,11 @@ class OnlineTicketValidationQueryTest extends TestCase
                 'status' => $ticketId === 9 ? Status::BOOKED_PENDING : Status::BOOKED_APPROVED,
                 'payment_source_deposit_id' => $ticketId === 2 ? 20 : null,
                 'trip_id' => $ticketId === 2 ? 2 : 1,
-                'date_of_journey' => $ticketId === 2 ? '2026-10-15' : '2026-10-14',
+                'date_of_journey' => match ($ticketId) {
+                    2 => '2026-10-15',
+                    10 => '2026-10-13',
+                    default => '2026-10-14',
+                },
                 'pnr_number' => 'PNR-' . $ticketId,
                 'passenger_manifest' => null,
             ]);
@@ -168,7 +187,7 @@ class OnlineTicketValidationQueryTest extends TestCase
             ]);
         }
 
-        foreach ([1, 3, 5, 6, 7, 8, 9] as $ticketId) {
+        foreach ([1, 3, 5, 6, 7, 8, 9, 10] as $ticketId) {
             DB::table('deposits')->insert([
                 'id' => $ticketId,
                 'booked_ticket_id' => $ticketId,
