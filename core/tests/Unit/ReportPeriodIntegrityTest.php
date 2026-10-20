@@ -216,6 +216,71 @@ class ReportPeriodIntegrityTest extends TestCase
         $this->assertSame(300.0, $shift['summary']['net_collection']);
     }
 
+    public function test_daily_reports_keep_transactions_on_their_actual_calendar_date(): void
+    {
+        $this->insertEvent(
+            1,
+            null,
+            'Sold',
+            'Online',
+            100,
+            '2026-10-06 23:34:00',
+            journeyDate: '2026-10-07'
+        );
+        $this->insertEvent(
+            2,
+            null,
+            'Sold',
+            'Online',
+            200,
+            '2026-10-07 00:19:00',
+            journeyDate: '2026-10-07'
+        );
+
+        $recorder = new CapturingCashierTransactionRecorder();
+        $dashboard = new CashierDashboardService($recorder);
+        $service = new DailyReportService($recorder, $dashboard);
+
+        $octoberSix = $service->forDate(Carbon::parse('2026-10-06'));
+        $octoberSeven = $service->forDate(Carbon::parse('2026-10-07'));
+
+        $this->assertSame([1], $octoberSix['transactions']->pluck('id')->all());
+        $this->assertSame([2], $octoberSeven['transactions']->pluck('id')->all());
+    }
+
+    public function test_follow_up_repair_restores_reconciled_event_time(): void
+    {
+        DB::table('online_ticket_validations')->insert([
+            'id' => 10,
+            'validated_at' => '2026-10-06 23:34:00',
+            'discount_authorized_at' => null,
+        ]);
+        $this->insertEvent(
+            10,
+            null,
+            'Validated',
+            'Online',
+            0,
+            '2026-10-20 06:05:00',
+            '2026-10-06 23:34:00',
+            '2026-10-07'
+        );
+        DB::table('cashier_transaction_events')
+            ->where('id', 10)
+            ->update(['event_key' => 'online-validation:10']);
+
+        $migration = require database_path(
+            'migrations/2026_10_20_000002_repair_cashier_event_times_after_timezone_fix.php'
+        );
+        $migration->up();
+        $migration->up();
+
+        $this->assertSame(
+            '2026-10-06 23:34:00',
+            DB::table('cashier_transaction_events')->where('id', 10)->value('processed_at')
+        );
+    }
+
     private function insertDeposit(int $id, string $completedAt, string $updatedAt): void
     {
         DB::table('deposits')->insert([

@@ -23,9 +23,9 @@ class BusinessTimeTest extends TestCase
         }
     }
 
-    public function test_mysql_connections_use_the_manila_utc_offset(): void
+    public function test_database_connections_preserve_legacy_wall_clock_timestamps(): void
     {
-        $this->assertSame('+08:00', config('database.connections.mysql.timezone'));
-        $this->assertSame('+08:00', config('database.connections.mariadb.timezone'));
+        $this->assertSame('+00:00', config('database.connections.mysql.timezone'));
+        $this->assertSame('+00:00', config('database.connections.mariadb.timezone'));
     }
 }

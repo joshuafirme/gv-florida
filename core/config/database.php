@@ -50,7 +50,9 @@ return [
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
-            'timezone' => env('DB_TIMEZONE', '+08:00'),
+            // Existing GV Florida timestamps use Manila wall-clock values stored
+            // through a UTC database session. A +08:00 session shifts them again.
+            'timezone' => env('DB_TIMEZONE', '+00:00'),
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => false,
@@ -71,7 +73,7 @@ return [
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_uca1400_ai_ci'),
-            'timezone' => env('DB_TIMEZONE', '+08:00'),
+            'timezone' => env('DB_TIMEZONE', '+00:00'),
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,
