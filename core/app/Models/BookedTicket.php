@@ -143,6 +143,11 @@ class BookedTicket extends Model
         return $this->hasMany(SlipSeriesNumber::class, 'booked_ticket_id');
     }
 
+    public function transactionEvents()
+    {
+        return $this->hasMany(CashierTransactionEvent::class);
+    }
+
     public function activeSlipSeriesNumbers()
     {
         return $this->hasMany(SlipSeriesNumber::class, 'booked_ticket_id')

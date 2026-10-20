@@ -9,6 +9,7 @@
         'user.home',
         'user.ticket.history',
         'user.deposit.index',
+        'user.notifications.index',
     ]))
         @include($activeTemplate . 'partials.breadcrumb')
     @endif

@@ -121,6 +121,11 @@ class User extends Authenticatable
         return $this->hasMany(DeviceToken::class);
     }
 
+    public function passengerNotifications()
+    {
+        return $this->hasMany(PassengerNotification::class);
+    }
+
     public function permissions()
     {
         return $this->hasOne(UserRole::class, 'id', 'role_id');
