@@ -74,7 +74,7 @@
                             <a href="{{ route('ticket') }}">@lang('Buy Ticket')</a>
                         </li>
                         <li>
-                            <a href="{{ route('user.ticket.history') }}">@lang('Booking History')</a>
+                            <a href="{{ route('user.ticket.history') }}">@lang('My Tickets')</a>
                         </li>
                     </ul>
                 </li>
