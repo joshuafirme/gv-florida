@@ -17,6 +17,7 @@ use App\Models\Language;
 use App\Models\Page;
 use App\Models\SupportMessage;
 use App\Models\SupportTicket;
+use App\Services\PassengerReminderService;
 use App\Services\SeatConflictService;
 use App\Services\SeatLayoutService;
 use App\Support\BusinessTime;
@@ -40,8 +41,9 @@ class SiteController extends Controller
             request()->date_of_journey
         );
         $counters = $this->availableOriginCounters($originTrips);
+        $bookingNotices = app(PassengerReminderService::class)->activeContent();
 
-        return view('Template::home', compact('pageTitle', 'sections', 'seoContents', 'seoImage', 'counters'));
+        return view('Template::home', compact('pageTitle', 'sections', 'seoContents', 'seoImage', 'counters', 'bookingNotices'));
     }
 
     public function pages($slug)
@@ -367,8 +369,9 @@ class SiteController extends Controller
 
         if ($request->expectsJson()) {
             $query = $request->query();
-            $query['date_of_journey'] = Carbon::parse($request->date_of_journey ?: now())
-                ->format('m/d/Y');
+            $query['date_of_journey'] = BusinessTime::parse(
+                $request->date_of_journey ?: BusinessTime::now()
+            )->format('m/d/Y');
 
             return response()->json([
                 'html' => view('Template::partials.trip-list', compact(
@@ -376,10 +379,12 @@ class SiteController extends Controller
                     'emptyMessage',
                     'ticketPrices'
                 ))->render(),
-                'journey_date' => Carbon::parse($query['date_of_journey'])->format('Y-m-d'),
+                'journey_date' => BusinessTime::parse($query['date_of_journey'])->format('Y-m-d'),
                 'url' => $request->url() . '?' . http_build_query($query),
             ]);
         }
+
+        $bookingNotices = app(PassengerReminderService::class)->activeContent();
 
         return view("Template::ticket", compact(
             'pageTitle',
@@ -390,7 +395,8 @@ class SiteController extends Controller
             'schedules',
             'emptyMessage',
             'ticketPrices',
-            'layout'
+            'layout',
+            'bookingNotices'
         ));
     }
 
