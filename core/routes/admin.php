@@ -328,6 +328,9 @@ Route::middleware('admin')->group(function () {
         Route::get('pending/status', 'pendingStatus')->name('pending.status');
         Route::post('pending/processing/heartbeat', 'renewProcessing')->name('pending.processing.heartbeat');
         Route::post('pending/processing/release', 'releaseProcessing')->name('pending.processing.release');
+        Route::post('pending/{deposit}/discount', 'adjustPendingDiscount')
+            ->middleware('role:admin.deposit.pending')
+            ->name('pending.discount');
         Route::get('pending/{user_id?}', 'pending')->name('pending');
         Route::get('rejected/{user_id?}', 'rejected')->name('rejected');
         Route::get('approved/{user_id?}', 'approved')->name('approved');

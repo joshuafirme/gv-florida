@@ -7,7 +7,9 @@ use App\Models\Deposit;
 use App\Http\Controllers\Controller;
 use App\Models\Admin;
 use App\Models\BookedTicket;
+use App\Models\Discount;
 use App\Services\CashierTransactionRecorder;
+use App\Services\PendingPaymentDiscountService;
 use App\Services\PendingPaymentExpirationService;
 use App\Services\PendingPaymentProcessingService;
 use App\Services\PaymentSuccessNotifier;
@@ -49,16 +51,7 @@ class DepositController extends Controller
         }
 
         $deposit = Deposit::pending()
-            ->with([
-                'user',
-                'userDiscount',
-                'bookedTicket.pickup',
-                'bookedTicket.drop',
-                'bookedTicket.trip.schedule',
-                'bookedTicket.trip.fleetType',
-                'bookedTicket.slipSeriesNumbers',
-                'bookedTicket.activeSlipSeriesNumbers',
-            ])
+            ->with($this->pendingPaymentRelations())
             ->where(function ($query) use ($lookup) {
                 $query->where('trx', $lookup)
                     ->orWhereHas('bookedTicket', function ($ticketQuery) use ($lookup) {
@@ -101,58 +94,12 @@ class DepositController extends Controller
                 return response()->json(['message' => $message], $claim['status'] === 'busy' ? 409 : 410);
             }
 
-            $ticket = $deposit->bookedTicket;
-            $manifest = collect($ticket->passenger_manifest ?: ($deposit->userDiscount?->passenger_manifest ?: []))
-                ->keyBy(fn ($passenger) => (string) ($passenger['seat'] ?? ''));
-            $seats = collect($ticket->seats ?: $manifest->keys())
-                ->map(fn ($seat) => trim((string) $seat))
-                ->filter()
-                ->unique()
-                ->values();
-            $fallbackTicketFare = (float) $deposit->final_amount / max($seats->count(), 1);
-            $fallbackPassengerName = $deposit->userDiscount?->passenger_name
-                ?: $deposit->user?->fullname
-                ?: 'Guest';
-            $fallbackPassengerType = getPassengerType($deposit);
-
-            return response()->json([
-                'deposit_id' => $deposit->id,
-                'ticket_id' => $ticket->id,
-                'pnr' => $ticket->pnr_number,
-                'trip' => $ticket->pickup->name . ' via ' . $ticket->drop->name,
-                'route' => $ticket->pickup->name . ' via ' . $ticket->drop->name,
-                'bus_type' => $ticket->trip->fleetType->name,
-                'departure_time' => Carbon::parse($ticket->trip->schedule->start_from)->format('g:i A'),
-                'travel_date' => Carbon::parse($ticket->date_of_journey)->format('D, M d, Y'),
-                'amount' => (float) $deposit->final_amount,
-                'passenger_name' => $fallbackPassengerName,
-                'passenger_type' => $fallbackPassengerType,
-                'processed_by' => auth('admin')->user()->name,
+            return response()->json(array_merge($this->pendingPaymentPayload($deposit), [
                 'processing_token' => $claim['token'],
                 'processing_lease_expires_at' => $claim['lease_expires_at'],
                 'heartbeat_url' => route('admin.deposit.pending.processing.heartbeat'),
                 'release_url' => route('admin.deposit.pending.processing.release'),
-                'tickets' => $seats->map(function ($seat) use ($manifest, $fallbackPassengerName, $fallbackPassengerType, $fallbackTicketFare) {
-                    $passenger = $manifest->get((string) $seat, []);
-                    $isDiscounted = ($passenger['passenger_type'] ?? 'regular') === 'discounted';
-
-                    return [
-                        'number' => null,
-                        'seat' => $seat,
-                        'fare' => (float) ($passenger['fare'] ?? $fallbackTicketFare),
-                        'base_fare' => (float) ($passenger['base_fare'] ?? $fallbackTicketFare),
-                        'discount_amount' => (float) ($passenger['discount_amount'] ?? 0),
-                        'passenger_name' => ($passenger['name'] ?? null) ?: $fallbackPassengerName,
-                        'passenger_type' => $passenger
-                            ? ($isDiscounted ? ($passenger['discount_name'] ?? 'Discounted') : 'Regular')
-                            : $fallbackPassengerType,
-                    ];
-                })->values(),
-                'reject_url' => route('admin.deposit.reject'),
-                'validate_url' => url("api/ticket/validate-deposit/{$deposit->id}"),
-                'print_url' => url("api/ticket/download/reservation-slip/{$ticket->id}"),
-                'reservation_slip_url' => route('admin.trip.reservationSlip', $ticket->id),
-            ]);
+            ]));
         }
 
         $notify[] = ['info', 'Pending payments must be processed through the new POS modal on the Pending Payments page.'];
@@ -216,6 +163,45 @@ class DepositController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    public function adjustPendingDiscount(
+        Request $request,
+        Deposit $deposit,
+        PendingPaymentDiscountService $discounts,
+        PendingPaymentProcessingService $processing
+    ) {
+        $validated = $request->validate([
+            'seat' => ['required', 'string', 'max:30'],
+            'action' => ['required', Rule::in(['apply', 'remove'])],
+            'discount_id' => [Rule::requiredIf($request->input('action') === 'apply'), 'nullable', 'integer'],
+            'id_number' => [Rule::requiredIf($request->input('action') === 'apply'), 'nullable', 'string', 'max:100'],
+            'processing_token' => ['required', 'string', 'size:64'],
+        ]);
+
+        if (!$processing->renew($deposit, (int) auth('admin')->id(), $validated['processing_token'])) {
+            return response()->json([
+                'message' => 'This payment processing session is no longer active.',
+            ], 409);
+        }
+
+        $deposit = $discounts->adjust(
+            $deposit->id,
+            trim($validated['seat']),
+            $validated['action'],
+            isset($validated['discount_id']) ? (int) $validated['discount_id'] : null,
+            $validated['id_number'] ?? null,
+            auth('admin')->user()
+        );
+
+        $deposit->load($this->pendingPaymentRelations());
+
+        return response()->json([
+            'message' => $validated['action'] === 'apply'
+                ? 'Discount applied to the selected ticket.'
+                : 'Discount removed from the selected ticket.',
+            'payment' => $this->pendingPaymentPayload($deposit),
+        ]);
     }
 
 
@@ -372,6 +358,101 @@ class DepositController extends Controller
                 ]
             ];
         }
+    }
+
+    private function pendingPaymentRelations(): array
+    {
+        return [
+            'user',
+            'userDiscount',
+            'bookedTicket.pickup',
+            'bookedTicket.drop',
+            'bookedTicket.trip.schedule',
+            'bookedTicket.trip.fleetType',
+            'bookedTicket.slipSeriesNumbers',
+            'bookedTicket.activeSlipSeriesNumbers',
+        ];
+    }
+
+    private function pendingPaymentPayload(Deposit $deposit): array
+    {
+        $deposit->loadMissing($this->pendingPaymentRelations());
+        $ticket = $deposit->bookedTicket;
+        $manifest = collect($ticket->passenger_manifest ?: ($deposit->userDiscount?->passenger_manifest ?: []))
+            ->keyBy(fn ($passenger) => trim((string) ($passenger['seat'] ?? '')));
+        $seats = collect($ticket->seats ?: $manifest->keys())
+            ->map(fn ($seat) => trim((string) $seat))
+            ->filter()
+            ->unique()
+            ->values();
+        $fallbackTicketFare = (float) ($ticket->unit_price ?: ((float) $deposit->amount / max($seats->count(), 1)));
+        $fallbackPassengerName = $deposit->userDiscount?->passenger_name
+            ?: $deposit->user?->fullname
+            ?: 'Guest';
+        $fallbackPassengerType = getPassengerType($deposit);
+        $tickets = $seats->map(function ($seat) use (
+            $manifest,
+            $fallbackPassengerName,
+            $fallbackPassengerType,
+            $fallbackTicketFare
+        ) {
+            $passenger = (array) $manifest->get((string) $seat, []);
+            $isDiscounted = ($passenger['passenger_type'] ?? 'regular') === 'discounted';
+
+            return [
+                'number' => null,
+                'seat' => $seat,
+                'fare' => (float) ($passenger['fare'] ?? $fallbackTicketFare),
+                'base_fare' => (float) ($passenger['base_fare'] ?? $fallbackTicketFare),
+                'discount_amount' => (float) ($passenger['discount_amount'] ?? 0),
+                'discount_id' => $passenger['discount_id'] ?? null,
+                'discount_name' => $passenger['discount_name'] ?? null,
+                'discount_percentage' => (float) ($passenger['discount_percentage'] ?? 0),
+                'id_number' => $passenger['id_number'] ?? null,
+                'is_discounted' => $isDiscounted,
+                'passenger_name' => ($passenger['name'] ?? null) ?: $fallbackPassengerName,
+                'passenger_type' => $passenger
+                    ? ($isDiscounted ? ($passenger['discount_name'] ?? 'Discounted') : 'Regular')
+                    : $fallbackPassengerType,
+            ];
+        })->values();
+
+        return [
+            'deposit_id' => $deposit->id,
+            'ticket_id' => $ticket->id,
+            'pnr' => $ticket->pnr_number,
+            'trip' => $ticket->pickup->name . ' via ' . $ticket->drop->name,
+            'route' => $ticket->pickup->name . ' via ' . $ticket->drop->name,
+            'bus_type' => $ticket->trip->fleetType->name,
+            'departure_time' => Carbon::parse($ticket->trip->schedule->start_from)->format('g:i A'),
+            'travel_date' => Carbon::parse($ticket->date_of_journey)->format('D, M d, Y'),
+            'amount' => (float) $deposit->final_amount,
+            'discount_amount' => (float) $tickets->sum('discount_amount'),
+            'can_adjust_discounts' => $ticket->isKioskBooking(),
+            'passenger_name' => $fallbackPassengerName,
+            'passenger_type' => $fallbackPassengerType,
+            'processed_by' => auth('admin')->user()->name,
+            'processing_token' => $deposit->processing_token,
+            'processing_lease_expires_at' => $deposit->processing_lease_expires_at?->toIso8601String(),
+            'heartbeat_url' => route('admin.deposit.pending.processing.heartbeat'),
+            'release_url' => route('admin.deposit.pending.processing.release'),
+            'tickets' => $tickets,
+            'discounts' => Discount::query()
+                ->where('status', Status::ENABLE)
+                ->orderBy('name')
+                ->get(['id', 'name', 'percentage'])
+                ->map(fn (Discount $discount) => [
+                    'id' => $discount->id,
+                    'name' => $discount->name,
+                    'percentage' => (float) $discount->percentage,
+                ])
+                ->values(),
+            'discount_adjust_url' => route('admin.deposit.pending.discount', $deposit),
+            'reject_url' => route('admin.deposit.reject'),
+            'validate_url' => url("api/ticket/validate-deposit/{$deposit->id}"),
+            'print_url' => url("api/ticket/download/reservation-slip/{$ticket->id}"),
+            'reservation_slip_url' => route('admin.trip.reservationSlip', $ticket->id),
+        ];
     }
 
     private function validatedPaymentFilters(Request $request): array
