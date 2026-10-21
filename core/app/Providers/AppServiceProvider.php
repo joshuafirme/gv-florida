@@ -18,9 +18,10 @@ use App\Models\Trip;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleRoute;
-use App\Observers\ScheduleBoardDataObserver;
 use App\Observers\BookedTicketNotificationObserver;
+use App\Observers\ScheduleBoardDataObserver;
 use App\Observers\TripBookingNotificationObserver;
+use App\Support\BusinessTime;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
@@ -44,6 +45,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        date_default_timezone_set(BusinessTime::TIMEZONE);
+
         if (
             $this->app->isProduction()
             && request()->is('user/social-login/google', 'user/social-login/callback/google')

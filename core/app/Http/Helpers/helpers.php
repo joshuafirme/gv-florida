@@ -344,7 +344,7 @@ function getAmount($amount, $length = 2)
 
 function generateReqID($prefix = 'GVF')
 {
-    $date = date('YmdHis');
+    $date = \App\Support\BusinessTime::now()->format('YmdHis');
     $req_id = "$prefix-$date-" . uniqid();
     return $req_id;
 }

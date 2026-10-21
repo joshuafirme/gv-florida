@@ -65,6 +65,11 @@ class Trip extends Model
         return $this->hasMany(AdminSeatLock::class);
     }
 
+    public function transferSeatHolds()
+    {
+        return $this->hasMany(TransferSeatHold::class);
+    }
+
     public function channelAvailabilities()
     {
         return $this->hasMany(TripChannelAvailability::class);

@@ -15,9 +15,9 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use App\Services\CashierTransactionRecorder;
 use App\Services\CashierDashboardService;
 use App\Services\DailyReportService;
+use App\Support\BusinessTime;
 
 class ReportController extends Controller
 {
@@ -166,7 +166,9 @@ class ReportController extends Controller
             'payment_method' => 'nullable|string|max:100',
         ]);
 
-        $date = Carbon::parse($validated['date'] ?? now())->startOfDay();
+        $date = BusinessTime::parse(
+            $validated['date'] ?? BusinessTime::now()
+        )->startOfDay();
         $filters = collect($validated)->only([
             'transaction_type',
             'source',
@@ -183,23 +185,18 @@ class ReportController extends Controller
             'date' => 'nullable|date|before_or_equal:today',
         ]);
 
-        return Carbon::parse($request->date ?: now())->startOfDay();
+        return BusinessTime::parse(
+            $request->date ?: BusinessTime::now()
+        )->startOfDay();
     }
 
     private function shiftEndData(Admin $admin, Carbon $date): array
     {
-        app(CashierTransactionRecorder::class)->backfillForDate($admin, $date);
-
-        $transactions = CashierTransactionEvent::bookingTransactions()
-            ->where('admin_id', $admin->id)
-            ->whereBetween('processed_at', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
-            ->orderBy('processed_at')
-            ->orderBy('id')
-            ->get();
+        $report = app(CashierDashboardService::class)->forDate($admin, $date);
 
         return [
-            'transactions' => $transactions,
-            'summary' => app(CashierDashboardService::class)->summarize($transactions),
+            'transactions' => $report['transactions'],
+            'summary' => $report['summary'],
         ];
     }
 

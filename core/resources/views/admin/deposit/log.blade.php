@@ -1785,7 +1785,10 @@
                     $.ajax({
                         url: activePayment.discount_adjust_url,
                         method: 'POST',
-                        data: payload,
+                        data: {
+                            ...payload,
+                            processing_token: activePayment.processing_token
+                        },
                         dataType: 'json',
                         headers: {
                             Accept: 'application/json',

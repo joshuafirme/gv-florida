@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AdminSeatLock;
 use App\Models\BookedTicket;
+use App\Models\TransferSeatHold;
 use App\Models\Trip;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -78,7 +79,8 @@ class SeatConflictService
         int|string $pickup,
         int|string $drop,
         ?int $excludeTicketId = null,
-        bool $lockForUpdate = false
+        bool $lockForUpdate = false,
+        ?string $excludeTransferHoldToken = null
     ): array {
         return collect($this->bookedSeats(
             $trip,
@@ -89,6 +91,14 @@ class SeatConflictService
             $lockForUpdate
         ))
             ->merge($this->lockedSeats($trip, $dateOfJourney, $lockForUpdate))
+            ->merge($this->transferHeldSeats(
+                $trip,
+                $dateOfJourney,
+                $pickup,
+                $drop,
+                $excludeTransferHoldToken,
+                $lockForUpdate
+            ))
             ->unique()
             ->values()
             ->all();
@@ -131,6 +141,62 @@ class SeatConflictService
         }
 
         return $this->normalizeSeats($query->pluck('seat_no')->all());
+    }
+
+    public function transferHeldSeats(
+        Trip $trip,
+        Carbon|string $dateOfJourney,
+        int|string|null $pickup = null,
+        int|string|null $drop = null,
+        ?string $excludeToken = null,
+        bool $lockForUpdate = false
+    ): array {
+        $requestedBounds = $pickup !== null && $drop !== null
+            ? $this->segmentBounds($trip, $pickup, $drop)
+            : null;
+        return $this->normalizeSeats($this->activeTransferHolds(
+            $trip,
+            $dateOfJourney,
+            $excludeToken,
+            $lockForUpdate
+        )
+            ->filter(function (TransferSeatHold $hold) use ($trip, $requestedBounds) {
+                if (!$requestedBounds) {
+                    return true;
+                }
+
+                $holdBounds = $this->segmentBounds(
+                    $trip,
+                    $hold->pickup_point_id,
+                    $hold->dropping_point_id
+                );
+
+                return $holdBounds && $this->segmentsOverlap($requestedBounds, $holdBounds);
+            })
+            ->pluck('seat_no')
+            ->all());
+    }
+
+    public function activeTransferHolds(
+        Trip $trip,
+        Carbon|string $dateOfJourney,
+        ?string $excludeToken = null,
+        bool $lockForUpdate = false
+    ): Collection {
+        $query = TransferSeatHold::query()
+            ->active()
+            ->where('trip_id', $trip->id)
+            ->whereDate('date_of_journey', Carbon::parse($dateOfJourney)->format('Y-m-d'));
+
+        if ($excludeToken) {
+            $query->where('token_hash', '!=', TransferSeatHoldService::tokenHash($excludeToken));
+        }
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+
+        return $query->get();
     }
 
     private function overlappingBookings(

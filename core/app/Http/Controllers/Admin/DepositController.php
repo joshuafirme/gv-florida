@@ -104,40 +104,6 @@ class DepositController extends Controller
         return to_route('admin.deposit.pending')->withNotify($notify);
     }
 
-    public function adjustPendingDiscount(
-        Request $request,
-        Deposit $deposit,
-        PendingPaymentDiscountService $discounts
-    ) {
-        $validated = $request->validate([
-            'seat' => ['required', 'string', 'max:30'],
-            'action' => ['required', Rule::in(['apply', 'remove'])],
-            'discount_id' => [Rule::requiredIf($request->input('action') === 'apply'), 'nullable', 'integer'],
-            'id_number' => [Rule::requiredIf($request->input('action') === 'apply'), 'nullable', 'string', 'max:100'],
-        ]);
-
-        $deposit = $discounts->adjust(
-            $deposit->id,
-            trim($validated['seat']),
-            $validated['action'],
-            isset($validated['discount_id']) ? (int) $validated['discount_id'] : null,
-            $validated['id_number'] ?? null,
-            auth('admin')->user()
-        );
-
-        $deposit->load($this->pendingPaymentRelations());
-
-        return response()->json([
-            'message' => $validated['action'] === 'apply'
-                ? 'Discount applied to the selected ticket.'
-                : 'Discount removed from the selected ticket.',
-            'payment' => array_merge(
-                $this->pendingPaymentPayload($deposit),
-                $this->pendingProcessingPayload($deposit)
-            ),
-        ]);
-    }
-
     public function pendingStatus(Request $request)
     {
         $validated = $request->validate([
@@ -195,6 +161,48 @@ class DepositController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    public function adjustPendingDiscount(
+        Request $request,
+        Deposit $deposit,
+        PendingPaymentDiscountService $discounts,
+        PendingPaymentProcessingService $processing
+    ) {
+        $validated = $request->validate([
+            'seat' => ['required', 'string', 'max:30'],
+            'action' => ['required', Rule::in(['apply', 'remove'])],
+            'discount_id' => [Rule::requiredIf($request->input('action') === 'apply'), 'nullable', 'integer'],
+            'id_number' => [Rule::requiredIf($request->input('action') === 'apply'), 'nullable', 'string', 'max:100'],
+            'processing_token' => ['required', 'string', 'size:64'],
+        ]);
+
+        if (!$processing->renew($deposit, (int) auth('admin')->id(), $validated['processing_token'])) {
+            return response()->json([
+                'message' => 'This payment processing session is no longer active.',
+            ], 409);
+        }
+
+        $deposit = $discounts->adjust(
+            $deposit->id,
+            trim($validated['seat']),
+            $validated['action'],
+            isset($validated['discount_id']) ? (int) $validated['discount_id'] : null,
+            $validated['id_number'] ?? null,
+            auth('admin')->user()
+        );
+
+        $deposit->load($this->pendingPaymentRelations());
+
+        return response()->json([
+            'message' => $validated['action'] === 'apply'
+                ? 'Discount applied to the selected ticket.'
+                : 'Discount removed from the selected ticket.',
+            'payment' => array_merge(
+                $this->pendingPaymentPayload($deposit),
+                $this->pendingProcessingPayload($deposit)
+            ),
+        ]);
     }
 
     public function approved($userId = null)
@@ -424,6 +432,10 @@ class DepositController extends Controller
             'passenger_name' => $fallbackPassengerName,
             'passenger_type' => $fallbackPassengerType,
             'processed_by' => auth('admin')->user()->name,
+            'processing_token' => $deposit->processing_token,
+            'processing_lease_expires_at' => $deposit->processing_lease_expires_at?->toIso8601String(),
+            'heartbeat_url' => route('admin.deposit.pending.processing.heartbeat'),
+            'release_url' => route('admin.deposit.pending.processing.release'),
             'tickets' => $tickets,
             'discounts' => Discount::query()
                 ->where('status', Status::ENABLE)

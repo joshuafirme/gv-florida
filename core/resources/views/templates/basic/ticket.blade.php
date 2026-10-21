@@ -4,7 +4,8 @@
         use Carbon\Carbon;
         $kiosk_id = request()->kiosk_id;
         $allowed_advance_booking_days = getAllowedAdvanceBookingDays($kiosk_id);
-        $advance_window_end = now()->startOfDay()->addDays($allowed_advance_booking_days);
+        $businessToday = \App\Support\BusinessTime::today();
+        $advance_window_end = $businessToday->copy()->addDays($allowed_advance_booking_days);
         $kioskHeroPath = getFilePath('kioskHero') . '/kiosk-hero.png';
         $kioskHeroVersion = file_exists($kioskHeroPath) ? filemtime($kioskHeroPath) : appVersion();
         $kioskHeroUrl = getImage($kioskHeroPath) . '?v=' . $kioskHeroVersion;
@@ -20,11 +21,11 @@
         $selected_counter = request('pickup') ? request('pickup') : request('counter_id');
         $selected_destination = request('destination') ? request('destination') : request('selected_destination');
         $date_of_journey = request('date_of_journey')
-            ? date('Y-m-d', strtotime(request('date_of_journey')))
-            : date('Y-m-d');
+            ? \App\Support\BusinessTime::parse(request('date_of_journey'))->format('Y-m-d')
+            : $businessToday->format('Y-m-d');
         $dateOfJourneyQuery = request('date_of_journey')
-            ? Carbon::parse(request('date_of_journey'))->format('m/d/Y')
-            : date('m/d/Y');
+            ? \App\Support\BusinessTime::parse(request('date_of_journey'))->format('m/d/Y')
+            : $businessToday->format('m/d/Y');
         $dateOfJourneyDisplay = Carbon::parse($date_of_journey)->format('D, M j, Y');
     @endphp
     @extends($activeTemplate . $layout)
