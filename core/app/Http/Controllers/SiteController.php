@@ -493,7 +493,8 @@ class SiteController extends Controller
 
         $trip = Trip::with('route')->find($request->trip_id);
         if ($trip) {
-            $lockedSeats = app(SeatConflictService::class)->lockedSeats($trip, $dateOfJourney);
+            $seatConflicts = app(SeatConflictService::class);
+            $lockedSeats = $seatConflicts->lockedSeats($trip, $dateOfJourney);
 
             if ($lockedSeats) {
                 $bookings->push((object) [
@@ -504,6 +505,16 @@ class SiteController extends Controller
                     'pnr_number' => null,
                 ]);
             }
+
+            $seatConflicts->activeTransferHolds($trip, $dateOfJourney)->each(
+                fn ($hold) => $bookings->push((object) [
+                    'pickup_point' => $hold->pickup_point_id,
+                    'dropping_point' => $hold->dropping_point_id,
+                    'seats' => [$hold->seat_no],
+                    'gender' => null,
+                    'pnr_number' => null,
+                ])
+            );
         }
 
         return $bookings;

@@ -24,6 +24,7 @@ use App\Services\RebookingPolicy;
 use App\Services\SeatConflictService;
 use App\Services\SeatLayoutService;
 use App\Services\TicketPassengerResolver;
+use App\Services\TransferSeatHoldService;
 use App\Services\TicketTransferService;
 use App\Services\TransactionAuthorizationService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -2062,9 +2063,9 @@ class VehicleTicketController extends Controller
 
                 return [
                     'id' => $trip->id,
-                    'label' => ((int) $trip->id === (int) $ticket->trip_id ? '(Current) ' : '')
-                        . ($trip->route?->name ?: $trip->title ?: 'Trip')
-                        . ' - ' . Carbon::parse($trip->schedule->start_from)->format('g:i A'),
+                    'label' => Carbon::parse($trip->schedule->start_from)->format('g:i A')
+                        . ' - ' . ($trip->route?->name ?: $trip->title ?: 'Trip')
+                        . ((int) $trip->id === (int) $ticket->trip_id ? ' - current' : ''),
                     'route' => $trip->route?->name ?: $trip->title ?: 'Trip',
                     'schedule' => Carbon::parse($trip->schedule->start_from)->format('g:i A'),
                     'bus_type' => $trip->fleetType?->name ?: 'Bus',
@@ -2107,6 +2108,8 @@ class VehicleTicketController extends Controller
             'min_date' => today()->format('Y-m-d'),
             'max_date' => $maxDate,
             'availability_url' => route('admin.trip.ticket.transfer.availability', $slip->id),
+            'hold_url' => route('admin.trip.ticket.transfer.hold', $slip->id),
+            'release_url' => route('admin.trip.ticket.transfer.release', $slip->id),
             'confirm_url' => route('admin.trip.ticket.transfer.confirm', $slip->id),
         ]);
     }
@@ -2156,6 +2159,62 @@ class VehicleTicketController extends Controller
         ]);
     }
 
+    public function holdTransferSeat(Request $request, $slip)
+    {
+        $validated = $request->validate([
+            'transfer_type' => 'required|in:passenger,management',
+            'date' => 'required|date',
+            'trip_id' => 'required|integer',
+            'dropping_point' => 'required|integer',
+            'seat' => 'required|string|max:30',
+        ]);
+
+        $result = DB::transaction(function () use ($slip, $validated) {
+            $slip = $this->transferableSlip($slip, true);
+            $ticket = $slip->bookedTicket;
+            [$trip, $drop, $date] = $this->resolveTransferTarget($ticket, $slip, $validated, true);
+            $seat = $this->validatedTransferSeat($trip, $ticket, $slip, [$validated['seat']]);
+
+            return app(TransferSeatHoldService::class)->create(
+                auth('admin')->user(),
+                $ticket,
+                $slip,
+                $trip,
+                $date,
+                (int) $ticket->pickup_point,
+                (int) $drop->id,
+                $seat
+            );
+        }, 3);
+
+        return response()->json([
+            'success' => true,
+            'hold_token' => $result['token'],
+            'seat' => $result['hold']->seat_no,
+            'expires_at' => $result['hold']->expires_at->toIso8601String(),
+            'expires_in_seconds' => TransferSeatHoldService::HOLD_MINUTES * 60,
+            'message' => 'The selected seat is held for 15 minutes.',
+        ]);
+    }
+
+    public function releaseTransferSeat(Request $request, $slip)
+    {
+        $validated = $request->validate([
+            'hold_token' => 'required|string|size:64',
+        ]);
+        $slip = SlipSeriesNumber::findOrFail($slip);
+        $released = app(TransferSeatHoldService::class)->release(
+            $validated['hold_token'],
+            auth('admin')->user(),
+            $slip
+        );
+
+        return response()->json([
+            'success' => true,
+            'released' => $released,
+        ]);
+    }
+
     public function confirmTransfer(Request $request, $slip)
     {
         $validated = $request->validate([
@@ -2171,6 +2230,7 @@ class VehicleTicketController extends Controller
             'payment_method' => 'nullable|string|max:100',
             'approval_remarks' => 'nullable|string|max:1000',
             'authorization_code' => 'required|string|max:100',
+            'hold_token' => 'required|string|size:64',
         ]);
         $reason = $this->transferReason($validated);
 
@@ -2185,24 +2245,18 @@ class VehicleTicketController extends Controller
             $ticket = $slip->bookedTicket;
             [$trip, $drop, $date, $fare] = $this->resolveTransferTarget($ticket, $slip, $validated, true);
             $submittedSeats = array_values(array_unique($validated['seats']));
-            $requestedSeats = app(SeatLayoutService::class)->canonicalizeSeats($trip->fleetType, $submittedSeats);
-
-            if (count($requestedSeats) !== 1 || count($requestedSeats) !== count($submittedSeats)) {
-                throw ValidationException::withMessages([
-                    'seats' => 'Select one valid seat from the new trip seat map.',
-                ]);
-            }
-
-            if ((int) $trip->id === (int) $ticket->trip_id) {
-                $currentSeat = app(SeatLayoutService::class)
-                    ->canonicalizeSeats($trip->fleetType, [(string) $slip->seat])[0] ?? (string) $slip->seat;
-
-                if ($requestedSeats[0] !== $currentSeat) {
-                    throw ValidationException::withMessages([
-                        'seats' => 'The seat cannot be changed when editing only the dropping point.',
-                    ]);
-                }
-            }
+            $requestedSeat = $this->validatedTransferSeat($trip, $ticket, $slip, $submittedSeats);
+            $requestedSeats = [$requestedSeat];
+            $hold = app(TransferSeatHoldService::class)->lockForConfirmation(
+                $validated['hold_token'],
+                auth('admin')->user(),
+                $slip,
+                $trip,
+                $date,
+                (int) $ticket->pickup_point,
+                (int) $drop->id,
+                $requestedSeat
+            );
 
             $availability = $this->seatAvailability(
                 $ticket,
@@ -2211,7 +2265,8 @@ class VehicleTicketController extends Controller
                 true,
                 collect([$slip]),
                 (int) $ticket->pickup_point,
-                (int) $drop->id
+                (int) $drop->id,
+                $validated['hold_token']
             );
             $unavailable = array_merge($availability['booked'], $availability['disabled_full']);
             $conflicts = array_values(array_intersect($requestedSeats, $unavailable));
@@ -2272,6 +2327,8 @@ class VehicleTicketController extends Controller
                 $validated['approval_remarks'] ?? null,
                 $validated['payment_method'] ?? null
             );
+
+            app(TransferSeatHoldService::class)->consume($hold);
 
             return ['ticket' => $transferredTicket, 'quote' => $quote];
         });
@@ -2357,6 +2414,9 @@ class VehicleTicketController extends Controller
         return collect($dropIds)->map(function ($dropId) use ($trip, $ticket, $slip, $counters) {
             $counter = $counters->get((string) $dropId);
             $fare = $counter ? $this->transferFareDetails($trip, $ticket, $slip, (int) $dropId) : null;
+            $routeStop = collect($trip->route?->stopDefinitions() ?? [])->first(
+                fn (array $stop) => (int) $stop['counter_id'] === (int) $dropId
+            );
 
             if (!$counter || !$fare) {
                 return null;
@@ -2365,6 +2425,7 @@ class VehicleTicketController extends Controller
             return [
                 'id' => (int) $counter->id,
                 'name' => $counter->name,
+                'km_post' => $routeStop['km_post'] ?? $counter->km_post,
                 'base_fare' => $fare['base_fare'],
                 'fare' => $fare['fare'],
             ];
@@ -3239,7 +3300,8 @@ class VehicleTicketController extends Controller
         bool $lock = false,
         $targetSlips = null,
         ?int $pickupPoint = null,
-        ?int $droppingPoint = null
+        ?int $droppingPoint = null,
+        ?string $excludeTransferHoldToken = null
     ): array
     {
         $seatConflicts = app(SeatConflictService::class);
@@ -3249,7 +3311,8 @@ class VehicleTicketController extends Controller
             $pickupPoint ?? (int) $ticket->pickup_point,
             $droppingPoint ?? (int) $ticket->dropping_point,
             $ticket->id,
-            $lock
+            $lock,
+            $excludeTransferHoldToken
         ));
         $targetSlipIds = collect($targetSlips ?: $ticket->activeSlipSeriesNumbers)->pluck('id')->all();
         $ticketDate = Carbon::parse($ticket->date_of_journey)->format('Y-m-d');
@@ -3271,6 +3334,41 @@ class VehicleTicketController extends Controller
             'disabled' => $disabled,
             'disabled_full' => $disabledFull,
         ];
+    }
+
+    private function validatedTransferSeat(
+        Trip $trip,
+        BookedTicket $ticket,
+        SlipSeriesNumber $slip,
+        array $submittedSeats
+    ): string {
+        $requestedSeats = app(SeatLayoutService::class)->canonicalizeSeats($trip->fleetType, $submittedSeats);
+
+        if (count($requestedSeats) !== 1 || count($requestedSeats) !== count($submittedSeats)) {
+            throw ValidationException::withMessages([
+                'seat' => 'Select one valid seat from the new trip seat map.',
+            ]);
+        }
+
+        $seat = $requestedSeats[0];
+        if (in_array($seat, app(SeatLayoutService::class)->disabledSeatIds($trip->fleetType), true)) {
+            throw ValidationException::withMessages([
+                'seat' => 'The selected seat is disabled for this bus.',
+            ]);
+        }
+
+        if ((int) $trip->id === (int) $ticket->trip_id) {
+            $currentSeat = app(SeatLayoutService::class)
+                ->canonicalizeSeats($trip->fleetType, [(string) $slip->seat])[0] ?? (string) $slip->seat;
+
+            if ($seat !== $currentSeat) {
+                throw ValidationException::withMessages([
+                    'seat' => 'The seat cannot be changed when editing only the dropping point.',
+                ]);
+            }
+        }
+
+        return $seat;
     }
 
     private function disabledSeatIdentifiers(Trip $trip, array $disabledSeats): array

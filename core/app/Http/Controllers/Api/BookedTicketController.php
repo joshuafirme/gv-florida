@@ -69,7 +69,14 @@ class BookedTicketController extends Controller
         $bookedSeatLabels = collect($bookedSeats)
             ->flatMap(fn ($booking) => $booking['seats'] ?? [])
             ->map(fn ($seat) => preg_replace('/^\d+-/', '', (string) $seat));
-        $lockedSeatLabels = collect(app(SeatConflictService::class)->lockedSeats($trip, $date))
+        $seatConflicts = app(SeatConflictService::class);
+        $lockedSeatLabels = collect($seatConflicts->lockedSeats($trip, $date))
+            ->merge($seatConflicts->transferHeldSeats(
+                $trip,
+                $date,
+                $request->source_id,
+                $request->destination_id
+            ))
             ->map(fn ($seat) => preg_replace('/^\d+-/', '', (string) $seat));
         $seatLayout = app(SeatLayoutService::class)->layout($fleetType, [
             'booked' => $bookedSeatLabels
