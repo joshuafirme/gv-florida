@@ -203,6 +203,53 @@ class CashierTransactionRecorder
         }
     }
 
+    public function recordTransfer(
+        BookedTicket $ticket,
+        Collection $slips,
+        int $adminId,
+        string $status,
+        string $reason,
+        string $batchKey,
+        array $history,
+        float $cashAdjustment,
+        ?Admin $authorizedBy = null,
+        ?string $approvalRemarks = null,
+        ?string $paymentMethod = null
+    ): void {
+        if (!in_array($status, TicketTransferService::TRANSACTION_STATUSES, true)) {
+            throw new \InvalidArgumentException('Unsupported ticket transfer status.');
+        }
+
+        $ticket->loadMissing($this->ticketRelations());
+        $performedBy = Admin::find($adminId);
+
+        foreach ($slips->values() as $slip) {
+            $snapshot = $this->ticketSnapshot($ticket, $slip);
+            if (filled($paymentMethod)) {
+                $snapshot['payment_method'] = trim($paymentMethod);
+            }
+            $snapshot = $this->withTransferHistory($snapshot, $history, $slip);
+            $snapshot = $this->withAuthorizationAudit(
+                $snapshot,
+                $authorizedBy,
+                $performedBy,
+                TransactionAuthorizationService::TRANSFER,
+                now(),
+                $approvalRemarks
+            );
+
+            $this->store(
+                "transferred:{$batchKey}:{$slip->id}",
+                $adminId,
+                $status,
+                $snapshot,
+                $cashAdjustment,
+                $reason,
+                now()
+            );
+        }
+    }
+
     public function ticketSnapshotFor(BookedTicket $ticket, SlipSeriesNumber $slip): array
     {
         return $this->ticketSnapshot($ticket, $slip);
@@ -411,6 +458,22 @@ class CashierTransactionRecorder
             'new_seat' => $newSeat,
         ]);
         $snapshot['rebooking_sequence'] = $sequence;
+
+        return $snapshot;
+    }
+
+    private function withTransferHistory(
+        array $snapshot,
+        array $history,
+        SlipSeriesNumber $slip
+    ): array {
+        $sequence = CashierTransactionEvent::query()
+            ->where('slip_series_number_id', $slip->id)
+            ->whereIn('status', TicketTransferService::TRANSACTION_STATUSES)
+            ->count() + 1;
+
+        $snapshot['transfer'] = array_merge($history, ['sequence' => $sequence]);
+        $snapshot['transfer_sequence'] = $sequence;
 
         return $snapshot;
     }

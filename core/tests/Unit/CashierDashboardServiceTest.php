@@ -66,6 +66,24 @@ class CashierDashboardServiceTest extends TestCase
         $this->assertSame(500.0, $metrics['refunded']['amount']);
     }
 
+    public function test_transfer_upgrade_and_management_refund_affect_collection_totals(): void
+    {
+        $service = new CashierDashboardService(
+            $this->createMock(CashierTransactionRecorder::class)
+        );
+        $transactions = collect([
+            $this->transaction('Sold', 1680),
+            $this->transaction('Upgraded', 420),
+            $this->transaction('Management Transferred', -300),
+        ]);
+
+        $summary = $service->summarize($transactions);
+
+        $this->assertSame(420.0, $summary['surcharges']);
+        $this->assertSame(300.0, $summary['refunds']);
+        $this->assertSame(1800.0, $summary['net_collection']);
+    }
+
     private function transaction(
         string $status,
         float $amount,

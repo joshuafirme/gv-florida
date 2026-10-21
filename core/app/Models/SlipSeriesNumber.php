@@ -36,6 +36,11 @@ class SlipSeriesNumber extends Model
         return $this->hasMany(CashierTransactionEvent::class);
     }
 
+    public function transferSeatHolds()
+    {
+        return $this->hasMany(TransferSeatHold::class);
+    }
+
     public function onlineValidation()
     {
         return $this->hasOne(OnlineTicketValidation::class);

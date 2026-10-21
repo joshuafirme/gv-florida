@@ -13,6 +13,10 @@ class CashierTransactionEvent extends Model
     public const BOOKING_TRANSACTION_STATUSES = [
         'Sold',
         'Rebooked',
+        'Upgraded',
+        'Downgraded',
+        'Transferred',
+        'Management Transferred',
         'Cancelled',
         'Voided',
         'Refunded',

@@ -17,6 +17,7 @@ class TransactionAuthorizationService
     public const REBOOKING = 'Ticket Rebooking';
     public const REFUND = 'Ticket Refund';
     public const SEAT_LOCKING = 'Admin Seat Locking';
+    public const TRANSFER = 'Ticket Transfer';
     public const VOID = 'Ticket Void';
 
     private const REQUIRED_PERMISSIONS = [
@@ -26,6 +27,7 @@ class TransactionAuthorizationService
         self::REBOOKING => 'admin.vehicle.ticket.authorize.rebook',
         self::REFUND => 'admin.vehicle.ticket.authorize.refund',
         self::SEAT_LOCKING => 'admin.trip.seat-locks.index',
+        self::TRANSFER => 'admin.vehicle.ticket.authorize.rebook',
         self::VOID => 'admin.vehicle.ticket.authorize.void',
     ];
 

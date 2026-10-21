@@ -63,6 +63,8 @@
                                                 : 'Regular')
                                             : getPassengerType($paymentRecord);
                                         $passengerIdNumber = $seatPassenger['id_number'] ?? $paymentRecord?->userDiscount?->id_number;
+                                        $latestTransfer = $ticketSlip?->transactionEvents?->first();
+                                        $transferAuthorization = $latestTransfer ? data_get($latestTransfer->snapshot, 'authorization', []) : [];
                                     @endphp
                                     <tr>
                                         <td data-label="@lang('User')">
@@ -144,7 +146,9 @@
                                             @endif
                                         </td>
                                         <td>
-                                            @if ($item?->approved_by)
+                                            @if ($latestTransfer)
+                                                {{ data_get($latestTransfer->snapshot, 'authorization.performed_by_name') ?: 'Administrator' }}
+                                            @elseif ($item?->approved_by)
                                                 {{ $item->approvedBy->name }}
                                             @elseif ($item->kiosk_id)
                                                 {{ $item->kiosk->name }}
@@ -152,9 +156,12 @@
                                                 Paynamics
                                             @endif
                                         </td>
-                                        <td>&mdash;</td>
+                                        <td>{{ $latestTransfer ? ($transferAuthorization['authorized_by_name'] ?? '—') : '—' }}</td>
                                         <td>
-                                            @if ($item->status == 1)
+                                            @if ($latestTransfer)
+                                                <span class="badge badge--info font-weight-normal text--small">{{ $latestTransfer->status }}</span>
+                                                <small class="d-block text-muted mt-1">Transfer #{{ data_get($latestTransfer->snapshot, 'transfer.sequence', 1) }}</small>
+                                            @elseif ($item->status == 1)
                                                 <span
                                                     class="badge badge--success font-weight-normal text--samll">@lang('Booked')</span>
                                             @elseif($item->status == 2)
@@ -194,6 +201,12 @@
                                             @endif
 
                                             @if ($item->status == Status::BOOKED_APPROVED && $ticketSlip)
+                                                     <button type="button" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                         title="Transfer Ticket"
+                                                         class="btn btn-sm btn-outline--primary ms-1 transfer-ticket-btn"
+                                                         data-options-url="{{ route('admin.trip.ticket.transfer.options', $ticketSlip->id) }}">
+                                                         <i class="las la-exchange-alt"></i>
+                                                     </button>
                                                       <button type="button" data-bs-toggle="tooltip" data-bs-placement="bottom"
                                                          title="Refund Ticket"
                                                          class="btn btn-sm btn-outline--warning ms-1 refund-ticket-btn"
@@ -367,6 +380,193 @@
                     <button type="button" class="btn btn--primary d-none" id="rebookConfirmBtn">
                         <i class="las la-redo-alt me-1"></i> Confirm Rebook
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="transferTicketModal" class="modal fade" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered transfer-dialog">
+            <div class="modal-content transfer-modal-content">
+                <div class="modal-header transfer-header">
+                    <div>
+                        <h5 class="modal-title" id="transferModalTitle">Transfer Ticket &middot; <span id="transferPnr"></span></h5>
+                        <p class="mb-0" id="transferModalMeta">Reference <strong id="transferReference"></strong> &middot; <span id="transferPassenger"></span></p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body transfer-body">
+                    <div id="transferLoader" class="text-center py-5">
+                        <div class="spinner-border text-primary"></div>
+                        <p class="text-muted mt-2 mb-0">Loading available trips...</p>
+                    </div>
+                    <div id="transferForm" class="d-none">
+                        <div class="transfer-current-card">
+                            <div><span>Current trip</span><strong id="transferCurrentTrip"></strong></div>
+                            <div><span>Schedule</span><strong id="transferCurrentSchedule"></strong></div>
+                            <div><span>Seat / Fare</span><strong id="transferCurrentSeatFare"></strong></div>
+                        </div>
+
+                        <label class="rebook-label mt-3">Transfer Type</label>
+                        <div class="transfer-type-grid">
+                            <button type="button" class="transfer-type-card" data-transfer-type="passenger">
+                                <i class="las la-user"></i>
+                                <strong>Passenger-Requested</strong>
+                                <span>Fare difference is based on the selected trip.</span>
+                            </button>
+                            <button type="button" class="transfer-type-card" data-transfer-type="management">
+                                <i class="las la-building"></i>
+                                <strong>Management-Initiated</strong>
+                                <span>No additional payment is charged to the passenger.</span>
+                            </button>
+                        </div>
+
+                        <div id="transferSelection" class="d-none mt-3">
+                            <div class="transfer-fields">
+                                <div class="form-group mb-0">
+                                    <label for="transferDate" class="rebook-label">New Travel Date</label>
+                                    <input type="date" id="transferDate" class="form-control">
+                                </div>
+                                <div class="form-group mb-0">
+                                    <label for="transferTrip" class="rebook-label">New Trip / Schedule</label>
+                                    <select id="transferTrip" class="form-control transfer-search-select"></select>
+                                </div>
+                                <div class="form-group mb-0">
+                                    <label for="transferDrop" class="rebook-label">Dropping Point</label>
+                                    <select id="transferDrop" class="form-control transfer-search-select"></select>
+                                    <small id="transferDropHint" class="text-primary d-none mt-1">
+                                        Choose a different dropping point to keep this trip, date, and seat.
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div id="transferManagementReasonField" class="form-group mt-3 mb-0 d-none">
+                                <label for="transferManagementReason" class="rebook-label">Transfer Reason</label>
+                                <select id="transferManagementReason" class="form-control transfer-search-select"></select>
+                            </div>
+                            <div id="transferOtherReasonField" class="form-group mt-3 mb-0 d-none">
+                                <label for="transferOtherReason" class="rebook-label">Company Operational Reason</label>
+                                <textarea id="transferOtherReason" class="form-control" rows="2" maxlength="1000"></textarea>
+                            </div>
+                            <div id="transferPassengerReasonField" class="form-group mt-3 mb-0 d-none">
+                                <label for="transferPassengerReason" class="rebook-label">Passenger Request Details (optional)</label>
+                                <textarea id="transferPassengerReason" class="form-control" rows="2" maxlength="1000"></textarea>
+                            </div>
+
+                            <div id="transferAvailabilityLoader" class="text-center d-none py-4">
+                                <div class="spinner-border text-primary"></div>
+                                <p class="text-muted mt-2 mb-0">Checking trip and seats...</p>
+                            </div>
+                            <div id="transferAvailability" class="d-none">
+                                <div id="transferQuoteCard" class="transfer-quote-card mt-3 d-none">
+                                    <div><span>Transfer Status</span><strong id="transferStatus"></strong></div>
+                                    <div><span>Original Paid Fare</span><strong id="transferOriginalFare"></strong></div>
+                                    <div><span>Selected Trip Fare</span><strong id="transferSelectedFare"></strong></div>
+                                    <div><span id="transferAdjustmentLabel">Fare Adjustment</span><strong id="transferAdjustment"></strong></div>
+                                </div>
+                                <div id="transferPaymentMethodField" class="form-group mt-3 mb-0 d-none">
+                                    <label for="transferPaymentMethod" class="rebook-label">Fare Difference Payment Method</label>
+                                    <select id="transferPaymentMethod" class="form-control">
+                                        <option value="">Select payment method</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="GCash">GCash</option>
+                                        <option value="Card">Card</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="rebook-seat-heading">
+                                    <span>Select one seat for <strong id="transferAvailabilityDate"></strong></span>
+                                    <span class="text-success" id="transferSeatStatus">0 of 1 assigned</span>
+                                </div>
+                                <div class="rebook-legend">
+                                    <span><i class="available"></i>Available</span>
+                                    <span><i class="selected"></i>Selected</span>
+                                    <span><i class="taken"></i>Taken</span>
+                                </div>
+                                <div id="transferSeatMap" class="rebook-seat-map"></div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div id="transferReview" class="d-none">
+                        <div class="transfer-review-banner">
+                            <i class="las la-exchange-alt"></i>
+                            <div>
+                                <strong id="transferReviewType"></strong>
+                                <span id="transferReviewPassenger"></span>
+                            </div>
+                        </div>
+
+                        <div class="transfer-review-route">
+                            <div>
+                                <span>From</span>
+                                <div><strong id="transferReviewFromTrip"></strong><small id="transferReviewFromDetails"></small></div>
+                            </div>
+                            <div>
+                                <span>To</span>
+                                <div><strong id="transferReviewToTrip"></strong><small id="transferReviewToDetails"></small></div>
+                            </div>
+                        </div>
+
+                        <div class="transfer-review-reason">
+                            <span>Reason</span>
+                            <strong id="transferReviewReason"></strong>
+                        </div>
+
+                        <div class="transfer-review-adjustment">
+                            <div>
+                                <span id="transferReviewAdjustmentLabel"></span>
+                                <strong id="transferReviewAdjustment"></strong>
+                            </div>
+                            <div class="transfer-review-total">
+                                <span id="transferReviewTotalLabel"></span>
+                                <strong id="transferReviewTotal"></strong>
+                            </div>
+                        </div>
+
+                        <div class="transfer-hold-notice">
+                            <i class="las la-clock"></i>
+                            <span>Seat <strong id="transferHeldSeat"></strong> is held while you review.</span>
+                            <strong id="transferHoldCountdown">15:00</strong>
+                        </div>
+
+                        <div class="form-group mt-3 mb-0">
+                            <label for="transferAuthorizationCode" class="rebook-label">
+                                <i class="las la-key me-1"></i>Authorization Code
+                            </label>
+                            <div class="transfer-code-field">
+                                <input type="password" id="transferAuthorizationCode" class="form-control"
+                                    placeholder="Supervisor code - required to confirm" autocomplete="new-password"
+                                    autocapitalize="none" autocorrect="off" spellcheck="false"
+                                    data-lpignore="true" data-1p-ignore>
+                                <button type="button" id="transferToggleCode" aria-label="Show authorization code"
+                                    title="Show authorization code"><i class="las la-eye"></i></button>
+                            </div>
+                        </div>
+                        <div class="form-group mt-3 mb-0">
+                            <label for="transferApprovalRemarks" class="rebook-label">Approval Remarks (optional)</label>
+                            <textarea id="transferApprovalRemarks" class="form-control" rows="2" maxlength="1000"
+                                placeholder="Add authorization or operational notes"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer transfer-footer" id="transferSelectionFooter">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn--primary" id="transferReviewBtn" disabled>
+                        Review Transfer <i class="las la-arrow-right ms-1"></i>
+                    </button>
+                </div>
+                <div class="modal-footer transfer-footer d-none" id="transferReviewFooter">
+                    <button type="button" class="btn btn-light" id="transferBackBtn">
+                        <i class="las la-arrow-left me-1"></i> Back
+                    </button>
+                    <div class="transfer-review-actions">
+                        <button type="button" class="btn btn-light" id="transferCancelHoldBtn">Cancel</button>
+                        <button type="button" class="btn btn--primary" id="transferConfirmBtn" disabled>
+                            <i class="las la-exchange-alt me-1"></i> Confirm Transfer
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -650,6 +850,69 @@
         .rebook-success-alert i { background: #13a451; border-radius: 50%; color: #fff; flex: 0 0 auto; padding: 2px; }
         .rebook-footer { border-color: #e6e7eb; justify-content: space-between; padding: 14px 24px; }
         .rebook-footer .btn { border-radius: 7px; font-weight: 600; min-width: 92px; }
+        .transfer-dialog { max-width: 860px; }
+        .transfer-modal-content { border: 0; border-radius: 14px; box-shadow: 0 22px 60px rgba(0, 0, 0, .28); overflow: hidden; }
+        .transfer-header { align-items: flex-start; border-color: #e6e7eb; padding: 20px 24px; }
+        .transfer-header .modal-title { color: #17191e; font-size: 17px; font-weight: 700; }
+        .transfer-header p { color: #747984; font-size: 12px; margin-top: 4px; }
+        .transfer-body { max-height: 76vh; overflow-y: auto; padding: 22px 24px; }
+        .transfer-current-card { background: #f5f6f8; border: 1px solid #dfe1e5; border-radius: 8px; display: grid; gap: 14px; grid-template-columns: 1.5fr 1fr 1fr; padding: 14px 16px; }
+        .transfer-current-card span, .transfer-quote-card span { color: #747984; display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+        .transfer-current-card strong { color: #242830; display: block; font-size: 13px; margin-top: 4px; }
+        .transfer-current-card > div, .transfer-quote-card > div { min-width: 0; }
+        .transfer-current-card strong, .transfer-review-route strong, .transfer-review-route small { overflow-wrap: anywhere; }
+        .transfer-type-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); margin-top: 7px; }
+        .transfer-type-card { align-items: center; background: #fff; border: 1px solid #dcdfe4; border-radius: 8px; color: #30343b; display: grid; gap: 3px 12px; grid-template-columns: 38px 1fr; min-height: 82px; padding: 13px 15px; text-align: left; }
+        .transfer-type-card i { color: #6e747e; font-size: 25px; grid-row: 1 / 3; }
+        .transfer-type-card strong { font-size: 13px; }
+        .transfer-type-card span { color: #7b808a; font-size: 11px; line-height: 1.35; }
+        .transfer-type-card:hover, .transfer-type-card.selected { background: #fff5f9; border-color: #e3196b; box-shadow: 0 0 0 1px #e3196b; }
+        .transfer-type-card.selected i, .transfer-type-card.selected strong { color: #e3196b; }
+        .transfer-fields { display: grid; gap: 12px; grid-template-columns: .8fr 1.4fr 1fr; }
+        .transfer-quote-card { background: #f6f7f9; border: 1px solid #dfe1e5; border-radius: 8px; display: grid; gap: 10px; grid-template-columns: repeat(4, 1fr); padding: 13px 15px; }
+        .transfer-quote-card strong { display: block; font-size: 13px; margin-top: 4px; }
+        .transfer-quote-card > div:last-child strong { color: #e3196b; }
+        .transfer-footer { border-color: #e6e7eb; justify-content: space-between; padding: 14px 24px; }
+        .transfer-footer .btn { border-radius: 7px; font-weight: 600; min-width: 110px; }
+        .transfer-review-actions { display: flex; gap: 10px; }
+        .transfer-review-banner { align-items: center; background: #f1f0ff; border: 1px solid #c9c5f5; border-radius: 8px; color: #3930b7; display: flex; gap: 10px; padding: 14px 16px; }
+        .transfer-review-banner > i { font-size: 20px; }
+        .transfer-review-banner strong, .transfer-review-banner span { display: block; }
+        .transfer-review-banner strong { font-size: 14px; }
+        .transfer-review-banner span { color: #555966; font-size: 11px; margin-top: 4px; }
+        .transfer-review-route { border: 1px solid #dfe1e5; border-radius: 8px; margin-top: 16px; padding: 0 16px; }
+        .transfer-review-route > div { align-items: flex-start; display: grid; gap: 20px; grid-template-columns: 52px 1fr; padding: 12px 0; }
+        .transfer-review-route > div + div { border-top: 1px solid #e6e7eb; }
+        .transfer-review-route span, .transfer-review-reason span, .transfer-review-adjustment span { color: #747984; font-size: 12px; }
+        .transfer-review-route > div > div { text-align: right; }
+        .transfer-review-route strong, .transfer-review-route small { display: block; }
+        .transfer-review-route strong { color: #252830; font-size: 13px; }
+        .transfer-review-route small { color: #686e78; font-size: 11px; margin-top: 3px; }
+        .transfer-review-reason { align-items: center; border: 1px solid #dfe1e5; border-radius: 8px; display: flex; justify-content: space-between; margin-top: 16px; padding: 12px 16px; }
+        .transfer-review-reason strong { font-size: 13px; text-align: right; }
+        .transfer-review-adjustment { background: #f0fbf5; border: 1px solid #a9dfc2; border-radius: 8px; margin-top: 16px; padding: 14px 16px; }
+        .transfer-review-adjustment > div { align-items: center; display: flex; justify-content: space-between; }
+        .transfer-review-adjustment strong { font-size: 14px; }
+        .transfer-review-total { border-top: 1px solid #cde8d9; margin-top: 12px; padding-top: 12px; }
+        .transfer-review-total strong { color: #12814b; font-size: 18px; }
+        .transfer-hold-notice { align-items: center; background: #fff8e8; border: 1px solid #efd18b; border-radius: 8px; color: #715317; display: flex; font-size: 12px; gap: 8px; margin-top: 16px; padding: 10px 12px; }
+        .transfer-hold-notice > i { font-size: 17px; }
+        .transfer-hold-notice > span { flex: 1; }
+        .transfer-hold-notice > strong { font-variant-numeric: tabular-nums; }
+        .transfer-code-field { position: relative; }
+        .transfer-code-field .form-control { padding-right: 44px; }
+        .transfer-code-field button { background: transparent; border: 0; color: #737984; height: 100%; position: absolute; right: 0; top: 0; width: 42px; }
+        .transfer-code-field button:hover, .transfer-code-field button:focus { color: #d91c67; }
+        #transferTicketModal .select2-container { width: 100% !important; }
+        #transferTicketModal .select2-container .select2-selection--single { align-items: center; background: #f5f5f7; border: 1px solid #d5d7dc; border-radius: 8px; display: flex; height: 43px; }
+        #transferTicketModal .select2-container .select2-selection__rendered { color: #2d3138; font-size: 12px; line-height: 41px; padding-left: 12px; padding-right: 30px; }
+        #transferTicketModal .select2-container .select2-selection__arrow { height: 41px; right: 5px; }
+        #transferTicketModal .select2-container--open .select2-selection--single { border-color: #e3196b; box-shadow: 0 0 0 2px rgba(227, 25, 107, .12); }
+        .transfer-select-dropdown { border: 1px solid #d3d6dc; border-radius: 8px; box-shadow: 0 10px 24px rgba(26, 30, 38, .16); overflow: hidden; }
+        .transfer-select-dropdown .select2-search { padding: 9px; }
+        .transfer-select-dropdown .select2-search__field { background: #f4f4f6; border: 1px solid #d2d5da !important; border-radius: 7px; height: 36px; padding: 7px 10px; }
+        .transfer-select-dropdown .select2-results__option { color: #555a64; font-size: 12px; padding: 9px 13px; }
+        .transfer-select-dropdown .select2-results__option--highlighted.select2-results__option--selectable, .transfer-select-dropdown .select2-results__option--selected { background: #fff0f6; color: #d91c67; }
         .refund-dialog { max-width: 570px; }
         .refund-modal-content { border: 0; border-radius: 15px; box-shadow: 0 22px 60px rgba(0, 0, 0, .28); }
         .refund-modal-content .modal-header { padding: 24px 26px 8px; }
@@ -720,7 +983,8 @@
         .cancel-review-total strong { color: #d83535; font-size: 20px; }
         .cancel-footer { justify-content: flex-end; gap: 12px; padding: 8px 30px 28px; }
         .cancel-footer .btn { border-radius: 9px; font-weight: 600; min-height: 43px; padding-left: 22px; padding-right: 22px; }
-        @media (max-width: 575.98px) { .rebook-type-grid { grid-template-columns: 1fr; } .rebook-body { max-height: 68vh; padding: 18px 16px; } .rebook-review-grid { grid-template-columns: 58px 1fr 1fr; } }
+        @media (max-width: 767.98px) { .transfer-fields, .transfer-quote-card { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 575.98px) { .rebook-type-grid, .transfer-type-grid, .transfer-current-card, .transfer-fields, .transfer-quote-card { grid-template-columns: 1fr; } .rebook-body, .transfer-body { max-height: 68vh; padding: 18px 16px; } .rebook-review-grid { grid-template-columns: 58px 1fr 1fr; } #transferReviewFooter { align-items: stretch; flex-direction: column-reverse; } .transfer-review-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; } .transfer-footer .btn { min-width: 0; width: 100%; } }
     </style>
 
     <x-confirmation-modal />
@@ -1311,6 +1575,609 @@
 
             $('#rebookModal').on('hide.bs.modal hidden.bs.modal', function() {
                 $('#rebookAuthorizationCode').val('').attr('type', 'password');
+            });
+        })(jQuery);
+
+        (function($) {
+            const modal = new bootstrap.Modal(document.getElementById('transferTicketModal'));
+            const currency = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
+            const csrfToken = "{{ csrf_token() }}";
+            let data = null;
+            let transferType = null;
+            let availability = null;
+            let selectedSeat = null;
+            let holdToken = null;
+            let holdExpiresAt = null;
+            let holdTimer = null;
+            let finalizingTransfer = false;
+            let availabilityRequest = null;
+
+            const escapeHtml = value => $('<div>').text(value ?? '').html();
+            const errorMessage = xhr => {
+                const errors = xhr.responseJSON?.errors;
+                return errors ? Object.values(errors).flat()[0] :
+                    (xhr.responseJSON?.message || 'Unable to process this ticket transfer.');
+            };
+
+            function clearHoldState() {
+                window.clearInterval(holdTimer);
+                holdTimer = null;
+                holdToken = null;
+                holdExpiresAt = null;
+                $('#transferHoldCountdown').text('15:00');
+                $('#transferConfirmBtn').prop('disabled', true);
+            }
+
+            function releaseTransferHold(useBeacon = false) {
+                if (!holdToken || !data?.release_url) return null;
+
+                const token = holdToken;
+                const releaseUrl = data.release_url;
+                clearHoldState();
+
+                if (useBeacon && navigator.sendBeacon) {
+                    const body = new FormData();
+                    body.append('_token', csrfToken);
+                    body.append('hold_token', token);
+                    navigator.sendBeacon(releaseUrl, body);
+                    return null;
+                }
+
+                return $.ajax({
+                    url: releaseUrl,
+                    method: 'POST',
+                    dataType: 'json',
+                    data: {
+                        _token: csrfToken,
+                        hold_token: token
+                    }
+                });
+            }
+
+            function showTransferStage(stage) {
+                const reviewing = stage === 'review';
+                $('#transferForm').toggleClass('d-none', reviewing);
+                $('#transferReview').toggleClass('d-none', !reviewing);
+                $('#transferSelectionFooter').toggleClass('d-none', reviewing);
+                $('#transferReviewFooter').toggleClass('d-none', !reviewing);
+                $('#transferModalMeta').toggleClass('d-none', reviewing);
+
+                if (reviewing) {
+                    $('#transferModalTitle').text('Review & Confirm Transfer');
+                    window.setTimeout(() => $('#transferAuthorizationCode').trigger('focus'), 150);
+                } else {
+                    const pnr = data?.booking?.pnr || '...';
+                    $('#transferModalTitle').html(`Transfer Ticket &middot; <span id="transferPnr">${escapeHtml(pnr)}</span>`);
+                }
+            }
+
+            function initializeTransferSelects() {
+                if (!$.fn.select2) return;
+
+                $('#transferTrip, #transferDrop, #transferManagementReason').each(function() {
+                    const select = $(this);
+                    if (select.hasClass('select2-hidden-accessible')) {
+                        select.select2('destroy');
+                    }
+                    select.select2({
+                        dropdownParent: $('#transferTicketModal'),
+                        dropdownCssClass: 'transfer-select-dropdown',
+                        minimumResultsForSearch: 0,
+                        width: '100%'
+                    });
+                });
+            }
+
+            function resetTransfer() {
+                if (availabilityRequest) {
+                    availabilityRequest.abort();
+                    availabilityRequest = null;
+                }
+                data = null;
+                transferType = null;
+                availability = null;
+                selectedSeat = null;
+                finalizingTransfer = false;
+                clearHoldState();
+                $('.transfer-type-card').removeClass('selected');
+                $('#transferForm, #transferSelection, #transferAvailability, #transferAvailabilityLoader, #transferReview')
+                    .addClass('d-none');
+                $('#transferQuoteCard, #transferDropHint').addClass('d-none');
+                $('#transferLoader').removeClass('d-none');
+                $('#transferAuthorizationCode, #transferApprovalRemarks, #transferPassengerReason, #transferOtherReason').val('');
+                $('#transferPaymentMethod').val('');
+                $('#transferReviewBtn, #transferConfirmBtn').prop('disabled', true);
+                $('#transferSelectionFooter').removeClass('d-none');
+                $('#transferReviewFooter').addClass('d-none');
+                $('#transferModalMeta').removeClass('d-none');
+            }
+
+            function openTransfer(optionsUrl) {
+                releaseTransferHold();
+                resetTransfer();
+                $('#transferPnr, #transferReference, #transferPassenger').text('...');
+                modal.show();
+
+                $.getJSON(optionsUrl).done(function(response) {
+                    data = response;
+                    const booking = data.booking;
+                    $('#transferPnr').text(booking.pnr);
+                    $('#transferReference').text(booking.reference);
+                    $('#transferPassenger').text(`${booking.passenger_name} · ${booking.passenger_type}`);
+                    $('#transferCurrentTrip').text(`${booking.trip} · ${booking.pickup} to ${booking.drop}`);
+                    $('#transferCurrentSchedule').text(`${booking.date_display} · ${booking.time}`);
+                    $('#transferCurrentSeatFare').text(`${formatSeatLabel(booking.seat)} · ${currency.format(booking.fare)}`);
+                    $('#transferDate').attr({ min: data.min_date, max: data.max_date }).val(booking.date);
+                    $('#transferTrip').html(data.trips.map(trip =>
+                        `<option value="${trip.id}">${escapeHtml(trip.label)} · ${escapeHtml(trip.bus_type)}</option>`
+                    ).join(''));
+                    if (data.trips.some(trip => String(trip.id) === String(booking.trip_id))) {
+                        $('#transferTrip').val(String(booking.trip_id));
+                    }
+                    $('#transferManagementReason').html('<option value="">Select reason</option>' +
+                        data.management_reasons.map(reason => `<option value="${escapeHtml(reason)}">${escapeHtml(reason)}</option>`).join(''));
+                    updateTransferDrops(isCurrentTransferTrip() ? booking.drop_id : null);
+                    initializeTransferSelects();
+                    syncTransferTargetMode();
+                    $('#transferLoader').addClass('d-none');
+                    $('#transferForm, #transferSelection').removeClass('d-none');
+                    showTransferStage('selection');
+
+                    if (isCurrentTransferTrip() && data.initial_availability) {
+                        renderInitialTransferAvailability();
+                    }
+
+                    if (!data.trips.length) {
+                        notify('error', 'No active trip is available from this pickup point.');
+                    }
+                }).fail(function(xhr) {
+                    notify('error', errorMessage(xhr));
+                    modal.hide();
+                });
+            }
+
+            $(document).on('click', '.transfer-ticket-btn', function(event) {
+                event.preventDefault();
+                openTransfer($(this).data('options-url'));
+            });
+
+            $('.transfer-type-card').on('click', function() {
+                transferType = $(this).data('transfer-type');
+                $('.transfer-type-card').removeClass('selected');
+                $(this).addClass('selected');
+                $('#transferManagementReasonField').toggleClass('d-none', transferType !== 'management');
+                $('#transferPassengerReasonField').toggleClass('d-none', transferType !== 'passenger');
+                $('#transferOtherReasonField').toggleClass(
+                    'd-none',
+                    transferType !== 'management' || $('#transferManagementReason').val() !== 'Other Company Operational Reasons'
+                );
+                loadTransferAvailability();
+            });
+
+            function selectedTrip() {
+                return data?.trips?.find(trip => String(trip.id) === String($('#transferTrip').val()));
+            }
+
+            function isCurrentTransferTrip() {
+                return data && String($('#transferTrip').val()) === String(data.booking.trip_id);
+            }
+
+            function isUnchangedCurrentTarget() {
+                return isCurrentTransferTrip() &&
+                    String($('#transferDrop').val()) === String(data.booking.drop_id);
+            }
+
+            function updateTransferDrops(preferredDrop = null) {
+                const trip = selectedTrip();
+                $('#transferDrop').html((trip?.drops || []).map(drop => {
+                    const isCurrent = isCurrentTransferTrip() && String(drop.id) === String(data.booking.drop_id);
+                    const kmPost = drop.km_post !== null && drop.km_post !== undefined
+                        ? ` - KM ${escapeHtml(drop.km_post)}`
+                        : '';
+                    const current = isCurrent ? ' - current' : '';
+                    return `<option value="${drop.id}">${escapeHtml(drop.name)}${kmPost}${current} - ${currency.format(drop.fare)}</option>`;
+                }).join(''));
+
+                if (preferredDrop !== null && (trip?.drops || []).some(drop => String(drop.id) === String(preferredDrop))) {
+                    $('#transferDrop').val(String(preferredDrop));
+                }
+                $('#transferDrop').trigger('change.select2');
+            }
+
+            function syncTransferTargetMode() {
+                const sameTrip = isCurrentTransferTrip();
+                $('#transferDate').prop('disabled', sameTrip);
+                if (sameTrip) {
+                    $('#transferDate').val(data.booking.date);
+                } else if ($('#transferDate').val() < data.min_date || $('#transferDate').val() > data.max_date) {
+                    $('#transferDate').val(data.default_date);
+                }
+                $('#transferDropHint').toggleClass('d-none', !isUnchangedCurrentTarget());
+            }
+
+            function renderInitialTransferAvailability() {
+                const response = data.initial_availability;
+                if (!response) return;
+
+                availability = null;
+                $('#transferQuoteCard, #transferPaymentMethodField').addClass('d-none');
+                $('#transferSeatMap').html(response.html);
+                applyTransferSeatAvailability(response);
+                $('#transferAvailabilityDate').text(`${response.date_display} · ${response.time}`);
+                $('#transferAvailability').removeClass('d-none');
+            }
+
+            $('#transferTrip').on('change', function() {
+                updateTransferDrops(isCurrentTransferTrip() ? data.booking.drop_id : null);
+                syncTransferTargetMode();
+
+                if (isCurrentTransferTrip() && data.initial_availability) {
+                    renderInitialTransferAvailability();
+                }
+                loadTransferAvailability();
+            });
+            $('#transferDate, #transferDrop').on('change', function() {
+                syncTransferTargetMode();
+                loadTransferAvailability();
+            });
+            $('#transferManagementReason').on('change', function() {
+                $('#transferOtherReasonField').toggleClass(
+                    'd-none',
+                    $(this).val() !== 'Other Company Operational Reasons'
+                );
+                updateTransferSelectionState();
+            });
+            $('#transferOtherReason, #transferPaymentMethod').on('input change', updateTransferSelectionState);
+            $('#transferAuthorizationCode').on('input', updateTransferConfirmationState);
+
+            function loadTransferAvailability() {
+                if (availabilityRequest) {
+                    availabilityRequest.abort();
+                    availabilityRequest = null;
+                }
+
+                if (!data || !transferType || !$('#transferDate').val() || !$('#transferTrip').val() || !$('#transferDrop').val()) {
+                    availability = null;
+                    if (!data?.initial_availability || !isCurrentTransferTrip()) {
+                        selectedSeat = null;
+                        $('#transferAvailability').addClass('d-none');
+                    }
+                    updateTransferSelectionState();
+                    return;
+                }
+
+                if (isUnchangedCurrentTarget()) {
+                    availability = null;
+                    $('#transferDropHint').removeClass('d-none');
+                    renderInitialTransferAvailability();
+                    updateTransferSelectionState();
+                    return;
+                }
+
+                availability = null;
+                selectedSeat = null;
+                $('#transferDropHint').addClass('d-none');
+                $('#transferAvailability').addClass('d-none');
+                $('#transferAvailabilityLoader').removeClass('d-none');
+                updateTransferSelectionState();
+
+                const request = $.getJSON(data.availability_url, {
+                    transfer_type: transferType,
+                    date: $('#transferDate').val(),
+                    trip_id: $('#transferTrip').val(),
+                    dropping_point: $('#transferDrop').val()
+                }).done(function(response) {
+                    availability = response;
+                    $('#transferSeatMap').html(response.html);
+                    applyTransferSeatAvailability(response);
+                    showTransferQuote(response);
+                    $('#transferAvailabilityDate').text(`${response.after.date_display} · ${response.after.time}`);
+                    $('#transferAvailability').removeClass('d-none');
+                }).fail(function(xhr) {
+                    if (xhr.statusText !== 'abort') {
+                        notify('error', errorMessage(xhr));
+                    }
+                }).always(function() {
+                    if (availabilityRequest === request) {
+                        availabilityRequest = null;
+                        $('#transferAvailabilityLoader').addClass('d-none');
+                        updateTransferSelectionState();
+                    }
+                });
+                availabilityRequest = request;
+            }
+
+            function transferSeatId(element) {
+                const canonical = $(element).attr('data-seat');
+                if (canonical) return String(canonical).trim();
+                const label = $(element).attr('data-label') || $(element).clone().children().remove().end().text().trim();
+                const deck = $(element).closest('.seat-plan-inner').data('deck');
+                return `${deck}-${label}`;
+            }
+
+            function applyTransferSeatAvailability(response) {
+                const booked = response.booked_seats || [];
+                const disabled = response.disabled_seats || [];
+                const preselected = response.selected_seats || [];
+                const restrictToCurrentSeat = Boolean(response.same_trip_drop_edit);
+                selectedSeat = null;
+                $('#transferSeatMap .seat').each(function() {
+                    if ($(this).hasClass('comfort-room')) return;
+                    const label = String($(this).attr('data-label') || '').trim();
+                    const id = transferSeatId(this);
+                    const isPreselected = preselected.includes(id) || preselected.includes(label);
+                    const isDisabled = disabled.includes(label) || disabled.includes(id) || $(this).find('del').length;
+                    $(this).removeClass('selected booked-seat disabled-seat');
+                    if (isPreselected) {
+                        $(this).addClass('selected');
+                        selectedSeat = id;
+                    } else if (restrictToCurrentSeat || isDisabled) {
+                        $(this).addClass('disabled-seat');
+                    } else if (booked.includes(id)) {
+                        $(this).addClass('booked-seat');
+                    }
+                });
+                $('#transferSeatStatus').text(selectedSeat
+                    ? `Assigned · ${formatSeatLabel(selectedSeat)}`
+                    : '0 of 1 assigned');
+            }
+
+            function showTransferQuote(response) {
+                const quote = response.quote;
+                $('#transferQuoteCard').removeClass('d-none');
+                $('#transferStatus').text(quote.status);
+                $('#transferOriginalFare').text(currency.format(quote.original_fare));
+                $('#transferSelectedFare').text(currency.format(quote.selected_fare));
+
+                if (Number(quote.amount_due) > 0) {
+                    $('#transferAdjustmentLabel').text('Amount Due');
+                    $('#transferAdjustment').text(currency.format(quote.amount_due));
+                } else if (Number(quote.refund_amount) > 0) {
+                    $('#transferAdjustmentLabel').text('Refund Due');
+                    $('#transferAdjustment').text(`-${currency.format(quote.refund_amount)}`);
+                } else if (quote.status === 'Downgraded') {
+                    $('#transferAdjustmentLabel').text('Fare Retained');
+                    $('#transferAdjustment').text(currency.format(quote.final_fare));
+                } else {
+                    $('#transferAdjustmentLabel').text('Fare Adjustment');
+                    $('#transferAdjustment').text(currency.format(0));
+                }
+
+                $('#transferPaymentMethodField').toggleClass('d-none', Number(quote.amount_due) <= 0);
+                if (Number(quote.amount_due) <= 0) $('#transferPaymentMethod').val('');
+            }
+
+            $(document).on('click.transfer', '#transferSeatMap .seat:not(.disabled-seat):not(.booked-seat):not(.comfort-room)', function() {
+                $('#transferSeatMap .seat').removeClass('selected');
+                $(this).addClass('selected');
+                selectedSeat = transferSeatId(this);
+                $('#transferSeatStatus').text(`Assigned · ${formatSeatLabel(selectedSeat)}`);
+                updateTransferSelectionState();
+            });
+
+            function transferSelectionIsValid() {
+                const managementReasonValid = transferType !== 'management' || (
+                    $('#transferManagementReason').val() &&
+                    ($('#transferManagementReason').val() !== 'Other Company Operational Reasons' || $('#transferOtherReason').val().trim())
+                );
+                const paymentValid = !availability || Number(availability.quote.amount_due) <= 0 || $('#transferPaymentMethod').val();
+                return Boolean(availability && selectedSeat && managementReasonValid && paymentValid);
+            }
+
+            function updateTransferSelectionState() {
+                $('#transferReviewBtn').prop('disabled', !transferSelectionIsValid());
+            }
+
+            function updateTransferConfirmationState() {
+                $('#transferConfirmBtn').prop('disabled', !(holdToken && $('#transferAuthorizationCode').val().trim()));
+            }
+
+            function transferPayload() {
+                return {
+                    _token: csrfToken,
+                    transfer_type: transferType,
+                    date: $('#transferDate').val(),
+                    trip_id: $('#transferTrip').val(),
+                    dropping_point: $('#transferDrop').val(),
+                    management_reason: $('#transferManagementReason').val(),
+                    other_reason: $('#transferOtherReason').val(),
+                    passenger_reason: $('#transferPassengerReason').val(),
+                    payment_method: $('#transferPaymentMethod').val()
+                };
+            }
+
+            function transferReasonText() {
+                if (transferType === 'passenger') {
+                    return $('#transferPassengerReason').val().trim() || 'Passenger request';
+                }
+
+                const reason = $('#transferManagementReason').val();
+                return reason === 'Other Company Operational Reasons'
+                    ? `${reason}: ${$('#transferOtherReason').val().trim()}`
+                    : reason;
+            }
+
+            function fillTransferReview() {
+                const booking = data.booking;
+                const next = availability.after;
+                const quote = availability.quote;
+                const isManagement = transferType === 'management';
+                const amountDue = Number(quote.amount_due) || 0;
+                const refund = Number(quote.refund_amount) || 0;
+
+                $('#transferReviewType').text(isManagement ? 'Management Transfer' : 'Passenger Transfer');
+                $('#transferReviewPassenger').text(`${booking.passenger_name} \u00b7 PNR ${booking.pnr} \u00b7 Ref ${booking.reference}`);
+                $('#transferReviewFromTrip').text(`${booking.bus_type} \u00b7 ${booking.trip}`);
+                $('#transferReviewFromDetails').text(`${booking.time} \u00b7 ${booking.date_display} \u00b7 Seat ${formatSeatLabel(booking.seat)} \u00b7 ${booking.drop} \u00b7 ${currency.format(booking.fare)}`);
+                $('#transferReviewToTrip').text(`${next.bus_type} \u00b7 ${next.trip}`);
+                $('#transferReviewToDetails').text(`${next.time} \u00b7 ${next.date_display} \u00b7 Seat ${formatSeatLabel(selectedSeat)} \u00b7 ${next.drop} \u00b7 ${currency.format(next.fare)}`);
+                $('#transferReviewReason').text(transferReasonText());
+                $('#transferHeldSeat').text(formatSeatLabel(selectedSeat));
+
+                if (amountDue > 0) {
+                    $('#transferReviewAdjustmentLabel').text('Fare difference (amount due)');
+                    $('#transferReviewAdjustment').text(currency.format(amountDue));
+                    $('#transferReviewTotalLabel').text('To collect');
+                    $('#transferReviewTotal').text(currency.format(amountDue));
+                } else if (refund > 0) {
+                    $('#transferReviewAdjustmentLabel').text('Fare difference (refundable)');
+                    $('#transferReviewAdjustment').text(currency.format(refund));
+                    $('#transferReviewTotalLabel').text('To refund');
+                    $('#transferReviewTotal').text(`-${currency.format(refund)}`);
+                } else {
+                    $('#transferReviewAdjustmentLabel').text('Fare adjustment');
+                    $('#transferReviewAdjustment').text(currency.format(0));
+                    $('#transferReviewTotalLabel').text('Final fare');
+                    $('#transferReviewTotal').text(currency.format(quote.final_fare));
+                }
+            }
+
+            function startHoldCountdown(expiresAt) {
+                window.clearInterval(holdTimer);
+                holdExpiresAt = expiresAt;
+
+                const tick = function() {
+                    const remaining = Math.max(0, Math.ceil((Date.parse(holdExpiresAt) - Date.now()) / 1000));
+                    const minutes = String(Math.floor(remaining / 60)).padStart(2, '0');
+                    const seconds = String(remaining % 60).padStart(2, '0');
+                    $('#transferHoldCountdown').text(`${minutes}:${seconds}`);
+
+                    if (remaining <= 0) {
+                        releaseTransferHold();
+                        notify('error', 'The 15-minute seat hold expired. Select the seat again to continue.');
+                        showTransferStage('selection');
+                        loadTransferAvailability();
+                    }
+                };
+
+                tick();
+                holdTimer = window.setInterval(tick, 1000);
+            }
+
+            $('#transferReviewBtn').on('click', function() {
+                if (!transferSelectionIsValid()) return;
+
+                const button = $(this);
+                const originalLabel = button.html();
+                const payload = transferPayload();
+                payload.seat = selectedSeat;
+                button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Holding seat...');
+
+                $.ajax({
+                    url: data.hold_url,
+                    method: 'POST',
+                    dataType: 'json',
+                    data: payload
+                }).done(function(response) {
+                    holdToken = response.hold_token;
+                    holdExpiresAt = response.expires_at;
+                    $('#transferAuthorizationCode, #transferApprovalRemarks').val('');
+                    fillTransferReview();
+                    showTransferStage('review');
+                    startHoldCountdown(response.expires_at);
+                    updateTransferConfirmationState();
+                }).fail(function(xhr) {
+                    notify('error', errorMessage(xhr));
+                    loadTransferAvailability();
+                }).always(function() {
+                    button.html(originalLabel);
+                    updateTransferSelectionState();
+                });
+            });
+
+            $('#transferBackBtn').on('click', function() {
+                const request = releaseTransferHold();
+                showTransferStage('selection');
+                if (request) {
+                    request.always(loadTransferAvailability);
+                } else {
+                    loadTransferAvailability();
+                }
+            });
+
+            $('#transferCancelHoldBtn').on('click', function() {
+                const button = $(this);
+                button.prop('disabled', true);
+                const request = releaseTransferHold();
+                if (request) {
+                    request.always(function() {
+                        button.prop('disabled', false);
+                        modal.hide();
+                    });
+                } else {
+                    button.prop('disabled', false);
+                    modal.hide();
+                }
+            });
+
+            $('#transferToggleCode').on('click', function() {
+                const input = $('#transferAuthorizationCode');
+                const showing = input.attr('type') === 'text';
+                input.attr('type', showing ? 'password' : 'text');
+                $(this).attr('aria-label', showing ? 'Show authorization code' : 'Hide authorization code')
+                    .attr('title', showing ? 'Show authorization code' : 'Hide authorization code')
+                    .find('i').toggleClass('la-eye', showing).toggleClass('la-eye-slash', !showing);
+            });
+
+            $('#transferConfirmBtn').on('click', function() {
+                if (!holdToken || !$('#transferAuthorizationCode').val().trim()) return;
+
+                const button = $(this);
+                const originalLabel = button.html();
+                const printWindow = window.open('', '_blank');
+                const payload = transferPayload();
+                payload.seats = [selectedSeat];
+                payload.hold_token = holdToken;
+                payload.authorization_code = $('#transferAuthorizationCode').val();
+                payload.approval_remarks = $('#transferApprovalRemarks').val();
+                button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Transferring...');
+
+                $.ajax({
+                    url: data.confirm_url,
+                    method: 'POST',
+                    dataType: 'json',
+                    data: payload
+                }).done(function(response) {
+                    finalizingTransfer = true;
+                    clearHoldState();
+                    notify('success', response.message);
+                    if (printWindow) {
+                        printWindow.location = response.print_url;
+                    } else {
+                        window.open(response.print_url, '_blank');
+                    }
+                    modal.hide();
+                    setTimeout(() => window.location.reload(), 1200);
+                }).fail(function(xhr) {
+                    if (printWindow) printWindow.close();
+                    notify('error', errorMessage(xhr));
+                    $('#transferAuthorizationCode').val('');
+                    button.prop('disabled', false).html(originalLabel);
+
+                    const errors = xhr.responseJSON?.errors || {};
+                    if (errors.hold_token || errors.seat || errors.seats) {
+                        releaseTransferHold();
+                        showTransferStage('selection');
+                        loadTransferAvailability();
+                    } else {
+                        updateTransferConfirmationState();
+                    }
+                });
+            });
+
+            $('#transferTicketModal').on('hide.bs.modal', function() {
+                if (!finalizingTransfer) {
+                    releaseTransferHold(true);
+                }
+            }).on('hidden.bs.modal', function() {
+                $('#transferAuthorizationCode').val('').attr('type', 'password');
+                $('#transferToggleCode').attr('aria-label', 'Show authorization code')
+                    .attr('title', 'Show authorization code')
+                    .find('i').removeClass('la-eye-slash').addClass('la-eye');
+            });
+
+            window.addEventListener('beforeunload', function() {
+                if (!finalizingTransfer) releaseTransferHold(true);
             });
         })(jQuery);
 

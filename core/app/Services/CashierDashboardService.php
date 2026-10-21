@@ -99,8 +99,13 @@ class CashierDashboardService
     public function summarize(Collection $transactions): array
     {
         $sold = $transactions->where('status', 'Sold');
-        $surcharges = (float) $sold->sum('surcharge_amount');
-        $refunds = $transactions->whereIn('status', ['Refunded', 'Discount Override']);
+        $transferUpgrades = $transactions->where('status', TicketTransferService::STATUS_UPGRADED)
+            ->filter(fn ($transaction) => (float) $transaction->amount > 0);
+        $managementRefunds = $transactions->where('status', TicketTransferService::STATUS_MANAGEMENT_TRANSFERRED)
+            ->filter(fn ($transaction) => (float) $transaction->amount < 0);
+        $surcharges = (float) $sold->sum('surcharge_amount') + (float) $transferUpgrades->sum('amount');
+        $refunds = $transactions->whereIn('status', ['Refunded', 'Discount Override'])
+            ->concat($managementRefunds);
 
         return [
             'tickets' => $sold->count(),
