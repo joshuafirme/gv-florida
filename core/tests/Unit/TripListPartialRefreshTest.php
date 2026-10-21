@@ -67,9 +67,32 @@ class TripListPartialRefreshTest extends TestCase
         $this->assertStringContainsString('padding: 13px 18px 2px;', $ticketView);
         $this->assertStringContainsString('margin: 10px 18px 0;', $ticketView);
         $this->assertStringContainsString('minmax(230px, .85fr)', $ticketView);
-        $this->assertStringContainsString('overflow-wrap: anywhere;', $ticketView);
+        $this->assertStringContainsString('grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr) minmax(0, 1fr);', $ticketView);
         $this->assertMatchesRegularExpression('/\\.trip-time-main\\s*\\{[^}]*white-space:\\s*nowrap;/s', $ticketView);
-        $this->assertStringContainsString('font-size: clamp(26px, 2.8vw, 32px);', $ticketView);
-        $this->assertStringContainsString('@media screen and (min-width: 768px) and (max-width: 900px)', $ticketView);
+        $this->assertStringContainsString('body.kiosk-interface .trip-card-main .trip-time-main', $ticketView);
+        $this->assertStringContainsString("@lang('Travel date')", $partial);
+        $this->assertStringNotContainsString("@lang('Approx.')", $partial);
+    }
+
+    public function test_booking_flow_responsive_controls_are_scoped_and_dismissible(): void
+    {
+        $appLayout = file_get_contents(resource_path('views/templates/basic/layouts/app.blade.php'));
+        $frontendLayout = file_get_contents(resource_path('views/templates/basic/layouts/frontend.blade.php'));
+        $masterLayout = file_get_contents(resource_path('views/templates/basic/layouts/master.blade.php'));
+        $stepper = file_get_contents(resource_path('views/templates/basic/partials/booking_stepper.blade.php'));
+        $reminders = file_get_contents(resource_path('views/templates/basic/partials/passenger-reminders-modal.blade.php'));
+        $ticketView = file_get_contents(resource_path('views/templates/basic/ticket.blade.php'));
+
+        $this->assertStringContainsString("session()->has('kiosk_id')", $appLayout);
+        $this->assertStringContainsString('user-scalable=no', $appLayout);
+        $this->assertStringContainsString('event.touches.length > 1', $appLayout);
+        $this->assertStringContainsString('request()->routeIs([', $frontendLayout);
+        $this->assertStringContainsString('request()->routeIs([', $masterLayout);
+        $this->assertStringContainsString("'ticket.seats'", $frontendLayout);
+        $this->assertStringContainsString('.header-bottom .menu.active', $stepper);
+        $this->assertStringContainsString('data-bs-dismiss="modal"', $reminders);
+        $this->assertStringContainsString('backdrop: true', $reminders);
+        $this->assertStringContainsString('height: calc(100dvh - 20px);', $reminders);
+        $this->assertStringContainsString("dropdownParent: routeSelect.closest('.journey-point-selector')", $ticketView);
     }
 }

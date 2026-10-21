@@ -11,13 +11,6 @@
 <div class="ticket-wrapper" data-journey-date="{{ $date_of_journey }}">
     @forelse ($trips as $trip)
         @php
-            $start = Carbon::parse($trip->schedule->start_from);
-            $end = Carbon::parse($trip->schedule->end_at);
-
-            if ($end->lt($start)) {
-                $end->addDay();
-            }
-
             $requestedPickupId = (string) (request('pickup') ?: request('counter_id') ?: $trip->start_from);
             $requestedDestinationId = (string) (request('destination') ?: request('selected_destination') ?: '');
             $requestedDropId = $requestedDestinationId ?: (string) $trip->end_to;
@@ -35,7 +28,6 @@
             $stoppageArr = $trip->route->stoppages ?? [];
             $routeSequence = App\Models\Counter::routeStoppages($stoppageArr);
             $isFullyBooked = $available_seats_ctr < 1;
-            $routeStopIds = $routeSequence->pluck('id')->map(fn($id) => (string) $id)->values();
             $displayDrop = $requestedDestinationId
                 ? $routeSequence->first(fn($counter) => (string) $counter->id === $requestedDestinationId)
                 : null;
@@ -59,36 +51,7 @@
             $maxPrice = $prices->max('price') ?? $minPrice;
             $displayPrice = $segmentPrice?->price;
 
-            $tripStartIndex = $routeStopIds->search((string) $trip->start_from);
-            $tripEndIndex = $routeStopIds->search((string) $trip->end_to);
-            $pickupIndex = $routeStopIds->search($requestedPickupId);
-            $dropIndex = $routeStopIds->search($displayDropId);
-            $fullTripMinutes = max((int) round($start->diffInMinutes($end)), 0);
-            $arrivalMinutes = $fullTripMinutes;
-            $displayDurationMinutes = $fullTripMinutes;
-
-            if ($tripStartIndex !== false && $tripEndIndex !== false && $dropIndex !== false) {
-                $totalLegs = abs($tripEndIndex - $tripStartIndex);
-                if ($totalLegs > 0) {
-                    $arrivalMinutes = (int) round(
-                        ($fullTripMinutes * abs($dropIndex - $tripStartIndex)) / $totalLegs,
-                    );
-                    if ($pickupIndex !== false) {
-                        $displayDurationMinutes = (int) round(
-                            ($fullTripMinutes * abs($dropIndex - $pickupIndex)) / $totalLegs,
-                        );
-                    }
-                }
-            }
-
-            $durationHours = intdiv($displayDurationMinutes, 60);
-            $durationRemainder = $displayDurationMinutes % 60;
-            $displayDurationLabel = trim(
-                ($durationHours ? $durationHours . ' ' . ($durationHours === 1 ? 'hr' : 'hrs') : '') .
-                    ($durationRemainder ? ' ' . $durationRemainder . ' mins' : ''),
-            ) ?: '0 mins';
             $departureAt = Carbon::parse($date_of_journey . ' ' . $trip->schedule->start_from);
-            $estimatedArrivalAt = $departureAt->copy()->addMinutes($arrivalMinutes);
             $selectSeatUrl = route('ticket.seats', [
                 $trip->id,
                 slug($trip->title),
@@ -119,7 +82,7 @@
                 <div class="trip-card-departure">
                     <small>@lang('Departure Time')</small>
                     <p class="trip-time-main">{{ showDateTime($trip->schedule->start_from, 'h:i A') }}</p>
-                    <span class="trip-duration-text">@lang('Approx.') {{ $displayDurationLabel }}</span>
+                    <span class="trip-duration-text">@lang('Travel date'): {{ $departureAt->format('M d, Y') }}</span>
                 </div>
 
                 <div class="trip-card-route">

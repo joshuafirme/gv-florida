@@ -372,7 +372,7 @@
 
         .trip-time-main {
             color: #07162f;
-            font-size: 36px;
+            font-size: 40px;
             font-weight: 900;
             letter-spacing: 0;
             line-height: 1;
@@ -594,11 +594,30 @@
             column-gap: 0;
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            max-width: 100%;
             position: relative;
+            width: 100%;
         }
 
         .journey-point-selector__field {
             min-width: 0;
+            position: relative;
+        }
+
+        .journey-point-selector > .select2-container--open {
+            left: 0 !important;
+            max-width: 100%;
+            width: 100% !important;
+        }
+
+        .journey-point-selector .journey-point-dropdown {
+            max-width: 100%;
+            width: 100% !important;
+        }
+
+        .journey-point-selector .journey-point-dropdown .select2-results__options {
+            max-height: min(320px, calc(100dvh - 180px));
+            overscroll-behavior: contain;
         }
 
         .journey-point-selector__field:first-child {
@@ -970,10 +989,10 @@
         }
 
         .trip-card-main .trip-price {
-            font-size: 36px;
+            font-size: 34px;
             line-height: 1.05;
             max-width: 100%;
-            overflow-wrap: anywhere;
+            white-space: nowrap;
         }
 
         .trip-availability {
@@ -1217,10 +1236,13 @@
             border-left: 0;
         }
 
-        .trip-card-main .trip-time-main,
+        .trip-card-main .trip-time-main {
+            color: var(--booking-primary);
+            font-size: 40px;
+        }
+
         .trip-card-main .trip-price {
             color: var(--booking-primary);
-            font-size: 36px;
         }
 
         @media screen and (min-width: 768px) and (max-width: 1199px) {
@@ -1228,13 +1250,12 @@
                 grid-template-columns: minmax(130px, .65fr) minmax(190px, 1.1fr) minmax(205px, .9fr);
             }
 
-            .trip-card-main .trip-time-main,
-            .trip-card-main .trip-price {
-                font-size: 32px;
+            .trip-card-main .trip-time-main {
+                font-size: 36px;
             }
 
-            .trip-card-main .trip-time-main {
-                font-size: clamp(26px, 2.8vw, 32px);
+            .trip-card-main .trip-price {
+                font-size: 30px;
             }
 
             .trip-card-departure,
@@ -1250,30 +1271,6 @@
 
             .trip-card-price {
                 padding-right: 0;
-            }
-        }
-
-        @media screen and (min-width: 768px) and (max-width: 900px) {
-            .trip-card-main {
-                grid-template-columns: minmax(150px, .75fr) minmax(220px, 1.25fr);
-            }
-
-            .trip-card-main .trip-card-price {
-                align-items: baseline;
-                border-left: 0;
-                border-top: 1px solid #e5e7eb;
-                display: flex;
-                flex-wrap: wrap;
-                gap: 5px 12px;
-                grid-column: 1 / -1;
-                margin-top: 8px;
-                padding: 10px 0 2px;
-                text-align: left;
-            }
-
-            .trip-card-main .trip-card-price > small {
-                flex-basis: 100%;
-                margin-bottom: 0;
             }
         }
 
@@ -1433,6 +1430,12 @@
             .trip-skeleton-line::after { animation: none; }
         }
 
+        @media screen and (orientation: portrait) and (min-width: 768px) {
+            body.kiosk-interface .trip-card-main .trip-time-main {
+                font-size: 42px;
+            }
+        }
+
         /* Seats badge */
         .seat-count {
             font-weight: 600;
@@ -1444,8 +1447,20 @@
         }
 
         @media screen and (max-width: 767px) {
+            html,
             body {
+                max-width: 100%;
                 overflow-x: hidden;
+                overflow-x: clip;
+            }
+
+            .ticket-search-bar,
+            .ticket-section,
+            .ticket-wrapper,
+            .ticket-item,
+            .trip-list-region {
+                max-width: 100%;
+                min-width: 0;
             }
 
             .kiosk-navbar .container {
@@ -1617,6 +1632,12 @@
                 column-gap: 0;
             }
 
+            .journey-point-selector > .select2-container--open,
+            .journey-point-selector .journey-point-dropdown {
+                max-width: calc(100vw - 24px);
+                width: 100% !important;
+            }
+
             .trip-results-toolbar {
                 align-items: stretch;
                 flex-direction: column;
@@ -1667,7 +1688,7 @@
             }
 
             .trip-card-main {
-                grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+                grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr) minmax(0, 1fr);
                 padding: 10px 14px 2px;
             }
 
@@ -1682,22 +1703,20 @@
                 border-right: 1px solid #e5e7eb;
             }
 
-            .trip-card-main .trip-card-price {
-                align-items: center;
-                border-top: 1px solid #e5e7eb;
-                display: flex;
-                flex-wrap: wrap;
-                gap: 4px 10px;
-                grid-column: 1 / -1;
-                text-align: left;
+            .trip-card-main .trip-card-route {
+                border-right: 1px solid #e5e7eb;
+                padding-left: 8px;
+                padding-right: 8px;
             }
 
-            .trip-card-main .trip-card-price > small {
-                flex-basis: 100%;
+            .trip-card-main .trip-card-price {
+                border-left: 0;
+                padding-left: 8px;
+                text-align: right;
             }
 
             .trip-card-price {
-                text-align: left;
+                text-align: right;
             }
 
             .fleet-pill {
@@ -1708,9 +1727,25 @@
                 white-space: normal;
             }
 
-            .trip-time-main,
-            .trip-price {
-                font-size: 30px;
+            .trip-card-main .trip-time-main {
+                font-size: 21px;
+            }
+
+            .trip-card-main .trip-price {
+                font-size: 19px;
+            }
+
+            .trip-card-main .trip-point {
+                gap: 5px;
+            }
+
+            .trip-card-main .trip-point strong {
+                font-size: 12px;
+            }
+
+            .trip-card-main .trip-point small,
+            .trip-duration-text {
+                font-size: 9px;
             }
 
             .trip-card-heading {
@@ -1777,6 +1812,23 @@
 
             .trip-route-arrow {
                 transform: rotate(90deg);
+            }
+        }
+
+        @media screen and (max-width: 375px) {
+            .trip-card-main .trip-time-main {
+                font-size: 18px;
+            }
+
+            .trip-card-main .trip-price {
+                font-size: 17px;
+            }
+        }
+
+        @media screen and (max-width: 359px) {
+            .trip-card-main {
+                padding-left: 10px;
+                padding-right: 10px;
             }
         }
 
@@ -2027,7 +2079,16 @@
                 resetIdleTimer();
             @endif
 
-            $('.select2').select2();
+            $('.select2').not('#ticket-pickup, #ticket-destination').select2();
+            $('#ticket-pickup, #ticket-destination').each(function() {
+                const routeSelect = $(this);
+
+                routeSelect.select2({
+                    dropdownParent: routeSelect.closest('.journey-point-selector'),
+                    dropdownCssClass: 'journey-point-dropdown',
+                    width: '100%'
+                });
+            });
             $('.search-multiple').select2({
                 placeholder: "Select an option"
             });
