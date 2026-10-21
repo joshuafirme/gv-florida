@@ -1592,6 +1592,7 @@
             let holdTimer = null;
             let finalizingTransfer = false;
             let availabilityRequest = null;
+            let availabilityLoadTimer = null;
 
             const escapeHtml = value => $('<div>').text(value ?? '').html();
             const errorMessage = xhr => {
@@ -1652,12 +1653,26 @@
                 }
             }
 
+            function clearTransferSelectScrollLock(select) {
+                const instance = $(select).data('select2');
+                if (!instance?.id || !instance.$container) return;
+
+                instance.$container.parents().off(`scroll.select2.${instance.id}`);
+            }
+
+            function clearAllTransferSelectScrollLocks() {
+                $('#transferTrip, #transferDrop, #transferManagementReason').each(function() {
+                    clearTransferSelectScrollLock(this);
+                });
+            }
+
             function initializeTransferSelects() {
                 if (!$.fn.select2) return;
 
                 $('#transferTrip, #transferDrop, #transferManagementReason').each(function() {
                     const select = $(this);
                     if (select.hasClass('select2-hidden-accessible')) {
+                        clearTransferSelectScrollLock(this);
                         select.select2('destroy');
                     }
                     select.select2({
@@ -1665,6 +1680,10 @@
                         dropdownCssClass: 'transfer-select-dropdown',
                         minimumResultsForSearch: 0,
                         width: '100%'
+                    });
+                    select.off('.transferScrollLock').on('select2:close.transferScrollLock', function() {
+                        const element = this;
+                        window.setTimeout(() => clearTransferSelectScrollLock(element), 0);
                     });
                 });
             }
@@ -1674,6 +1693,8 @@
                     availabilityRequest.abort();
                     availabilityRequest = null;
                 }
+                window.clearTimeout(availabilityLoadTimer);
+                availabilityLoadTimer = null;
                 data = null;
                 transferType = null;
                 availability = null;
@@ -1808,18 +1829,26 @@
                 $('#transferAvailability').removeClass('d-none');
             }
 
+            function queueTransferAvailability(renderCurrentTrip = false) {
+                window.clearTimeout(availabilityLoadTimer);
+                availabilityLoadTimer = window.setTimeout(function() {
+                    availabilityLoadTimer = null;
+                    clearAllTransferSelectScrollLocks();
+                    if (renderCurrentTrip && isCurrentTransferTrip() && data.initial_availability) {
+                        renderInitialTransferAvailability();
+                    }
+                    loadTransferAvailability();
+                }, 0);
+            }
+
             $('#transferTrip').on('change', function() {
                 updateTransferDrops(isCurrentTransferTrip() ? data.booking.drop_id : null);
                 syncTransferTargetMode();
-
-                if (isCurrentTransferTrip() && data.initial_availability) {
-                    renderInitialTransferAvailability();
-                }
-                loadTransferAvailability();
+                queueTransferAvailability(true);
             });
             $('#transferDate, #transferDrop').on('change', function() {
                 syncTransferTargetMode();
-                loadTransferAvailability();
+                queueTransferAvailability();
             });
             $('#transferManagementReason').on('change', function() {
                 $('#transferOtherReasonField').toggleClass(
@@ -2167,10 +2196,12 @@
             });
 
             $('#transferTicketModal').on('hide.bs.modal', function() {
+                clearAllTransferSelectScrollLocks();
                 if (!finalizingTransfer) {
                     releaseTransferHold(true);
                 }
             }).on('hidden.bs.modal', function() {
+                clearAllTransferSelectScrollLocks();
                 $('#transferAuthorizationCode').val('').attr('type', 'password');
                 $('#transferToggleCode').attr('aria-label', 'Show authorization code')
                     .attr('title', 'Show authorization code')

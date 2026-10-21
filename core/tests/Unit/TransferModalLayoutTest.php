@@ -28,4 +28,18 @@ class TransferModalLayoutTest extends TestCase
             $view
         );
     }
+
+    public function test_transfer_selects_release_stale_scroll_locks_before_dynamic_refresh(): void
+    {
+        $view = file_get_contents(resource_path('views/admin/ticket/log.blade.php'));
+
+        $this->assertStringContainsString('function clearTransferSelectScrollLock(select)', $view);
+        $this->assertStringContainsString(
+            'instance.$container.parents().off(`scroll.select2.${instance.id}`);',
+            $view
+        );
+        $this->assertStringContainsString("select2:close.transferScrollLock", $view);
+        $this->assertStringContainsString('function queueTransferAvailability(renderCurrentTrip = false)', $view);
+        $this->assertStringContainsString('clearAllTransferSelectScrollLocks();', $view);
+    }
 }
