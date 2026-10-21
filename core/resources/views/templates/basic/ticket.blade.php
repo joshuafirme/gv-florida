@@ -626,14 +626,23 @@
 
         .journey-point-selector .select2-selection__rendered {
             left: 16px !important;
+            right: 32px !important;
+        }
+
+        .journey-point-selector .select2-selection__arrow {
+            display: none;
         }
 
         .journey-point-selector__field:last-child .trip-search-label {
-            left: 32px;
+            left: auto;
+            right: 16px;
+            text-align: right;
         }
 
         .journey-point-selector__field:last-child .select2-selection__rendered {
             left: 32px !important;
+            right: 16px !important;
+            text-align: right;
         }
 
         .journey-point-selector .select2-container--focus .select2-selection--single,
@@ -735,6 +744,7 @@
             padding: 0 12px;
             position: relative;
             transition: border-color .18s ease, box-shadow .18s ease;
+            width: 220px;
         }
 
         .trip-results-filters label:focus-within {
@@ -744,7 +754,10 @@
 
         .trip-results-filters i {
             color: var(--booking-primary);
+            flex: 0 0 20px;
             font-size: 18px;
+            line-height: 1;
+            text-align: center;
         }
 
         .trip-result-filter {
@@ -761,24 +774,31 @@
         }
 
         .trip-results-filters .select2-container {
+            flex: 1 1 auto;
             min-width: 160px;
             width: 100% !important;
         }
 
         .trip-results-filters .select2-selection--single {
+            align-items: center;
             background: transparent !important;
             border: 0 !important;
             border-radius: 0 !important;
             box-shadow: none !important;
+            display: flex !important;
             height: 44px !important;
         }
 
         .trip-results-filters .select2-selection__rendered {
+            align-items: center;
             color: #344054 !important;
+            display: flex !important;
             font-size: 13px;
             font-weight: 800;
-            line-height: 44px !important;
+            height: 44px;
+            line-height: 1.2 !important;
             padding: 0 28px 0 0 !important;
+            width: 100%;
         }
 
         .trip-results-filters .select2-selection__arrow {
@@ -984,6 +1004,12 @@
             color: #a0a8b3;
         }
 
+        .daterangepicker td.trip-date-fully-booked:not(.active) {
+            background: #fff7e6;
+            box-shadow: inset 0 0 0 1px #f4c76b;
+            color: #9a6700;
+        }
+
         .daterangepicker td.trip-date-not-open:not(.active) {
             background: #f5f6f8;
             color: #a0a8b3;
@@ -1034,6 +1060,11 @@
             opacity: .72;
         }
 
+        .booking-date-guide i.is-fully-booked {
+            background: #fff7e6;
+            border-color: #f4c76b;
+        }
+
         .booking-date-guide i.is-past {
             background: repeating-linear-gradient(135deg, #fff 0, #fff 3px, #e5e7eb 3px, #e5e7eb 5px);
         }
@@ -1075,6 +1106,7 @@
 
         .daterangepicker.single td.trip-date-available::after,
         .daterangepicker.single td.trip-date-unavailable::after,
+        .daterangepicker.single td.trip-date-fully-booked::after,
         .daterangepicker.single td.trip-date-not-open::after {
             display: block;
             font-size: 9px;
@@ -1090,6 +1122,10 @@
             content: "{{ __('No trip') }}";
         }
 
+        .daterangepicker.single td.trip-date-fully-booked::after {
+            content: "{{ __('Fully booked') }}";
+        }
+
         .daterangepicker.single td.trip-date-not-open::after {
             content: "{{ __('Not open') }}";
         }
@@ -1098,6 +1134,21 @@
         .daterangepicker td.active:hover {
             background: var(--booking-primary) !important;
             color: var(--booking-on-primary);
+        }
+
+        .daterangepicker td.trip-date-fully-booked.active,
+        .daterangepicker td.trip-date-fully-booked.active:hover {
+            background: #fff7e6 !important;
+            box-shadow: inset 0 0 0 1px #f4c76b;
+            color: #9a6700;
+        }
+
+        .daterangepicker td.trip-date-unavailable.active,
+        .daterangepicker td.trip-date-unavailable.active:hover,
+        .daterangepicker td.trip-date-not-open.active,
+        .daterangepicker td.trip-date-not-open.active:hover {
+            background: #f5f6f8 !important;
+            color: #a0a8b3;
         }
 
         .ticket-item {
@@ -1579,6 +1630,7 @@
                 min-width: 0;
                 padding-left: 8px;
                 padding-right: 6px;
+                width: auto;
             }
 
             .trip-results-filters i {
@@ -1700,6 +1752,7 @@
 
             .daterangepicker.single td.trip-date-available::after,
             .daterangepicker.single td.trip-date-unavailable::after,
+            .daterangepicker.single td.trip-date-fully-booked::after,
             .daterangepicker.single td.trip-date-not-open::after {
                 font-size: 7px;
             }
@@ -1803,8 +1856,8 @@
                                 <label class="trip-search-label" for="ticket-destination">@lang('To')</label>
                                 <i class="las la-map-marker"></i>
                                 <select name="destination" id="ticket-destination" class="form--control select2"
-                                    data-default-option="@lang('All Destination')">
-                                    <option value="">@lang('All Destination')</option>
+                                    data-default-option="@lang('Select Destination')">
+                                    <option value="">@lang('Select Destination')</option>
                                 </select>
                             </div>
                         </div>
@@ -1904,11 +1957,11 @@
     <link rel="stylesheet" href="{{ asset('assets/global/css/select2.min.css') }}">
     <link rel="stylesheet" type="text/css" href="{{ asset('assets/global/css/daterangepicker.css') }}">
 @endpush
-
 @push('script-lib')
     <script src="{{ asset('assets/global/js/select2.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/moment.min.js') }}"></script>
     <script src="{{ asset('assets/global/js/daterangepicker.min.js') }}"></script>
+    <script src="{{ asset('assets/global/js/dropping-points.js') }}"></script>
     @if (config('services.pusher.key'))
         <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
     @endif
@@ -1996,7 +2049,9 @@
             let tripRequestController = null;
             let destinationRequestController = null;
             let lastSuccessfulTripMarkup = tripListRegion.innerHTML;
+            let selectedJourneyDate = @json($dateOfJourneyDisplay);
             let journeyDateStatuses = readDateStatuses();
+            let datePicker = null;
 
             function getResultsRegion() {
                 return document.getElementById('ticketResultsRegion');
@@ -2073,7 +2128,6 @@
                         ${skeletonCard.repeat(3)}
                     </div>`;
             }
-
             function reportTripListError(message) {
                 if (typeof window.notify === 'function') {
                     window.notify('error', message);
@@ -2277,9 +2331,24 @@
                 cluster: @json(config('services.pusher.cluster', 'ap1')),
                 channel: @json(App\Services\ScheduleBoardBroadcaster::CHANNEL),
                 event: @json(App\Services\ScheduleBoardBroadcaster::EVENT),
+                scheduleEvent: @json(App\Services\ScheduleBoardBroadcaster::SCHEDULE_DATA_EVENT),
                 journeyDate: @json(\Carbon\Carbon::parse($date_of_journey)->format('Y-m-d')),
             };
             let tripListRefreshTimer = null;
+
+            function refreshLiveTripAvailability(event) {
+                if (event?.date_of_journey && String(event.date_of_journey) !== tripListRealtime.journeyDate) {
+                    return;
+                }
+
+                window.clearTimeout(tripListRefreshTimer);
+                tripListRefreshTimer = window.setTimeout(function() {
+                    refreshTripList(buildTripListUrl(window.location.href, true), {
+                        history: 'none',
+                        skeleton: false
+                    });
+                }, 300);
+            }
 
             if (tripListRealtime.key && typeof window.Pusher !== 'undefined') {
                 const tripListPusher = new Pusher(tripListRealtime.key, {
@@ -2287,19 +2356,18 @@
                 });
                 const tripListChannel = tripListPusher.subscribe(tripListRealtime.channel);
 
-                tripListChannel.bind(tripListRealtime.event, function(event) {
-                    if (!event || String(event.date_of_journey || '') !== tripListRealtime.journeyDate) {
-                        return;
-                    }
-
-                    window.clearTimeout(tripListRefreshTimer);
-                    tripListRefreshTimer = window.setTimeout(function() {
-                        refreshTripList(buildTripListUrl(window.location.href, true), {
-                            history: 'none'
-                        });
-                    }, 300);
-                });
+                tripListChannel.bind(tripListRealtime.event, refreshLiveTripAvailability);
+                tripListChannel.bind(tripListRealtime.scheduleEvent, refreshLiveTripAvailability);
             }
+
+            window.setInterval(function() {
+                if (!document.hidden && !tripRequestController) {
+                    refreshTripList(buildTripListUrl(window.location.href, true), {
+                        history: 'none',
+                        skeleton: false
+                    });
+                }
+            }, 30000);
 
             $(pickupSelect).on('change', function() {
                 refreshForRouteChange(destinationSelect.value);
@@ -2315,6 +2383,17 @@
 
             $(searchForm).on('submit', function(event) {
                 event.preventDefault();
+
+                const selectedDate = moment(travelDateInput.value, 'ddd, MMM D, YYYY', true);
+                const selectedStatus = selectedDate.isValid()
+                    ? journeyDateStatuses[selectedDate.format('YYYY-MM-DD')]
+                    : null;
+
+                if (selectedStatus !== 'available') {
+                    reportTripListError('@lang('The selected travel date is no longer available for booking.')');
+                    return;
+                }
+
                 refreshTripList(buildTripListUrl());
             });
 
@@ -2372,7 +2451,7 @@
 
             initializeResultFilters();
 
-            const datePicker = $('.date-range').daterangepicker({
+            datePicker = $('.date-range').daterangepicker({
                 autoUpdateInput: true,
                 singleDatePicker: true,
                 drops: window.matchMedia('(max-width: 767px)').matches ? 'up' : 'down',
@@ -2386,15 +2465,17 @@
                     const status = journeyDateStatuses[date.format('YYYY-MM-DD')];
 
                     if (status === 'available') return 'trip-date-available';
+                    if (status === 'fully_booked') return 'trip-date-fully-booked';
                     if (status === 'no_trip') return 'trip-date-unavailable';
                     if (status === 'not_open') return 'trip-date-not-open';
 
                     return '';
+                },
+                isInvalidDate: function(date) {
+                    return journeyDateStatuses[date.format('YYYY-MM-DD')] !== 'available';
                 }
 
             });
-
-            let selectedJourneyDate = @json($dateOfJourneyDisplay);
 
             datePicker.on('show.daterangepicker', function(event, picker) {
                 if (picker.container.find('.booking-date-guide').length) return;
@@ -2403,14 +2484,28 @@
                     <div class="booking-date-guide">
                         <strong>@lang('Date Guide')</strong>
                         <span><i class="is-available"></i>@lang('Open for Booking')</span>
+                        <span><i class="is-fully-booked"></i>@lang('Fully Booked')</span>
                         <span><i class="is-unavailable"></i>@lang('No Trip Available')</span>
-                        <span><i class="is-not-open"></i>@lang('Not Open for Booking')</span>
+                        <span><i class="is-not-open"></i>@lang('Closed / Not Open for Booking')</span>
                         <span><i class="is-past"></i>@lang('Past Date')</span>
                     </div>
                 `);
             });
 
             datePicker.on('apply.daterangepicker', function(event, picker) {
+                const dateKey = picker.startDate.format('YYYY-MM-DD');
+                if (journeyDateStatuses[dateKey] !== 'available') {
+                    const previousDate = moment(selectedJourneyDate, 'ddd, MMM D, YYYY');
+                    picker.setStartDate(previousDate);
+                    picker.setEndDate(previousDate);
+                    this.value = selectedJourneyDate;
+
+                    if (typeof notify === 'function') {
+                        notify('error', "@lang('The selected travel date is not available for booking.')");
+                    }
+                    return;
+                }
+
                 const newJourneyDate = picker.startDate.format('ddd, MMM D, YYYY');
                 this.value = newJourneyDate;
 
@@ -2419,6 +2514,7 @@
                 }
 
                 selectedJourneyDate = newJourneyDate;
+                tripListRealtime.journeyDate = dateKey;
                 refreshForRouteChange(destinationSelect.value);
             });
 
@@ -2462,7 +2558,10 @@
                 datePicker.data('daterangepicker').setStartDate(today);
                 datePicker.data('daterangepicker').setEndDate(today);
                 selectedJourneyDate = today.format('ddd, MMM D, YYYY');
+                tripListRealtime.journeyDate = today.format('YYYY-MM-DD');
 
+                const clearUrl = buildTripListUrl();
+                window.history.replaceState({}, '', clearUrl);
                 refreshForRouteChange('');
             });
 
