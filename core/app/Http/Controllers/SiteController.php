@@ -414,6 +414,10 @@ class SiteController extends Controller
                     'emptyMessage',
                     'ticketPrices'
                 ))->render(),
+                'summary_html' => view('Template::partials.trip-results-summary', compact(
+                    'trips',
+                    'selectedDestinationCounter'
+                ))->render(),
                 'journey_date' => BusinessTime::parse($query['date_of_journey'])->format('Y-m-d'),
                 'url' => $request->url() . '?' . http_build_query($query),
             ]);

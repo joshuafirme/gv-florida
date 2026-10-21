@@ -19,6 +19,22 @@ class TripListPartialRefreshTest extends TestCase
         $this->assertStringContainsString('No departures available', $html);
     }
 
+    public function test_trip_results_summary_uses_the_filtered_total(): void
+    {
+        $withResults = view('templates.basic.partials.trip-results-summary', [
+            'trips' => new LengthAwarePaginator([], 5, 15),
+            'selectedDestinationCounter' => null,
+        ])->render();
+        $withoutResults = view('templates.basic.partials.trip-results-summary', [
+            'trips' => new LengthAwarePaginator([], 0, 15),
+            'selectedDestinationCounter' => null,
+        ])->render();
+
+        $this->assertStringContainsString('5 departures', $withResults);
+        $this->assertStringNotContainsString('No departures available', $withResults);
+        $this->assertStringContainsString('No departures available', $withoutResults);
+    }
+
     public function test_ticket_page_uses_a_scoped_skeleton_and_partial_refresh(): void
     {
         $ticketView = file_get_contents(resource_path('views/templates/basic/ticket.blade.php'));
@@ -27,6 +43,7 @@ class TripListPartialRefreshTest extends TestCase
         $this->assertStringContainsString('id="tripListRegion"', $ticketView);
         $this->assertStringContainsString('trip-list-skeleton', $ticketView);
         $this->assertStringContainsString('async function refreshTripList', $ticketView);
+        $this->assertStringContainsString('payload.summary_html', $ticketView);
         $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $ticketView);
         $this->assertStringContainsString("asset('assets/global/js/dropping-points.js')", $ticketView);
         $this->assertStringContainsString("status === 'fully_booked'", $ticketView);
@@ -34,6 +51,7 @@ class TripListPartialRefreshTest extends TestCase
         $this->assertStringContainsString('tripListRealtime.scheduleEvent', $ticketView);
         $this->assertStringContainsString("data-default-option=\"@lang('Select Destination')\"", $ticketView);
         $this->assertStringContainsString("view('Template::partials.trip-list'", $controller);
+        $this->assertStringContainsString("view('Template::partials.trip-results-summary'", $controller);
     }
 
     public function test_dynamic_trip_cards_keep_the_gvf_226_layout_structure(): void

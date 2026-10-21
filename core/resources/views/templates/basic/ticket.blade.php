@@ -1910,18 +1910,7 @@
         data-date-statuses='@json($journeyDateStatuses)'>
         <div class="container">
             <div class="trip-results-toolbar" aria-live="polite">
-                <p class="trip-results-summary">
-                    @if ($trips->total() > 0)
-                        <strong>{{ $trips->total() }} {{ trans_choice('departure|departures', $trips->total()) }}</strong>
-                        @if ($selectedDestinationCounter)
-                            @lang('to') <span>{{ $selectedDestinationCounter->name }}</span>
-                        @else
-                            @lang('available')
-                        @endif
-                    @else
-                        <strong>@lang('No departures available')</strong>
-                    @endif
-                </p>
+                @include('templates.basic.partials.trip-results-summary')
                 <div class="trip-results-filters">
                     <label>
                         <i class="las la-bus"></i>
@@ -2230,6 +2219,10 @@
                     tripListRegion.innerHTML = payload.html;
                     tripListRegion.setAttribute('aria-busy', 'false');
                     lastSuccessfulTripMarkup = payload.html;
+                    const tripResultsSummary = document.querySelector('.trip-results-summary');
+                    if (tripResultsSummary && payload.summary_html) {
+                        tripResultsSummary.outerHTML = payload.summary_html;
+                    }
                     tripListRealtime.journeyDate = payload.journey_date;
                     syncFilterContext();
 
