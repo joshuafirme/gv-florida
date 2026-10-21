@@ -7,6 +7,7 @@ use App\Models\Counter;
 use App\Models\FleetType;
 use App\Models\Schedule;
 use App\Models\Trip;
+use App\Models\TripChannelAvailability;
 use App\Models\Vehicle;
 use App\Models\VehicleRoute;
 use App\Services\ScheduleBoardBroadcaster;
@@ -16,8 +17,20 @@ use Illuminate\Support\Facades\DB;
 class ScheduleBoardDataObserver
 {
     private const WATCHED_ATTRIBUTES = [
-        Trip::class => ['schedule_id', 'vehicle_route_id', 'fleet_type_id', 'start_from', 'end_to'],
-        Schedule::class => ['start_from'],
+        Trip::class => [
+            'schedule_id',
+            'vehicle_route_id',
+            'fleet_type_id',
+            'start_from',
+            'end_to',
+            'status',
+            'trip_status',
+            'day_off',
+            'online_booking_enabled',
+            'kiosk_booking_enabled',
+        ],
+        TripChannelAvailability::class => ['trip_id', 'journey_date', 'channel', 'is_enabled'],
+        Schedule::class => ['start_from', 'status'],
         VehicleRoute::class => ['end_to'],
         AssignedVehicle::class => ['vehicle_id'],
         Vehicle::class => ['bus_no'],

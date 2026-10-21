@@ -422,6 +422,11 @@ class ManageTripController extends Controller
         $status = $request->action_type == 'enable' ? 1 : 0;
 
         Trip::whereIn('id', $request->ids)->update(['status' => $status]);
+        app(ScheduleBoardBroadcaster::class)->scheduleDataUpdated([
+            'source' => 'Trip',
+            'source_ids' => array_map('intval', $request->ids),
+            'action' => $request->action_type,
+        ]);
 
         $notify[] = ['success', 'Selected trips have been successfully updated.'];
         return back()->withNotify($notify);

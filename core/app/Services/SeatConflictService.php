@@ -45,6 +45,19 @@ class SeatConflictService
             && $pickupPosition > $dropPosition;
     }
 
+    public function segmentsOverlap(
+        Trip $trip,
+        int|string $firstPickup,
+        int|string $firstDrop,
+        int|string $secondPickup,
+        int|string $secondDrop
+    ): bool {
+        $first = $this->segmentBounds($trip, $firstPickup, $firstDrop);
+        $second = $this->segmentBounds($trip, $secondPickup, $secondDrop);
+
+        return $first && $second && $this->segmentsOverlapBounds($first, $second);
+    }
+
     public function conflicts(
         Trip $trip,
         Carbon|string $dateOfJourney,
@@ -163,7 +176,7 @@ class SeatConflictService
         return $query->get()->filter(function (BookedTicket $booking) use ($trip, $requestedBounds) {
             $bookedBounds = $this->segmentBounds($trip, $booking->pickup_point, $booking->dropping_point);
 
-            if (!$bookedBounds || !$this->segmentsOverlap($requestedBounds, $bookedBounds)) {
+            if (!$bookedBounds || !$this->segmentsOverlapBounds($requestedBounds, $bookedBounds)) {
                 return false;
             }
 
@@ -211,7 +224,7 @@ class SeatConflictService
         return [min($pickupPosition, $dropPosition), max($pickupPosition, $dropPosition)];
     }
 
-    private function segmentsOverlap(array $first, array $second): bool
+    private function segmentsOverlapBounds(array $first, array $second): bool
     {
         return max($first[0], $second[0]) < min($first[1], $second[1]);
     }
