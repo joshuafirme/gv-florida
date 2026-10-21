@@ -18,8 +18,10 @@ use App\Models\Language;
 use App\Models\Page;
 use App\Models\SupportMessage;
 use App\Models\SupportTicket;
+use App\Services\PassengerReminderService;
 use App\Services\SeatConflictService;
 use App\Services\SeatLayoutService;
+use App\Support\BusinessTime;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -40,8 +42,9 @@ class SiteController extends Controller
             request()->date_of_journey
         );
         $counters = $this->availableOriginCounters($originTrips);
+        $bookingNotices = app(PassengerReminderService::class)->activeContent();
 
-        return view('Template::home', compact('pageTitle', 'sections', 'seoContents', 'seoImage', 'counters'));
+        return view('Template::home', compact('pageTitle', 'sections', 'seoContents', 'seoImage', 'counters', 'bookingNotices'));
     }
 
     public function pages($slug)
@@ -179,10 +182,14 @@ class SiteController extends Controller
             }
 
             if ($formattedDate && $request->date_of_journey !== $formattedDate) {
-                $query = $request->query();
-                $query['date_of_journey'] = $formattedDate;
+                if ($request->expectsJson()) {
+                    $request->merge(['date_of_journey' => $formattedDate]);
+                } else {
+                    $query = $request->query();
+                    $query['date_of_journey'] = $formattedDate;
 
-                return redirect()->to($request->url() . '?' . urldecode(http_build_query($query)));
+                    return redirect()->to($request->url() . '?' . urldecode(http_build_query($query)));
+                }
             }
         }
 
@@ -195,7 +202,9 @@ class SiteController extends Controller
                 return redirect()->back()->withNotify($notify);
             }
 
-            if ($request->date_of_journey && Carbon::parse($request->date_of_journey)->format('Y-m-d') < Carbon::now()->format('Y-m-d')) {
+            if ($request->date_of_journey
+                && Carbon::parse($request->date_of_journey)->format('Y-m-d')
+                    < BusinessTime::today()->format('Y-m-d')) {
                 $notify[] = ['error', 'Date of journey can\'t be less than today.'];
                 return redirect()->back()->withNotify($notify);
             }
@@ -385,6 +394,25 @@ class SiteController extends Controller
 
         $layout = auth()->check() ? 'layouts.master' : 'layouts.frontend';
 
+        if ($request->expectsJson()) {
+            $query = $request->query();
+            $query['date_of_journey'] = BusinessTime::parse(
+                $request->date_of_journey ?: BusinessTime::now()
+            )->format('m/d/Y');
+
+            return response()->json([
+                'html' => view('Template::partials.trip-list', compact(
+                    'trips',
+                    'emptyMessage',
+                    'ticketPrices'
+                ))->render(),
+                'journey_date' => BusinessTime::parse($query['date_of_journey'])->format('Y-m-d'),
+                'url' => $request->url() . '?' . http_build_query($query),
+            ]);
+        }
+
+        $bookingNotices = app(PassengerReminderService::class)->activeContent();
+
         return view("Template::ticket", compact(
             'pageTitle',
             'fleetType',
@@ -398,7 +426,8 @@ class SiteController extends Controller
             'selectedDestinationCounter',
             'availableJourneyDates',
             'journeyDateStatuses',
-            'layout'
+            'layout',
+            'bookingNotices'
         ));
     }
 
@@ -414,7 +443,7 @@ class SiteController extends Controller
             'bookedTickets'
         ])->where('status', Status::ENABLE)->where('id', $id)->firstOrFail();
 
-        $journeyDate = $request->date_of_journey ?: now()->format('m/d/Y');
+        $journeyDate = $request->date_of_journey ?: BusinessTime::now()->format('m/d/Y');
         if ($message = $this->bookingChannelError($trip, $request->kiosk_id, $journeyDate)) {
             $notify[] = ['error', $message];
             $query = $this->tripSelectionQuery($request, $trip);
@@ -694,7 +723,7 @@ class SiteController extends Controller
             }
 
             $date_of_journey = Carbon::parse($request->date_of_journey);
-            $today = Carbon::today()->format('Y-m-d');
+            $today = BusinessTime::today()->format('Y-m-d');
             if ($date_of_journey->format('Y-m-d') < $today) {
                 $notify[] = ['error', 'Date of journey cant\'t be less than today'];
                 return redirect()->back()->withNotify($notify);
@@ -806,7 +835,7 @@ class SiteController extends Controller
 
     public function getTripQuery()
     {
-        $now = Carbon::now();
+        $now = BusinessTime::now();
         $request = request();
         $cutoffMinutes = getBookingCutoffMinutes($request->kiosk_id);
 
@@ -814,7 +843,9 @@ class SiteController extends Controller
             ->withMin('schedule as earliest_start', 'start_from')
             ->forBookingChannel($request->kiosk_id, $request->date_of_journey)
             ->whereHas('schedule', function ($q) use ($now, $request, $cutoffMinutes) {
-                $date = $request->date_of_journey ? Carbon::parse($request->date_of_journey) : Carbon::now();
+                $date = $request->date_of_journey
+                    ? BusinessTime::parse($request->date_of_journey)
+                    : BusinessTime::now();
                 if ($date->isToday()) {
                     $q->whereRaw("
                       STR_TO_DATE(CONCAT(?, ' ', start_from), '%Y-%m-%d %H:%i:%s') > ?
@@ -863,7 +894,7 @@ class SiteController extends Controller
             return 'Enter a valid date of journey.';
         }
 
-        $today = Carbon::today();
+        $today = BusinessTime::today();
         if ($date->lt($today)) {
             return 'Date of journey can\'t be less than today.';
         }
@@ -889,12 +920,12 @@ class SiteController extends Controller
             return 'The selected trip does not have a valid departure schedule.';
         }
 
-        $departure = Carbon::parse(
+        $departure = BusinessTime::parse(
             Carbon::parse($journeyDate)->format('Y-m-d') . ' ' . $trip->schedule->start_from
         );
         $cutoffMinutes = getBookingCutoffMinutes($kioskId);
 
-        if (now()->gte($departure->copy()->subMinutes($cutoffMinutes))) {
+        if (BusinessTime::now()->gte($departure->copy()->subMinutes($cutoffMinutes))) {
             $channel = $kioskId ? 'Kiosk' : 'Online';
             if ($cutoffMinutes === 0) {
                 return "{$channel} booking closes at departure time.";

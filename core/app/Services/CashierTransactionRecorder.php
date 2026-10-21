@@ -39,6 +39,8 @@ class CashierTransactionRecorder
             return;
         }
 
+        $completedAt = $deposit->completed_at ?: $deposit->created_at ?: now();
+
         foreach ($ticket->slipSeriesNumbers as $slip) {
             $snapshot = $this->ticketSnapshot($ticket, $slip);
             $soldEvent = $this->store(
@@ -48,7 +50,7 @@ class CashierTransactionRecorder
                 $snapshot,
                 (float) $snapshot['fare'] + (float) $snapshot['surcharge_amount'],
                 null,
-                $deposit->updated_at ?: now()
+                $completedAt
             );
             $this->restoreOriginalSoldTravelDetails($soldEvent);
         }
@@ -214,17 +216,19 @@ class CashierTransactionRecorder
 
         $validation->loadMissing([
             'bookedTicket',
-            'slipSeriesNumber',
+            'slipSeriesNumber.bookedTicket',
             'discount',
             'discountAppliedBy:id,name,username',
             'discountAuthorizedBy:id,name,username',
         ]);
 
-        if (!$validation->bookedTicket || !$validation->slipSeriesNumber) {
+        $ticket = $this->synchronizeOnlineValidationTicket($validation);
+
+        if (!$ticket || !$validation->slipSeriesNumber) {
             return;
         }
 
-        $snapshot = $this->ticketSnapshot($validation->bookedTicket, $validation->slipSeriesNumber);
+        $snapshot = $this->ticketSnapshot($ticket, $validation->slipSeriesNumber);
         $originalPassenger = [
             'name' => $snapshot['passenger_name'] ?? 'Guest',
             'type' => $snapshot['passenger_type'] ?? 'Regular',
@@ -280,17 +284,19 @@ class CashierTransactionRecorder
 
         $validation->loadMissing([
             'bookedTicket',
-            'slipSeriesNumber',
+            'slipSeriesNumber.bookedTicket',
             'validator:id,name,username',
             'discount',
             'discountAuthorizedBy:id,name,username',
         ]);
 
-        if (!$validation->bookedTicket || !$validation->slipSeriesNumber) {
+        $ticket = $this->synchronizeOnlineValidationTicket($validation);
+
+        if (!$ticket || !$validation->slipSeriesNumber) {
             return;
         }
 
-        $snapshot = $this->ticketSnapshot($validation->bookedTicket, $validation->slipSeriesNumber);
+        $snapshot = $this->ticketSnapshot($ticket, $validation->slipSeriesNumber);
         if ($validation->discount_id) {
             $snapshot['passenger_name'] = $validation->passenger_name ?: $snapshot['passenger_name'];
             $snapshot['passenger_type'] = $validation->discount?->name ?: 'Discounted';
@@ -325,6 +331,27 @@ class CashierTransactionRecorder
         $placeholder->seat = collect($ticket->seats ?? [])->first();
 
         return $this->ticketSnapshot($ticket, $placeholder);
+    }
+
+    private function synchronizeOnlineValidationTicket(OnlineTicketValidation $validation): ?BookedTicket
+    {
+        $currentTicket = $validation->slipSeriesNumber?->bookedTicket;
+        if (!$currentTicket) {
+            return $validation->bookedTicket;
+        }
+
+        $currentDepositId = $currentTicket->payment_record?->id;
+        if ((int) $validation->booked_ticket_id !== (int) $currentTicket->id
+            || (int) $validation->deposit_id !== (int) $currentDepositId) {
+            $validation->forceFill([
+                'booked_ticket_id' => $currentTicket->id,
+                'deposit_id' => $currentDepositId,
+            ])->saveQuietly();
+        }
+
+        $validation->setRelation('bookedTicket', $currentTicket);
+
+        return $currentTicket;
     }
 
     private function withAuthorizationAudit(
@@ -395,7 +422,7 @@ class CashierTransactionRecorder
 
         Deposit::successful()
             ->where('processed_by_admin_id', $admin->id)
-            ->whereBetween('updated_at', [$start, $end])
+            ->whereBetween('completed_at', [$start, $end])
             ->with($this->depositRelations())
             ->get()
             ->each(fn ($deposit) => $this->safely(fn () => $this->recordSold($deposit)));
@@ -438,7 +465,7 @@ class CashierTransactionRecorder
         // Kiosk and online payments can complete without a cashier account. Record
         // them before the cashier-specific action backfill below.
         Deposit::successful()
-            ->whereBetween('updated_at', [$start, $end])
+            ->whereBetween('completed_at', [$start, $end])
             ->with($this->depositRelations())
             ->get()
             ->each(fn ($deposit) => $this->safely(fn () => $this->recordSold($deposit)));
@@ -447,7 +474,7 @@ class CashierTransactionRecorder
             ->merge(
                 Deposit::successful()
                     ->whereNotNull('processed_by_admin_id')
-                    ->whereBetween('updated_at', [$start, $end])
+                    ->whereBetween('completed_at', [$start, $end])
                     ->pluck('processed_by_admin_id')
             )
             ->merge(
@@ -498,7 +525,17 @@ class CashierTransactionRecorder
     ): CashierTransactionEvent {
         $existingEvent = CashierTransactionEvent::where('event_key', $eventKey)->first();
 
-        if ($existingEvent && ($status === 'Sold' || $existingEvent->status === 'Sold')) {
+        if ($existingEvent && $status === 'Sold' && $existingEvent->status === 'Sold') {
+            $authoritativeProcessedAt = Carbon::parse($processedAt);
+
+            if (!$existingEvent->processed_at?->equalTo($authoritativeProcessedAt)) {
+                $existingEvent->forceFill(['processed_at' => $authoritativeProcessedAt])->save();
+            }
+
+            return $existingEvent;
+        }
+
+        if ($existingEvent && $existingEvent->status === 'Sold') {
             return $existingEvent;
         }
 

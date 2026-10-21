@@ -21,6 +21,10 @@
         .manifest-filters input { border: 1px solid #d4d8de; border-radius: 7px; height: 40px; padding: 8px 10px; }
         .manifest-btn { align-items: center; background: var(--pink); border: 0; border-radius: 7px; color: #fff; cursor: pointer; display: inline-flex; font-weight: 600; gap: 6px; height: 40px; justify-content: center; padding: 0 16px; text-decoration: none; }
         .manifest-btn:hover, .manifest-btn:focus { color: #fff; text-decoration: none; }
+        .manifest-live-status { align-items: center; color: #667085; display: inline-flex; font-size: 11px; gap: 6px; margin-left: 4px; }
+        .manifest-live-status::before { background: #17a34a; border-radius: 50%; content: ''; height: 7px; width: 7px; }
+        .manifest-live-status.is-refreshing::before { animation: manifest-pulse .8s ease-in-out infinite alternate; background: #df1768; }
+        @keyframes manifest-pulse { to { opacity: .3; } }
         .manifest-page { background: #fff; border-radius: 14px; margin: 24px auto; max-width: 1480px; min-height: 900px; padding: 36px; }
         .manifest-header { border-bottom: 1px solid #253044; padding-bottom: 22px; text-align: center; }
         .manifest-header h1 { font-size: 25px; font-weight: 800; letter-spacing: .02em; margin: 0; }
@@ -34,6 +38,7 @@
         .manifest-stat.booked { background: #edfff4; border-color: #a9e5bf; color: #07813a; }
         .manifest-stat.blocked { background: #f2f6fa; border-color: #bdccd9; color: #38566d; }
         .manifest-stat.locked { background: #fff7e7; border-color: #efc267; color: #955400; }
+        .manifest-stat.online { background: #eef9ff; border-color: #8bd7ef; color: #168bb6; }
         .manifest-stat.discounted { background: #fff8e9; border-color: #f1ca72; color: #a66405; }
         .manifest-search-note { background: #fff5f9; border: 1px solid #f1a2c3; border-radius: 8px; color: #9d1751; font-size: 12px; margin-bottom: 18px; padding: 10px 12px; }
         .manifest-deck { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 18px; overflow: hidden; }
@@ -52,7 +57,12 @@
         .manifest-seat-number { color: #bdc4ce; font-size: 24px; font-weight: 800; line-height: 1; }
         .manifest-seat-status { color: #a2a8b0; float: right; font-size: 10px; font-style: italic; font-weight: 700; text-transform: uppercase; }
         .manifest-seat.occupied .manifest-seat-number { color: #0f1825; }
-        .manifest-seat.blocked { background: #fafbfc; }
+        .manifest-seat.blocked,
+        .manifest-seat.pending-payment { background: repeating-linear-gradient(45deg, #fff1f5, #fff1f5 8px, #ffe8ef 8px, #ffe8ef 16px); box-shadow: inset 4px 0 #ef6b8f; }
+        .manifest-seat.pending-payment .manifest-seat-number,
+        .manifest-seat.pending-payment .manifest-seat-status { color: #c83262; }
+        .manifest-seat.online-booking:not(.pending-payment) { background: #eef9ff; box-shadow: inset 4px 0 #35b9e8; }
+        .manifest-seat.online-booking:not(.pending-payment) .manifest-seat-status { color: #168bb6; }
         .manifest-seat.admin-locked { background: #fff8e8; box-shadow: inset 4px 0 #e6a126; }
         .manifest-seat.admin-locked .manifest-seat-number,
         .manifest-seat.admin-locked .manifest-seat-status { color: #955400; }
@@ -70,6 +80,10 @@
         .manifest-lock-details { color: #744500; margin-top: 18px; }
         .manifest-lock-details strong { display: block; font-size: 13px; text-transform: uppercase; }
         .manifest-lock-details span { display: block; font-size: 11px; margin-top: 5px; }
+        .manifest-pending-details { color: #9f224a; margin-top: 15px; }
+        .manifest-pending-details strong { display: block; font-size: 13px; text-transform: uppercase; }
+        .manifest-pending-details span { color: #8d5366; display: block; font-size: 11px; margin-top: 5px; }
+        .manifest-pending-details .manifest-pending-reference { color: #b82758; font-weight: 800; letter-spacing: .03em; }
         .manifest-seat.filtered { opacity: .18; }
         @media (max-width: 700px) { .manifest-toolbar { align-items: flex-start; flex-direction: column; } .manifest-page { border-radius: 0; margin: 0; padding: 22px 14px; } .manifest-info { grid-template-columns: repeat(2, 1fr); } .manifest-passenger { display: block; } .manifest-passenger-dropoff { font-size: 15px; margin-top: 7px; text-align: left; } .manifest-reference { font-size: 23px; } .manifest-km-post { font-size: 18px; } }
         @media print {
@@ -109,6 +123,9 @@
             .manifest-lock-details { margin-top: 6px; }
             .manifest-lock-details strong { font-size: 7px; }
             .manifest-lock-details span { font-size: 6px; margin-top: 2px; }
+            .manifest-pending-details { margin-top: 5px; }
+            .manifest-pending-details strong { font-size: 7px; }
+            .manifest-pending-details span { font-size: 6px; margin-top: 2px; }
             .manifest-seat.filtered { opacity: 1; }
             .manifest-page--dense .manifest-seat { padding: 3px 4px; }
             .manifest-page--dense .manifest-seat-number { font-size: 13px; }
@@ -129,7 +146,9 @@
             .manifest-page--compact .manifest-type { font-size: 5px; margin-top: 1px; }
             .manifest-page--compact .manifest-lock-details { margin-top: 2px; }
             .manifest-page--compact .manifest-lock-details strong,
-            .manifest-page--compact .manifest-lock-details span { font-size: 5px; margin-top: 1px; }
+            .manifest-page--compact .manifest-lock-details span,
+            .manifest-page--compact .manifest-pending-details strong,
+            .manifest-page--compact .manifest-pending-details span { font-size: 5px; margin-top: 1px; }
             @page { margin: 0; size: legal portrait; }
         }
     </style>
@@ -156,10 +175,13 @@
                 ]) }}" target="_blank" rel="noopener">
                 <i class="fas fa-file-pdf"></i> Print Manifest
             </a>
+            <span class="manifest-live-status" id="manifestLiveStatus" role="status">Live updates on</span>
         </form>
     </div>
 
     <main class="manifest-page manifest-page--{{ $manifestPrint['density'] }}"
+        data-manifest-page
+        aria-live="polite"
         style="--manifest-print-row-height: {{ number_format($manifestPrint['row_height_mm'], 2, '.', '') }}mm;">
         <header class="manifest-header">
             <h1>GV FLORIDA TRANSPORT INC.</h1>
@@ -178,6 +200,7 @@
             <span class="manifest-stat booked">Booked: {{ $stats['booked'] }}</span>
             <span class="manifest-stat blocked">Pending/Held: {{ $stats['blocked'] }}</span>
             <span class="manifest-stat locked">Admin Locked: {{ $stats['locked'] }}</span>
+            <span class="manifest-stat online">Online: {{ $stats['online'] }}</span>
             <span class="manifest-stat">Available: {{ $stats['vacant'] }}</span>
             <span class="manifest-stat discounted">SC/PWD: {{ $stats['discounted'] }}</span>
         </section>
@@ -226,7 +249,7 @@
                                             $isDisabled = !$isComfortRoom && $cell['state'] === 'disabled';
                                             $isFiltered = $manifest && !$manifest['matches'];
                                         @endphp
-                                        <article class="manifest-seat {{ $isComfortRoom ? 'comfort-room' : '' }} {{ $manifest ? 'occupied' : '' }} {{ $manifest && $manifest['blocked'] ? 'blocked' : '' }} {{ $lockedSeat ? 'admin-locked' : '' }} {{ $isDisabled ? 'disabled' : '' }} {{ $isFiltered ? 'filtered' : '' }}"
+                                        <article class="manifest-seat {{ $isComfortRoom ? 'comfort-room' : '' }} {{ $manifest ? 'occupied' : '' }} {{ $manifest && $manifest['pending_payment'] ? 'blocked pending-payment' : '' }} {{ $manifest && $manifest['online_booking'] ? 'online-booking' : '' }} {{ $lockedSeat ? 'admin-locked' : '' }} {{ $isDisabled ? 'disabled' : '' }} {{ $isFiltered ? 'filtered' : '' }}"
                                             @if ($isComfortRoom) style="--cr-row-span: {{ $cell['row_span'] ?? 1 }}; grid-column: span {{ $cell['span'] ?? 1 }};" @endif>
                                             <span class="manifest-seat-number">{{ $cell['label'] }}</span>
                                             @if ($isComfortRoom)
@@ -243,25 +266,54 @@
                                                     @endif
                                                 </div>
                                             @elseif ($manifest)
-                                                <span class="manifest-seat-status">{{ $manifest['blocked'] ? 'Blocked' : 'Occupied' }}</span>
-                                                <div class="manifest-passenger">
-                                                    <div>
-                                                        <span class="manifest-reference">No. {{ $manifest['reference'] }}</span>
-                                                        <span class="manifest-passenger-name">{{ $manifest['passenger_name'] }}</span>
-                                                        @if ($manifest['discount_applied'] && $manifest['passenger_id'])
-                                                            <span class="manifest-passenger-id">ID No. {{ $manifest['passenger_id'] }}</span>
-                                                        @endif
-                                                    </div>
-                                                    <div class="manifest-passenger-dropoff">
-                                                        <div>
-                                                            {{ $manifest['destination'] ?: '-' }}
+                                                @if ($manifest['pending_payment'])
+                                                    <span class="manifest-seat-status"><i class="fas fa-clock"></i> Pending</span>
+                                                    <div class="manifest-pending-details">
+                                                        <strong><i class="fas fa-lock"></i> Pending Payment &ndash; Temporarily Locked</strong>
+                                                        <span>
+                                                            {{ $manifest['passenger_name'] }} &middot; &rarr; {{ $manifest['destination'] ?: '-' }}
                                                             @if ($manifest['km_post'])
-                                                                <span class="manifest-km-post">- KM {{ $manifest['km_post'] }}</span>
+                                                                &middot; KM {{ $manifest['km_post'] }}
+                                                            @endif
+                                                        </span>
+                                                        <span class="manifest-pending-reference">
+                                                            {{ $manifest['pnr'] ?: 'No. ' . $manifest['reference'] }}
+                                                            &middot;
+                                                            @if ($manifest['online_booking'])
+                                                                <i class="fas fa-globe"></i>
+                                                            @else
+                                                                <i class="fas fa-desktop"></i>
+                                                            @endif
+                                                            {{ $manifest['booking_channel'] }}
+                                                        </span>
+                                                    </div>
+                                                @else
+                                                    <span class="manifest-seat-status">
+                                                        @if ($manifest['online_booking'])
+                                                            <i class="fas fa-globe"></i> Online
+                                                        @else
+                                                            Occupied
+                                                        @endif
+                                                    </span>
+                                                    <div class="manifest-passenger">
+                                                        <div>
+                                                            <span class="manifest-reference">No. {{ $manifest['reference'] }}</span>
+                                                            <span class="manifest-passenger-name">{{ $manifest['passenger_name'] }}</span>
+                                                            @if ($manifest['discount_applied'] && $manifest['passenger_id'])
+                                                                <span class="manifest-passenger-id">ID No. {{ $manifest['passenger_id'] }}</span>
                                                             @endif
                                                         </div>
-                                                        <span class="manifest-type">{{ $manifest['passenger_type'] }}</span>
+                                                        <div class="manifest-passenger-dropoff">
+                                                            <div>
+                                                                {{ $manifest['destination'] ?: '-' }}
+                                                                @if ($manifest['km_post'])
+                                                                    <span class="manifest-km-post">- KM {{ $manifest['km_post'] }}</span>
+                                                                @endif
+                                                            </div>
+                                                            <span class="manifest-type">{{ $manifest['passenger_type'] }}</span>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                @endif
                                             @else
                                                 <span class="manifest-seat-status">Vacant</span>
                                             @endif
@@ -276,6 +328,96 @@
             @endforeach
         </div>
     </main>
+
+    @if (config('services.pusher.key'))
+        <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+    @endif
+    <script>
+        (() => {
+            const tripId = @json((int) $trip->id);
+            const journeyDate = @json($date);
+            const liveStatus = document.getElementById('manifestLiveStatus');
+            let refreshInProgress = false;
+            let queuedRefresh = false;
+
+            const refreshManifest = async () => {
+                if (document.visibilityState !== 'visible') {
+                    queuedRefresh = true;
+                    return;
+                }
+
+                if (refreshInProgress) {
+                    queuedRefresh = true;
+                    return;
+                }
+
+                refreshInProgress = true;
+                liveStatus?.classList.add('is-refreshing');
+                if (liveStatus) liveStatus.textContent = 'Updating manifest...';
+
+                try {
+                    const response = await fetch(window.location.href, {
+                        cache: 'no-store',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    if (!response.ok) throw new Error(`Manifest refresh failed (${response.status})`);
+
+                    const nextDocument = new DOMParser().parseFromString(await response.text(), 'text/html');
+                    const nextPage = nextDocument.querySelector('[data-manifest-page]');
+                    const currentPage = document.querySelector('[data-manifest-page]');
+                    if (nextPage && currentPage) currentPage.replaceWith(nextPage);
+
+                    if (liveStatus) liveStatus.textContent = `Live updates on · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                } catch (error) {
+                    if (liveStatus) liveStatus.textContent = 'Live update retrying...';
+                } finally {
+                    refreshInProgress = false;
+                    liveStatus?.classList.remove('is-refreshing');
+                    if (queuedRefresh) {
+                        queuedRefresh = false;
+                        window.setTimeout(refreshManifest, 250);
+                    }
+                }
+            };
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && queuedRefresh) {
+                    queuedRefresh = false;
+                    refreshManifest();
+                }
+            });
+
+            @if (config('services.pusher.key'))
+                if (typeof Pusher !== 'undefined') {
+                    const pusher = new Pusher(@json(config('services.pusher.key')), {
+                        cluster: @json(config('services.pusher.cluster', 'ap1'))
+                    });
+                    pusher.connection.bind('state_change', ({ current }) => {
+                        if (!liveStatus) return;
+
+                        const labels = {
+                            connected: 'Live updates on',
+                            connecting: 'Connecting live updates...',
+                            unavailable: 'Live updates unavailable',
+                            failed: 'Live updates failed',
+                            disconnected: 'Live updates disconnected'
+                        };
+                        liveStatus.textContent = labels[current] || 'Connecting live updates...';
+                    });
+                    const channel = pusher.subscribe('schedule-board');
+                    channel.bind('passenger-transaction', (event) => {
+                        const sameTrip = !event.trip_id || Number(event.trip_id) === tripId;
+                        const sameDate = !event.date_of_journey || event.date_of_journey === journeyDate;
+                        if (sameTrip && sameDate) refreshManifest();
+                    });
+                } else if (liveStatus) {
+                    liveStatus.textContent = 'Live updates unavailable';
+                }
+            @else
+                if (liveStatus) liveStatus.textContent = 'Live updates unavailable';
+            @endif
+        })();
+    </script>
 </body>
 
 </html>

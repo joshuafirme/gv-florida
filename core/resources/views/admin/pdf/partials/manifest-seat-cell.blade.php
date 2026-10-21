@@ -13,7 +13,8 @@
             'manifest-seat',
             $isComfortRoom ? 'comfort-room' : null,
             $manifest ? 'occupied' : null,
-            $manifest && $manifest['blocked'] ? 'blocked' : null,
+            $manifest && $manifest['pending_payment'] ? 'blocked pending-payment' : null,
+            $manifest && $manifest['online_booking'] ? 'online-booking' : null,
             $lockedSeat ? 'admin-locked' : null,
             $isDisabled ? 'disabled' : null,
         ])->filter()->implode(' ');
@@ -28,7 +29,15 @@
             @elseif ($lockedSeat)
                 <span class="manifest-seat-status">Admin Locked</span>
             @elseif ($manifest)
-                <span class="manifest-seat-status">{{ $manifest['blocked'] ? 'Blocked' : 'Occupied' }}</span>
+                <span class="manifest-seat-status">
+                    @if ($manifest['pending_payment'])
+                        Pending
+                    @elseif ($manifest['online_booking'])
+                        Online
+                    @else
+                        Occupied
+                    @endif
+                </span>
             @else
                 <span class="manifest-seat-status">Vacant</span>
             @endif
@@ -46,6 +55,20 @@
                 @if ($lockedSeat['authorized_by'])
                     <span>Authorized by: {{ $lockedSeat['authorized_by'] }}</span>
                 @endif
+            </div>
+        @elseif ($manifest && $manifest['pending_payment'])
+            <div class="manifest-pending-details">
+                <strong>Pending Payment &ndash; Temporarily Locked</strong>
+                <span>
+                    {{ $manifest['passenger_name'] }} &middot; {{ $manifest['destination'] ?: '-' }}
+                    @if ($manifest['km_post'])
+                        &middot; KM {{ $manifest['km_post'] }}
+                    @endif
+                </span>
+                <span class="manifest-pending-reference">
+                    {{ $manifest['pnr'] ?: 'No. ' . $manifest['reference'] }}
+                    &middot; {{ $manifest['booking_channel'] }}
+                </span>
             </div>
         @elseif ($manifest)
             <div class="manifest-passenger">

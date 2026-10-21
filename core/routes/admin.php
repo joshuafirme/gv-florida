@@ -165,6 +165,25 @@ Route::middleware('admin')->group(function () {
         });
     });
 
+    Route::controller('BookingReminderController')
+        ->prefix('manage/booking-reminders')
+        ->name('trip.booking-reminders.')
+        ->middleware('role:admin.trip.booking-reminders.index')
+        ->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::post('{reminder}', 'update')->name('update');
+            Route::post('{reminder}/status', 'status')->name('status');
+            Route::post('{reminder}/move', 'move')->name('move');
+            Route::post('{reminder}/delete', 'destroy')->name('destroy');
+
+            Route::post('trip-codes/store', 'storeTripCode')->name('trip-codes.store');
+            Route::post('trip-codes/{tripCode}', 'updateTripCode')->name('trip-codes.update');
+            Route::post('trip-codes/{tripCode}/status', 'statusTripCode')->name('trip-codes.status');
+            Route::post('trip-codes/{tripCode}/move', 'moveTripCode')->name('trip-codes.move');
+            Route::post('trip-codes/{tripCode}/delete', 'destroyTripCode')->name('trip-codes.destroy');
+        });
+
     Route::controller('AdminSeatLockController')
         ->prefix('manage/trip/{trip}/seat-locks')
         ->name('trip.seat-locks.')
@@ -229,6 +248,7 @@ Route::middleware('admin')->group(function () {
         Route::get('all', 'list')->name('list');
         Route::get('pending/details/{id}', 'pendingDetails')->name('pending.details');
         Route::get('{scope}/search', 'search')->name('search');
+        Route::post('{ticket}/notify-passenger', 'notifyPassenger')->name('notify');
     });
 
     Route::controller('OnlineTicketValidationController')
@@ -305,6 +325,12 @@ Route::middleware('admin')->group(function () {
         Route::get('all/{user_id?}', 'deposit')->name('list');
         Route::get('export', 'export');
         Route::get('pending/scan', 'scanPending')->name('pending.scan');
+        Route::get('pending/status', 'pendingStatus')->name('pending.status');
+        Route::post('pending/processing/heartbeat', 'renewProcessing')->name('pending.processing.heartbeat');
+        Route::post('pending/processing/release', 'releaseProcessing')->name('pending.processing.release');
+        Route::post('pending/{deposit}/discount', 'adjustPendingDiscount')
+            ->middleware('role:admin.deposit.pending')
+            ->name('pending.discount');
         Route::get('pending/{user_id?}', 'pending')->name('pending');
         Route::get('rejected/{user_id?}', 'rejected')->name('rejected');
         Route::get('approved/{user_id?}', 'approved')->name('approved');

@@ -119,13 +119,22 @@
                                     @if ($ticket['actions'])
                                         <div class="all-ticket-actions">
                                             @foreach ($ticket['actions'] as $action)
-                                                <a href="{{ $action['url'] }}"
-                                                    class="btn btn-sm {{ $action['class'] }}"
-                                                    title="{{ $action['label'] }}"
-                                                    data-bs-toggle="tooltip" data-bs-placement="bottom"
-                                                    @if (($action['target'] ?? null) === '_blank') target="_blank" rel="noopener" @endif>
-                                                    <i class="{{ $action['icon'] }}"></i>
-                                                </a>
+                                                @if (($action['type'] ?? null) === 'notify')
+                                                    <button type="button" class="btn btn-sm {{ $action['class'] }}"
+                                                        title="{{ $action['label'] }}" data-bs-toggle="tooltip"
+                                                        data-bs-placement="bottom" data-notify-url="{{ $action['url'] }}"
+                                                        data-pnr="{{ $action['pnr'] }}">
+                                                        <i class="{{ $action['icon'] }}"></i>
+                                                    </button>
+                                                @else
+                                                    <a href="{{ $action['url'] }}"
+                                                        class="btn btn-sm {{ $action['class'] }}"
+                                                        title="{{ $action['label'] }}"
+                                                        data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                        @if (($action['target'] ?? null) === '_blank') target="_blank" rel="noopener" @endif>
+                                                        <i class="{{ $action['icon'] }}"></i>
+                                                    </a>
+                                                @endif
                                             @endforeach
                                         </div>
                                     @else
@@ -151,6 +160,7 @@
             </div>
         @endif
     </div>
+    @include('admin.ticket.partials.notify-passenger-modal')
 @endsection
 
 @push('style')

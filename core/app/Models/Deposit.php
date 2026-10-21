@@ -10,10 +10,35 @@ class Deposit extends Model
 {
 
     protected $casts = [
-        'detail' => 'object'
+        'detail' => 'object',
+        'completed_at' => 'datetime',
+        'processing_started_at' => 'datetime',
+        'processing_lease_expires_at' => 'datetime',
     ];
 
     protected $hidden = ['detail'];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Deposit $deposit) {
+            $becameSuccessful = (int) $deposit->status === Status::PAYMENT_SUCCESS
+                && (!$deposit->exists
+                    || ($deposit->isDirty('status')
+                        && (int) $deposit->getOriginal('status') !== Status::PAYMENT_SUCCESS));
+
+            if ($becameSuccessful && !$deposit->completed_at) {
+                $deposit->completed_at = now();
+            }
+
+            if (array_key_exists('processing_token', $deposit->getAttributes())
+                && !in_array((int) $deposit->status, [Status::PAYMENT_INITIATE, Status::PAYMENT_PENDING], true)) {
+                $deposit->processing_admin_id = null;
+                $deposit->processing_token = null;
+                $deposit->processing_started_at = null;
+                $deposit->processing_lease_expires_at = null;
+            }
+        });
+    }
 
     public function user()
     {

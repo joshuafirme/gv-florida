@@ -4,16 +4,45 @@
     <div class="online-validation-toolbar">
         <div class="online-validation-tabs" role="tablist" aria-label="Ticket validation status">
             @foreach (['all' => 'All', 'to_validate' => 'To Validate', 'validated' => 'Validated'] as $key => $label)
-                <a href="{{ route('admin.online.ticket.validation.index', array_filter(['status' => $key, 'search' => $search])) }}"
+                <a href="{{ route('admin.online.ticket.validation.index', array_filter([
+                    'status' => $key,
+                    'search' => $search,
+                    'travel_date' => $travelDate,
+                    'departure_time' => $departureTime,
+                ])) }}"
                     class="online-validation-tab {{ $status === $key ? 'is-active' : '' }}">
                     {{ $label }} <span>{{ $counts[$key] }}</span>
                 </a>
             @endforeach
         </div>
-        <form action="{{ route('admin.online.ticket.validation.index') }}" method="GET" class="online-validation-search">
+        <form action="{{ route('admin.online.ticket.validation.index') }}" method="GET" class="online-validation-filters">
             <input type="hidden" name="status" value="{{ $status }}">
-            <i class="las la-search"></i>
-            <input type="search" name="search" value="{{ $search }}" placeholder="Search PNR, passenger, ref. or request no.">
+            <div class="online-validation-search">
+                <label for="validationSearch">@lang('Search')</label>
+                <div class="online-validation-input">
+                    <i class="las la-search"></i>
+                    <input id="validationSearch" type="search" name="search" value="{{ $search }}"
+                        placeholder="Search PNR, passenger, ref. or request no.">
+                </div>
+            </div>
+            <div class="online-validation-filter-field">
+                <label for="validationTravelDate">@lang('Travel Date')</label>
+                <input id="validationTravelDate" class="form-control" type="date" name="travel_date"
+                    value="{{ $travelDate }}">
+            </div>
+            <div class="online-validation-filter-field">
+                <label for="validationDepartureTime">@lang('Departure Time')</label>
+                <input id="validationDepartureTime" class="form-control" type="time" name="departure_time"
+                    value="{{ $departureTime }}">
+            </div>
+            <div class="online-validation-filter-actions">
+                <button class="btn btn--primary" type="submit">
+                    <i class="las la-filter"></i> @lang('Apply')
+                </button>
+                <a class="btn btn-light" href="{{ route('admin.online.ticket.validation.index', ['status' => $status]) }}">
+                    <i class="las la-times"></i> @lang('Clear')
+                </a>
+            </div>
         </form>
     </div>
 
@@ -72,6 +101,11 @@
                                         <a href="{{ $ticket['rebook_url'] }}" class="btn btn-sm btn-outline--primary" title="Rebook ticket"><i class="fa-solid fa-calendar-day"></i></a>
                                         <a href="{{ $ticket['refund_url'] }}" class="btn btn-sm btn-outline--warning" title="Refund ticket"><i class="las la-undo-alt"></i></a>
                                         <a href="{{ $ticket['cancel_url'] }}" class="btn btn-sm btn-outline--danger" title="Cancel ticket"><i class="las la-ban"></i></a>
+                                        <button type="button" class="btn btn-sm btn-outline--primary notify-passenger-btn"
+                                            data-notify-url="{{ $ticket['notify_url'] }}" data-pnr="{{ $ticket['pnr'] }}"
+                                            title="Notify Passenger">
+                                            <i class="las la-bell"></i>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -86,6 +120,8 @@
             <div class="card-footer py-4">{{ paginateLinks($tickets) }}</div>
         @endif
     </div>
+
+    @include('admin.ticket.partials.notify-passenger-modal')
 
     <div class="modal fade" id="onlineValidationModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered validation-dialog">
@@ -158,6 +194,18 @@
 <style>
     .validation-fare-line{display:flex;font-size:10px;gap:10px;justify-content:space-between;white-space:nowrap}
     .validation-final-fare{border-top:1px solid #e5e7eb;margin-top:3px;padding-top:3px}
+    .online-validation-toolbar{align-items:flex-end;flex-wrap:wrap}
+    .online-validation-filters{align-items:end;display:grid;flex:1;gap:10px;grid-template-columns:minmax(240px,1.5fr) minmax(145px,.7fr) minmax(145px,.7fr) auto;justify-content:end;min-width:0}
+    .online-validation-filter-field label,.online-validation-search>label{color:#606875;display:block;font-size:11px;font-weight:600;margin-bottom:5px}
+    .online-validation-input{position:relative}
+    .online-validation-search{max-width:none}
+    .online-validation-search .online-validation-input i{left:12px;top:12px}
+    .online-validation-filter-field .form-control,.online-validation-search input{background:#fff;border:1px solid #d4d8df;border-radius:7px;height:42px}
+    .online-validation-filter-actions{display:flex;gap:7px}
+    .online-validation-filter-actions .btn{align-items:center;display:inline-flex;height:42px;justify-content:center;white-space:nowrap}
+    @media(max-width:1199px){.online-validation-toolbar{align-items:stretch;flex-direction:column}.online-validation-filters{width:100%}}
+    @media(max-width:767px){.online-validation-filters{grid-template-columns:1fr 1fr}.online-validation-search{grid-column:1/-1}.online-validation-filter-actions{grid-column:1/-1}.online-validation-filter-actions .btn{flex:1}}
+    @media(max-width:575px){.online-validation-filters{grid-template-columns:1fr}.online-validation-search,.online-validation-filter-actions{grid-column:auto}}
 </style>
 @endpush
 
@@ -221,6 +269,7 @@
             .always(()=>button.prop('disabled',false));
     });
     $('#validateTicketBtn').on('click',function(){
+        if(!window.confirm(@json(__('Are you sure you want to validate this ticket?')))){return;}
         const button=$(this).prop('disabled',true);$.post($(this).data('url'),{_token:'{{ csrf_token() }}'})
             .done(result=>{notify('success',result.message);window.open(result.print_url,'_blank','noopener');setTimeout(()=>window.location.reload(),500);})
             .fail(xhr=>{notify('error',errorMessage(xhr));button.prop('disabled',false);});
