@@ -1,7 +1,9 @@
 @section('content')
     @php
         $kiosk_id = request()->kiosk_id;
-        $date_of_journey = request('date_of_journey') ? request('date_of_journey') : date('m/d/Y');
+        $date_of_journey = request('date_of_journey')
+            ? request('date_of_journey')
+            : \App\Support\BusinessTime::today()->format('m/d/Y');
         $dateOfJourneyQuery = \Carbon\Carbon::parse($date_of_journey)->format('m/d/Y');
         $date_of_journey_formatted = formatDate($date_of_journey);
         $selectedPickupPoint = request('start_from') ?: request('pickup') ?: $trip->startFrom->id;

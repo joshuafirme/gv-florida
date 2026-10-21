@@ -18,7 +18,10 @@ use App\Models\Trip;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleRoute;
+use App\Observers\BookedTicketNotificationObserver;
 use App\Observers\ScheduleBoardDataObserver;
+use App\Observers\TripBookingNotificationObserver;
+use App\Support\BusinessTime;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
@@ -42,6 +45,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        date_default_timezone_set(BusinessTime::TIMEZONE);
+
         if (
             $this->app->isProduction()
             && request()->is('user/social-login/google', 'user/social-login/callback/google')
@@ -63,6 +68,10 @@ class AppServiceProvider extends ServiceProvider
         ] as $model) {
             $model::observe(ScheduleBoardDataObserver::class);
         }
+
+        BookedTicket::observe(BookedTicketNotificationObserver::class);
+        Trip::observe(TripBookingNotificationObserver::class);
+        Schedule::observe(TripBookingNotificationObserver::class);
 
         if (!file_exists(public_path())) {
             App::usePublicPath(base_path('public'));
@@ -109,6 +118,18 @@ class AppServiceProvider extends ServiceProvider
                 'adminNotifications' => AdminNotification::where('is_read', Status::NO)->with('user')->orderBy('id', 'desc')->take(10)->get(),
                 'adminNotificationCount' => AdminNotification::where('is_read', Status::NO)->count(),
                 'permissions' => json_decode(auth('admin')->user()->permissions->permissions)
+            ]);
+        });
+
+        view()->composer('templates.basic.partials.user_header', function ($view) {
+            $user = auth()->user();
+            if (!$user) {
+                return;
+            }
+
+            $view->with([
+                'passengerNotifications' => $user->passengerNotifications()->latest()->take(5)->get(),
+                'passengerNotificationCount' => $user->passengerNotifications()->where('is_read', false)->count(),
             ]);
         });
 

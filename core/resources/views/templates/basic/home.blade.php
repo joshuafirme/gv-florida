@@ -6,4 +6,5 @@
             @include($activeTemplate.'sections.'.$sec)
         @endforeach
     @endif
+    @include($activeTemplate . 'partials.passenger-reminders-modal')
 @endsection

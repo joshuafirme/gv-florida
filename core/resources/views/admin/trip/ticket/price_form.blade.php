@@ -159,40 +159,62 @@
                 var route = routesData[routeId];
                 if (!route || !route.stoppages) return;
 
-                var stoppages = route.stoppages; // Assuming this casts to an array of IDs
+                var routeStops = Array.isArray(route.route_stops) && route.route_stops.length
+                    ? route.route_stops
+                    : route.stoppages.map(function(stopId, index) {
+                        return {
+                            counter_id: stopId,
+                            km_post: countersData[stopId] ? countersData[stopId].km_post : 0,
+                            sequence: index + 1
+                        };
+                    });
                 var startFromId = route.start_from;
+                var destinationId = routeStops[routeStops.length - 1].counter_id;
                 var html = '';
+                var renderedFareStops = {};
 
                 // Set Origin Header Name
                 var originCounter = countersData[startFromId];
                 if (originCounter) $('#origin-name').text(originCounter.name);
 
-                stoppages.forEach(function(stopId, index) {
+                routeStops.forEach(function(routeStop, index) {
+                    var stopId = routeStop.counter_id;
                     var counter = countersData[stopId];
                     if (!counter) return;
 
                     var isOrigin = (index === 0);
-                    var isDestination = (index === stoppages.length - 1);
                     var inputKey = `${startFromId}-${counter.id}`;
                     var priceValue = existingPrices[inputKey] !== undefined ? existingPrices[inputKey] : 0;
+                    var kmPost = routeStop.km_post !== undefined && routeStop.km_post !== null
+                        ? routeStop.km_post
+                        : counter.km_post;
 
                     if (isOrigin) {
+                        renderedFareStops[counter.id] = true;
                         html += `
                         <tr>
                             <td class="ps-4 py-3">
                                 <span class="badge bg-info text-white me-2 px-2 py-1" style="font-size: 10px; letter-spacing: 1px;">ORIGIN</span> 
                                 <strong class="text-dark">${counter.name}</strong>
                             </td>
-                            <td class="text-muted">${counter.km_post}</td>
+                            <td class="text-muted">${kmPost}</td>
                             <td class="text-end text-muted pe-4">—</td>
                         </tr>`;
+                    } else if (renderedFareStops[counter.id]) {
+                        html += `
+                        <tr>
+                            <td class="ps-4 py-3"><strong class="text-dark">${counter.name}</strong></td>
+                            <td class="text-muted">${kmPost}</td>
+                            <td class="text-end text-muted pe-4"><small>@lang('Uses the same location fare')</small></td>
+                        </tr>`;
                     } else {
-                        var inputClass = isDestination ? 'destination-price-input' : '';
+                        var inputClass = String(counter.id) === String(destinationId) ? 'destination-price-input' : '';
+                        renderedFareStops[counter.id] = true;
 
                         html += `
                         <tr>
                             <td class="ps-4 py-3"><strong class="text-dark">${counter.name}</strong></td>
-                            <td class="text-muted">${counter.km_post}</td>
+                            <td class="text-muted">${kmPost}</td>
                             <td class="pe-4" style="width: 250px;">
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-light text-muted border-end-0">₱</span>

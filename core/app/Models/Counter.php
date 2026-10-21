@@ -14,9 +14,16 @@ class Counter extends Model
 
     public function scopeRouteStoppages($query, $array)
     {
-        return $query->whereIn('id', $array)
+        $ids = array_values(array_map('strval', (array) $array));
+        $counters = $query->whereIn('id', array_unique($ids))
             ->active()
-            ->orderByRaw("field(id," . implode(',', $array) . ")")->get();
+            ->get()
+            ->keyBy(fn ($counter) => (string) $counter->id);
+
+        return collect($ids)
+            ->map(fn ($id) => $counters->get($id))
+            ->filter()
+            ->values();
     }
 
     public function scopeActive($query)

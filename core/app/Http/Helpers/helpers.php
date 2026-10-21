@@ -67,15 +67,15 @@ if (!function_exists('getIntermediateStoppages')) {
         // Re-index and slice off the first (origin) and last (destination) items
         $intermediateIds = array_slice(array_values($stoppagesArray), 1, -1);
 
-        // Fetch the records
-        $unsortedStoppages = Counter::active()
-            ->whereIn('id', $intermediateIds)
-            ->get();
+        $stoppages = Counter::active()
+            ->whereIn('id', array_unique($intermediateIds))
+            ->get()
+            ->keyBy(fn ($counter) => (string) $counter->id);
 
-        // Sort them exactly matching the order of the array
-        return $unsortedStoppages->sortBy(function ($model) use ($intermediateIds) {
-            return array_search($model->id, $intermediateIds);
-        })->values();
+        return collect($intermediateIds)
+            ->map(fn ($id) => $stoppages->get((string) $id))
+            ->filter()
+            ->values();
     }
 }
 
@@ -344,7 +344,7 @@ function getAmount($amount, $length = 2)
 
 function generateReqID($prefix = 'GVF')
 {
-    $date = date('YmdHis');
+    $date = \App\Support\BusinessTime::now()->format('YmdHis');
     $req_id = "$prefix-$date-" . uniqid();
     return $req_id;
 }

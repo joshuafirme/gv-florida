@@ -9,8 +9,11 @@ use App\Models\Discount;
 use App\Models\OnlineTicketValidation;
 use App\Models\SlipSeriesNumber;
 use App\Services\CashierTransactionRecorder;
+use App\Services\BookingNotificationService;
 use App\Services\TransactionAuthorizationService;
+use App\Support\BusinessTime;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -28,12 +31,16 @@ class OnlineTicketValidationController extends Controller
         $validated = $request->validate([
             'search' => 'nullable|string|max:255',
             'status' => ['nullable', Rule::in(['all', 'to_validate', 'validated'])],
+            'travel_date' => 'nullable|date_format:Y-m-d',
+            'departure_time' => 'nullable|date_format:H:i',
         ]);
         $pageTitle = 'Online Ticket Validation';
         $search = trim((string) ($validated['search'] ?? ''));
         $status = $validated['status'] ?? 'all';
+        $travelDate = $validated['travel_date'] ?? '';
+        $departureTime = $validated['departure_time'] ?? '';
 
-        $countRow = $this->eligibleTicketsQuery()
+        $countRow = $this->eligibleTicketsQuery($travelDate, $departureTime)
             ->reorder()
             ->select([
                 DB::raw('COUNT(*) AS total_count'),
@@ -46,27 +53,15 @@ class OnlineTicketValidationController extends Controller
             'to_validate' => (int) ($countRow?->to_validate_count ?? 0),
             'validated' => (int) ($countRow?->validated_count ?? 0),
         ];
-        $searchLike = '%' . addcslashes($search, '\\%_') . '%';
-
-        $query = $this->eligibleTicketsQuery()
-            ->when($search !== '', function ($query) use ($searchLike) {
-                $query->leftJoin('users as validation_user', 'validation_user.id', '=', 'validation_ticket.user_id')
-                    ->where(function ($searchQuery) use ($searchLike) {
-                        $searchQuery->where('slip_series_numbers.id', 'like', $searchLike)
-                            ->orWhere('slip_series_numbers.seat', 'like', $searchLike)
-                            ->orWhere('validation_ticket.pnr_number', 'like', $searchLike)
-                            ->orWhere('validation_ticket.passenger_manifest', 'like', $searchLike)
-                            ->orWhere('validation_user.firstname', 'like', $searchLike)
-                            ->orWhere('validation_user.lastname', 'like', $searchLike)
-                            ->orWhereRaw("CONCAT_WS(' ', validation_user.firstname, validation_user.lastname) LIKE ?", [$searchLike])
-                            ->orWhere('direct_payment.trx', 'like', $searchLike)
-                            ->orWhere('source_payment.trx', 'like', $searchLike);
-                    });
-            })
+        $query = $this->eligibleTicketsQuery($travelDate, $departureTime)
             ->when($status === 'to_validate', fn ($query) => $query->whereNull('validation_record.validated_at'))
             ->when($status === 'validated', fn ($query) => $query->whereNotNull('validation_record.validated_at'))
             ->with($this->indexRelations())
             ->latest('slip_series_numbers.id');
+
+        if ($search !== '') {
+            $this->applySearch($query, $search);
+        }
 
         $paginationTotal = $search === '' ? $counts[$status] : null;
         $tickets = $query
@@ -79,6 +74,8 @@ class OnlineTicketValidationController extends Controller
             'tickets',
             'search',
             'status',
+            'travelDate',
+            'departureTime',
             'counts'
         ));
     }
@@ -141,7 +138,7 @@ class OnlineTicketValidationController extends Controller
                 'discount_id' => $discount->id,
                 'discount_applied_by_admin_id' => auth('admin')->id(),
                 'discount_authorized_by_admin_id' => $authorizedBy->id,
-                'discount_authorized_at' => now(),
+                'discount_authorized_at' => BusinessTime::now(),
                 'original_fare' => $originalFare,
                 'discount_percentage' => (float) $discount->percentage,
                 'discount_amount' => $discountAmount,
@@ -188,7 +185,7 @@ class OnlineTicketValidationController extends Controller
 
             if (!$record->validated_at) {
                 $record->validated_by_admin_id = auth('admin')->id();
-                $record->validated_at = now();
+                $record->validated_at = BusinessTime::now();
                 $record->save();
                 $this->transactionRecorder->recordOnlineValidation($record->fresh());
             } elseif ($record->isDirty(['booked_ticket_id', 'deposit_id'])) {
@@ -197,6 +194,15 @@ class OnlineTicketValidationController extends Controller
 
             return $record;
         });
+
+        $validation->loadMissing(['bookedTicket', 'slipSeriesNumber']);
+        app(BookingNotificationService::class)->send(
+            $validation->bookedTicket,
+            'validation_completed',
+            "ticket-validation:{$validation->id}",
+            auth('admin')->user(),
+            $validation->slipSeriesNumber
+        );
 
         return response()->json([
             'message' => 'Online ticket validated successfully.',
@@ -208,15 +214,10 @@ class OnlineTicketValidationController extends Controller
         ]);
     }
 
-    private function eligibleTicketsQuery()
+    private function eligibleTicketsQuery(?string $travelDate = null, ?string $departureTime = null): Builder
     {
-        return SlipSeriesNumber::query()
+        $query = SlipSeriesNumber::query()
             ->join('booked_tickets as validation_ticket', 'validation_ticket.id', '=', 'slip_series_numbers.booked_ticket_id')
-            ->leftJoin('deposits as direct_payment', 'direct_payment.booked_ticket_id', '=', 'validation_ticket.id')
-            ->leftJoin('deposits as source_payment', 'source_payment.id', '=', 'validation_ticket.payment_source_deposit_id')
-            ->leftJoin('ticket_refunds as validation_refund', 'validation_refund.slip_series_number_id', '=', 'slip_series_numbers.id')
-            ->leftJoin('ticket_cancellations as validation_cancellation', 'validation_cancellation.slip_series_number_id', '=', 'slip_series_numbers.id')
-            ->leftJoin('ticket_voids as validation_void', 'validation_void.slip_series_number_id', '=', 'slip_series_numbers.id')
             ->leftJoin('online_ticket_validations as validation_record', 'validation_record.slip_series_number_id', '=', 'slip_series_numbers.id')
             ->whereNotNull('validation_ticket.user_id')
             ->where(function ($kiosk) {
@@ -225,13 +226,135 @@ class OnlineTicketValidationController extends Controller
             })
             ->where('validation_ticket.status', Status::BOOKED_APPROVED)
             ->where(function ($payment) {
-                $payment->where('direct_payment.status', Status::PAYMENT_SUCCESS)
-                    ->orWhere('source_payment.status', Status::PAYMENT_SUCCESS);
+                $payment->whereIn('validation_ticket.id', function ($directPayment) {
+                    $directPayment->select('booked_ticket_id')
+                        ->from('deposits')
+                        ->whereNotNull('booked_ticket_id')
+                        ->where('status', Status::PAYMENT_SUCCESS);
+                })->orWhereIn('validation_ticket.payment_source_deposit_id', function ($sourcePayment) {
+                    $sourcePayment->select('id')
+                        ->from('deposits')
+                        ->where('status', Status::PAYMENT_SUCCESS);
+                });
             })
-            ->whereNull('validation_refund.id')
-            ->whereNull('validation_cancellation.id')
-            ->whereNull('validation_void.id')
-            ->select('slip_series_numbers.*');
+            ->whereNotExists(function ($refund) {
+                $refund->selectRaw('1')
+                    ->from('ticket_refunds')
+                    ->whereColumn('ticket_refunds.slip_series_number_id', 'slip_series_numbers.id');
+            })
+            ->whereNotExists(function ($cancellation) {
+                $cancellation->selectRaw('1')
+                    ->from('ticket_cancellations')
+                    ->whereColumn('ticket_cancellations.slip_series_number_id', 'slip_series_numbers.id');
+            })
+            ->whereNotExists(function ($void) {
+                $void->selectRaw('1')
+                    ->from('ticket_voids')
+                    ->whereColumn('ticket_voids.slip_series_number_id', 'slip_series_numbers.id');
+            })
+            ->whereDate(
+                'validation_ticket.date_of_journey',
+                '>=',
+                BusinessTime::today()->toDateString()
+            );
+
+        if ($travelDate) {
+            $query->where('validation_ticket.date_of_journey', $travelDate);
+        }
+
+        if ($departureTime) {
+            $query->join('trips as validation_trip', 'validation_trip.id', '=', 'validation_ticket.trip_id')
+                ->join('schedules as validation_schedule', 'validation_schedule.id', '=', 'validation_trip.schedule_id')
+                ->where(
+                    'validation_schedule.start_from',
+                    Carbon::createFromFormat('H:i', $departureTime)->format('H:i:s')
+                );
+        }
+
+        return $query->select('slip_series_numbers.*');
+    }
+
+    private function applySearch(Builder $query, string $term): void
+    {
+        $isNumeric = ctype_digit($term);
+        $exactSlipId = $isNumeric && SlipSeriesNumber::query()->whereKey((int) $term)->exists()
+            ? (int) $term
+            : null;
+        $exactTicketIds = BookedTicket::query()
+            ->where('status', Status::BOOKED_APPROVED)
+            ->where('pnr_number', $term)
+            ->pluck('id');
+        $paymentMatches = DB::table('deposits')
+            ->where('trx', $term)
+            ->where('status', Status::PAYMENT_SUCCESS)
+            ->get(['id', 'booked_ticket_id']);
+        $directTicketIds = $paymentMatches
+            ->pluck('booked_ticket_id')
+            ->filter()
+            ->unique()
+            ->values();
+        $sourceDepositIds = $paymentMatches
+            ->pluck('id')
+            ->unique()
+            ->values();
+
+        if ($exactSlipId || $exactTicketIds->isNotEmpty() || $sourceDepositIds->isNotEmpty()) {
+            $query->where(function (Builder $exactQuery) use (
+                $exactSlipId,
+                $exactTicketIds,
+                $directTicketIds,
+                $sourceDepositIds
+            ) {
+                $hasCondition = false;
+
+                if ($exactSlipId) {
+                    $exactQuery->where('slip_series_numbers.id', $exactSlipId);
+                    $hasCondition = true;
+                }
+
+                foreach ([
+                    ['slip_series_numbers.booked_ticket_id', $exactTicketIds],
+                    ['slip_series_numbers.booked_ticket_id', $directTicketIds],
+                    ['validation_ticket.payment_source_deposit_id', $sourceDepositIds],
+                ] as [$column, $values]) {
+                    if ($values->isEmpty()) {
+                        continue;
+                    }
+
+                    $method = $hasCondition ? 'orWhereIn' : 'whereIn';
+                    $exactQuery->{$method}($column, $values);
+                    $hasCondition = true;
+                }
+            });
+
+            return;
+        }
+
+        $contains = '%' . addcslashes($term, '\\%_') . '%';
+        $query
+            ->leftJoin('users as validation_user', 'validation_user.id', '=', 'validation_ticket.user_id')
+            ->where(function (Builder $searchQuery) use ($contains) {
+                $searchQuery->where('slip_series_numbers.id', 'like', $contains)
+                    ->orWhere('slip_series_numbers.seat', 'like', $contains)
+                    ->orWhere('validation_ticket.pnr_number', 'like', $contains)
+                    ->orWhere('validation_ticket.passenger_manifest', 'like', $contains)
+                    ->orWhere('validation_user.firstname', 'like', $contains)
+                    ->orWhere('validation_user.lastname', 'like', $contains)
+                    ->orWhereRaw("CONCAT_WS(' ', validation_user.firstname, validation_user.lastname) LIKE ?", [$contains])
+                    ->orWhereIn('validation_ticket.id', function ($directPayment) use ($contains) {
+                        $directPayment->select('booked_ticket_id')
+                            ->from('deposits')
+                            ->whereNotNull('booked_ticket_id')
+                            ->where('status', Status::PAYMENT_SUCCESS)
+                            ->where('trx', 'like', $contains);
+                    })
+                    ->orWhereIn('validation_ticket.payment_source_deposit_id', function ($sourcePayment) use ($contains) {
+                        $sourcePayment->select('id')
+                            ->from('deposits')
+                            ->where('status', Status::PAYMENT_SUCCESS)
+                            ->where('trx', 'like', $contains);
+                    });
+            });
     }
 
     private function ensureOnlinePaidTicket(SlipSeriesNumber $slip): void
@@ -251,6 +374,13 @@ class OnlineTicketValidationController extends Controller
         if (!$active) {
             throw ValidationException::withMessages([
                 'ticket' => 'This ticket is not an active, successfully paid online ticket.',
+            ]);
+        }
+
+        if (!$ticket->date_of_journey
+            || BusinessTime::parse($ticket->date_of_journey)->startOfDay()->lt(BusinessTime::today())) {
+            throw ValidationException::withMessages([
+                'ticket' => 'This ticket can no longer be validated because its travel date has passed.',
             ]);
         }
     }
@@ -310,6 +440,7 @@ class OnlineTicketValidationController extends Controller
             'rebook_url' => route('admin.vehicle.ticket.booked', ['rebook_ticket' => $ticket->id, 'slip_id' => $slip->id]),
             'cancel_url' => route('admin.vehicle.ticket.booked', ['ticket_action' => 'cancel', 'slip_id' => $slip->id]),
             'refund_url' => route('admin.vehicle.ticket.booked', ['ticket_action' => 'refund', 'slip_id' => $slip->id]),
+            'notify_url' => route('admin.vehicle.ticket.notify', $ticket, false),
         ];
 
         if ($includeDiscounts) {

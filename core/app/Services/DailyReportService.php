@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\CashierTransactionEvent;
-use Carbon\Carbon;
+use App\Support\BusinessTime;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -31,16 +31,13 @@ class DailyReportService
 
     public function forDate(CarbonInterface $date, array $filters = []): array
     {
-        $businessDate = Carbon::parse($date->toDateString())->startOfDay();
+        $businessDate = BusinessTime::parse($date->toDateString())->startOfDay();
         $this->transactionRecorder->backfillAllForDate($businessDate);
 
         $allTransactions = CashierTransactionEvent::query()
             ->bookingTransactions()
             ->with('admin:id,name,username')
-            ->whereBetween('processed_at', [
-                $businessDate->copy()->startOfDay(),
-                $businessDate->copy()->endOfDay(),
-            ])
+            ->reportableForDate($businessDate)
             ->orderByRaw("CASE WHEN reference_no IS NULL OR reference_no = '' THEN 1 ELSE 0 END")
             ->orderBy('reference_no')
             ->orderBy('id')

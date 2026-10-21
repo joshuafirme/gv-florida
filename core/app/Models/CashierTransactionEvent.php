@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use App\Services\TransactionReasonFormatter;
+use App\Support\BusinessTime;
+use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class CashierTransactionEvent extends Model
@@ -51,6 +54,24 @@ class CashierTransactionEvent extends Model
     public function scopeBookingTransactions($query)
     {
         return $query->whereIn('status', self::BOOKING_TRANSACTION_STATUSES);
+    }
+
+    public function scopeReportableForDate(
+        Builder $query,
+        CarbonInterface|string $date
+    ): Builder {
+        $businessDate = BusinessTime::parse($date)->startOfDay();
+
+        return $query
+            ->whereBetween($this->qualifyColumn('processed_at'), [
+                $businessDate,
+                $businessDate->copy()->endOfDay(),
+            ])
+            ->whereDate(
+                $this->qualifyColumn('journey_date'),
+                '>=',
+                $businessDate->toDateString()
+            );
     }
 
     public function getProcessedByLabelAttribute(): string

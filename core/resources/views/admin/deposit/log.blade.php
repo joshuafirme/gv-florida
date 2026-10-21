@@ -291,7 +291,7 @@
                                         };
                                     @endphp
                                     @if ($enhancedPaymentTable)
-                                        <tr>
+                                        <tr @if ($status == 'pending') data-pending-deposit-id="{{ $deposit->id }}" @endif>
                                             <td>
                                                 <span class="pending-cell-title">{{ $gatewayName ?: __('Payment') }}</span>
                                                 <span class="pending-cell-meta">{{ $deposit->trx }}</span>
@@ -392,7 +392,7 @@
                                             </td>
                                         </tr>
                                     @else
-                                        <tr>
+                                        <tr @if ($status == 'pending') data-pending-deposit-id="{{ $deposit->id }}" @endif>
                                             <td>
                                                 @if ($status == 'pending')
                                                     <span class="pending-cell-title">
@@ -583,6 +583,10 @@
                         </div>
 
                         <div class="payment-amount-box">
+                            <div class="payment-discount-summary d-none" id="posDiscountSummary">
+                                <span>Discount applied</span>
+                                <strong id="posDiscountAmount"></strong>
+                            </div>
                             <div class="payment-total-row">
                                 <span>Amount due</span>
                                 <strong class="payment-total" data-pos-currency="amount"></strong>
@@ -1212,6 +1216,8 @@
         .payment-flow-modal .modal-body {
             padding: 22px 24px;
             color: #20242b;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
         }
 
         .payment-summary-grid,
@@ -1264,9 +1270,80 @@
             padding: 12px 18px;
         }
 
-        .payment-ticket-row+.payment-ticket-row,
+        .payment-ticket-item+.payment-ticket-item,
         .payment-detail-row+.payment-detail-row {
             border-top: 1px solid #dedfe3;
+        }
+
+        .payment-ticket-row {
+            min-height: 60px;
+        }
+
+        .payment-ticket-main {
+            min-width: 0;
+        }
+
+        .payment-ticket-actions {
+            align-items: flex-end;
+            display: flex;
+            flex: 0 0 auto;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .payment-discount-action {
+            align-items: center;
+            background: transparent;
+            border: 0;
+            color: #d91c67;
+            display: inline-flex;
+            font-size: 11px;
+            font-weight: 600;
+            gap: 4px;
+            padding: 0;
+        }
+
+        .payment-discount-action:hover,
+        .payment-discount-action:focus {
+            color: #a90e4b;
+        }
+
+        .payment-ticket-price {
+            align-items: flex-end;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .payment-ticket-base-fare {
+            color: #8b9099;
+            font-size: 10px;
+            line-height: 1.1;
+            text-decoration: line-through;
+        }
+
+        .payment-discount-editor {
+            border-top: 1px solid #e0e1e5;
+            display: none;
+            padding: 0 18px 14px;
+        }
+
+        .payment-discount-fields {
+            display: grid;
+            gap: 8px;
+            grid-template-columns: minmax(150px, .8fr) minmax(170px, 1.2fr) auto;
+        }
+
+        .payment-discount-fields .form-control {
+            background: #fff;
+            border-color: #cfd2d8;
+            border-radius: 7px;
+            font-size: 13px;
+            height: 40px;
+        }
+
+        .payment-discount-apply {
+            border-radius: 7px;
+            min-width: 74px;
         }
 
         .payment-ticket-name {
@@ -1296,6 +1373,21 @@
             align-items: center;
             display: flex;
             justify-content: space-between;
+        }
+
+        .payment-discount-summary {
+            align-items: center;
+            border-bottom: 1px solid #dedfe3;
+            color: #9a5d20;
+            display: flex;
+            font-size: 12px;
+            justify-content: space-between;
+            margin: -4px 0 14px;
+            padding: 0 0 10px;
+        }
+
+        .payment-discount-summary strong {
+            color: #c86616;
         }
 
         .payment-total {
@@ -1376,6 +1468,28 @@
                 padding-left: 16px;
                 padding-right: 16px;
             }
+
+            .payment-ticket-row {
+                align-items: flex-start;
+                gap: 10px;
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+
+            .payment-ticket-name,
+            .payment-ticket-meta {
+                display: block;
+                margin-left: 0;
+            }
+
+            .payment-discount-editor {
+                padding-left: 14px;
+                padding-right: 14px;
+            }
+
+            .payment-discount-fields {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 @endpush
@@ -1432,7 +1546,12 @@
                 const confirmPaymentModal = new bootstrap.Modal(document.getElementById('confirmPaymentModal'));
                 const rejectPaymentModal = new bootstrap.Modal(document.getElementById('posRejectModal'));
                 let activePayment = null;
+                let processingHeartbeatTimer = null;
+                let paymentFinalizationInProgress = false;
                 const appBaseUrl = @json(url('/'));
+                const processingAdminId = {{ auth('admin')->id() }};
+                const csrfToken = @json(csrf_token());
+                const pendingStatusUrl = @json(route('admin.deposit.pending.status'));
                 const params = new URLSearchParams(window.location.search);
 
                 if (params.get('newly_approved')) {
@@ -1460,28 +1579,158 @@
                     return `${appBaseUrl.replace(/\/$/, '')}/${String(value).replace(/^\/+/, '')}`;
                 };
 
-                function ticketRowsHtml(payment) {
+                function stopProcessingHeartbeat() {
+                    window.clearInterval(processingHeartbeatTimer);
+                    processingHeartbeatTimer = null;
+                }
+
+                function renewProcessingLease() {
+                    if (!activePayment?.processing_token) {
+                        return Promise.reject(new Error('No active payment processing session.'));
+                    }
+
+                    return $.ajax({
+                        url: activePayment.heartbeat_url,
+                        method: 'POST',
+                        data: {
+                            _token: csrfToken,
+                            deposit_id: activePayment.deposit_id,
+                            processing_token: activePayment.processing_token
+                        },
+                        dataType: 'json'
+                    });
+                }
+
+                function startProcessingHeartbeat() {
+                    stopProcessingHeartbeat();
+                    processingHeartbeatTimer = window.setInterval(function() {
+                        renewProcessingLease().fail(function(xhr) {
+                            stopProcessingHeartbeat();
+                            notify('error', xhr.responseJSON?.message ||
+                                'This payment processing session has ended.');
+                            activePayment = null;
+                            processPaymentModal.hide();
+                            confirmPaymentModal.hide();
+                            rejectPaymentModal.hide();
+                        });
+                    }, 30000);
+                }
+
+                function releaseActivePayment(useBeacon = false) {
+                    if (!activePayment?.processing_token) return;
+
+                    const payment = activePayment;
+                    activePayment = null;
+                    stopProcessingHeartbeat();
+
+                    if (useBeacon && navigator.sendBeacon) {
+                        const data = new FormData();
+                        data.append('_token', csrfToken);
+                        data.append('deposit_id', payment.deposit_id);
+                        data.append('processing_token', payment.processing_token);
+                        navigator.sendBeacon(payment.release_url, data);
+                        return;
+                    }
+
+                    $.ajax({
+                        url: payment.release_url,
+                        method: 'POST',
+                        data: {
+                            _token: csrfToken,
+                            deposit_id: payment.deposit_id,
+                            processing_token: payment.processing_token
+                        }
+                    });
+                }
+
+                function pollPendingPayments() {
+                    const rows = $('tr[data-pending-deposit-id]');
+                    const ids = rows.map(function() {
+                        return Number(this.dataset.pendingDepositId);
+                    }).get();
+
+                    if (!ids.length) return;
+
+                    $.getJSON(pendingStatusUrl, { ids }).done(function(result) {
+                        const activeIds = new Set((result.active_ids || []).map(Number));
+
+                        rows.each(function() {
+                            const row = $(this);
+                            if (!activeIds.has(Number(this.dataset.pendingDepositId))) {
+                                row.fadeOut(180, function() {
+                                    row.remove();
+                                });
+                            }
+                        });
+                    });
+                }
+
+                window.setInterval(pollPendingPayments, 3000);
+
+                function discountOptionsHtml(payment) {
+                    return (payment.discounts || []).map(discount =>
+                        `<option value="${escapeHtml(discount.id)}">${escapeHtml(discount.name)} - ${escapeHtml(discount.percentage)}%</option>`
+                    ).join('');
+                }
+
+                function ticketRowsHtml(payment, editable = false) {
                     return payment.tickets.map(ticket => `
-                        <div class="payment-ticket-row">
-                            <div>
-                                <span class="payment-ticket-name">${escapeHtml(ticket.passenger_name || payment.passenger_name)}</span>
-                                <span class="payment-ticket-meta">${escapeHtml(ticket.passenger_type || payment.passenger_type)} · Seat ${escapeHtml(formatSeatLabel(ticket.seat))}</span>
+                        <div class="payment-ticket-item" data-ticket-seat="${escapeHtml(ticket.seat)}">
+                            <div class="payment-ticket-row">
+                                <div class="payment-ticket-main">
+                                    <span class="payment-ticket-name">${escapeHtml(ticket.passenger_name || payment.passenger_name)}</span>
+                                    <span class="payment-ticket-meta">${escapeHtml(ticket.passenger_type || payment.passenger_type)} &middot; Seat ${escapeHtml(formatSeatLabel(ticket.seat))}</span>
+                                </div>
+                                <div class="payment-ticket-actions">
+                                    ${editable && payment.can_adjust_discounts ? (ticket.is_discounted ? `
+                                        <button type="button" class="payment-discount-action pos-remove-discount" data-seat="${escapeHtml(ticket.seat)}">
+                                            <i class="las la-times"></i> Remove discount
+                                        </button>
+                                    ` : `
+                                        <button type="button" class="payment-discount-action pos-show-discount" data-seat="${escapeHtml(ticket.seat)}" ${(payment.discounts || []).length ? '' : 'disabled'}>
+                                            <i class="las la-plus-circle"></i> Apply discount
+                                        </button>
+                                    `) : ''}
+                                    <span class="payment-ticket-price">
+                                        ${ticket.is_discounted ? `<small class="payment-ticket-base-fare">${formatCurrency(ticket.base_fare)}</small>` : ''}
+                                        <strong class="payment-ticket-fare">${formatCurrency(ticket.fare)}</strong>
+                                    </span>
+                                </div>
                             </div>
-                            <strong class="payment-ticket-fare">${formatCurrency(ticket.fare)}</strong>
+                            ${editable && payment.can_adjust_discounts && !ticket.is_discounted ? `
+                                <div class="payment-discount-editor">
+                                    <div class="payment-discount-fields">
+                                        <select class="form-control pos-discount-select" aria-label="Discount type">
+                                            <option value="">Select discount</option>
+                                            ${discountOptionsHtml(payment)}
+                                        </select>
+                                        <input type="text" class="form-control pos-discount-id" maxlength="100" placeholder="Passenger ID number" aria-label="Passenger ID number">
+                                        <button type="button" class="btn btn--primary payment-discount-apply pos-apply-discount" data-seat="${escapeHtml(ticket.seat)}">Apply</button>
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>
                     `).join('');
                 }
 
-                function fillProcessModal(payment) {
+                function fillProcessModal(payment, resetTender = true) {
+                    const currentTender = $('#posCashReceived').val();
                     $('[data-pos="pnr"]').text(payment.pnr);
                     $('[data-pos="trip"]').text(payment.trip);
                     $('[data-pos="departure_time"]').text(payment.departure_time);
                     $('[data-pos-currency="amount"]').text(formatCurrency(payment.amount));
-                    $('#processTicketRows').html(ticketRowsHtml(payment));
-                    $('#posCashReceived').val('');
-                    $('#posCashError').text('');
-                    $('#posChange').text(formatCurrency(0));
-                    $('#posProceedBtn').prop('disabled', true);
+                    $('#processTicketRows').html(ticketRowsHtml(payment, true));
+                    $('#posDiscountSummary').toggleClass('d-none', Number(payment.discount_amount || 0) <= 0);
+                    $('#posDiscountAmount').text(`-${formatCurrency(payment.discount_amount)}`);
+                    $('#posCashReceived').val(resetTender ? '' : currentTender);
+
+                    if (resetTender) {
+                        $('#posCashError').text('');
+                        $('#posChange').text(formatCurrency(0));
+                        $('#posProceedBtn').prop('disabled', true);
+                    } else {
+                        updateTenderedAmount();
+                    }
                 }
 
                 function updateTenderedAmount() {
@@ -1517,6 +1766,79 @@
                     $('#confirmTicketRows').html(ticketRowsHtml(activePayment));
                 }
 
+                function discountErrorMessage(xhr) {
+                    const errors = xhr.responseJSON?.errors;
+                    if (errors) {
+                        const first = Object.values(errors).flat()[0];
+                        if (first) return first;
+                    }
+
+                    return xhr.responseJSON?.message || 'Unable to update this ticket discount.';
+                }
+
+                function adjustTicketDiscount(ticketItem, payload) {
+                    if (!activePayment) return;
+
+                    const controls = ticketItem.find('button, select, input');
+                    controls.prop('disabled', true);
+
+                    $.ajax({
+                        url: activePayment.discount_adjust_url,
+                        method: 'POST',
+                        data: {
+                            ...payload,
+                            processing_token: activePayment.processing_token
+                        },
+                        dataType: 'json',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': @json(csrf_token())
+                        }
+                    }).done(function(response) {
+                        activePayment = response.payment;
+                        fillProcessModal(activePayment, false);
+                        notify('success', response.message);
+                    }).fail(function(xhr) {
+                        controls.prop('disabled', false);
+                        notify('error', discountErrorMessage(xhr));
+                    });
+                }
+
+                $(document).on('click', '.pos-show-discount', function() {
+                    const item = $(this).closest('.payment-ticket-item');
+                    item.find('.payment-discount-editor').stop(true, true).slideToggle(150, function() {
+                        if ($(this).is(':visible')) {
+                            $(this).find('.pos-discount-select').trigger('focus');
+                        }
+                    });
+                });
+
+                $(document).on('click', '.pos-apply-discount', function() {
+                    const item = $(this).closest('.payment-ticket-item');
+                    const discountId = item.find('.pos-discount-select').val();
+                    const idNumber = item.find('.pos-discount-id').val().trim();
+
+                    if (!discountId || !idNumber) {
+                        notify('error', 'Select a discount and enter the passenger ID number.');
+                        return;
+                    }
+
+                    adjustTicketDiscount(item, {
+                        seat: $(this).data('seat'),
+                        action: 'apply',
+                        discount_id: discountId,
+                        id_number: idNumber
+                    });
+                });
+
+                $(document).on('click', '.pos-remove-discount', function() {
+                    const item = $(this).closest('.payment-ticket-item');
+                    adjustTicketDiscount(item, {
+                        seat: $(this).data('seat'),
+                        action: 'remove'
+                    });
+                });
+
                 function openPendingPayment(scanValue, trigger, afterOpen = null) {
                     const button = $(trigger);
                     const originalLabel = button.length ? button.html() : '';
@@ -1542,6 +1864,8 @@
                         }
                     }).done(function(payment) {
                         activePayment = payment;
+                        paymentFinalizationInProgress = false;
+                        startProcessingHeartbeat();
                         fillProcessModal(payment);
 
                         if (typeof afterOpen === 'function') {
@@ -1583,6 +1907,17 @@
                     $('#posCashReceived').trigger('focus');
                 });
 
+                $('#processPaymentModal, #confirmPaymentModal, #posRejectModal').on('hidden.bs.modal', function() {
+                    window.setTimeout(function() {
+                        const flowStillOpen = $('#processPaymentModal, #confirmPaymentModal, #posRejectModal')
+                            .is('.show');
+
+                        if (!flowStillOpen && !paymentFinalizationInProgress) {
+                            releaseActivePayment();
+                        }
+                    }, 150);
+                });
+
                 $('#posCashReceived').on('input', updateTenderedAmount).on('keydown', function(event) {
                     if (event.key === 'Enter' && updateTenderedAmount()) {
                         event.preventDefault();
@@ -1611,6 +1946,10 @@
                     $('#posRejectMessage').val('');
                     $('#processPaymentModal').one('hidden.bs.modal', () => rejectPaymentModal.show());
                     processPaymentModal.hide();
+                });
+
+                $('#posRejectForm').on('submit', function() {
+                    paymentFinalizationInProgress = true;
                 });
 
                 async function printReservation(fileUrl) {
@@ -1649,9 +1988,15 @@
                     button.prop('disabled', true).html(
                         '<i class="las la-spinner la-spin"></i> Processing...'
                     );
+                    paymentFinalizationInProgress = true;
 
                     try {
-                        const validation = await $.getJSON(activePayment.validate_url);
+                        await renewProcessingLease();
+
+                        const validation = await $.getJSON(activePayment.validate_url, {
+                            processing_token: activePayment.processing_token,
+                            admin_id: processingAdminId
+                        });
 
                         if (!validation.success) {
                             throw {
@@ -1661,7 +2006,8 @@
 
                         const result = await $.getJSON(activePayment.print_url, {
                             admin_request: true,
-                            admin_id: {{ auth('admin')->id() }}
+                            admin_id: processingAdminId,
+                            processing_token: activePayment.processing_token
                         });
 
                         if (!result.success || !result.file_url) {
@@ -1684,6 +2030,8 @@
                             'Payment confirmed and reservation slip prepared.'
                         );
 
+                        activePayment = null;
+                        stopProcessingHeartbeat();
                         confirmPaymentModal.hide();
 
                         const reloadParams = new URLSearchParams(window.location.search);
@@ -1693,6 +2041,7 @@
                             window.location.search = reloadParams.toString();
                         }, 900);
                     } catch (error) {
+                        paymentFinalizationInProgress = false;
                         const message =
                             error.responseJSON?.message ||
                             error.message ||
@@ -1720,6 +2069,12 @@
 
                     event.preventDefault();
                     confirmAndPrintPayment();
+                });
+
+                window.addEventListener('beforeunload', function() {
+                    if (!paymentFinalizationInProgress) {
+                        releaseActivePayment(true);
+                    }
                 });
             @endif
 

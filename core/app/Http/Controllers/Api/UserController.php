@@ -19,6 +19,7 @@ use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Gateway\PaymentController;
 use App\Services\PendingPaymentExpirationService;
+use App\Services\PendingPaymentProcessingService;
 use App\Support\UserIdentitySanitizer;
 
 class UserController extends Controller
@@ -65,12 +66,26 @@ class UserController extends Controller
 
             // Only attempt approval if the deposit is actually pending
             if ($deposit && $deposit->status == Status::PAYMENT_PENDING) {
+                $expirationService = app(PendingPaymentExpirationService::class);
+                $processingService = app(PendingPaymentProcessingService::class);
+                $processingToken = (string) request('processing_token', '');
+                $processingAdminId = (int) request('admin_id');
+                $ownsClaim = $processingToken !== ''
+                    && $processingAdminId > 0
+                    && $processingService->ownsActiveClaim(
+                        $deposit,
+                        $processingAdminId,
+                        $processingToken
+                    );
 
-                if (app(PendingPaymentExpirationService::class)->expireIfDue($deposit)) {
+                if (($expirationService->isDue($deposit) && !$ownsClaim)
+                    || ($processingToken !== '' && !$ownsClaim)) {
+                    $expirationService->expireIfDue($deposit);
+
                     // Return a 400 Bad Request to automatically trigger the JavaScript .catch() block
                     return response()->json([
                         'success' => false,
-                        'message' => 'This transaction has expired and cannot be approved or printed.'
+                        'message' => 'This transaction expired before payment processing began or its processing session ended.'
                     ], 400);
                 }
 
@@ -135,10 +150,31 @@ class UserController extends Controller
             ->where('status', Status::PAYMENT_PENDING)
             ->first();
 
-        if (!$deposit || app(PendingPaymentExpirationService::class)->expireIfDue($deposit)) {
+        if (!$deposit) {
             return response()->json([
                 'success' => false,
                 'message' => 'This transaction has expired or has already been processed.'
+            ]);
+        }
+
+        $expirationService = app(PendingPaymentExpirationService::class);
+        $processingToken = (string) request('processing_token', '');
+        $processingAdminId = (int) request('admin_id');
+        $ownsClaim = $processingToken !== ''
+            && $processingAdminId > 0
+            && app(PendingPaymentProcessingService::class)->ownsActiveClaim(
+                $deposit,
+                $processingAdminId,
+                $processingToken
+            );
+
+        if (($expirationService->isDue($deposit) && !$ownsClaim)
+            || ($processingToken !== '' && !$ownsClaim)) {
+            $expirationService->expireIfDue($deposit);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'This transaction expired before payment processing began or its processing session ended.'
             ]);
         }
 

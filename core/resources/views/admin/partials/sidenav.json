@@ -684,6 +684,17 @@
                 "title": "Vehicle Assignment",
                 "route_name": "admin.trip.vehicle.assign.index",
                 "menu_active": "admin.trip.vehicle.assign.index"
+            },
+            {
+                "keyword": [
+                    "Booking Reminders",
+                    "Passenger Notices",
+                    "Online Booking"
+                ],
+                "title": "Booking Reminders",
+                "route_name": "admin.trip.booking-reminders.index",
+                "menu_active": "admin.trip.booking-reminders.*",
+                "permission": "admin.trip.booking-reminders.index"
             }
         ]
     },

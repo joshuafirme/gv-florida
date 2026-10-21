@@ -16,6 +16,7 @@ use App\Models\Trip;
 use App\Models\Vehicle;
 use App\Services\ScheduleBoardBroadcaster;
 use App\Services\AdminSeatLockService;
+use App\Services\RouteStopService;
 use App\Services\SeatLayoutService;
 use App\Services\TicketPassengerResolver;
 use App\Models\UserRole;
@@ -28,7 +29,8 @@ use Illuminate\Validation\ValidationException;
 class ManageTripController extends Controller
 {
     public function __construct(
-        private readonly TicketPassengerResolver $passengerResolver
+        private readonly TicketPassengerResolver $passengerResolver,
+        private readonly RouteStopService $routeStopService,
     ) {
     }
 
@@ -78,134 +80,115 @@ class ManageTripController extends Controller
     public function routeForm($id = null)
     {
         $pageTitle = $id ? 'Update Route' : 'Create Route';
-        $allStoppages = Counter::get();
+        $allStoppages = Counter::query()->orderBy('name')->get();
+        $locationOptions = $allStoppages->map(fn ($stop) => [
+            'id' => (string) $stop->id,
+            'name' => $stop->name,
+            'km_post' => $stop->km_post,
+            'active' => (bool) $stop->status,
+        ])->values();
 
         $route = null;
-        $stoppages = []; // Initialize as empty array for the "Create" view
+        $routeStops = [];
 
         if ($id) {
             $route = VehicleRoute::findOrFail($id);
-
-            $stoppages = getIntermediateStoppages($route->stoppages);
+            $routeStops = $route->stopDefinitions();
         }
 
-        return view('admin.trip.route.form', compact('pageTitle', 'stoppages', 'route', 'allStoppages'));
+        return view('admin.trip.route.form', compact('pageTitle', 'routeStops', 'route', 'allStoppages', 'locationOptions'));
     }
 
     public function routeStore(Request $request)
     {
-        $request->validate([
-            'name' => 'required',
-            'start_from' => 'required|integer|gt:0',
-            'end_to' => 'required|integer|gt:0',
-            'distance' => 'required',
-            'time' => 'required',
-            'stoppages' => 'nullable|array|min:1',
-            'stoppages.*' => 'nullable|integer|gt:0',
-        ], [
-            'stoppages.*.integer' => 'Invalid Stoppage Field'
-        ]);
-
-        if ($request->start_from == $request->end_to) {
-            $notify[] = ['error', 'Starting point and ending point can\'t be same'];
-            return back()->withNotify($notify);
-        }
-
-        $stoppages = $request->stoppages ? array_filter($request->stoppages) : [];
-
-        if (!in_array($request->start_from, $stoppages)) {
-            array_unshift($stoppages, $request->start_from);
-        }
-
-        if (!in_array($request->end_to, $stoppages)) {
-            array_push($stoppages, $request->end_to);
-        }
-
+        $validated = $this->validateRoute($request);
+        $routeStops = $this->routeStopService->normalize($validated['route_stops']);
+        $this->validateRouteEndpoints($routeStops);
         $route = new VehicleRoute();
-        $route->name = $request->name;
-        $route->start_from = $request->start_from;
-        $route->end_to = $request->end_to;
-        $route->stoppages = array_unique($stoppages);
-        $route->distance = $request->distance;
-        $route->time = $request->time;
-        $route->save();
+        $this->routeStopService->update($route, [
+            'name' => $this->routeName($validated['name'] ?? null, $routeStops),
+            'time' => $validated['time'],
+        ], $routeStops);
 
         $notify[] = ['success', 'Route created successfully'];
-        return back()->withNotify($notify);
+        return redirect()->route('admin.trip.route.form', $route->id)->withNotify($notify);
     }
 
     public function routeEdit($id)
     {
-        $route = VehicleRoute::findOrFail($id);
-        $pageTitle = 'Update Route - ' . $route->name;
-        $allStoppages = Counter::get();
-
-        $stoppagesArray = $route->stoppages;
-        $pos = array_search($route->start_from, $stoppagesArray);
-        unset($stoppagesArray[$pos]);
-        $pos = array_search($route->end_to, $stoppagesArray);
-        unset($stoppagesArray[$pos]);
-
-        if (!empty($stoppagesArray)) {
-            $stoppages = Counter::active()->whereIn('id', $stoppagesArray)
-                ->orderByRaw("field(id," . implode(',', $stoppagesArray) . ")")
-                ->get();
-        } else {
-            $stoppages = [];
-        }
-
-        return view('admin.trip.route.edit', compact('pageTitle', 'stoppages', 'route', 'allStoppages'));
+        return $this->routeForm($id);
     }
 
     public function routeUpdate(Request $request, $id)
     {
-        // 1. Updated validation (added 'different:start_from' and made 'name' nullable to match frontend)
-        $request->validate([
-            'name' => 'nullable|string',
-            'start_from' => 'required|integer|gt:0',
-            'end_to' => 'required|integer|gt:0|different:start_from',
-            'distance' => 'required',
-            'time' => 'required',
-            'stoppages' => 'nullable|array',
-            'stoppages.*' => 'nullable|integer|gt:0',
-        ], [
-            'end_to.different' => 'Starting point and ending point cannot be the same.',
-            'stoppages.*.integer' => 'Invalid Stoppage Field'
-        ]);
-
-        // 2. Filter out empty values from the intermediate stops
-        $stoppages = $request->stoppages ? array_filter($request->stoppages) : [];
-
-        // 3. FORCE REMOVE the start and end points from the intermediate array 
-        // just in case the user accidentally selected them in the dropdowns.
-        $stoppages = array_diff($stoppages, [$request->start_from, $request->end_to]);
-
-        // 4. Safely push the Origin to the beginning and Destination to the end
-        array_unshift($stoppages, $request->start_from);
-        array_push($stoppages, $request->end_to);
-
-        // 5. Remove any other accidental duplicates
-        $stoppages = array_unique($stoppages);
-
-        // 6. CRITICAL FIX: Reset array keys so Laravel saves it as a clean JSON array [1, 2, 3]
-        $stoppages = array_values($stoppages);
-
-        // 7. Ensure all IDs are strings to prevent JS/PHP strict-type lookup errors later
-        $stoppages = array_map('strval', $stoppages);
-
-        // 8. Save
+        $validated = $this->validateRoute($request);
+        $routeStops = $this->routeStopService->normalize($validated['route_stops']);
+        $this->validateRouteEndpoints($routeStops);
         $route = VehicleRoute::findOrFail($id);
-        $route->name = $request->name;
-        $route->start_from = $request->start_from;
-        $route->end_to = $request->end_to;
-        $route->stoppages = $stoppages;
-        $route->distance = $request->distance;
-        $route->time = $request->time;
-        $route->save();
-
+        $oldStopIds = array_unique(array_map('strval', $route->stoppages ?: []));
+        $newStopIds = array_unique($this->routeStopService->stoppageIds($routeStops));
+        $addedLocationCount = count(array_diff($newStopIds, $oldStopIds));
+        $removedFareCount = $this->routeStopService->update($route, [
+            'name' => $this->routeName($validated['name'] ?? null, $routeStops),
+            'time' => $validated['time'],
+        ], $routeStops);
 
         $notify[] = ['success', 'Route updated successfully'];
-        return back()->withNotify($notify);
+
+        if ($removedFareCount > 0) {
+            $notify[] = ['warning', $removedFareCount . ' obsolete fare segment(s) were removed. Review the route fare configurations.'];
+        }
+
+        if ($addedLocationCount > 0) {
+            $notify[] = ['warning', $addedLocationCount . ' new location(s) need fare entries before passengers can book those segments.'];
+        }
+
+        return redirect()->route('admin.trip.route.form', $route->id)->withNotify($notify);
+    }
+
+    private function validateRoute(Request $request): array
+    {
+        return $request->validate([
+            'name' => 'nullable|string|max:255',
+            'time' => 'required|string|max:100',
+            'route_stops' => 'required|array|min:2',
+            'route_stops.*.counter_id' => 'required|integer|exists:counters,id',
+            'route_stops.*.km_post' => 'required|numeric|min:0|max:999999.99',
+        ], [
+            'route_stops.required' => 'Add at least an origin and destination.',
+            'route_stops.min' => 'A route must contain at least two locations.',
+            'route_stops.*.counter_id.required' => 'Select a location for every route stop.',
+            'route_stops.*.km_post.required' => 'Enter a KM Post for every route stop.',
+        ]);
+    }
+
+    private function validateRouteEndpoints(array $routeStops): void
+    {
+        $first = $routeStops[0]['counter_id'];
+        $last = $routeStops[count($routeStops) - 1]['counter_id'];
+
+        if ($first === $last) {
+            throw ValidationException::withMessages([
+                'route_stops' => 'The origin and destination must be different locations.',
+            ]);
+        }
+    }
+
+    private function routeName(?string $name, array $routeStops): string
+    {
+        $name = trim((string) $name);
+
+        if ($name !== '') {
+            return $name;
+        }
+
+        $ids = [
+            $routeStops[0]['counter_id'],
+            $routeStops[count($routeStops) - 1]['counter_id'],
+        ];
+        $names = Counter::query()->whereIn('id', $ids)->pluck('name', 'id');
+
+        return trim(($names[$ids[0]] ?? 'Origin') . ' - ' . ($names[$ids[1]] ?? 'Destination'));
     }
 
     public function bulkStatus(Request $request)
