@@ -192,6 +192,11 @@
             padding: 25px 38px 7px 48px !important;
         }
 
+        .ticket-form .ticket-search-field > .date-range[readonly] {
+            background-color: #fff;
+            cursor: pointer;
+        }
+
         .ticket-form .ticket-search-field .select2-container--default .select2-selection--single {
             padding: 0 !important;
         }
@@ -1869,7 +1874,7 @@
                             <i class="las la-calendar-check"></i>
                             <input type="text" name="date_of_journey" id="ticket-travel-date"
                                 class="form--control date-range" placeholder="@lang('Departure')" autocomplete="off"
-                                value="{{ $dateOfJourneyDisplay }}">
+                                value="{{ $dateOfJourneyDisplay }}" readonly aria-readonly="true" aria-haspopup="dialog">
                         </div>
                     </div>
 
