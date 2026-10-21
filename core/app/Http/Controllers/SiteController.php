@@ -272,6 +272,7 @@ class SiteController extends Controller
 
         $pickup = $request->pickup ?: $request->counter_id;
         $destination = $request->destination ?: $request->selected_destination;
+        $fleetTypeIds = $this->normalizedFilterIds($request->input('fleetType'));
 
         if ($pickup) {
             $trips_query->where('start_from', (int) $pickup);
@@ -386,7 +387,7 @@ class SiteController extends Controller
             $pickup,
             $destination,
             getAllowedAdvanceBookingDays($request->kiosk_id),
-            array_map('intval', (array) $request->fleetType),
+            $fleetTypeIds,
             $request->province
         );
         $availableJourneyDates = array_keys(array_filter(
@@ -398,6 +399,11 @@ class SiteController extends Controller
 
         if ($request->expectsJson()) {
             $query = $request->query();
+            if ($fleetTypeIds) {
+                $query['fleetType'] = $fleetTypeIds;
+            } else {
+                unset($query['fleetType']);
+            }
             $query['date_of_journey'] = BusinessTime::parse(
                 $request->date_of_journey ?: BusinessTime::now()
             )->format('m/d/Y');
@@ -893,16 +899,19 @@ class SiteController extends Controller
     public function filterTrip($trips)
     {
         $request = request();
-        if ($request->fleetType) {
-            $trips = $trips->whereIn('fleet_type_id', $request->fleetType);
+        $fleetTypeIds = $this->normalizedFilterIds($request->input('fleetType'));
+        if ($fleetTypeIds) {
+            $trips = $trips->whereIntegerInRaw('fleet_type_id', $fleetTypeIds);
         }
 
-        if ($request->routes) {
-            $trips = $trips->whereIn('vehicle_route_id', $request->routes);
+        $routeIds = $this->normalizedFilterIds($request->input('routes'));
+        if ($routeIds) {
+            $trips = $trips->whereIntegerInRaw('vehicle_route_id', $routeIds);
         }
 
-        if ($request->schedules) {
-            $trips = $trips->whereIn('schedule_id', $request->schedules);
+        $scheduleIds = $this->normalizedFilterIds($request->input('schedules'));
+        if ($scheduleIds) {
+            $trips = $trips->whereIntegerInRaw('schedule_id', $scheduleIds);
         }
 
         if ($request->date_of_journey) {
@@ -912,6 +921,17 @@ class SiteController extends Controller
         }
 
         return $trips->with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])->where('status', Status::ENABLE);
+    }
+
+    private function normalizedFilterIds($values): array
+    {
+        return collect((array) $values)
+            ->filter(fn ($value) => is_scalar($value) && ctype_digit(trim((string) $value)))
+            ->map(fn ($value) => (int) $value)
+            ->filter(fn (int $value) => $value > 0)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function advanceBookingDateError($journeyDate, $kioskId = null): ?string

@@ -2151,6 +2151,14 @@
                 }
             }
 
+            function deleteArrayUrlParam(url, name) {
+                Array.from(new Set(url.searchParams.keys())).forEach(function(key) {
+                    if (key === name || key === `${name}[]` || key.startsWith(`${name}[`)) {
+                        url.searchParams.delete(key);
+                    }
+                });
+            }
+
             function buildTripListUrl(baseUrl = window.location.href, preservePage = false) {
                 const url = new URL(baseUrl, window.location.href);
                 const kioskInput = searchForm.querySelector('input[name="kiosk_id"]');
@@ -2162,8 +2170,7 @@
                 setUrlParam(url, 'destination', destinationSelect.value);
                 setUrlParam(url, 'date_of_journey', travelDateInput.value);
                 setUrlParam(url, 'kiosk_id', kioskInput ? kioskInput.value : '');
-                url.searchParams.delete('fleetType');
-                url.searchParams.delete('fleetType[]');
+                deleteArrayUrlParam(url, 'fleetType');
                 if (fleetType) url.searchParams.append('fleetType[]', fleetType);
                 setUrlParam(url, 'province', province);
                 url.searchParams.delete('selected_destination');
