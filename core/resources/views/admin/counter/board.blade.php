@@ -12,6 +12,7 @@
     <link rel="shortcut icon" type="image/png" href="{{ siteFavicon() }}">
 
     <link href="{{ asset('assets/global/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/global/css/line-awesome.min.css') }}" rel="stylesheet">
     
     <style>
         /* Base Theme (Dark Mode) */
@@ -267,6 +268,215 @@
             margin-top: 0.35rem;
             text-transform: uppercase;
         }
+
+        .board-content {
+            display: grid;
+            gap: 1.25rem;
+            grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.55fr);
+            padding: 1.25rem 2rem;
+        }
+
+        .board-content[hidden],
+        .board-media[hidden],
+        .board-notices[hidden] {
+            display: none;
+        }
+
+        .board-media,
+        .board-notices {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 18px 42px rgba(2, 8, 23, 0.18);
+            min-height: 250px;
+            overflow: hidden;
+        }
+
+        .board-media {
+            background: #070d17;
+            isolation: isolate;
+            position: relative;
+        }
+
+        .board-media img {
+            display: block;
+            height: clamp(260px, 31vh, 430px);
+            object-fit: contain;
+            opacity: 1;
+            transition: opacity 0.28s ease, transform 0.45s ease;
+            width: 100%;
+        }
+
+        .board-media img.is-changing {
+            opacity: 0;
+            transform: scale(0.99);
+        }
+
+        .board-media-label {
+            align-items: center;
+            background: #11b8c3;
+            border-radius: 999px;
+            color: #041b20;
+            display: inline-flex;
+            font-size: 0.72rem;
+            font-weight: 800;
+            gap: 0.35rem;
+            left: 1rem;
+            padding: 0.42rem 0.75rem;
+            position: absolute;
+            text-transform: uppercase;
+            top: 1rem;
+            z-index: 2;
+        }
+
+        .board-media-title {
+            background: rgba(5, 12, 23, 0.9);
+            border-top: 1px solid rgba(255, 255, 255, 0.16);
+            bottom: 0;
+            color: #fff;
+            font-size: 1.12rem;
+            font-weight: 700;
+            left: 0;
+            padding: 0.9rem 1.1rem;
+            position: absolute;
+            right: 0;
+            z-index: 2;
+        }
+
+        .board-media-dots {
+            display: flex;
+            gap: 0.4rem;
+            position: absolute;
+            right: 1rem;
+            top: 1.2rem;
+            z-index: 3;
+        }
+
+        .board-media-dot {
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 999px;
+            height: 7px;
+            transition: width 0.2s ease, background-color 0.2s ease;
+            width: 7px;
+        }
+
+        .board-media-dot.is-active {
+            background: #22d3ee;
+            width: 24px;
+        }
+
+        .board-notices {
+            padding: 0;
+        }
+
+        .board-notices-header {
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem 1.15rem;
+        }
+
+        .board-notices-heading {
+            align-items: center;
+            display: flex;
+            gap: 0.7rem;
+        }
+
+        .board-notices-heading i {
+            align-items: center;
+            background: rgba(245, 158, 11, 0.16);
+            border-radius: 7px;
+            color: #f59e0b;
+            display: inline-flex;
+            font-size: 1.35rem;
+            height: 38px;
+            justify-content: center;
+            width: 38px;
+        }
+
+        .board-notices h2 {
+            color: var(--text-main);
+            font-size: 1rem;
+            font-weight: 750;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .board-notice-count {
+            background: rgba(34, 211, 238, 0.14);
+            border: 1px solid rgba(34, 211, 238, 0.3);
+            border-radius: 999px;
+            color: #22d3ee;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.28rem 0.58rem;
+        }
+
+        .board-notice-list {
+            display: grid;
+            gap: 0.7rem;
+            padding: 0.85rem;
+        }
+
+        .board-notice-item {
+            background: var(--row-alt);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid #22d3ee;
+            border-radius: 7px;
+            display: grid;
+            gap: 0.75rem;
+            grid-template-columns: 34px minmax(0, 1fr);
+            padding: 0.78rem 0.85rem;
+        }
+
+        .board-notice-item:nth-child(3n + 2) {
+            border-left-color: #f59e0b;
+        }
+
+        .board-notice-item:nth-child(3n) {
+            border-left-color: #22c55e;
+        }
+
+        .board-notice-marker {
+            align-items: center;
+            background: var(--btn-bg);
+            border-radius: 50%;
+            color: var(--text-blue);
+            display: flex;
+            font-size: 1rem;
+            height: 34px;
+            justify-content: center;
+            width: 34px;
+        }
+
+        .board-notice-copy strong {
+            display: block;
+            font-size: 0.98rem;
+            margin-bottom: 0.22rem;
+        }
+
+        .board-notice-copy p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.45;
+            margin: 0;
+            white-space: pre-line;
+        }
+
+        .board-content--single {
+            grid-template-columns: 1fr;
+        }
+
+        @media (max-width: 900px) {
+            .board-content { grid-template-columns: 1fr; padding: 1rem; }
+            .header-title { font-size: 1.6rem; }
+            .board-header { padding: 1rem; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .board-media img { transition: none; }
+        }
     </style>
 </head>
 
@@ -277,11 +487,11 @@
         </div>
         
         <div class="text-center" style="width: 50%;">
-            <h1 class="header-title">Today's Departures</h1>
+            <h1 class="header-title">{{ $counter->name }} Departures</h1>
         </div>
         
         <div class="clock-widget" style="width: 25%;">
-            <button id="themeToggle" class="theme-toggle-btn">☀️ Light Mode</button>
+            <button id="themeToggle" class="theme-toggle-btn">Light Mode</button>
             <div id="clock-time" class="clock-time">--:-- --</div>
             <div id="clock-date" class="clock-date">--</div>
             <div id="connectionStatus" class="connection-status">Connecting live updates</div>
@@ -309,6 +519,25 @@
         <div id="paginationContainer" class="pagination-container">
             </div>
 
+        <section id="boardContent" class="board-content" hidden aria-live="polite">
+            <div id="boardMedia" class="board-media" hidden>
+                <span class="board-media-label"><i class="las la-star"></i> Featured</span>
+                <img id="boardAdvertisementImage" src="" alt="">
+                <div id="boardAdvertisementTitle" class="board-media-title" hidden></div>
+                <div id="boardAdvertisementDots" class="board-media-dots" aria-hidden="true"></div>
+            </div>
+            <aside id="boardNotices" class="board-notices" hidden>
+                <div class="board-notices-header">
+                    <div class="board-notices-heading">
+                        <i class="las la-bullhorn"></i>
+                        <h2>Announcements</h2>
+                    </div>
+                    <span id="boardNoticeCount" class="board-notice-count"></span>
+                </div>
+                <div id="boardNoticeList" class="board-notice-list"></div>
+            </aside>
+        </section>
+
         <div class="footer-banner">
             <div class="footer-left">
                 Thank you for choosing GV Florida. Have a safe trip!
@@ -334,7 +563,7 @@
         function setTheme(theme) {
             htmlElement.setAttribute('data-theme', theme);
             localStorage.setItem('board_theme', theme);
-            themeToggleBtn.innerHTML = theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode';
+            themeToggleBtn.textContent = theme === 'light' ? 'Dark Mode' : 'Light Mode';
         }
 
         // Check local storage for saved theme preference
@@ -348,12 +577,18 @@
 
         // --- Schedule & Pagination Logic ---
         let currentPage = 1;
-        const itemsPerPage = 10;
-        let tableData = []; 
+        let itemsPerPage = 10;
+        let tableData = [];
+        let advertisements = [];
+        let notices = [];
+        let advertisementIndex = 0;
+        let advertisementTimer = null;
         let last_updated = null;
         let refreshTimer = null;
+        let fallbackRefreshTimer = null;
         const counterId = window.location.pathname.split('/').filter(Boolean).pop();
         const scheduleBoardUrl = @json(route('admin.counter.scheduleBoardJSON', '__COUNTER_ID__')).replace('__COUNTER_ID__', counterId);
+        const scheduleBoardStorageKey = `schedule-board-refresh:${counterId}`;
         const pusherKey = @json($pusherKey);
         const pusherCluster = @json($pusherCluster);
         const tripStatusLabels = {
@@ -367,6 +602,13 @@
 
         scheduleBoard();
         connectScheduleBoardUpdates();
+        setFallbackRefreshInterval(5000);
+
+        window.addEventListener('storage', function(event) {
+            if (event.key === scheduleBoardStorageKey) {
+                queueScheduleRefresh();
+            }
+        });
 
         function tickLastUpdate() {
             document.getElementById('lastUpdated').textContent =
@@ -394,8 +636,12 @@
                     tickLastUpdate();
                     last_updated = data.last_updated;
                     
-                    tableData = data.res; 
+                    tableData = data.res;
+                    advertisements = data.advertisements || [];
+                    notices = data.notices || [];
+                    itemsPerPage = advertisements.length || notices.length ? 6 : 10;
                     renderTable();
+                    renderBoardContent();
                 },
                 error: function (err) { 
                     console.error("Failed to fetch schedule data", err);
@@ -447,6 +693,97 @@
 
             $('#scheduleTable tbody').append(html);
             renderPaginationControls(tableData.length);
+        }
+
+        function renderBoardContent() {
+            const content = document.getElementById('boardContent');
+            const media = document.getElementById('boardMedia');
+            const noticePanel = document.getElementById('boardNotices');
+            const hasAdvertisements = advertisements.length > 0;
+            const hasNotices = notices.length > 0;
+
+            clearInterval(advertisementTimer);
+            content.hidden = !hasAdvertisements && !hasNotices;
+            media.hidden = !hasAdvertisements;
+            noticePanel.hidden = !hasNotices;
+            content.classList.toggle('board-content--single', !hasAdvertisements || !hasNotices);
+
+            if (hasAdvertisements) {
+                advertisementIndex = Math.min(advertisementIndex, advertisements.length - 1);
+                showAdvertisement(advertisementIndex);
+
+                if (advertisements.length > 1) {
+                    advertisementTimer = setInterval(function() {
+                        advertisementIndex = (advertisementIndex + 1) % advertisements.length;
+                        showAdvertisement(advertisementIndex);
+                    }, 10000);
+                }
+            }
+
+            const noticeList = document.getElementById('boardNoticeList');
+            const noticeCount = document.getElementById('boardNoticeCount');
+            noticeList.replaceChildren();
+            noticeCount.textContent = `${notices.length} active`;
+
+            notices.forEach(function(notice) {
+                const item = document.createElement('article');
+                item.className = 'board-notice-item';
+
+                const marker = document.createElement('span');
+                marker.className = 'board-notice-marker';
+                marker.setAttribute('aria-hidden', 'true');
+                marker.innerHTML = '<i class="las la-info-circle"></i>';
+
+                const copy = document.createElement('div');
+                copy.className = 'board-notice-copy';
+
+                if (notice.title) {
+                    const title = document.createElement('strong');
+                    title.textContent = notice.title;
+                    copy.appendChild(title);
+                }
+
+                const message = document.createElement('p');
+                message.textContent = notice.content;
+                copy.appendChild(message);
+                item.append(marker, copy);
+                noticeList.appendChild(item);
+            });
+        }
+
+        function showAdvertisement(index) {
+            const advertisement = advertisements[index];
+            if (!advertisement) return;
+
+            const image = document.getElementById('boardAdvertisementImage');
+            const title = document.getElementById('boardAdvertisementTitle');
+            const dots = document.getElementById('boardAdvertisementDots');
+            const preload = new Image();
+
+            image.classList.add('is-changing');
+            preload.onload = function() {
+                image.src = advertisement.image_url;
+                image.alt = advertisement.title || 'Schedule board advertisement';
+                requestAnimationFrame(function() {
+                    image.classList.remove('is-changing');
+                });
+            };
+            preload.onerror = function() {
+                image.classList.remove('is-changing');
+            };
+            preload.src = advertisement.image_url;
+
+            title.textContent = advertisement.title || '';
+            title.hidden = !advertisement.title;
+            dots.replaceChildren();
+
+            if (advertisements.length > 1) {
+                advertisements.forEach(function(_, dotIndex) {
+                    const dot = document.createElement('span');
+                    dot.className = `board-media-dot${dotIndex === index ? ' is-active' : ''}`;
+                    dots.appendChild(dot);
+                });
+            }
         }
 
         function renderPaginationControls(totalItems) {
@@ -544,6 +881,11 @@
             }
         }
 
+        function setFallbackRefreshInterval(milliseconds) {
+            clearInterval(fallbackRefreshTimer);
+            fallbackRefreshTimer = setInterval(scheduleBoard, milliseconds);
+        }
+
         function connectScheduleBoardUpdates() {
             if (!pusherKey || typeof Pusher === 'undefined') {
                 setConnectionStatus('Live updates unavailable');
@@ -558,14 +900,17 @@
 
             pusher.connection.bind('connected', function() {
                 setConnectionStatus('Live updates connected');
+                setFallbackRefreshInterval(60000);
             });
 
             pusher.connection.bind('unavailable', function() {
                 setConnectionStatus('Live updates reconnecting');
+                setFallbackRefreshInterval(5000);
             });
 
             pusher.connection.bind('failed', function() {
                 setConnectionStatus('Live updates disconnected');
+                setFallbackRefreshInterval(5000);
             });
 
             const channel = pusher.subscribe('schedule-board');
@@ -574,8 +919,10 @@
                 queueScheduleRefresh();
             });
 
-            channel.bind('schedule-data-updated', function() {
-                queueScheduleRefresh();
+            channel.bind('schedule-data-updated', function(event) {
+                if (!event || !event.counter_id || String(event.counter_id) === String(counterId)) {
+                    queueScheduleRefresh();
+                }
             });
 
             channel.bind('dispatch-status-updated', function(event) {
