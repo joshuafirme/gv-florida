@@ -99,6 +99,7 @@
                                             {{ $ticket['validated'] ? 'Details' : 'Validate' }}
                                         </button>
                                         <a href="{{ $ticket['rebook_url'] }}" class="btn btn-sm btn-outline--primary" title="Rebook ticket"><i class="fa-solid fa-calendar-day"></i></a>
+                                        <a href="{{ $ticket['transfer_url'] }}" class="btn btn-sm btn-outline--primary" title="Transfer ticket" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="las la-exchange-alt"></i></a>
                                         <a href="{{ $ticket['refund_url'] }}" class="btn btn-sm btn-outline--warning" title="Refund ticket"><i class="las la-undo-alt"></i></a>
                                         <a href="{{ $ticket['cancel_url'] }}" class="btn btn-sm btn-outline--danger" title="Cancel ticket"><i class="las la-ban"></i></a>
                                         <button type="button" class="btn btn-sm btn-outline--primary notify-passenger-btn"

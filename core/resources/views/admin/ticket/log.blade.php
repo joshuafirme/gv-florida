@@ -2646,12 +2646,13 @@
         })(jQuery);
 
         @php
-            $autoTicketAction = in_array(request('ticket_action'), ['refund', 'cancel', 'void'], true)
+            $autoTicketAction = in_array(request('ticket_action'), ['transfer', 'refund', 'cancel', 'void'], true)
                 ? request('ticket_action')
                 : null;
             $autoActionSlipId = request()->integer('slip_id');
             $autoTicketActionUrl = $autoTicketAction && $autoActionSlipId
                 ? match ($autoTicketAction) {
+                    'transfer' => route('admin.trip.ticket.transfer.options', $autoActionSlipId),
                     'refund' => route('admin.vehicle.ticket.refund.options', $autoActionSlipId),
                     'cancel' => route('admin.vehicle.ticket.cancel.options', $autoActionSlipId),
                     'void' => route('admin.vehicle.ticket.void.options', $autoActionSlipId),
@@ -2665,6 +2666,7 @@
             if (!action || !actionUrl) return;
 
             const config = {
+                transfer: { className: 'transfer-ticket-btn', attribute: 'data-options-url' },
                 refund: { className: 'refund-ticket-btn', attribute: 'data-refund-url' },
                 cancel: { className: 'cancel-ticket-btn', attribute: 'data-cancel-url' },
                 void: { className: 'void-ticket-btn', attribute: 'data-void-url' }

@@ -95,6 +95,14 @@
                                                         <i class="las la-exchange-alt"></i>
                                                     </a>
                                                 @endif
+                                                @if ($event['transfer_url'])
+                                                    <a href="{{ $event['transfer_url'] }}"
+                                                        class="btn btn-sm btn-outline--primary"
+                                                        data-bs-toggle="tooltip" data-bs-placement="bottom"
+                                                        title="Transfer ticket">
+                                                        <i class="las la-exchange-alt"></i>
+                                                    </a>
+                                                @endif
                                             </div>
                                         </td>
                                     </tr>

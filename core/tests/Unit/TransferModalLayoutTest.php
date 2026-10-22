@@ -42,4 +42,18 @@ class TransferModalLayoutTest extends TestCase
         $this->assertStringContainsString('function queueTransferAvailability(renderCurrentTrip = false)', $view);
         $this->assertStringContainsString('clearAllTransferSelectScrollLocks();', $view);
     }
+
+    public function test_active_ticket_lists_launch_the_existing_transfer_workflow(): void
+    {
+        $log = file_get_contents(resource_path('views/admin/ticket/log.blade.php'));
+        $allTickets = file_get_contents(resource_path('views/admin/ticket/all.blade.php'));
+        $rebooked = file_get_contents(resource_path('views/admin/ticket/rebooked.blade.php'));
+        $onlineValidation = file_get_contents(resource_path('views/admin/ticket/online-validation.blade.php'));
+
+        $this->assertStringContainsString("['transfer', 'refund', 'cancel', 'void']", $log);
+        $this->assertStringContainsString("transfer: { className: 'transfer-ticket-btn', attribute: 'data-options-url' }", $log);
+        $this->assertStringContainsString("\$event['transfer_url']", $rebooked);
+        $this->assertStringContainsString("\$ticket['transfer_url']", $onlineValidation);
+        $this->assertStringContainsString("\$ticket['actions']", $allTickets);
+    }
 }
