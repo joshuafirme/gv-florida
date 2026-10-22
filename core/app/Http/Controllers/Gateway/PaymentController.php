@@ -49,6 +49,21 @@ class PaymentController extends Controller
             return redirect()->route('ticket')->withNotify($notify);
         }
 
+        if ($request->filled('booked_ticket_id') && $bookedTicket->user_id) {
+            abort_unless(
+                auth()->check() && (int) $bookedTicket->user_id === (int) auth()->id(),
+                403
+            );
+
+            $existingPayment = $bookedTicket->payment_record;
+            if ($existingPayment && in_array((int) $existingPayment->status, [
+                Status::PAYMENT_INITIATE,
+                Status::PAYMENT_PENDING,
+            ], true)) {
+                return $this->resumePayment($bookedTicket);
+            }
+        }
+
         $isKioskBooking = $bookedTicket->isKioskBooking();
         $gatewayCurrency = $this->paymentGateways->getEnabledGatewayCurrencies($isKioskBooking);
 
@@ -76,6 +91,58 @@ class PaymentController extends Controller
             'isKioskBooking',
             'paynamicsMethods'
         ));
+    }
+
+    public function resumePayment(BookedTicket $bookedTicket)
+    {
+        abort_unless(
+            auth()->check() && (int) $bookedTicket->user_id === (int) auth()->id(),
+            403
+        );
+
+        $deposit = $bookedTicket->payment_record;
+
+        if (!$deposit) {
+            $notify[] = ['error', 'No payment transaction was found for this booking.'];
+            return to_route('user.ticket.history')->withNotify($notify);
+        }
+
+        if ($this->pendingPaymentExpiration->expireIfDue($deposit)) {
+            $notify[] = ['error', 'The payment window has expired. The reserved seats have been released.'];
+            return to_route('user.ticket.history')->withNotify($notify);
+        }
+
+        session()->put([
+            'Track' => $deposit->trx,
+            'booked_ticket_id' => $bookedTicket->id,
+            'pnr_number' => $bookedTicket->pnr_number,
+            'paynamics_request_id' => $deposit->trx,
+        ]);
+
+        if ((int) $deposit->status === Status::PAYMENT_SUCCESS) {
+            return to_route('user.deposit.done');
+        }
+
+        if (!in_array((int) $deposit->status, [Status::PAYMENT_INITIATE, Status::PAYMENT_PENDING], true)) {
+            $notify[] = ['error', 'This payment transaction can no longer be resumed.'];
+            return to_route('user.ticket.history')->withNotify($notify);
+        }
+
+        $isPaynamicsPayment = filled($deposit->pchannel);
+
+        if (!$isPaynamicsPayment) {
+            $deposit->loadMissing('gateway');
+            $isPaynamicsPayment = strtolower((string) $deposit->gateway?->alias)
+                === PaymentGatewayService::PAYNAMICS;
+        }
+
+        if ($isPaynamicsPayment) {
+            return app(PaynamicsProcessController::class)->resume($deposit);
+        }
+
+        return (int) $deposit->status === Status::PAYMENT_PENDING
+            ? to_route('user.deposit.done')
+            : to_route('user.deposit.confirm');
     }
 
     public function releaseSeats(Request $request)
