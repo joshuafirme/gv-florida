@@ -1240,6 +1240,10 @@ class VehicleTicketController extends Controller
             && !$slip->refund
             && !$slip->cancellation
             && !$slip->voidRecord;
+        $canTransfer = (int) $ticket->status === Status::BOOKED_APPROVED
+            && !$slip->refund
+            && !$slip->cancellation
+            && !$slip->voidRecord;
         $bookedActionUrl = fn (string $action) => route('admin.vehicle.ticket.booked', [
             'ticket_action' => $action,
             'slip_id' => $slip->id,
@@ -1263,6 +1267,12 @@ class VehicleTicketController extends Controller
                     'icon' => 'fa-solid fa-calendar-day',
                     'class' => 'btn-outline--primary',
                     'url' => $rebookUrl,
+                ],
+                [
+                    'label' => 'Transfer ticket',
+                    'icon' => 'las la-exchange-alt',
+                    'class' => 'btn-outline--primary',
+                    'url' => $bookedActionUrl('transfer'),
                 ],
                 [
                     'label' => 'Refund ticket',
@@ -1308,6 +1318,12 @@ class VehicleTicketController extends Controller
                     'icon' => 'las la-exchange-alt',
                     'class' => 'btn-outline--primary',
                     'url' => $rebookUrl,
+                ] : null,
+                $canTransfer ? [
+                    'label' => 'Transfer ticket',
+                    'icon' => 'las la-exchange-alt',
+                    'class' => 'btn-outline--primary',
+                    'url' => $bookedActionUrl('transfer'),
                 ] : null,
             ])),
             'Refunded' => $slip->refund ? [[
@@ -1410,6 +1426,12 @@ class VehicleTicketController extends Controller
         $canRebook = $currentTicket
             && in_array((int) $currentTicket->status, [Status::BOOKED_APPROVED, Status::BOOKED_PENDING], true)
             && (!$slip || (!$slip->refund && !$slip->cancellation && !$slip->voidRecord));
+        $canTransfer = $slip
+            && $currentTicket
+            && (int) $currentTicket->status === Status::BOOKED_APPROVED
+            && !$slip->refund
+            && !$slip->cancellation
+            && !$slip->voidRecord;
         $snapshot = $event->snapshot ?: [];
         $history = $snapshot['rebooking'] ?? [];
         $authorization = is_array($snapshot['authorization'] ?? null)
@@ -1492,6 +1514,12 @@ class VehicleTicketController extends Controller
                     'rebook_ticket' => $currentTicketId,
                     'slip_id' => $event->slip_series_number_id,
                 ]))
+                : null,
+            'transfer_url' => $canTransfer
+                ? route('admin.vehicle.ticket.booked', [
+                    'ticket_action' => 'transfer',
+                    'slip_id' => $slip->id,
+                ])
                 : null,
             'print_url' => $currentTicketId
                 ? route('admin.trip.reservationSlip', $currentTicketId)

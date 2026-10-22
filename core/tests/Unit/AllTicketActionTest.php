@@ -24,12 +24,12 @@ class AllTicketActionTest extends TestCase
         $voided = $this->slip(Status::BOOKED_VOIDED, null, null, new TicketVoid(['id' => 33]));
 
         $this->assertSame(
-            ['Reservation slip', 'Rebook ticket', 'Refund ticket', 'Cancel ticket', 'Void ticket'],
+            ['Reservation slip', 'Rebook ticket', 'Transfer ticket', 'Refund ticket', 'Cancel ticket', 'Void ticket'],
             $this->labels($this->actions($booked, 'Booked'))
         );
         $this->assertSame(['Rebook pending ticket'], $this->labels($this->actions($pending, 'Pending')));
         $this->assertSame(
-            ['View rebooking history', 'Print current ticket', 'Rebook this ticket again'],
+            ['View rebooking history', 'Print current ticket', 'Rebook this ticket again', 'Transfer ticket'],
             $this->labels($this->actions($rebooked, 'Rebooked'))
         );
         $this->assertSame(['View refund record'], $this->labels($this->actions($refunded, 'Refunded')));

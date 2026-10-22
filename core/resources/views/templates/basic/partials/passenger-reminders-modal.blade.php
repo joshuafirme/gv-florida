@@ -146,6 +146,8 @@
             .passenger-reminders-content {
                 display: flex;
                 flex-direction: column;
+                max-height: min(720px, calc(100vh - 32px));
+                max-height: min(720px, calc(100dvh - 32px));
                 min-height: 0;
                 overflow: hidden;
             }

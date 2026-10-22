@@ -438,6 +438,7 @@ class OnlineTicketValidationController extends Controller
             'validate_url' => route('admin.online.ticket.validation.validate', $slip),
             'print_url' => route('admin.trip.reservationSlip', ['id' => $ticket->id, 'slip_id' => $slip->id]),
             'rebook_url' => route('admin.vehicle.ticket.booked', ['rebook_ticket' => $ticket->id, 'slip_id' => $slip->id]),
+            'transfer_url' => route('admin.vehicle.ticket.booked', ['ticket_action' => 'transfer', 'slip_id' => $slip->id]),
             'cancel_url' => route('admin.vehicle.ticket.booked', ['ticket_action' => 'cancel', 'slip_id' => $slip->id]),
             'refund_url' => route('admin.vehicle.ticket.booked', ['ticket_action' => 'refund', 'slip_id' => $slip->id]),
             'notify_url' => route('admin.vehicle.ticket.notify', $ticket, false),
