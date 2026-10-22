@@ -88,14 +88,38 @@
                                 </thead>
                                 <tbody>
                                     @forelse($routes as $item)
+                                        @php
+                                            $routeStops = $item->stopDefinitions();
+                                            $firstRouteStop = $routeStops[0] ?? null;
+                                            $lastRouteStop = $routeStops ? $routeStops[array_key_last($routeStops)] : null;
+                                            $formatKmPost = static function ($value) {
+                                                if (!is_numeric($value)) {
+                                                    return null;
+                                                }
+
+                                                return rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
+                                            };
+                                            $startKmPost = $formatKmPost($firstRouteStop['km_post'] ?? $item->startFrom?->km_post);
+                                            $endKmPost = $formatKmPost($lastRouteStop['km_post'] ?? $item->endTo?->km_post);
+                                        @endphp
                                         <tr>
                                             <!-- Row Checkbox -->
                                             <td>
                                                 <input type="checkbox" name="ids[]" value="{{ $item->id }}" class="row-checkbox">
                                             </td>
                                             <td>{{ __($item->name) }}</td>
-                                            <td>{{ __($item->startFrom?->name) }}</td>
-                                            <td>{{ __($item->endTo?->name) }}</td>
+                                            <td>
+                                                <span class="d-block">{{ __($item->startFrom?->name) }}</span>
+                                                @if ($startKmPost !== null)
+                                                    <small class="text-muted">KM {{ $startKmPost }}</small>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                <span class="d-block">{{ __($item->endTo?->name) }}</span>
+                                                @if ($endKmPost !== null)
+                                                    <small class="text-muted">KM {{ $endKmPost }}</small>
+                                                @endif
+                                            </td>
                                             <td>{{ __($item->distance) }}</td>
                                             <td>{{ __($item->time) }}</td>
                                             <td>{{ count(getIntermediateStoppages($item->stoppages)) }}</td>
