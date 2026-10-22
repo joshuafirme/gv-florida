@@ -253,6 +253,18 @@
                 }
             }
 
+            @media (max-width: 991px) {
+                .header-bottom {
+                    z-index: 1100;
+                }
+
+                .header-bottom .menu.active {
+                    max-height: calc(100dvh - 60px);
+                    overscroll-behavior: contain;
+                    overflow-y: auto;
+                }
+            }
+
             @media (max-width: 575px) {
                 .booking-flow-stepper-shell.has-navigation {
                     height: 105px !important;

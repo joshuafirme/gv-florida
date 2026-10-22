@@ -184,7 +184,7 @@ class SeatConflictService
                     $hold->dropping_point_id
                 );
 
-                return $holdBounds && $this->segmentsOverlap($requestedBounds, $holdBounds);
+                return $holdBounds && $this->segmentsOverlapBounds($requestedBounds, $holdBounds);
             })
             ->pluck('seat_no')
             ->all());

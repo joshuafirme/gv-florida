@@ -94,12 +94,10 @@ class DepositController extends Controller
                 return response()->json(['message' => $message], $claim['status'] === 'busy' ? 409 : 410);
             }
 
-            return response()->json(array_merge($this->pendingPaymentPayload($deposit), [
-                'processing_token' => $claim['token'],
-                'processing_lease_expires_at' => $claim['lease_expires_at'],
-                'heartbeat_url' => route('admin.deposit.pending.processing.heartbeat'),
-                'release_url' => route('admin.deposit.pending.processing.release'),
-            ]));
+            return response()->json(array_merge(
+                $this->pendingPaymentPayload($deposit),
+                $this->pendingProcessingPayload($deposit, $claim)
+            ));
         }
 
         $notify[] = ['info', 'Pending payments must be processed through the new POS modal on the Pending Payments page.'];
@@ -200,10 +198,12 @@ class DepositController extends Controller
             'message' => $validated['action'] === 'apply'
                 ? 'Discount applied to the selected ticket.'
                 : 'Discount removed from the selected ticket.',
-            'payment' => $this->pendingPaymentPayload($deposit),
+            'payment' => array_merge(
+                $this->pendingPaymentPayload($deposit),
+                $this->pendingProcessingPayload($deposit)
+            ),
         ]);
     }
-
 
     public function approved($userId = null)
     {
@@ -452,6 +452,17 @@ class DepositController extends Controller
             'validate_url' => url("api/ticket/validate-deposit/{$deposit->id}"),
             'print_url' => url("api/ticket/download/reservation-slip/{$ticket->id}"),
             'reservation_slip_url' => route('admin.trip.reservationSlip', $ticket->id),
+        ];
+    }
+
+    private function pendingProcessingPayload(Deposit $deposit, ?array $claim = null): array
+    {
+        return [
+            'processing_token' => $claim['token'] ?? $deposit->processing_token,
+            'processing_lease_expires_at' => $claim['lease_expires_at']
+                ?? $deposit->processing_lease_expires_at?->toIso8601String(),
+            'heartbeat_url' => route('admin.deposit.pending.processing.heartbeat'),
+            'release_url' => route('admin.deposit.pending.processing.release'),
         ];
     }
 
