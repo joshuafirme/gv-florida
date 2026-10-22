@@ -95,6 +95,9 @@ Route::middleware('auth')->name('user.')->group(function () {
             });
         });
 
+        Route::get('payment/resume/{bookedTicket}', 'Gateway\PaymentController@resumePayment')
+            ->name('payment.resume');
+
         // Payment
         Route::prefix('payment')->controller('Gateway\PaymentController')->group(function () {
             // Route::any('/', 'deposit')->name('index');

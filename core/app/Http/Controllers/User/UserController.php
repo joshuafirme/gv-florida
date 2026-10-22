@@ -370,7 +370,10 @@ class UserController extends Controller
         $canAccessVoucher = ((int) $ticket->status === Status::BOOKED_APPROVED
                 && (!$payment?->expiry_limit || !isExpired($payment->expiry_limit)))
             || (int) $payment?->status === Status::PAYMENT_SUCCESS;
-        $canPay = (int) $payment?->status === Status::PAYMENT_PENDING
+        $canPay = in_array((int) $payment?->status, [
+            Status::PAYMENT_INITIATE,
+            Status::PAYMENT_PENDING,
+        ], true)
             && filled($payment?->expiry_limit)
             && !isExpired($payment->expiry_limit);
 
@@ -405,7 +408,7 @@ class UserController extends Controller
             'print_url' => $canAccessVoucher ? route('user.ticket.print', $ticket->id) : null,
             'download_url' => $canAccessVoucher ? route('user.ticket.download', $ticket->id) : null,
             'voucher_url' => $canAccessVoucher ? route('user.ticket.view', $ticket->id) : null,
-            'pay_url' => $canPay ? url("/user/payment/deposit?booked_ticket_id={$ticket->id}") : null,
+            'pay_url' => $canPay ? route('user.payment.resume', $ticket->id) : null,
         ];
     }
 

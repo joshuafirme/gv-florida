@@ -24,9 +24,11 @@
                 'copy' => 'The payment could not be confirmed. Please review the response below before trying again.',
             ],
         };
-        $retryUrl = $ticket
-            ? route('user.deposit.index', array_filter(['kiosk_id' => $ticket->kiosk_id]))
-            : route('ticket');
+        $retryUrl = $ticket && auth()->check() && (int) $ticket->user_id === (int) auth()->id()
+            ? route('user.payment.resume', $ticket->id)
+            : ($ticket
+                ? route('user.deposit.index', array_filter(['kiosk_id' => $ticket->kiosk_id]))
+                : route('ticket'));
         $tripsUrl = $ticket
             ? route('ticket', array_filter([
                 'kiosk_id' => $ticket->kiosk_id,
