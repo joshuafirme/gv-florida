@@ -1579,6 +1579,12 @@
                     return `${appBaseUrl.replace(/\/$/, '')}/${String(value).replace(/^\/+/, '')}`;
                 };
 
+                function discountOptionsHtml(payment) {
+                    return (payment.discounts || []).map(discount =>
+                        `<option value="${escapeHtml(discount.id)}">${escapeHtml(discount.name)} - ${escapeHtml(discount.percentage)}%</option>`
+                    ).join('');
+                }
+
                 function stopProcessingHeartbeat() {
                     window.clearInterval(processingHeartbeatTimer);
                     processingHeartbeatTimer = null;
@@ -1666,12 +1672,6 @@
                 }
 
                 window.setInterval(pollPendingPayments, 3000);
-
-                function discountOptionsHtml(payment) {
-                    return (payment.discounts || []).map(discount =>
-                        `<option value="${escapeHtml(discount.id)}">${escapeHtml(discount.name)} - ${escapeHtml(discount.percentage)}%</option>`
-                    ).join('');
-                }
 
                 function ticketRowsHtml(payment, editable = false) {
                     return payment.tickets.map(ticket => `

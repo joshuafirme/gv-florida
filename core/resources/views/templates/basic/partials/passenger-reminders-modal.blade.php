@@ -25,6 +25,10 @@
                 <section class="passenger-reminders-content">
                     <header>
                         <h2 id="passengerRemindersTitle">@lang('Important Reminders')</h2>
+                        <button type="button" class="passenger-reminders-close" data-bs-dismiss="modal"
+                            aria-label="@lang('Close reminders')" title="@lang('Close reminders')">
+                            <i class="las la-times" aria-hidden="true"></i>
+                        </button>
                     </header>
                     <div class="passenger-reminders-scroll">
                         @foreach ($passengerReminders as $reminder)
@@ -143,11 +147,16 @@
                 display: flex;
                 flex-direction: column;
                 min-height: 0;
+                overflow: hidden;
             }
 
             .passenger-reminders-content > header {
+                align-items: center;
                 background: #fff;
                 border-bottom: 1px solid #e2e8ed;
+                display: flex;
+                gap: 16px;
+                justify-content: space-between;
                 padding: 23px 28px;
             }
 
@@ -159,11 +168,36 @@
                 text-transform: uppercase;
             }
 
+            .passenger-reminders-close {
+                align-items: center;
+                background: transparent;
+                border: 0;
+                border-radius: 50%;
+                color: #667080;
+                display: inline-flex;
+                flex: 0 0 38px;
+                font-size: 22px;
+                height: 38px;
+                justify-content: center;
+                padding: 0;
+                transition: background-color .2s ease, color .2s ease;
+                width: 38px;
+            }
+
+            .passenger-reminders-close:hover,
+            .passenger-reminders-close:focus-visible {
+                background: #e9f3f5;
+                color: #0c969b;
+                outline: 0;
+            }
+
             .passenger-reminders-scroll {
                 flex: 1;
                 min-height: 0;
                 overflow-y: auto;
+                overscroll-behavior: contain;
                 padding: 22px 28px 16px;
+                -webkit-overflow-scrolling: touch;
             }
 
             .passenger-reminder-item {
@@ -265,6 +299,9 @@
 
             @media (max-width: 767.98px) {
                 .passenger-reminders-modal .modal-dialog {
+                    align-items: center;
+                    display: flex;
+                    height: 100dvh;
                     margin: 0 auto;
                     max-width: 560px;
                     padding: 10px;
@@ -272,7 +309,9 @@
 
                 .passenger-reminders-modal .modal-content {
                     grid-template-columns: 1fr;
-                    max-height: calc(100vh - 20px);
+                    grid-template-rows: auto minmax(0, 1fr);
+                    height: calc(100dvh - 20px);
+                    max-height: calc(100dvh - 20px);
                 }
 
                 .passenger-reminders-brand {
@@ -325,6 +364,12 @@
                     font-size: 17px;
                 }
 
+                .passenger-reminders-close {
+                    flex-basis: 40px;
+                    height: 40px;
+                    width: 40px;
+                }
+
                 .passenger-reminders-scroll {
                     padding-top: 17px;
                 }
@@ -350,8 +395,8 @@
                 if (!modalElement || !acknowledgeButton) return;
 
                 const reminderModal = new bootstrap.Modal(modalElement, {
-                    backdrop: 'static',
-                    keyboard: false
+                    backdrop: true,
+                    keyboard: true
                 });
 
                 try {
@@ -394,6 +439,10 @@
                     if (pendingForm) {
                         pendingForm.submit();
                     }
+                });
+
+                modalElement.addEventListener('hidden.bs.modal', function() {
+                    pendingForm = null;
                 });
             })();
         </script>

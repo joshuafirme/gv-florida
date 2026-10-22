@@ -51,6 +51,7 @@
             .then(response => response.json())
             .then(function (data) {
                 let $destination = $('select[name=destination]');
+                const currentDestination = String($destination.val() || '');
                 $destination.empty();
 
                 let defaultOption = $destination.data('default-option') || '--Dropping point--';
@@ -63,18 +64,21 @@
 
                 $destination.append(options);
 
-                // Re-select previously chosen destination if it exists in the URL
-                const queryString = window.location.search;
-                const urlParams = new URLSearchParams(queryString);
-                
-                setTimeout(() => {
-                    let destination = urlParams.get('destination') || urlParams.get('selected_destination');
-                    if (destination) {
-                        $destination.val(destination).trigger("change");
-                    } else {
-                        $destination.val('').trigger('change');
+                const urlParams = new URLSearchParams(window.location.search);
+                const requestedDestination = currentDestination
+                    || urlParams.get('destination')
+                    || urlParams.get('selected_destination')
+                    || '';
+                const destinationExists = data.some(v => String(v.id) === String(requestedDestination));
+                const selectedDestination = destinationExists ? requestedDestination : '';
+
+                $destination.val(selectedDestination).trigger('change');
+                document.dispatchEvent(new CustomEvent('droppingPoints:updated', {
+                    detail: {
+                        pickup: String(counter_id),
+                        destination: String(selectedDestination)
                     }
-                }, 1000); // Shorter timeout for a snappier UI response
+                }));
             })
             .catch(error => console.error('Error fetching dropping points:', error));
     }

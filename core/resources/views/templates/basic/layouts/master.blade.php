@@ -16,6 +16,17 @@
 
     @yield('content')
 
-    @include($activeTemplate . 'partials.footer')
+    @unless (request()->routeIs([
+        'ticket',
+        'ticket.seats',
+        'user.deposit.index',
+        'user.deposit.confirm',
+        'user.deposit.done',
+        'user.deposit.manual.confirm',
+        'paynamics.response',
+        'paynamics.cancel',
+    ]))
+        @include($activeTemplate . 'partials.footer')
+    @endunless
     <a href="javascript::void()" class="scrollToTop active"><i class="las la-chevron-up"></i></a>
 @endsection

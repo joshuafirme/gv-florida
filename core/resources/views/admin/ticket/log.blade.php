@@ -851,11 +851,11 @@
         .rebook-footer { border-color: #e6e7eb; justify-content: space-between; padding: 14px 24px; }
         .rebook-footer .btn { border-radius: 7px; font-weight: 600; min-width: 92px; }
         .transfer-dialog { max-width: 860px; }
-        .transfer-modal-content { border: 0; border-radius: 14px; box-shadow: 0 22px 60px rgba(0, 0, 0, .28); overflow: hidden; }
-        .transfer-header { align-items: flex-start; border-color: #e6e7eb; padding: 20px 24px; }
+        .transfer-modal-content { border: 0; border-radius: 14px; box-shadow: 0 22px 60px rgba(0, 0, 0, .28); display: flex; flex-direction: column; max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem); overflow: hidden; }
+        .transfer-header { align-items: flex-start; border-color: #e6e7eb; flex: 0 0 auto; padding: 20px 24px; }
         .transfer-header .modal-title { color: #17191e; font-size: 17px; font-weight: 700; }
         .transfer-header p { color: #747984; font-size: 12px; margin-top: 4px; }
-        .transfer-body { max-height: 76vh; overflow-y: auto; padding: 22px 24px; }
+        .transfer-body { flex: 1 1 auto; max-height: none; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 22px 24px; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
         .transfer-current-card { background: #f5f6f8; border: 1px solid #dfe1e5; border-radius: 8px; display: grid; gap: 14px; grid-template-columns: 1.5fr 1fr 1fr; padding: 14px 16px; }
         .transfer-current-card span, .transfer-quote-card span { color: #747984; display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; }
         .transfer-current-card strong { color: #242830; display: block; font-size: 13px; margin-top: 4px; }
@@ -868,11 +868,12 @@
         .transfer-type-card span { color: #7b808a; font-size: 11px; line-height: 1.35; }
         .transfer-type-card:hover, .transfer-type-card.selected { background: #fff5f9; border-color: #e3196b; box-shadow: 0 0 0 1px #e3196b; }
         .transfer-type-card.selected i, .transfer-type-card.selected strong { color: #e3196b; }
-        .transfer-fields { display: grid; gap: 12px; grid-template-columns: .8fr 1.4fr 1fr; }
+        .transfer-fields { display: grid; gap: 12px; grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr) minmax(0, 1fr); }
+        .transfer-fields > .form-group { min-width: 0; }
         .transfer-quote-card { background: #f6f7f9; border: 1px solid #dfe1e5; border-radius: 8px; display: grid; gap: 10px; grid-template-columns: repeat(4, 1fr); padding: 13px 15px; }
         .transfer-quote-card strong { display: block; font-size: 13px; margin-top: 4px; }
         .transfer-quote-card > div:last-child strong { color: #e3196b; }
-        .transfer-footer { border-color: #e6e7eb; justify-content: space-between; padding: 14px 24px; }
+        .transfer-footer { border-color: #e6e7eb; flex: 0 0 auto; justify-content: space-between; padding: 14px 24px; }
         .transfer-footer .btn { border-radius: 7px; font-weight: 600; min-width: 110px; }
         .transfer-review-actions { display: flex; gap: 10px; }
         .transfer-review-banner { align-items: center; background: #f1f0ff; border: 1px solid #c9c5f5; border-radius: 8px; color: #3930b7; display: flex; gap: 10px; padding: 14px 16px; }
@@ -903,9 +904,9 @@
         .transfer-code-field .form-control { padding-right: 44px; }
         .transfer-code-field button { background: transparent; border: 0; color: #737984; height: 100%; position: absolute; right: 0; top: 0; width: 42px; }
         .transfer-code-field button:hover, .transfer-code-field button:focus { color: #d91c67; }
-        #transferTicketModal .select2-container { width: 100% !important; }
+        #transferTicketModal .select2-container { max-width: 100%; min-width: 0; width: 100% !important; }
         #transferTicketModal .select2-container .select2-selection--single { align-items: center; background: #f5f5f7; border: 1px solid #d5d7dc; border-radius: 8px; display: flex; height: 43px; }
-        #transferTicketModal .select2-container .select2-selection__rendered { color: #2d3138; font-size: 12px; line-height: 41px; padding-left: 12px; padding-right: 30px; }
+        #transferTicketModal .select2-container .select2-selection__rendered { color: #2d3138; display: block; font-size: 12px; line-height: 41px; max-width: 100%; overflow: hidden; padding-left: 12px; padding-right: 30px; text-overflow: ellipsis; white-space: nowrap; }
         #transferTicketModal .select2-container .select2-selection__arrow { height: 41px; right: 5px; }
         #transferTicketModal .select2-container--open .select2-selection--single { border-color: #e3196b; box-shadow: 0 0 0 2px rgba(227, 25, 107, .12); }
         .transfer-select-dropdown { border: 1px solid #d3d6dc; border-radius: 8px; box-shadow: 0 10px 24px rgba(26, 30, 38, .16); overflow: hidden; }
@@ -983,8 +984,8 @@
         .cancel-review-total strong { color: #d83535; font-size: 20px; }
         .cancel-footer { justify-content: flex-end; gap: 12px; padding: 8px 30px 28px; }
         .cancel-footer .btn { border-radius: 9px; font-weight: 600; min-height: 43px; padding-left: 22px; padding-right: 22px; }
-        @media (max-width: 767.98px) { .transfer-fields, .transfer-quote-card { grid-template-columns: 1fr 1fr; } }
-        @media (max-width: 575.98px) { .rebook-type-grid, .transfer-type-grid, .transfer-current-card, .transfer-fields, .transfer-quote-card { grid-template-columns: 1fr; } .rebook-body, .transfer-body { max-height: 68vh; padding: 18px 16px; } .rebook-review-grid { grid-template-columns: 58px 1fr 1fr; } #transferReviewFooter { align-items: stretch; flex-direction: column-reverse; } .transfer-review-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; } .transfer-footer .btn { min-width: 0; width: 100%; } }
+        @media (max-width: 767.98px) { .transfer-fields, .transfer-quote-card { grid-template-columns: repeat(2, minmax(0, 1fr)); } .transfer-fields > .form-group:last-child { grid-column: 1 / -1; } }
+        @media (max-width: 575.98px) { .transfer-dialog { margin: .5rem; min-height: calc(100% - 1rem); } .transfer-modal-content { max-height: calc(100vh - 1rem); max-height: calc(100dvh - 1rem); } .rebook-type-grid, .transfer-type-grid, .transfer-current-card, .transfer-fields, .transfer-quote-card { grid-template-columns: minmax(0, 1fr); } .transfer-fields > .form-group:last-child { grid-column: auto; } .rebook-body, .transfer-body { padding: 18px 16px; } .rebook-review-grid { grid-template-columns: 58px 1fr 1fr; } #transferReviewFooter { align-items: stretch; flex-direction: column-reverse; } .transfer-review-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; } .transfer-footer .btn { min-width: 0; width: 100%; } }
     </style>
 
     <x-confirmation-modal />
@@ -1591,6 +1592,7 @@
             let holdTimer = null;
             let finalizingTransfer = false;
             let availabilityRequest = null;
+            let availabilityLoadTimer = null;
 
             const escapeHtml = value => $('<div>').text(value ?? '').html();
             const errorMessage = xhr => {
@@ -1651,12 +1653,26 @@
                 }
             }
 
+            function clearTransferSelectScrollLock(select) {
+                const instance = $(select).data('select2');
+                if (!instance?.id || !instance.$container) return;
+
+                instance.$container.parents().off(`scroll.select2.${instance.id}`);
+            }
+
+            function clearAllTransferSelectScrollLocks() {
+                $('#transferTrip, #transferDrop, #transferManagementReason').each(function() {
+                    clearTransferSelectScrollLock(this);
+                });
+            }
+
             function initializeTransferSelects() {
                 if (!$.fn.select2) return;
 
                 $('#transferTrip, #transferDrop, #transferManagementReason').each(function() {
                     const select = $(this);
                     if (select.hasClass('select2-hidden-accessible')) {
+                        clearTransferSelectScrollLock(this);
                         select.select2('destroy');
                     }
                     select.select2({
@@ -1664,6 +1680,10 @@
                         dropdownCssClass: 'transfer-select-dropdown',
                         minimumResultsForSearch: 0,
                         width: '100%'
+                    });
+                    select.off('.transferScrollLock').on('select2:close.transferScrollLock', function() {
+                        const element = this;
+                        window.setTimeout(() => clearTransferSelectScrollLock(element), 0);
                     });
                 });
             }
@@ -1673,6 +1693,8 @@
                     availabilityRequest.abort();
                     availabilityRequest = null;
                 }
+                window.clearTimeout(availabilityLoadTimer);
+                availabilityLoadTimer = null;
                 data = null;
                 transferType = null;
                 availability = null;
@@ -1807,18 +1829,26 @@
                 $('#transferAvailability').removeClass('d-none');
             }
 
+            function queueTransferAvailability(renderCurrentTrip = false) {
+                window.clearTimeout(availabilityLoadTimer);
+                availabilityLoadTimer = window.setTimeout(function() {
+                    availabilityLoadTimer = null;
+                    clearAllTransferSelectScrollLocks();
+                    if (renderCurrentTrip && isCurrentTransferTrip() && data.initial_availability) {
+                        renderInitialTransferAvailability();
+                    }
+                    loadTransferAvailability();
+                }, 0);
+            }
+
             $('#transferTrip').on('change', function() {
                 updateTransferDrops(isCurrentTransferTrip() ? data.booking.drop_id : null);
                 syncTransferTargetMode();
-
-                if (isCurrentTransferTrip() && data.initial_availability) {
-                    renderInitialTransferAvailability();
-                }
-                loadTransferAvailability();
+                queueTransferAvailability(true);
             });
             $('#transferDate, #transferDrop').on('change', function() {
                 syncTransferTargetMode();
-                loadTransferAvailability();
+                queueTransferAvailability();
             });
             $('#transferManagementReason').on('change', function() {
                 $('#transferOtherReasonField').toggleClass(
@@ -2166,10 +2196,12 @@
             });
 
             $('#transferTicketModal').on('hide.bs.modal', function() {
+                clearAllTransferSelectScrollLocks();
                 if (!finalizingTransfer) {
                     releaseTransferHold(true);
                 }
             }).on('hidden.bs.modal', function() {
+                clearAllTransferSelectScrollLocks();
                 $('#transferAuthorizationCode').val('').attr('type', 'password');
                 $('#transferToggleCode').attr('aria-label', 'Show authorization code')
                     .attr('title', 'Show authorization code')

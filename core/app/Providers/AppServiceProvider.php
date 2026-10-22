@@ -15,6 +15,7 @@ use App\Models\Frontend;
 use App\Models\Schedule;
 use App\Models\SupportTicket;
 use App\Models\Trip;
+use App\Models\TripChannelAvailability;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleRoute;
@@ -59,6 +60,7 @@ class AppServiceProvider extends ServiceProvider
 
         foreach ([
             Trip::class,
+            TripChannelAvailability::class,
             Schedule::class,
             VehicleRoute::class,
             AssignedVehicle::class,

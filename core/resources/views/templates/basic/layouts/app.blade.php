@@ -3,12 +3,14 @@
 
 @php
     $v = buildVer();
+    $isKioskInterface = request()->filled('kiosk_id') || session()->has('kiosk_id');
 @endphp
 
 <head>
     <!-- Required meta tags -->
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, shrink-to-fit=no{{ $isKioskInterface ? ', minimum-scale=1, maximum-scale=1, user-scalable=no' : '' }}">
     <title> {{ gs()->sitename(__($pageTitle)) }}</title>
     @include('partials.seo')
 
@@ -34,6 +36,13 @@
             --booking-primary-focus: color-mix(in srgb, var(--booking-primary) 18%, transparent);
             --booking-on-primary: #fff;
         }
+
+        @if ($isKioskInterface)
+            html,
+            body.kiosk-interface {
+                touch-action: pan-x pan-y;
+            }
+        @endif
     </style>
     @stack('style-lib')
 
@@ -41,7 +50,7 @@
 </head>
 @php echo loadExtension('google-analytics') @endphp
 
-<body>
+<body class="{{ $isKioskInterface ? 'kiosk-interface' : '' }}">
     <div class="overlay"></div>
     @include($activeTemplate . 'partials.preloader')
 
@@ -97,7 +106,32 @@
 
             $("#confirmationModal").find('.btn--primary').removeClass('btn--primary').addClass('btn--base');
 
-            @if (request('kiosk_id') || session('kiosk_id'))
+            @if ($isKioskInterface)
+                ['gesturestart', 'gesturechange', 'gestureend'].forEach(function(eventName) {
+                    document.addEventListener(eventName, function(event) {
+                        event.preventDefault();
+                    }, { passive: false });
+                });
+
+                document.addEventListener('touchmove', function(event) {
+                    if (event.touches.length > 1) {
+                        event.preventDefault();
+                    }
+                }, { passive: false });
+
+                document.addEventListener('wheel', function(event) {
+                    if (event.ctrlKey) {
+                        event.preventDefault();
+                    }
+                }, { passive: false });
+
+                document.addEventListener('keydown', function(event) {
+                    const zoomKeys = ['+', '-', '=', '0'];
+                    if ((event.ctrlKey || event.metaKey) && zoomKeys.includes(event.key)) {
+                        event.preventDefault();
+                    }
+                });
+
                 const kioskClock = document.getElementById('clock');
 
                 function updateClock() {

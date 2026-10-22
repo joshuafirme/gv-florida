@@ -16,7 +16,18 @@
 
     @yield('content')
 
-    @include($activeTemplate . 'partials.footer')
+    @unless (request()->routeIs([
+        'ticket',
+        'ticket.seats',
+        'user.deposit.index',
+        'user.deposit.confirm',
+        'user.deposit.done',
+        'user.deposit.manual.confirm',
+        'paynamics.response',
+        'paynamics.cancel',
+    ]))
+        @include($activeTemplate . 'partials.footer')
+    @endunless
 
     @php
         $cookie = App\Models\Frontend::where('data_keys', 'cookie.data')->first();
