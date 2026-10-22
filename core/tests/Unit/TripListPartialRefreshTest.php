@@ -95,6 +95,8 @@ class TripListPartialRefreshTest extends TestCase
         $this->assertStringContainsString('data-bs-dismiss="modal"', $reminders);
         $this->assertStringContainsString('backdrop: true', $reminders);
         $this->assertStringContainsString('height: calc(100dvh - 20px);', $reminders);
+        $this->assertMatchesRegularExpression('/\.passenger-reminders-content\s*\{[^}]*max-height:\s*min\(720px, calc\(100dvh - 32px\)\);/s', $reminders);
+        $this->assertMatchesRegularExpression('/\.passenger-reminders-content\s*>\s*footer\s*\{[^}]*flex:\s*0 0 auto;[^}]*padding:\s*14px 28px 20px;/s', $reminders);
         $this->assertStringContainsString("dropdownParent: routeSelect.closest('.journey-point-selector')", $ticketView);
     }
 }
