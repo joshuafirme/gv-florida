@@ -70,6 +70,10 @@ class ProcessController extends Controller
                 $isKioskBooking
             );
 
+            $ticket->deposit->pchannel = $channel->code;
+            $ticket->deposit->pmethod = $channel->paymentMethod->code;
+            $ticket->deposit->save();
+
             $booked_tickets = $this->bookedQuery($ticket);
             if ($booked_tickets->count() > 0) {
                 $notify[] = ['error', "The selected seats are already booked. Please go back and select different seats."];
@@ -97,8 +101,22 @@ class ProcessController extends Controller
                 $transaction = $paynamics->createTransaction($channel);
             }
 
-            $ticket->deposit->pchannel = $channel->code;
-            $ticket->deposit->pmethod = $channel->paymentMethod->code;
+            if (!$this->transactionCanContinue($transaction)) {
+                $message = trim((string) data_get($transaction, 'response_message'))
+                    ?: 'Paynamics could not generate the payment QR. Please try again.';
+                $advice = trim((string) data_get($transaction, 'response_advise'));
+                $notify[] = ['error', $advice ? $message . ' ' . $advice : $message];
+
+                return back()->withNotify($notify);
+            }
+
+            if (strtoupper(trim((string) data_get($transaction, 'response_code'))) === 'GR001') {
+                session()->put('paynamics_request_id', $transaction->request_id);
+                PaymentController::userDataUpdate($ticket->deposit);
+
+                return to_route('user.deposit.done');
+            }
+
             $ticket->deposit->status = Status::PAYMENT_PENDING;
             $ticket->deposit->expiry_limit = $transaction->expiry_limit
                 ?? Paynamics::expiresAt($isKioskBooking)->format('Y-m-d H:i:s');
@@ -108,7 +126,7 @@ class ProcessController extends Controller
             $ticket->save();
 
             session()->put('paynamics_request_id', $transaction->request_id);
-            session()->put('paynamics_response_id', $transaction->response_id);
+            session()->put('paynamics_response_id', $transaction->response_id ?? null);
 
             $ticket->seats = session()->has('seats') ? session('seats') : $ticket->seats;
             $ticket->save();
@@ -129,7 +147,9 @@ class ProcessController extends Controller
                     'request_id' => $ticket->deposit->trx,
                 ]);
             }
-            return $transaction;
+            return to_route('user.paynamics.response', [
+                'request_id' => $ticket->deposit->trx,
+            ]);
         } catch (ValidationException $exception) {
             throw $exception;
         } catch (\Throwable $exception) {
@@ -137,6 +157,46 @@ class ProcessController extends Controller
             $notify[] = ['error', 'Unable to start the Paynamics transaction. Please try again.'];
             return back()->withNotify($notify);
         }
+    }
+
+    public function resume(Deposit $deposit)
+    {
+        $deposit->loadMissing('bookedTicket');
+        $ticket = $deposit->bookedTicket;
+
+        abort_unless($ticket, 404);
+
+        $this->restoreBookingSession($ticket, $deposit);
+        $transaction = $this->storedCreateResponse($deposit->trx);
+        $paymentAction = trim((string) data_get($transaction, 'payment_action_info'));
+        $storedTransactionFailed = $transaction && !$this->transactionCanContinue($transaction);
+
+        if ($this->isValidPaymentActionUrl($paymentAction)) {
+            return redirect()->away($paymentAction);
+        }
+
+        if (
+            ((int) $deposit->status === Status::PAYMENT_INITIATE || $storedTransactionFailed)
+            && filled($deposit->pmethod)
+            && filled($deposit->pchannel)
+        ) {
+            $deposit->trx = generateReqID();
+            $deposit->status = Status::PAYMENT_INITIATE;
+            $deposit->save();
+            $this->restoreBookingSession($ticket, $deposit);
+
+            $retryRequest = Request::create(route('user.paynamics.redirect'), 'POST', [
+                'pmethod' => $deposit->pmethod,
+                'pchannel' => $deposit->pchannel,
+            ]);
+            $retryRequest->setUserResolver(fn () => request()->user());
+
+            return $this->redirect($retryRequest);
+        }
+
+        return to_route('user.paynamics.response', [
+            'request_id' => $deposit->trx,
+        ]);
     }
 
     public function response(Request $request)
@@ -482,6 +542,41 @@ class ProcessController extends Controller
         } else {
             session()->forget('kiosk_id');
         }
+    }
+
+    private function storedCreateResponse(?string $requestId): mixed
+    {
+        if (!$requestId) {
+            return null;
+        }
+
+        $path = "paynamics/responses/{$requestId}.json";
+
+        if (!Storage::exists($path)) {
+            return null;
+        }
+
+        return json_decode(Storage::get($path));
+    }
+
+    private function transactionCanContinue(mixed $transaction): bool
+    {
+        if (!$transaction || !filled(data_get($transaction, 'request_id'))) {
+            return false;
+        }
+
+        return in_array(strtoupper(trim((string) data_get($transaction, 'response_code'))), ['GR001', 'GR033'], true)
+            || filled(data_get($transaction, 'payment_action_info'))
+            || filled(data_get($transaction, 'direct_otc_info'));
+    }
+
+    private function isValidPaymentActionUrl(string $url): bool
+    {
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        return in_array(strtolower((string) parse_url($url, PHP_URL_SCHEME)), ['http', 'https'], true);
     }
 
     private function callbackDetails(Deposit $deposit, mixed $transaction, string $state): array

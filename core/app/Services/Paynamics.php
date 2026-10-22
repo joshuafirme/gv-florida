@@ -163,32 +163,33 @@ class Paynamics
 
             $response = curl_exec($ch);
 
-            if (curl_errno($ch)) {
-                echo "cURL Error: " . curl_error($ch);
-            } else {
+            if ($response === false) {
+                $message = curl_error($ch) ?: 'Paynamics did not return a response.';
                 curl_close($ch);
-                Storage::put(
-                    "paynamics/responses/{$this->data->deposit->trx}.json",
-                    $response
-                );
-                $json_res = json_decode($response);
 
-                if ($json_res?->request_id) {
-                    // Keep the application countdown tied to this gateway request,
-                    // not to the earlier booking/deposit creation time.
-                    $json_res->expiry_limit = $expiresAt->format('Y-m-d H:i:s');
-                    return $json_res;
-                } else {
-                    dd($json_res);
-                }
-
+                throw new \RuntimeException($message);
             }
-        } catch (\Exception $e) {
-            $response = "Message: " . $e->getMessage() . "<br>" .
-                "File: " . $e->getFile() . "<br>" .
-                "Line: " . $e->getLine() . "<br>";
 
-            return response()->json($response);
+            curl_close($ch);
+            Storage::put(
+                "paynamics/responses/{$this->data->deposit->trx}.json",
+                $response
+            );
+            $json_res = json_decode($response);
+
+            if (!$json_res || !filled($json_res->request_id ?? null)) {
+                throw new \RuntimeException('Paynamics returned an invalid transaction response.');
+            }
+
+            // Keep the application countdown tied to this gateway request,
+            // not to the earlier booking/deposit creation time.
+            $json_res->expiry_limit = $expiresAt->format('Y-m-d H:i:s');
+
+            return $json_res;
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return null;
         }
     }
 
