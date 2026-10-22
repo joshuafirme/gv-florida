@@ -20,6 +20,7 @@ use App\Models\SupportTicket;
 use App\Services\PassengerReminderService;
 use App\Services\SeatConflictService;
 use App\Services\SeatLayoutService;
+use App\Services\TripDateAvailabilityService;
 use App\Support\BusinessTime;
 use Carbon\Carbon;
 use DB;
@@ -350,6 +351,12 @@ class SiteController extends Controller
             $trips_query = $this->filterTrip($trips_query);
         }
 
+        if ($request->filled('province')) {
+            $trips_query->whereHas('endTo', function ($counter) use ($request) {
+                $counter->where('location', $request->province);
+            });
+        }
+
         // -------------------------------
         // 5. FINALIZE & PAGINATE
         // -------------------------------
@@ -364,6 +371,28 @@ class SiteController extends Controller
         $fleetType = FleetType::active()->get();
         $schedules = Schedule::all();
         $routes = VehicleRoute::active()->get();
+        $provinces = Counter::active()
+            ->whereNotNull('location')
+            ->where('location', '!=', '')
+            ->distinct()
+            ->orderBy('location')
+            ->pluck('location');
+        $selectedDestinationCounter = $destination
+            ? Counter::active()->find($destination)
+            : null;
+        $journeyDateStatuses = app(TripDateAvailabilityService::class)->statuses(
+            $request->kiosk_id ? (int) $request->kiosk_id : null,
+            $tripIds,
+            $pickup,
+            $destination,
+            getAllowedAdvanceBookingDays($request->kiosk_id),
+            array_map('intval', (array) $request->fleetType),
+            $request->province
+        );
+        $availableJourneyDates = array_keys(array_filter(
+            $journeyDateStatuses,
+            fn ($status) => $status === 'available'
+        ));
 
         $layout = auth()->check() ? 'layouts.master' : 'layouts.frontend';
 
@@ -395,6 +424,10 @@ class SiteController extends Controller
             'schedules',
             'emptyMessage',
             'ticketPrices',
+            'provinces',
+            'selectedDestinationCounter',
+            'availableJourneyDates',
+            'journeyDateStatuses',
             'layout',
             'bookingNotices'
         ));
@@ -410,19 +443,26 @@ class SiteController extends Controller
             'endTo',
             'assignedVehicle.vehicle',
             'bookedTickets'
-        ])->where('status', Status::ENABLE)->where('id', $id)->firstOrFail();
+        ])->where('id', $id)->firstOrFail();
 
         $journeyDate = $request->date_of_journey ?: BusinessTime::now()->format('m/d/Y');
-        if ($message = $this->bookingChannelError($trip, $request->kiosk_id, $journeyDate)) {
-            $notify[] = ['error', $message];
-            $query = $this->tripSelectionQuery($request, $trip);
+        $pickupPoint = $request->input('start_from', $request->input('pickup', $trip->start_from));
+        $droppingPoint = $request->input(
+            'dropping_point',
+            $request->input('destination', $request->input('end_to', $trip->end_to))
+        );
+        $availability = app(TripDateAvailabilityService::class);
+        $availabilityStatus = $availability->tripStatus(
+            $trip,
+            $journeyDate,
+            $request->kiosk_id ? (int) $request->kiosk_id : null,
+            $pickupPoint,
+            $droppingPoint
+        );
 
-            return redirect()->route('ticket', $query)->withNotify($notify);
-        }
-
-        if ($message = $this->bookingWindowError($trip, $journeyDate, $request->kiosk_id)) {
-            $notify[] = ['error', $message];
+        if ($availabilityStatus !== TripDateAvailabilityService::AVAILABLE) {
             $query = $this->tripSelectionQuery($request, $trip);
+            $notify = [['error', $availability->message($availabilityStatus)]];
 
             return redirect()->route('ticket', $query)->withNotify($notify);
         }
@@ -437,11 +477,6 @@ class SiteController extends Controller
         // Define routeSequence for the JavaScript Fare Preview & Dropping Points Engine
         $routeSequence = Counter::routeStoppages($stoppageArr);
 
-        $pickupPoint = $request->input('start_from', $request->input('pickup', $trip->start_from));
-        $droppingPoint = $request->input(
-            'dropping_point',
-            $request->input('destination', $request->input('end_to', $trip->end_to))
-        );
         $seatLayout = app(SeatLayoutService::class)->layout($trip->fleetType, [
             'booked' => app(SeatConflictService::class)->unavailableSeats(
                 $trip,
@@ -609,18 +644,19 @@ class SiteController extends Controller
             'seats.required' => 'Please select at least one seat.',
         ]);
 
-        $trip = Trip::with(['route', 'schedule'])->where('status', Status::ENABLE)->findOrFail($id);
-        if ($message = $this->bookingChannelError($trip, $request->kiosk_id, $request->date_of_journey)) {
+        $trip = Trip::with(['route', 'schedule', 'fleetType', 'channelAvailabilities'])->findOrFail($id);
+        $availability = app(TripDateAvailabilityService::class);
+        $availabilityStatus = $availability->tripStatus(
+            $trip,
+            $request->date_of_journey,
+            $request->kiosk_id ? (int) $request->kiosk_id : null,
+            $request->pickup_point,
+            $request->dropping_point
+        );
+        if ($availabilityStatus !== TripDateAvailabilityService::AVAILABLE) {
             return response()->json([
                 'available' => false,
-                'message' => $message,
-            ], 422);
-        }
-
-        if ($message = $this->bookingWindowError($trip, $request->date_of_journey, $request->kiosk_id)) {
-            return response()->json([
-                'available' => false,
-                'message' => $message,
+                'message' => $availability->message($availabilityStatus),
             ], 422);
         }
         $seatConflicts = app(SeatConflictService::class);
@@ -671,7 +707,7 @@ class SiteController extends Controller
     public function bookTicket(Request $request, $id)
     {
         try {
-            $trip = Trip::with('schedule')->findOrFail($id);
+            $trip = Trip::with(['route', 'schedule', 'fleetType', 'channelAvailabilities'])->findOrFail($id);
             $request->validate([
                 "pickup_point" => "required|integer|gt:0",
                 "dropping_point" => "required|integer|gt:0",
@@ -681,13 +717,16 @@ class SiteController extends Controller
                 "seats.required" => "Please Select at Least One Seat"
             ]);
 
-            if ($message = $this->bookingChannelError($trip, $request->kiosk_id, $request->date_of_journey)) {
-                $notify[] = ['error', $message];
-                return redirect()->back()->withNotify($notify);
-            }
-
-            if ($message = $this->bookingWindowError($trip, $request->date_of_journey, $request->kiosk_id)) {
-                $notify[] = ['error', $message];
+            $availability = app(TripDateAvailabilityService::class);
+            $availabilityStatus = $availability->tripStatus(
+                $trip,
+                $request->date_of_journey,
+                $request->kiosk_id ? (int) $request->kiosk_id : null,
+                $request->pickup_point,
+                $request->dropping_point
+            );
+            if ($availabilityStatus !== TripDateAvailabilityService::AVAILABLE) {
+                $notify = [['error', $availability->message($availabilityStatus)]];
                 return redirect()->back()->withNotify($notify);
             }
 
@@ -752,14 +791,22 @@ class SiteController extends Controller
 
             DB::beginTransaction();
 
-            $lockedTrip = Trip::with('route')->whereKey($id)->lockForUpdate()->firstOrFail();
-            if ($message = $this->bookingChannelError(
+            $lockedTrip = Trip::with([
+                'route',
+                'schedule',
+                'fleetType',
+                'channelAvailabilities',
+            ])->whereKey($id)->lockForUpdate()->firstOrFail();
+            $lockedAvailabilityStatus = $availability->tripStatus(
                 $lockedTrip,
-                $request->kiosk_id,
-                $request->date_of_journey
-            )) {
+                $request->date_of_journey,
+                $request->kiosk_id ? (int) $request->kiosk_id : null,
+                $request->pickup_point,
+                $request->dropping_point
+            );
+            if ($lockedAvailabilityStatus !== TripDateAvailabilityService::AVAILABLE) {
                 DB::rollBack();
-                $notify[] = ['error', $message];
+                $notify[] = ['error', $availability->message($lockedAvailabilityStatus)];
                 return redirect()->back()->withNotify($notify);
             }
 
@@ -823,6 +870,7 @@ class SiteController extends Controller
             ->withMin('schedule as earliest_start', 'start_from')
             ->forBookingChannel($request->kiosk_id, $request->date_of_journey)
             ->whereHas('schedule', function ($q) use ($now, $request, $cutoffMinutes) {
+                $q->active();
                 $date = $request->date_of_journey
                     ? BusinessTime::parse($request->date_of_journey)
                     : BusinessTime::now();
@@ -1062,7 +1110,7 @@ class SiteController extends Controller
         return Trip::query()
             ->active()
             ->forBookingChannel($kioskId, $journeyDate)
-            ->whereHas('schedule');
+            ->whereHas('schedule', fn ($schedule) => $schedule->active());
     }
 
     public function placeholderImage($size = null)

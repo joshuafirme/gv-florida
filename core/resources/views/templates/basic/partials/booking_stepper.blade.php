@@ -1,10 +1,11 @@
 @php
     $currentStep = $currentStep ?? 'seat';
     $steps = [
-        'seat' => 'Seat',
-        'details' => 'Details',
+        'trip' => 'Select Trip',
+        'seat' => 'Select Seat',
+        'details' => 'Passenger Details',
         'payment' => 'Payment',
-        'done' => 'Done',
+        'done' => 'Confirmation',
     ];
     $stepKeys = array_keys($steps);
     $currentIndex = array_search($currentStep, $stepKeys, true);
@@ -14,10 +15,75 @@
         ?? ($isKioskBooking ?? false)
         || ($layout ?? null) === 'layouts.kiosk'
         || request()->filled('kiosk_id');
+    $navigationTicket = $bookedTicket ?? $ticket ?? null;
+    $navigationKioskId = $kiosk_id
+        ?? request('kiosk_id')
+        ?? data_get($navigationTicket, 'kiosk_id')
+        ?? session('kiosk_id');
+    $navigationPickup = request('pickup')
+        ?? request('start_from')
+        ?? data_get($navigationTicket, 'pickup_point')
+        ?? data_get($navigationTicket, 'trip.start_from');
+    $navigationDestination = request('destination')
+        ?? request('dropping_point')
+        ?? request('end_to')
+        ?? data_get($navigationTicket, 'dropping_point')
+        ?? data_get($navigationTicket, 'trip.end_to');
+    $navigationDate = request('date_of_journey')
+        ?? data_get($navigationTicket, 'date_of_journey');
+    $navigationDate = $navigationDate
+        ? \Carbon\Carbon::parse($navigationDate)->format('m/d/Y')
+        : null;
+    $navigationCounterId = request('counter_id')
+        ?? ($isKioskFlow
+            ? ($navigationPickup ?? data_get($navigationTicket, 'trip.start_from'))
+            : null);
+    $filterKeys = ['pickup', 'destination', 'date_of_journey', 'fleetType', 'province'];
+    $hasTripFilters = collect($filterKeys)->contains(function ($key) {
+        $value = request($key);
+
+        return is_array($value) ? collect($value)->filter()->isNotEmpty() : filled($value);
+    });
+    $showNavigation = $showNavigation
+        ?? ($currentStep === 'trip' ? $hasTripFilters : true);
+    $renderNavigation = $currentStep === 'trip' || $showNavigation;
+    $navigationLabel = $currentStep === 'trip' ? 'Start Over' : 'Go Back';
+    $startOverUrl = $isKioskFlow
+        ? route('ticket', array_filter([
+            'kiosk_id' => $navigationKioskId,
+            'counter_id' => $navigationCounterId,
+        ], fn ($value) => $value !== null && $value !== ''))
+        : route('ticket');
+    $goBackUrl = route('ticket', array_filter([
+        'kiosk_id' => $navigationKioskId,
+        'counter_id' => $navigationCounterId,
+        'pickup' => $navigationPickup,
+        'destination' => $navigationDestination,
+        'date_of_journey' => $navigationDate,
+    ], fn ($value) => $value !== null && $value !== ''));
+    $navigationUrl = $currentStep === 'trip' ? $startOverUrl : $goBackUrl;
+    $navigationFormId = $navigationFormId ?? null;
 @endphp
 
-<div class="booking-flow-stepper-shell {{ $isKioskFlow ? 'is-kiosk' : 'is-online' }}">
-    <div class="booking-flow-stepper" style="--booking-flow-progress: {{ $progress }};">
+<div class="booking-flow-stepper-shell {{ $isKioskFlow ? 'is-kiosk' : 'is-online' }} {{ $showNavigation ? 'has-navigation' : '' }}">
+    <div class="booking-flow-stepper {{ $showNavigation ? 'has-navigation' : '' }}"
+        style="--booking-flow-progress: {{ $progress }};">
+        @if ($renderNavigation)
+            @if ($navigationFormId && $currentStep !== 'trip')
+                <button type="submit" form="{{ $navigationFormId }}"
+                    class="booking-flow-navigation" data-booking-back>
+                    <i class="las la-arrow-left"></i>
+                    <span>{{ __($navigationLabel) }}</span>
+                </button>
+            @else
+                <a class="booking-flow-navigation {{ $showNavigation ? '' : 'd-none' }}"
+                    href="{{ $navigationUrl }}"
+                    @if ($currentStep === 'trip') data-trip-start-over @else data-booking-back @endif>
+                    <i class="las la-arrow-left"></i>
+                    <span>{{ __($navigationLabel) }}</span>
+                </a>
+            @endif
+        @endif
         @foreach ($steps as $key => $label)
             @php
                 $index = $loop->index;
@@ -51,7 +117,7 @@
                 border-bottom: 1px solid #e5e7eb;
                 box-shadow: 0 1px 8px rgba(15, 23, 42, .08);
                 display: grid;
-                grid-template-columns: repeat(4, minmax(0, 1fr));
+                grid-template-columns: repeat(5, minmax(0, 1fr));
                 isolation: isolate;
                 left: 0;
                 margin: 0;
@@ -62,8 +128,48 @@
                 z-index: 1045;
             }
 
+            .booking-flow-stepper.has-navigation {
+                padding-left: clamp(132px, 17vw, 210px);
+            }
+
+            .booking-flow-navigation {
+                align-items: center;
+                background: transparent;
+                border: 0;
+                color: var(--booking-primary);
+                cursor: pointer;
+                display: inline-flex;
+                font-family: inherit;
+                font-size: 13px;
+                font-weight: 900;
+                gap: 7px;
+                left: clamp(14px, 3vw, 36px);
+                min-height: 42px;
+                padding: 6px;
+                position: absolute;
+                text-decoration: none;
+                text-transform: none;
+                top: 9px;
+                z-index: 3;
+            }
+
+            .booking-flow-navigation i {
+                align-items: center;
+                border: 2px solid currentColor;
+                border-radius: 50%;
+                display: inline-flex;
+                font-size: 17px;
+                height: 30px;
+                justify-content: center;
+                width: 30px;
+            }
+
             .booking-flow-stepper-shell.is-online .booking-flow-stepper {
                 top: var(--booking-online-stepper-top, 64px);
+            }
+
+            .booking-flow-stepper-shell.is-kiosk .booking-flow-stepper {
+                top: var(--booking-kiosk-stepper-top, 97px);
             }
 
             .booking-flow-stepper::before,
@@ -75,6 +181,11 @@
                 right: clamp(34px, 7vw, 76px);
                 top: 25px;
                 z-index: 0;
+            }
+
+            .booking-flow-stepper.has-navigation::before,
+            .booking-flow-stepper.has-navigation::after {
+                left: clamp(151px, 19vw, 230px);
             }
 
             .booking-flow-stepper::before {
@@ -136,16 +247,54 @@
                 box-shadow: 0 0 0 5px #fff, 0 0 0 8px var(--booking-primary-focus);
             }
 
+            @media (max-width: 767px) {
+                .booking-flow-stepper-shell {
+                    height: 68px !important;
+                }
+            }
+
             @media (max-width: 575px) {
+                .booking-flow-stepper-shell.has-navigation {
+                    height: 105px !important;
+                }
+
                 .booking-flow-stepper {
                     padding-left: 16px;
                     padding-right: 16px;
+                }
+
+                .booking-flow-stepper.has-navigation {
+                    min-height: 105px;
+                    padding: 48px 8px 8px;
+                }
+
+                .booking-flow-navigation {
+                    left: 12px;
+                    padding: 3px 4px;
+                    top: 5px;
+                }
+
+                .booking-flow-navigation i {
+                    font-size: 14px;
+                    height: 25px;
+                    width: 25px;
                 }
 
                 .booking-flow-stepper::before,
                 .booking-flow-stepper::after {
                     left: 30px;
                     right: 30px;
+                }
+
+                .booking-flow-stepper.has-navigation::before,
+                .booking-flow-stepper.has-navigation::after {
+                    left: 30px;
+                    right: 30px;
+                    top: 64px;
+                }
+
+                .booking-flow-step__label {
+                    font-size: 7px;
                 }
             }
         </style>
@@ -156,8 +305,9 @@
             (function() {
                 "use strict";
 
-                const shell = document.querySelector('.booking-flow-stepper-shell.is-online');
-                const header = document.querySelector('.header-bottom');
+                const shell = document.querySelector('.booking-flow-stepper-shell');
+                const isKiosk = shell?.classList.contains('is-kiosk');
+                const header = document.querySelector(isKiosk ? '.kiosk-navbar' : '.header-bottom');
 
                 if (!shell || !header) return;
 
@@ -165,7 +315,8 @@
 
                 function positionOnlineStepper() {
                     const headerBottom = Math.max(0, Math.round(header.getBoundingClientRect().bottom));
-                    shell.style.setProperty('--booking-online-stepper-top', `${headerBottom}px`);
+                    const property = isKiosk ? '--booking-kiosk-stepper-top' : '--booking-online-stepper-top';
+                    shell.style.setProperty(property, `${headerBottom}px`);
                     updateQueued = false;
                 }
 

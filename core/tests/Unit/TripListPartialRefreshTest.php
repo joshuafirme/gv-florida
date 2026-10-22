@@ -28,6 +28,11 @@ class TripListPartialRefreshTest extends TestCase
         $this->assertStringContainsString('trip-list-skeleton', $ticketView);
         $this->assertStringContainsString('async function refreshTripList', $ticketView);
         $this->assertStringContainsString("'X-Requested-With': 'XMLHttpRequest'", $ticketView);
+        $this->assertStringContainsString("asset('assets/global/js/dropping-points.js')", $ticketView);
+        $this->assertStringContainsString("status === 'fully_booked'", $ticketView);
+        $this->assertStringContainsString('isInvalidDate:', $ticketView);
+        $this->assertStringContainsString('tripListRealtime.scheduleEvent', $ticketView);
+        $this->assertStringContainsString("data-default-option=\"@lang('Select Destination')\"", $ticketView);
         $this->assertStringContainsString("view('Template::partials.trip-list'", $controller);
     }
 }
