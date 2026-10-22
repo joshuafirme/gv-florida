@@ -277,7 +277,8 @@
             .passenger-reminders-content > footer {
                 background: #fff;
                 border-top: 1px solid #e2e8ed;
-                padding: 14px 28px;
+                flex: 0 0 auto;
+                padding: 14px 28px 20px;
             }
 
             .passenger-reminders-acknowledge {
@@ -353,6 +354,10 @@
                 .passenger-reminders-content > footer {
                     padding-left: 18px;
                     padding-right: 18px;
+                }
+
+                .passenger-reminders-content > footer {
+                    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
                 }
 
                 .passenger-reminders-content > header {
