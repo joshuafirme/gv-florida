@@ -644,7 +644,7 @@
             border-radius: 12px 0 0 12px;
         }
 
-        .journey-point-selector .ticket-search-field:last-child .select2-selection--single {
+        .journey-point-selector__field--destination .select2-selection--single {
             border-radius: 0 12px 12px 0;
         }
 
@@ -657,13 +657,14 @@
             display: none;
         }
 
-        .journey-point-selector__field:last-child .trip-search-label {
+        .journey-point-selector__field--destination .trip-search-label {
             left: auto;
             right: 16px;
             text-align: right;
         }
 
-        .journey-point-selector__field:last-child .select2-selection__rendered {
+        .journey-point-selector__field--destination .select2-selection__rendered,
+        .journey-point-selector__field--destination .select2-selection__placeholder {
             left: 32px !important;
             right: 16px !important;
             text-align: right;
@@ -911,7 +912,7 @@
         .trip-card-main {
             align-items: stretch;
             display: grid;
-            grid-template-columns: minmax(150px, .7fr) minmax(220px, 1.25fr) minmax(230px, .85fr);
+            grid-template-columns: minmax(235px, .8fr) minmax(220px, 1.2fr) minmax(230px, .85fr);
         }
 
         .trip-card-departure,
@@ -1247,7 +1248,7 @@
 
         @media screen and (min-width: 768px) and (max-width: 1199px) {
             .trip-card-main {
-                grid-template-columns: minmax(130px, .65fr) minmax(190px, 1.1fr) minmax(205px, .9fr);
+                grid-template-columns: minmax(235px, .8fr) minmax(190px, 1.1fr) minmax(205px, .9fr);
             }
 
             .trip-card-main .trip-time-main {
@@ -1909,7 +1910,7 @@
                             <span class="journey-point-selector__direction" aria-hidden="true">
                                 <i class="las la-arrow-right"></i>
                             </span>
-                            <div class="form--group ticket-search-field journey-point-selector__field">
+                            <div class="form--group ticket-search-field journey-point-selector__field journey-point-selector__field--destination">
                                 <label class="trip-search-label" for="ticket-destination">@lang('To')</label>
                                 <i class="las la-map-marker"></i>
                                 <select name="destination" id="ticket-destination" class="form--control select2"

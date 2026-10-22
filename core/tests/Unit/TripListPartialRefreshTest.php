@@ -66,9 +66,11 @@ class TripListPartialRefreshTest extends TestCase
         $this->assertStringNotContainsString('class="trip-card-top"', $partial);
         $this->assertStringContainsString('padding: 13px 18px 2px;', $ticketView);
         $this->assertStringContainsString('margin: 10px 18px 0;', $ticketView);
-        $this->assertStringContainsString('minmax(230px, .85fr)', $ticketView);
+        $this->assertStringContainsString('minmax(235px, .8fr)', $ticketView);
         $this->assertStringContainsString('grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr) minmax(0, 1fr);', $ticketView);
         $this->assertMatchesRegularExpression('/\\.trip-time-main\\s*\\{[^}]*white-space:\\s*nowrap;/s', $ticketView);
+        $this->assertStringContainsString('journey-point-selector__field--destination', $ticketView);
+        $this->assertStringNotContainsString('journey-point-selector__field:last-child', $ticketView);
         $this->assertStringContainsString('body.kiosk-interface .trip-card-main .trip-time-main', $ticketView);
         $this->assertStringContainsString("@lang('Travel date')", $partial);
         $this->assertStringNotContainsString("@lang('Approx.')", $partial);
