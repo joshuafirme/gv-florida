@@ -2,8 +2,9 @@
 
 namespace Tests\Unit;
 
+use App\Models\VehicleRoute;
 use App\Services\RouteStopService;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class RouteStopServiceTest extends TestCase
 {
@@ -36,5 +37,23 @@ class RouteStopServiceTest extends TestCase
 
         $this->assertSame(100.5, $service->distance($stops));
         $this->assertSame('100.5 km', $service->distanceLabel($stops));
+    }
+
+    public function test_route_stop_definitions_keep_the_assigned_custom_km_post(): void
+    {
+        $route = new VehicleRoute([
+            'start_from' => 1,
+            'end_to' => 2,
+            'stoppages' => ['1', '2'],
+            'route_stops' => [
+                ['counter_id' => '1', 'km_post' => 0, 'sequence' => 1],
+                ['counter_id' => '2', 'km_post' => 595, 'sequence' => 2],
+            ],
+        ]);
+
+        $stops = $route->stopDefinitions();
+
+        $this->assertSame('2', $stops[1]['counter_id']);
+        $this->assertSame(595.0, $stops[1]['km_post']);
     }
 }

@@ -795,17 +795,28 @@
                         return;
                     }
 
-                    let stoppages = route.stoppages || [];
-                    if (stoppages.length === 0) return;
+                    let routeStops = Array.isArray(route.route_stops) && route.route_stops.length
+                        ? route.route_stops
+                        : (route.stoppages || []).map((stopId, index) => ({
+                            counter_id: stopId,
+                            km_post: countersData[stopId] ? countersData[stopId].km_post : null,
+                            sequence: index + 1
+                        }));
+
+                    if (routeStops.length === 0) return;
 
                     let originId = route.start_from;
                     let html = '';
 
-                    stoppages.forEach((stopId, index) => {
+                    routeStops.forEach((routeStop, index) => {
+                        let stopId = routeStop.counter_id;
                         let counter = countersData[stopId];
                         if (!counter) return;
 
                         let isOrigin = (index === 0);
+                        let kmPost = routeStop.km_post !== undefined && routeStop.km_post !== null
+                            ? routeStop.km_post
+                            : counter.km_post;
                         let priceText = 'Origin';
                         let priceClass = 'text-muted';
 
@@ -825,7 +836,7 @@
                         html += `
                     <tr style="border-bottom: 1px solid #dee2e6;">
                         <td class="fare-preview-stop py-3 ps-4">${counter.name}</td>
-                        <td class="text-muted py-3">${counter.km_post}</td>
+                        <td class="text-muted py-3">${kmPost}</td>
                         <td class="text-end py-3 pe-4 ${priceClass}">${priceText}</td>
                     </tr>
                 `;
