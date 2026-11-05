@@ -2436,7 +2436,7 @@ class VehicleTicketController extends Controller
 
     private function transferDropOptions(Trip $trip, BookedTicket $ticket, SlipSeriesNumber $slip, $counters = null)
     {
-        $dropIds = $this->transferDropIds($trip, (int) $ticket->pickup_point);
+        $dropIds = $this->transferSelectableDropIds($trip, $ticket);
         $counters ??= Counter::active()->whereIn('id', $dropIds)->get()->keyBy(fn ($counter) => (string) $counter->id);
 
         return collect($dropIds)->map(function ($dropId) use ($trip, $ticket, $slip, $counters) {
@@ -2458,6 +2458,20 @@ class VehicleTicketController extends Controller
                 'fare' => $fare['fare'],
             ];
         })->filter()->values();
+    }
+
+    private function transferSelectableDropIds(Trip $trip, BookedTicket $ticket): array
+    {
+        $dropIds = $this->transferDropIds($trip, (int) $ticket->pickup_point);
+
+        if ((int) $trip->id !== (int) $ticket->trip_id) {
+            return $dropIds;
+        }
+
+        return array_values(array_filter(
+            $dropIds,
+            fn (int $dropId) => $dropId !== (int) $ticket->dropping_point
+        ));
     }
 
     private function transferDropIds(Trip $trip, int $pickupPoint): array
@@ -2787,14 +2801,7 @@ class VehicleTicketController extends Controller
 
         if ($isPartial) {
             $newTicket = $ticket->replicate();
-            $newTicket->trip_id = $trip->id;
-            $newTicket->source_destination = [(int) $ticket->pickup_point, (int) $drop->id];
-            $newTicket->dropping_point = $drop->id;
-            $newTicket->date_of_journey = $date;
-            $newTicket->seats = [$seat];
-            $newTicket->ticket_count = 1;
-            $newTicket->unit_price = $quote['final_fare'];
-            $newTicket->sub_total = $quote['final_fare'];
+            $this->fillTransferredTicketDetails($newTicket, $ticket, $trip, $drop, $date, $seat, $quote);
             $newTicket->passenger_manifest = null;
             $newTicket->payment_source_deposit_id = $ticket->payment_record?->id;
             $newTicket->save();
@@ -2817,14 +2824,7 @@ class VehicleTicketController extends Controller
 
         $slip->seat = $seat;
         $slip->save();
-        $ticket->trip_id = $trip->id;
-        $ticket->source_destination = [(int) $ticket->pickup_point, (int) $drop->id];
-        $ticket->dropping_point = $drop->id;
-        $ticket->date_of_journey = $date;
-        $ticket->seats = [$seat];
-        $ticket->ticket_count = 1;
-        $ticket->unit_price = $quote['final_fare'];
-        $ticket->sub_total = $quote['final_fare'];
+        $this->fillTransferredTicketDetails($ticket, $ticket, $trip, $drop, $date, $seat, $quote);
         $this->replacePassengerManifestSeats($ticket, [$oldSeat], [$seat]);
         $this->updateTransferredManifestFare($ticket, $seat, $fare, $quote['final_fare']);
         $ticket->save();
@@ -2834,6 +2834,25 @@ class VehicleTicketController extends Controller
             'user', 'kiosk', 'activeSlipSeriesNumbers', 'slipSeriesNumbers',
             'deposit.userDiscount', 'paymentSourceDeposit.userDiscount',
         ]);
+    }
+
+    private function fillTransferredTicketDetails(
+        BookedTicket $target,
+        BookedTicket $source,
+        Trip $trip,
+        Counter $drop,
+        string $date,
+        string $seat,
+        array $quote
+    ): void {
+        $target->trip_id = $trip->id;
+        $target->source_destination = [(int) $source->pickup_point, (int) $drop->id];
+        $target->dropping_point = $drop->id;
+        $target->date_of_journey = $date;
+        $target->seats = [$seat];
+        $target->ticket_count = 1;
+        $target->unit_price = $quote['final_fare'];
+        $target->sub_total = $quote['final_fare'];
     }
 
     private function updateTransferredManifestFare(

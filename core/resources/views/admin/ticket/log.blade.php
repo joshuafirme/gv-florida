@@ -1784,24 +1784,20 @@
                 return data && String($('#transferTrip').val()) === String(data.booking.trip_id);
             }
 
-            function isUnchangedCurrentTarget() {
-                return isCurrentTransferTrip() &&
-                    String($('#transferDrop').val()) === String(data.booking.drop_id);
-            }
-
             function updateTransferDrops(preferredDrop = null) {
                 const trip = selectedTrip();
-                $('#transferDrop').html((trip?.drops || []).map(drop => {
-                    const isCurrent = isCurrentTransferTrip() && String(drop.id) === String(data.booking.drop_id);
+                const options = (trip?.drops || []).map(drop => {
                     const kmPost = drop.km_post !== null && drop.km_post !== undefined
                         ? ` - KM ${escapeHtml(drop.km_post)}`
                         : '';
-                    const current = isCurrent ? ' - current' : '';
-                    return `<option value="${drop.id}">${escapeHtml(drop.name)}${kmPost}${current} - ${currency.format(drop.fare)}</option>`;
-                }).join(''));
+                    return `<option value="${drop.id}">${escapeHtml(drop.name)}${kmPost} - ${currency.format(drop.fare)}</option>`;
+                }).join('');
+                $('#transferDrop').html(`<option value="">Select dropping point</option>${options}`);
 
                 if (preferredDrop !== null && (trip?.drops || []).some(drop => String(drop.id) === String(preferredDrop))) {
                     $('#transferDrop').val(String(preferredDrop));
+                } else {
+                    $('#transferDrop').val('');
                 }
                 $('#transferDrop').trigger('change.select2');
             }
@@ -1814,7 +1810,7 @@
                 } else if ($('#transferDate').val() < data.min_date || $('#transferDate').val() > data.max_date) {
                     $('#transferDate').val(data.default_date);
                 }
-                $('#transferDropHint').toggleClass('d-none', !isUnchangedCurrentTarget());
+                $('#transferDropHint').toggleClass('d-none', !sameTrip);
             }
 
             function renderInitialTransferAvailability() {
@@ -1872,14 +1868,6 @@
                         selectedSeat = null;
                         $('#transferAvailability').addClass('d-none');
                     }
-                    updateTransferSelectionState();
-                    return;
-                }
-
-                if (isUnchangedCurrentTarget()) {
-                    availability = null;
-                    $('#transferDropHint').removeClass('d-none');
-                    renderInitialTransferAvailability();
                     updateTransferSelectionState();
                     return;
                 }

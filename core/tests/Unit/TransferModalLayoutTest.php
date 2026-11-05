@@ -56,4 +56,13 @@ class TransferModalLayoutTest extends TestCase
         $this->assertStringContainsString("\$ticket['transfer_url']", $onlineValidation);
         $this->assertStringContainsString("\$ticket['actions']", $allTickets);
     }
+
+    public function test_same_trip_transfer_requires_an_explicit_different_drop_off(): void
+    {
+        $view = file_get_contents(resource_path('views/admin/ticket/log.blade.php'));
+
+        $this->assertStringContainsString('<option value="">Select dropping point</option>', $view);
+        $this->assertStringContainsString("$('#transferDate').prop('disabled', sameTrip);", $view);
+        $this->assertStringContainsString("$('#transferDropHint').toggleClass('d-none', !sameTrip);", $view);
+    }
 }
