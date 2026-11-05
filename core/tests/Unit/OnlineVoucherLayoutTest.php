@@ -36,6 +36,12 @@ class OnlineVoucherLayoutTest extends TestCase
         $this->assertStringContainsString('@media (max-width: 640px)', $view);
         $this->assertStringContainsString('@media print', $view);
         $this->assertStringContainsString('.qr-code { height: 78px; width: 78px; }', $view);
+        $this->assertStringContainsString('.reminder-grid td { font-size: 8px;', $view);
+        $this->assertMatchesRegularExpression(
+            '/<footer class="voucher-footer">.*This e-voucher is not an official ticket or receipt\..*<\/footer>/s',
+            $view
+        );
+        $this->assertStringNotContainsString('class="validation-note"', $view);
         $this->assertStringContainsString("font-family: 'Montserrat'", $view);
         $this->assertStringContainsString('Montserrat-ExtraBold.ttf', $view);
         $this->assertStringContainsString('@unless ($renderForPdf)', $view);

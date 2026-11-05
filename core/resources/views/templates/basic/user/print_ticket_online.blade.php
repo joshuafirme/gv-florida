@@ -265,14 +265,6 @@
         .reminder-grid td { color: #566174; font-size: 7px; line-height: 1.35; padding: 4px 9px 6px 0; vertical-align: top; width: 33.333%; }
         .reminder-grid td:last-child { padding-right: 0; }
         .reminder-title { color: #172033; display: block; font-size: 8px; font-weight: 800; margin-bottom: 2px; }
-        .validation-note {
-            background: #fff5fa;
-            border-left: 3px solid #d41f70;
-            color: #3f4b5e;
-            font-size: 8px;
-            margin-top: 9px;
-            padding: 7px 9px;
-        }
         .voucher-footer {
             background: #c71968;
             color: #fff;
@@ -304,7 +296,7 @@
         }
 
         @media print {
-            body { background: #fff; font-size: 8px; line-height: 1.22; padding: 0; }
+            body { background: #fff; font-size: 9px; line-height: 1.28; padding: 0; }
             .voucher { border-radius: 0; box-shadow: none; max-width: none; width: 100%; }
             .voucher-header { padding: 9px 14px; }
             .brand-logo { height: 36px; margin-right: 7px; width: 36px; }
@@ -317,28 +309,30 @@
             .qr-code { height: 78px; width: 78px; }
             .issued-label { margin-top: 6px; }
             .voucher-section { margin-top: 5px; padding: 6px 9px; }
-            .section-title { font-size: 9px; margin-bottom: 5px; }
-            .section-mark { font-size: 6px; margin-right: 5px; padding: 3px 5px; }
+            .section-title { font-size: 10px; margin-bottom: 5px; }
+            .section-mark { font-size: 7px; margin-right: 5px; padding: 3px 5px; }
+            .eyebrow, .detail-label, .count-label, .payment-meta-label { font-size: 8px; }
             .detail-item { padding-bottom: 4px; }
-            .detail-value { font-size: 9px; }
-            .detail-value--primary { font-size: 11px; }
+            .detail-value { font-size: 10px; }
+            .detail-value--primary { font-size: 12px; }
+            .detail-subvalue { font-size: 8px; }
             .detail-divider { margin-bottom: 5px; }
-            .passenger-table th { padding: 4px 7px; }
-            .passenger-table td { font-size: 8px; padding: 4px 7px; }
-            .seat-badge { font-size: 8px; padding: 2px 6px; }
+            .passenger-table th { font-size: 8px; padding: 4px 7px; }
+            .passenger-table td { font-size: 9px; padding: 4px 7px; }
+            .passenger-type { font-size: 8px; }
+            .seat-badge { font-size: 9px; padding: 2px 6px; }
             .passenger-counts { margin-top: 5px; }
             .passenger-counts td { padding: 4px 8px; }
-            .count-value { font-size: 12px; }
-            .money-row td { font-size: 8px; padding: 1px 0; }
+            .count-value { font-size: 13px; }
+            .money-row td { font-size: 9px; padding: 1px 0; }
             .total-row { margin-top: 4px; padding: 4px 7px; }
-            .total-row td { font-size: 8px; }
-            .total-row td:last-child { font-size: 12px; }
+            .total-row td { font-size: 9px; }
+            .total-row td:last-child { font-size: 13px; }
             .payment-meta-row { margin-bottom: 4px; }
-            .payment-meta-value { font-size: 8px; }
-            .reminder-grid td { font-size: 6px; line-height: 1.2; padding: 2px 7px 3px 0; }
-            .reminder-title { font-size: 7px; margin-bottom: 1px; }
-            .validation-note { font-size: 7px; margin-top: 5px; padding: 4px 7px; }
-            .voucher-footer { font-size: 7px; padding: 6px 12px; }
+            .payment-meta-value { font-size: 9px; }
+            .reminder-grid td { font-size: 8px; line-height: 1.3; padding: 3px 8px 4px 0; }
+            .reminder-title { font-size: 9px; margin-bottom: 2px; }
+            .voucher-footer { font-size: 8px; line-height: 1.3; padding: 7px 12px; page-break-inside: avoid; }
         }
     </style>
 </head>
@@ -493,12 +487,12 @@
                         </tr>
                     @endforeach
                 </table>
-                <div class="validation-note"><strong>Validation required:</strong> This e-voucher confirms the online reservation but is not the official boarding ticket.</div>
             </section>
         </div>
 
         <footer class="voucher-footer">
-            <strong>This e-voucher is not an official ticket or receipt.</strong> Present it with a valid ID for online validation before boarding.
+            <strong>This e-voucher is not an official ticket or receipt.</strong><br>
+            Present it with a valid ID for online validation before boarding.
         </footer>
     </main>
 </body>
