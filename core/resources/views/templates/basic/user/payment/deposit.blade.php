@@ -19,6 +19,39 @@
             ];
         })
         ->values();
+    $normalizeContact = static function ($value) {
+        $digits = preg_replace('/\D+/', '', is_scalar($value) ? (string) $value : '');
+
+        if (strlen($digits) === 12 && str_starts_with($digits, '63')) {
+            return '0' . substr($digits, 2);
+        }
+
+        if (strlen($digits) === 10 && str_starts_with($digits, '9')) {
+            return '0' . $digits;
+        }
+
+        return $digits;
+    };
+    $oldPassengerManifest = json_decode((string) old('passengers', ''), true);
+    $initialPassengerManifest = is_array($oldPassengerManifest)
+        ? collect($oldPassengerManifest)
+        : collect($bookedTicket->passenger_manifest ?: []);
+    $initialPassengersBySeat = $initialPassengerManifest->keyBy(fn ($passenger) => (string) ($passenger['seat'] ?? ''));
+    $initialContacts = $initialPassengerManifest
+        ->pluck('contact_number')
+        ->map($normalizeContact)
+        ->filter()
+        ->unique()
+        ->values();
+    $accountContact = $normalizeContact($bookedTicket->user?->mobileNumber ?? '');
+    $hasOldContactMode = session()->hasOldInput('use_shared_contact');
+    $useSharedContact = $hasOldContactMode
+        ? old('use_shared_contact') === '1'
+        : $initialContacts->count() <= 1;
+    $sharedContactNumber = $normalizeContact(old(
+        'shared_contact_number',
+        $initialContacts->count() === 1 ? $initialContacts->first() : $accountContact
+    ));
 @endphp
 
 @extends($activeTemplate . $layout)
@@ -46,6 +79,8 @@
                 <input type="hidden" name="currency">
                 <input type="hidden" name="amount" value="{{ getAmount($bookedTicket->sub_total) }}">
                 <input type="hidden" name="passengers">
+                <input type="hidden" name="use_shared_contact" value="{{ $useSharedContact ? '1' : '0' }}">
+                <input type="hidden" name="shared_contact_number" value="{{ $sharedContactNumber }}">
                 @if ($isKioskBooking)
                     <input type="hidden" name="discount_authorized" value="0">
                     <input type="hidden" name="authorization_method">
@@ -70,7 +105,35 @@
                         </div>
                     </div>
 
+                    <div class="passenger-card booking-contact-card">
+                        <div class="passenger-card__head booking-contact-card__head">
+                            <i class="las la-mobile-alt" aria-hidden="true"></i>
+                            <span>Booking Contact</span>
+                        </div>
+                        <div class="passenger-card__body booking-contact-card__body">
+                            <label class="shared-contact-toggle" for="useSharedContact">
+                                <input type="checkbox" id="useSharedContact" @checked($useSharedContact)>
+                                <span class="shared-contact-toggle__box"><i class="las la-check"></i></span>
+                                <span>
+                                    <strong>Use the same contact number for all passengers.</strong>
+                                    <small>Uncheck to enter a separate contact number for each passenger.</small>
+                                </span>
+                            </label>
+                            <div class="shared-contact-field @if (!$useSharedContact) d-none @endif">
+                                <label class="flow-label" for="sharedContactNumber">Contact Number <span class="required-label">Required</span></label>
+                                <input type="tel" id="sharedContactNumber" class="flow-input js-contact-number"
+                                    value="{{ $sharedContactNumber }}" placeholder="09XX XXX XXXX" inputmode="numeric"
+                                    autocomplete="tel" maxlength="16">
+                                <small class="flow-field-error" data-error-for="shared-contact"></small>
+                            </div>
+                            <p class="booking-contact-note">We'll use this number for important trip updates, including schedule changes or cancellations.</p>
+                        </div>
+                    </div>
+
                     @foreach ($seats as $index => $seat)
+                        @php
+                            $initialPassenger = $initialPassengersBySeat->get((string) $seat, []);
+                        @endphp
                         <div class="passenger-card" data-seat="{{ $seat }}">
                             <div class="passenger-card__head">
                                 <span>Passenger {{ $index + 1 }}</span>
@@ -80,8 +143,11 @@
                             <div class="passenger-card__body">
                                 <div class="passenger-primary-fields">
                                     <div>
-                                        <label class="flow-label">Full Name <span class="js-name-note">(optional)</span></label>
-                                        <input type="text" class="flow-input js-passenger-name" placeholder="Enter passenger name">
+                                        <label class="flow-label">Full Name <span class="required-label">Required</span></label>
+                                        <input type="text" class="flow-input js-passenger-name"
+                                            value="{{ $initialPassenger['name'] ?? '' }}" placeholder="Enter passenger name"
+                                            autocomplete="name" maxlength="255" required>
+                                        <small class="flow-field-error" data-error-for="passenger-name"></small>
                                     </div>
                                     <div>
                                         <label class="flow-label">Passenger Type</label>
@@ -131,6 +197,16 @@
                                 <div class="discount-fields d-none">
                                     <label class="flow-label"><span class="js-id-label">ID Number</span> <span>(required)</span></label>
                                     <input type="text" class="flow-input js-id-number" placeholder="Enter passenger ID number">
+                                    <small class="flow-field-error" data-error-for="passenger-id"></small>
+                                </div>
+
+                                <div class="individual-contact-field @if ($useSharedContact) d-none @endif">
+                                    <label class="flow-label">Contact Number <span class="required-label">Required</span></label>
+                                    <input type="tel" class="flow-input js-passenger-contact js-contact-number"
+                                        value="{{ $normalizeContact($initialPassenger['contact_number'] ?? '') }}"
+                                        placeholder="09XX XXX XXXX" inputmode="numeric" autocomplete="tel"
+                                        maxlength="16" @disabled($useSharedContact)>
+                                    <small class="flow-field-error" data-error-for="passenger-contact"></small>
                                 </div>
                             </div>
                         </div>
@@ -407,6 +483,83 @@
             padding: 10px 16px 16px;
         }
 
+        .booking-contact-card__head i {
+            color: var(--booking-primary);
+            font-size: 18px;
+        }
+
+        .booking-contact-card__body {
+            padding-top: 14px;
+        }
+
+        .shared-contact-toggle {
+            align-items: flex-start;
+            color: #344054;
+            cursor: pointer;
+            display: flex;
+            gap: 10px;
+            margin: 0;
+        }
+
+        .shared-contact-toggle > input {
+            height: 1px;
+            opacity: 0;
+            position: absolute;
+            width: 1px;
+        }
+
+        .shared-contact-toggle__box {
+            align-items: center;
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            color: transparent;
+            display: flex;
+            flex: 0 0 20px;
+            height: 20px;
+            justify-content: center;
+            margin-top: 1px;
+            width: 20px;
+        }
+
+        .shared-contact-toggle > input:checked + .shared-contact-toggle__box {
+            background: var(--booking-primary);
+            border-color: var(--booking-primary);
+            color: var(--booking-on-primary);
+        }
+
+        .shared-contact-toggle > input:focus-visible + .shared-contact-toggle__box {
+            box-shadow: 0 0 0 3px var(--booking-primary-focus);
+        }
+
+        .shared-contact-toggle strong,
+        .shared-contact-toggle small {
+            display: block;
+        }
+
+        .shared-contact-toggle strong {
+            color: #111827;
+            font-size: 14px;
+        }
+
+        .shared-contact-toggle small,
+        .booking-contact-note {
+            color: #7b8490;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .shared-contact-field,
+        .individual-contact-field {
+            margin-top: 14px;
+            max-width: 440px;
+        }
+
+        .booking-contact-note {
+            margin-bottom: 0;
+            margin-top: 10px;
+        }
+
         .passenger-primary-fields {
             align-items: end;
             display: grid;
@@ -440,6 +593,28 @@
         .flow-input:focus {
             border-color: var(--booking-primary);
             box-shadow: 0 0 0 3px var(--booking-primary-focus);
+        }
+
+        .flow-input.is-invalid {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 3px rgba(220, 53, 69, .1);
+        }
+
+        .required-label {
+            color: var(--booking-primary);
+            font-size: 10px;
+            font-weight: 800;
+            margin-left: 5px;
+            text-transform: uppercase;
+        }
+
+        .flow-field-error {
+            color: #dc3545;
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            min-height: 0;
+            margin-top: 4px;
         }
 
         .passenger-type-dropdown {
@@ -1243,12 +1418,93 @@
                 $('.js-auth-status, .js-auth-modal-status').removeClass('text-success text-danger').text('');
             }
 
+            function normalizeContact(value) {
+                let digits = String(value || '').replace(/\D/g, '');
+
+                if (digits.length === 12 && digits.startsWith('63')) {
+                    digits = `0${digits.slice(2)}`;
+                } else if (digits.length === 10 && digits.startsWith('9')) {
+                    digits = `0${digits}`;
+                }
+
+                return digits;
+            }
+
+            function isValidContact(value) {
+                return /^09\d{9}$/.test(normalizeContact(value));
+            }
+
+            function clearFieldError(input) {
+                input.removeClass('is-invalid').removeAttr('aria-invalid');
+                input.siblings('.flow-field-error').text('');
+            }
+
+            function showFieldError(input, message) {
+                input.addClass('is-invalid').attr('aria-invalid', 'true');
+                input.siblings('.flow-field-error').text(message);
+            }
+
+            function clearValidationErrors() {
+                $('.flow-input.is-invalid').removeClass('is-invalid').removeAttr('aria-invalid');
+                $('.flow-field-error').text('');
+            }
+
+            function syncContactMode(seedEmptyFields = true) {
+                const useSharedContact = $('#useSharedContact').is(':checked');
+                const sharedInput = $('#sharedContactNumber');
+                const individualInputs = $('.js-passenger-contact');
+
+                if (seedEmptyFields && useSharedContact && !$.trim(sharedInput.val())) {
+                    const firstEnteredContact = individualInputs.filter(function() {
+                        return $.trim($(this).val()) !== '';
+                    }).first().val();
+
+                    if (firstEnteredContact) {
+                        sharedInput.val(firstEnteredContact);
+                    }
+                }
+
+                if (seedEmptyFields && !useSharedContact) {
+                    const sharedContact = $.trim(sharedInput.val());
+                    if (sharedContact) {
+                        individualInputs.each(function() {
+                            if (!$.trim($(this).val())) {
+                                $(this).val(sharedContact);
+                            }
+                        });
+                    }
+                }
+
+                $('.shared-contact-field').toggleClass('d-none', !useSharedContact);
+                $('.individual-contact-field').toggleClass('d-none', useSharedContact);
+                sharedInput.prop('required', useSharedContact);
+                individualInputs.prop({ disabled: useSharedContact, required: !useSharedContact });
+                $('input[name="use_shared_contact"]').val(useSharedContact ? '1' : '0');
+                $('input[name="shared_contact_number"]').val(normalizeContact(sharedInput.val()));
+            }
+
             function collectPassengers(showErrors = false) {
                 const manifest = [];
                 let errors = [];
                 let discount = 0;
+                const useSharedContact = $('#useSharedContact').is(':checked');
+                const sharedContactInput = $('#sharedContactNumber');
+                const sharedContactNumber = normalizeContact(sharedContactInput.val());
 
-                $('.passenger-card').each(function() {
+                $('input[name="use_shared_contact"]').val(useSharedContact ? '1' : '0');
+                $('input[name="shared_contact_number"]').val(sharedContactNumber);
+
+                if (showErrors) {
+                    clearValidationErrors();
+                }
+
+                if (useSharedContact && !isValidContact(sharedContactNumber)) {
+                    const message = 'Enter the shared contact number in 09XX XXX XXXX format.';
+                    errors.push(message);
+                    if (showErrors) showFieldError(sharedContactInput, message);
+                }
+
+                $('.passenger-card[data-seat]').each(function() {
                     const card = $(this);
                     const selectedType = card.find('.passenger-type-select option:selected');
                     const passengerType = discountsEnabled ? (selectedType.data('type') || 'regular') : 'regular';
@@ -1258,12 +1514,29 @@
                     const seat = String(card.data('seat'));
                     const name = $.trim(card.find('.js-passenger-name').val());
                     const idNumber = $.trim(card.find('.js-id-number').val());
+                    const contactInput = card.find('.js-passenger-contact');
+                    const contactNumber = useSharedContact ? sharedContactNumber : normalizeContact(contactInput.val());
                     const seatFare = passengerType === 'discounted' ? discountedFare(unitPrice, percentage) : unitPrice;
                     const seatDiscount = passengerType === 'discounted' ? unitPrice - seatFare : 0;
 
+                    if (!name) {
+                        const message = `Passenger name is required for seat ${formatSeatLabel(seat)}.`;
+                        errors.push(message);
+                        if (showErrors) showFieldError(card.find('.js-passenger-name'), message);
+                    }
+
+                    if (!useSharedContact && !isValidContact(contactNumber)) {
+                        const message = `Enter a valid contact number in 09XX XXX XXXX format for seat ${formatSeatLabel(seat)}.`;
+                        errors.push(message);
+                        if (showErrors) showFieldError(contactInput, message);
+                    }
+
                     if (passengerType === 'discounted') {
-                        if (!name) errors.push(`Passenger name is required for seat ${formatSeatLabel(seat)}.`);
-                        if (!idNumber) errors.push(`ID number is required for seat ${formatSeatLabel(seat)}.`);
+                        if (!idNumber) {
+                            const message = `ID number is required for seat ${formatSeatLabel(seat)}.`;
+                            errors.push(message);
+                            if (showErrors) showFieldError(card.find('.js-id-number'), message);
+                        }
                     }
 
                     discount += seatDiscount;
@@ -1275,6 +1548,7 @@
                         discount_name: discountName,
                         discount_percentage: percentage,
                         id_number: passengerType === 'discounted' ? idNumber : '',
+                        contact_number: contactNumber,
                         base_fare: unitPrice,
                         discount_amount: seatDiscount,
                         fare: seatFare
@@ -1291,6 +1565,11 @@
 
                 if (showErrors && errors.length) {
                     showMessage('error', errors[0]);
+                    const firstInvalidField = $('.flow-input.is-invalid:visible').first();
+                    if (firstInvalidField.length) {
+                        firstInvalidField.trigger('focus');
+                        firstInvalidField[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 }
 
                 return {
@@ -1484,12 +1763,11 @@
 
                 if (selectedType.data('type') === 'discounted') {
                     card.find('.discount-fields').removeClass('d-none');
-                    card.find('.js-name-note').text('(required)');
                     card.find('.js-id-label').text(`${selectedType.data('discount-name') || 'Passenger'} ID Number`);
                 } else {
                     card.find('.discount-fields').addClass('d-none');
-                    card.find('.js-name-note').text('(optional)');
                     card.find('.js-id-number').val('');
+                    clearFieldError(card.find('.js-id-number'));
                     card.find('.js-id-label').text('ID Number');
                 }
 
@@ -1498,10 +1776,29 @@
                 calculateGateway();
             });
 
-            $(document).on('input', '.js-passenger-name, .js-id-number', function() {
+            $('#useSharedContact').on('change', function() {
+                syncContactMode(true);
+                clearValidationErrors();
+                renderSummary();
+                calculateGateway();
+            });
+
+            $(document).on('input', '.js-passenger-name, .js-id-number, .js-contact-number', function() {
+                clearFieldError($(this));
+                if ($(this).is('#sharedContactNumber')) {
+                    $('input[name="shared_contact_number"]').val(normalizeContact($(this).val()));
+                }
                 resetAuthorization();
                 renderSummary();
                 calculateGateway();
+            });
+
+            $(document).on('blur', '.js-contact-number', function() {
+                const normalized = normalizeContact($(this).val());
+                if (isValidContact(normalized)) {
+                    $(this).val(normalized);
+                }
+                syncContactMode(false);
             });
 
             $('#cancelAuthorization').on('click', function() {
@@ -1687,6 +1984,7 @@
             $('.passenger-type-select').each(function() {
                 syncPassengerTypeDropdown($(this));
             });
+            syncContactMode(false);
             renderSummary();
             calculateGateway();
         })(jQuery);
