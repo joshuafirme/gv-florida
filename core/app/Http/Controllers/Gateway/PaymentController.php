@@ -19,6 +19,7 @@ use App\Services\Paynamics;
 use App\Services\PaynamicsPaymentBroadcaster;
 use App\Services\PaymentGatewayService;
 use App\Services\PaymentSuccessNotifier;
+use App\Services\PassengerContactService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -212,6 +213,8 @@ class PaymentController extends Controller
             'gateway' => 'required',
             'currency' => 'required',
             'passengers' => 'required|string',
+            'use_shared_contact' => 'required|boolean',
+            'shared_contact_number' => 'nullable|string|max:30',
             'pmethod' => 'nullable|string',
             'pchannel' => 'nullable|string',
         ]);
@@ -258,6 +261,14 @@ class PaymentController extends Controller
         $discountedPassengers = [];
         $discountAmount = 0;
         $unitPrice = getAmount($bookedTicket->unit_price);
+        $useSharedContact = $request->boolean('use_shared_contact');
+        $contactNumbers = app(PassengerContactService::class);
+        $sharedContactNumber = $contactNumbers->normalize($request->shared_contact_number);
+
+        if ($useSharedContact && !$contactNumbers->isValid($sharedContactNumber)) {
+            $notify[] = ['error', 'Enter the shared contact number in 09XX XXX XXXX format.'];
+            return back()->withInput()->withNotify($notify);
+        }
 
         foreach ($seats as $seat) {
             $passenger = collect($passengers)->firstWhere('seat', $seat);
@@ -268,8 +279,11 @@ class PaymentController extends Controller
             }
 
             $passengerType = $passenger['passenger_type'] ?? 'regular';
-            $name = trim($passenger['name'] ?? '');
-            $idNumber = trim($passenger['id_number'] ?? '');
+            $name = trim(is_scalar($passenger['name'] ?? null) ? (string) $passenger['name'] : '');
+            $idNumber = trim(is_scalar($passenger['id_number'] ?? null) ? (string) $passenger['id_number'] : '');
+            $contactNumber = $useSharedContact
+                ? $sharedContactNumber
+                : $contactNumbers->normalize($passenger['contact_number'] ?? null);
             $discountId = isset($passenger['discount_id']) ? (int) $passenger['discount_id'] : null;
             $discount = null;
             $seatDiscount = 0;
@@ -278,6 +292,21 @@ class PaymentController extends Controller
             if (!in_array($passengerType, ['regular', 'discounted'], true)) {
                 $notify[] = ['error', 'Please select a valid passenger type for seat ' . formatSeatLabel($seat) . '.'];
                 return back()->withNotify($notify);
+            }
+
+            if ($name === '') {
+                $notify[] = ['error', 'Passenger name is required for seat ' . formatSeatLabel($seat) . '.'];
+                return back()->withInput()->withNotify($notify);
+            }
+
+            if (mb_strlen($name) > 255) {
+                $notify[] = ['error', 'Passenger name may not exceed 255 characters for seat ' . formatSeatLabel($seat) . '.'];
+                return back()->withInput()->withNotify($notify);
+            }
+
+            if (!$contactNumbers->isValid($contactNumber)) {
+                $notify[] = ['error', 'Enter a valid contact number in 09XX XXX XXXX format for seat ' . formatSeatLabel($seat) . '.'];
+                return back()->withInput()->withNotify($notify);
             }
 
             if (!$isKioskBooking && $passengerType !== 'regular') {
@@ -314,6 +343,7 @@ class PaymentController extends Controller
                 'discount_name' => $discount?->name,
                 'discount_percentage' => $discount ? getAmount($discount->percentage) : 0,
                 'id_number' => $passengerType === 'discounted' ? $idNumber : null,
+                'contact_number' => $contactNumber,
                 'base_fare' => getAmount($unitPrice),
                 'discount_amount' => getAmount($seatDiscount),
                 'fare' => getAmount($seatFare),
