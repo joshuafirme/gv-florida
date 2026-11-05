@@ -12,6 +12,7 @@ use App\Models\PassengerNotification;
 use App\Support\UserIdentitySanitizer;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -419,12 +420,15 @@ class UserController extends Controller
             'trip.startFrom',
             'trip.endTo',
             'trip.schedule',
+            'trip.route',
             'trip.assignedVehicle.vehicle',
             'pickup',
             'drop',
             'user',
             'deposit.gateway',
+            'deposit.userDiscount',
             'paymentSourceDeposit.gateway',
+            'paymentSourceDeposit.userDiscount',
         ]);
 
         $ticket = $ticket->findOrFail($id);
@@ -438,12 +442,21 @@ class UserController extends Controller
         $pageTitle = "Ticket Print";
 
         $ticket = $this->getTicketDetails($id);
-        //  return view('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
-        $pdf = Pdf::setOptions([
-            'isRemoteEnabled' => true
-        ])->loadView('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
+        $ticketView = $ticket->isKioskBooking()
+            ? 'Template::user.print_ticket'
+            : 'Template::user.print_ticket_online';
+        $pdf = ($ticket->isKioskBooking()
+            ? Pdf::setOptions(['isRemoteEnabled' => true])
+            : Pdf::setOptions($this->ticketPdfOptions(), true)
+        )->loadView($ticketView, [
+            'ticket' => $ticket,
+            'pageTitle' => $pageTitle,
+            'renderForPdf' => true,
+        ]);
 
-
+        if (! $ticket->isKioskBooking()) {
+            $this->registerOnlineTicketFonts($pdf);
+        }
 
         if ($ticket->kiosk_id) {
             // $pdf->setPaper([0, 0, 226.77, 1200], 'portrait');
@@ -460,8 +473,15 @@ class UserController extends Controller
         $pageTitle = "Ticket Print";
 
         $ticket = $this->getTicketDetails($id);
+        $ticketView = $ticket->isKioskBooking()
+            ? 'Template::user.print_ticket'
+            : 'Template::user.print_ticket_online';
 
-        return view('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
+        return view($ticketView, [
+            'ticket' => $ticket,
+            'pageTitle' => $pageTitle,
+            'renderForPdf' => false,
+        ]);
     }
 
     public function downloadTicket($id)
@@ -469,13 +489,60 @@ class UserController extends Controller
         $pageTitle = "Ticket Print";
 
         $ticket = $this->getTicketDetails($id);
+        $ticketView = $ticket->isKioskBooking()
+            ? 'Template::user.print_ticket'
+            : 'Template::user.print_ticket_online';
 
-        $pdf = Pdf::setOptions([
-            'isRemoteEnabled' => true
-        ])->loadView('Template::user.print_ticket', ['ticket' => $ticket, 'pageTitle' => $pageTitle]);
+        $pdf = ($ticket->isKioskBooking()
+            ? Pdf::setOptions(['isRemoteEnabled' => true])
+            : Pdf::setOptions($this->ticketPdfOptions(), true)
+        )->loadView($ticketView, [
+            'ticket' => $ticket,
+            'pageTitle' => $pageTitle,
+            'renderForPdf' => true,
+        ]);
+
+        if (! $ticket->isKioskBooking()) {
+            $this->registerOnlineTicketFonts($pdf);
+        }
+
         $pdf->setPaper('A4', 'portrait');
 
         return $pdf->download("$ticket->pnr_number.pdf");
+    }
+
+    private function registerOnlineTicketFonts($pdf): void
+    {
+        $fontMetrics = $pdf->getDomPDF()->getFontMetrics();
+        $fontDirectory = public_path('assets/fonts/montserrat');
+        $fonts = [
+            ['file' => 'Montserrat-Regular.ttf', 'weight' => 400],
+            ['file' => 'Montserrat-SemiBold.ttf', 'weight' => 600],
+            ['file' => 'Montserrat-Bold.ttf', 'weight' => 700],
+            ['file' => 'Montserrat-ExtraBold.ttf', 'weight' => 800],
+        ];
+
+        foreach ($fonts as $font) {
+            $fontMetrics->registerFont([
+                'family' => 'Montserrat',
+                'style' => 'normal',
+                'weight' => $font['weight'],
+            ], 'file://' . str_replace('\\', '/', $fontDirectory . '/' . $font['file']));
+        }
+    }
+
+    private function ticketPdfOptions(): array
+    {
+        $fontCache = storage_path('fonts');
+        File::ensureDirectoryExists($fontCache);
+
+        return [
+            'isRemoteEnabled' => true,
+            'defaultMediaType' => 'print',
+            'fontDir' => $fontCache,
+            'fontCache' => $fontCache,
+            'chroot' => [base_path(), public_path()],
+        ];
     }
 
 }
