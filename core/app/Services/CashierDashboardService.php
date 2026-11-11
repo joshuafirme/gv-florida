@@ -103,13 +103,17 @@ class CashierDashboardService
             ->filter(fn ($transaction) => (float) $transaction->amount > 0);
         $managementRefunds = $transactions->where('status', TicketTransferService::STATUS_MANAGEMENT_TRANSFERRED)
             ->filter(fn ($transaction) => (float) $transaction->amount < 0);
-        $surcharges = (float) $sold->sum('surcharge_amount') + (float) $transferUpgrades->sum('amount');
+        $saleSurcharges = (float) $sold->sum('surcharge_amount');
+        $upgradeFares = (float) $transferUpgrades->sum('amount');
+        $surcharges = $saleSurcharges + $upgradeFares;
         $refunds = $transactions->whereIn('status', ['Refunded', 'Discount Override'])
             ->concat($managementRefunds);
 
         return [
             'tickets' => $sold->count(),
-            'gross_sales' => (float) $sold->sum('amount') - $surcharges,
+            // Sold amounts already include sale-time surcharges. Upgrade fares
+            // are separate positive events and must not be deducted from gross.
+            'gross_sales' => (float) $sold->sum('amount') - $saleSurcharges,
             'discounts' => (float) $sold->sum('discount_amount')
                 + abs((float) $transactions->where('status', 'Discount Override')->sum('amount')),
             'surcharges' => $surcharges,

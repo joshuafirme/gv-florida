@@ -96,6 +96,35 @@ class DailyReportServiceTest extends TestCase
         );
     }
 
+    public function test_upgrade_fare_is_added_to_daily_and_cashier_totals_without_reducing_gross(): void
+    {
+        $recorder = $this->createMock(CashierTransactionRecorder::class);
+        $service = new DailyReportService(
+            $recorder,
+            new CashierDashboardService($recorder)
+        );
+
+        $transactions = collect([
+            $this->transaction(7, 'Jezleah Ramos', 'Sold', 'Kiosk', 129080),
+            $this->transaction(7, 'Jezleah Ramos', 'Upgraded', 'Kiosk', 800),
+            $this->transaction(7, 'Jezleah Ramos', 'Refunded', 'Kiosk', -540),
+        ]);
+
+        $report = $service->compile($transactions);
+        $cashier = $report['cashier_collections']->first();
+        $channel = $report['channel_collections']->first();
+
+        $this->assertSame(129080.0, $report['summary']['gross_sales']);
+        $this->assertSame(800.0, $report['summary']['surcharges']);
+        $this->assertSame(540.0, $report['summary']['refunds']);
+        $this->assertSame(129340.0, $report['summary']['net_collection']);
+        $this->assertSame('Jezleah Ramos', $cashier['cashier']);
+        $this->assertSame(129080.0, $cashier['summary']['gross_sales']);
+        $this->assertSame(129340.0, $cashier['summary']['net_collection']);
+        $this->assertSame('Kiosk', $channel['channel']);
+        $this->assertSame(129080.0, $channel['amount']);
+    }
+
     public function test_it_filters_transactions_by_type_source_processor_and_payment_method(): void
     {
         $recorder = $this->createMock(CashierTransactionRecorder::class);
