@@ -1552,6 +1552,11 @@
                 const processingAdminId = {{ auth('admin')->id() }};
                 const csrfToken = @json(csrf_token());
                 const pendingStatusUrl = @json(route('admin.deposit.pending.status'));
+                const printerTimeouts = {
+                    connection: 8000,
+                    discovery: 5000,
+                    job: 15000
+                };
                 const params = new URLSearchParams(window.location.search);
 
                 if (params.get('newly_approved')) {
@@ -1578,6 +1583,16 @@
                     if (/^https?:\/\//i.test(value)) return value;
                     return `${appBaseUrl.replace(/\/$/, '')}/${String(value).replace(/^\/+/, '')}`;
                 };
+
+                function withTimeout(promise, timeout, message) {
+                    let timer;
+                    const timeoutPromise = new Promise((resolve, reject) => {
+                        timer = window.setTimeout(() => reject(new Error(message)), timeout);
+                    });
+
+                    return Promise.race([promise, timeoutPromise])
+                        .finally(() => window.clearTimeout(timer));
+                }
 
                 function discountOptionsHtml(payment) {
                     return (payment.discounts || []).map(discount =>
@@ -1958,21 +1973,63 @@
                         throw new Error('QZ Tray is not available. Please start QZ Tray and try again.');
                     }
 
-                    await connectQZ();
-                    const printer = await getPrinter();
+                    await withTimeout(
+                        Promise.resolve().then(() => connectQZ()),
+                        printerTimeouts.connection,
+                        'Printer connection timed out. Please check QZ Tray.'
+                    );
+                    const printer = await withTimeout(
+                        Promise.resolve().then(() => getPrinter()),
+                        printerTimeouts.discovery,
+                        'Printer discovery timed out. Please check the default printer.'
+                    );
+
+                    if (!printer) {
+                        throw new Error('No default printer was detected.');
+                    }
+
                     const config = qz.configs.create(printer, {
                         scaleContent: true,
                         colorType: 'color'
                     });
 
-                    return qz.print(config, [{
-                        type: 'pdf',
-                        format: 'file',
-                        data: fileUrl,
-                        options: {
-                            autoRotate: true
-                        }
-                    }]);
+                    return withTimeout(
+                        qz.print(config, [{
+                            type: 'pdf',
+                            format: 'file',
+                            data: fileUrl,
+                            options: {
+                                autoRotate: true
+                            }
+                        }]),
+                        printerTimeouts.job,
+                        'The printer did not acknowledge the print job in time.'
+                    );
+                }
+
+                function completeConfirmedPayment(payment, button, originalLabel) {
+                    activePayment = null;
+                    paymentFinalizationInProgress = false;
+                    stopProcessingHeartbeat();
+                    confirmPaymentModal.hide();
+                    button.prop('disabled', false).html(originalLabel);
+
+                    $(`tr[data-pending-deposit-id="${Number(payment.deposit_id)}"]`)
+                        .fadeOut(180, function() {
+                            $(this).remove();
+                        });
+                }
+
+                function openPrintFallback(openUrl) {
+                    localStorage.setItem('to_print_ticket', openUrl);
+                    const previewWindow = window.open(openUrl, '_blank');
+
+                    if (previewWindow) {
+                        previewWindow.opener = null;
+                        localStorage.removeItem('to_print_ticket');
+                    }
+
+                    return Boolean(previewWindow);
                 }
 
                 async function confirmAndPrintPayment() {
@@ -2021,25 +2078,23 @@
                             result.reservation_slip_url || result.file_url
                         );
 
-                        await printReservation(printUrl);
+                        const confirmedPayment = activePayment;
+                        completeConfirmedPayment(confirmedPayment, button, originalLabel);
+                        notify('success', 'Payment confirmed. Sending the reservation slip to the printer.');
 
-                        localStorage.setItem('to_print_ticket', openUrl);
-
-                        notify(
-                            'success',
-                            'Payment confirmed and reservation slip prepared.'
-                        );
-
-                        activePayment = null;
-                        stopProcessingHeartbeat();
-                        confirmPaymentModal.hide();
-
-                        const reloadParams = new URLSearchParams(window.location.search);
-                        reloadParams.set('newly_approved', true);
-
-                        setTimeout(() => {
-                            window.location.search = reloadParams.toString();
-                        }, 900);
+                        try {
+                            await printReservation(printUrl);
+                            localStorage.removeItem('to_print_ticket');
+                            notify('success', 'Reservation slip printed successfully.');
+                        } catch (printError) {
+                            const previewOpened = openPrintFallback(openUrl);
+                            notify(
+                                'warning',
+                                previewOpened
+                                    ? `Payment was confirmed, but automatic printing failed: ${printError.message} The reservation slip was opened for manual printing.`
+                                    : `Payment was confirmed, but automatic printing failed: ${printError.message} Open the reservation slip from Approved Deposits.`
+                            );
+                        }
                     } catch (error) {
                         paymentFinalizationInProgress = false;
                         const message =
