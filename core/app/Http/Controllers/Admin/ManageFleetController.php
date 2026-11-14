@@ -9,6 +9,7 @@ use App\Models\SeatLayout;
 use App\Models\FleetType;
 use App\Models\Vehicle;
 use App\Services\SeatLayoutService;
+use Illuminate\Validation\ValidationException;
 
 class ManageFleetController extends Controller
 {
@@ -69,7 +70,7 @@ class ManageFleetController extends Controller
         return view('admin.fleet.type', compact('pageTitle', 'fleetType', 'seatLayouts', 'facilities'));
     }
 
-    public function typeStore(Request $request, $id = 0)
+    public function typeStore(Request $request, SeatLayoutService $seatLayoutService, $id = 0)
     {
         $crColumnLimit = $this->comfortRoomColumnLimit($request);
         $crRowLimit = $this->comfortRoomRowLimit($request);
@@ -104,6 +105,7 @@ class ManageFleetController extends Controller
                 'facilities.*' => 'string',
                 'disabled_seats' => 'nullable|array',
                 'disabled_seats.*' => 'string|max:30',
+                'custom_seat_layout' => 'nullable|string',
             ],
             [
                 'deck_seats.*.required' => 'Seat number for all deck is required',
@@ -118,6 +120,20 @@ class ManageFleetController extends Controller
             ],
         );
 
+        $customSeatLayout = null;
+        if ($request->filled('custom_seat_layout')) {
+            try {
+                $customSeatLayout = $seatLayoutService->validateCustomLayout(
+                    $request->input('custom_seat_layout'),
+                    array_map('intval', array_values($request->input('deck_seats', [])))
+                );
+            } catch (\InvalidArgumentException $exception) {
+                throw ValidationException::withMessages([
+                    'custom_seat_layout' => $exception->getMessage(),
+                ]);
+            }
+        }
+
         if ($id) {
             $fleetType = FleetType::findOrFail($id);
             $message = "Fleet type updated successfully";
@@ -128,6 +144,7 @@ class ManageFleetController extends Controller
 
         $fleetType->name = $request->name;
         $fleetType->seat_layout = $request->seat_layout;
+        $fleetType->custom_seat_layout = $customSeatLayout;
         $fleetType->deck = $request->integer('deck');
         $fleetType->deck_seats = array_map('intval', array_values($request->deck_seats));
         $fleetType->last_row = array_map(
@@ -178,16 +195,44 @@ class ManageFleetController extends Controller
             'cr_row_covered' => 'nullable|integer|min:1|max:' . $crRowLimit,
             'cr_column_covered' => 'nullable|integer|min:1|max:' . $crColumnLimit,
             'cr_override_seat' => 'nullable|boolean',
+            'custom_seat_layout' => 'nullable|string',
         ]);
 
-        $seatLayout = $seatLayoutService->layout([
+        $customSeatLayout = null;
+        if (!empty($validated['custom_seat_layout'])) {
+            try {
+                $customSeatLayout = $seatLayoutService->validateCustomLayout(
+                    $validated['custom_seat_layout'],
+                    array_map('intval', array_values($validated['deck_seats']))
+                );
+            } catch (\InvalidArgumentException $exception) {
+                throw ValidationException::withMessages([
+                    'custom_seat_layout' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        $previewFleetType = [
             ...$validated,
             'name' => $validated['name'] ?? 'Fleet Type',
             'last_row' => $validated['last_row'] ?? [],
             'prefixes' => $validated['prefixes'] ?? [],
             'disabled_seats' => $validated['disabled_seats'] ?? [],
             'cr_override_seat' => $request->boolean('cr_override_seat'),
-        ]);
+            'custom_seat_layout' => $customSeatLayout,
+        ];
+        $seatLayout = $seatLayoutService->layout($previewFleetType);
+        $seatOptions = collect($seatLayout['decks'])
+            ->flatMap(fn (array $deck) => collect($deck['rows'])->flatMap(
+                fn (array $row) => collect($row['groups'])->flatMap(fn (array $group) => $group['cells'])
+            ))
+            ->where('type', 'seat')
+            ->map(fn (array $seat) => [
+                'id' => $seat['seat_id'],
+                'label' => $seat['label'],
+                'disabled' => $seat['state'] === 'disabled',
+            ])
+            ->values();
 
         return response()->json([
             'html' => view('templates.basic.partials.seat_layout', [
@@ -196,6 +241,8 @@ class ManageFleetController extends Controller
                 'seatLayoutMode' => 'preview',
             ])->render(),
             'seat_ids' => $seatLayout['seat_ids'],
+            'seat_options' => $seatOptions,
+            'editor_layout' => $seatLayoutService->editableLayout($previewFleetType),
         ]);
     }
 

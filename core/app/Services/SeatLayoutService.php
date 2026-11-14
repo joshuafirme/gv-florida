@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\FleetType;
+use InvalidArgumentException;
 use Illuminate\Support\Collection;
 
 class SeatLayoutService
@@ -13,10 +14,13 @@ class SeatLayoutService
     public function layout(FleetType|array $fleetType, array $states = []): array
     {
         $config = $this->configuration($fleetType);
-        $decks = [];
-
-        foreach ($config['deck_seats'] as $deckIndex => $seatCount) {
-            $decks[] = $this->buildDeck($config, $deckIndex, $seatCount);
+        if ($config['custom_layout']) {
+            $decks = $this->buildCustomDecks($config);
+        } else {
+            $decks = [];
+            foreach ($config['deck_seats'] as $deckIndex => $seatCount) {
+                $decks[] = $this->buildDeck($config, $deckIndex, $seatCount);
+            }
         }
 
         $seatIndex = collect($decks)
@@ -61,6 +65,7 @@ class SeatLayoutService
             'seat_layout' => $config['seat_layout'],
             'groups' => $config['groups'],
             'seats_per_row' => $config['seats_per_row'],
+            'is_custom' => (bool) $config['custom_layout'],
             'decks' => $decks,
             'seat_ids' => $seatIndex->keys()->values()->all(),
             'disabled_seat_ids' => $stateIds['disabled'],
@@ -191,6 +196,188 @@ class SeatLayoutService
     }
 
     /**
+     * Return the persisted custom geometry, or convert a legacy formula into
+     * the same editable row/cell format used by the admin layout editor.
+     */
+    public function editableLayout(FleetType|array $fleetType): array
+    {
+        $config = $this->configuration($fleetType);
+        if ($config['custom_layout']) {
+            return $config['custom_layout'];
+        }
+
+        $layout = $this->layout($fleetType);
+        $decks = collect($layout['decks'])->map(function (array $deck) {
+            $rows = collect($deck['rows'])->map(function (array $row) {
+                $cells = [];
+
+                foreach ($row['groups'] as $groupIndex => $group) {
+                    if ($groupIndex > 0) {
+                        $cells[] = ['type' => 'aisle'];
+                    }
+
+                    foreach ($group['cells'] as $cell) {
+                        $cells[] = $this->editableCell($cell);
+                    }
+                }
+
+                return $cells;
+            })->values()->all();
+
+            $columnCount = max(collect($rows)->map(fn (array $row) => count($row))->max() ?? 1, 1);
+            foreach ($rows as &$row) {
+                $missing = $columnCount - count($row);
+                if ($missing <= 0) {
+                    continue;
+                }
+
+                $leftPadding = intdiv($missing, 2);
+                $row = array_merge(
+                    array_fill(0, $leftPadding, ['type' => 'empty']),
+                    $row,
+                    array_fill(0, $missing - $leftPadding, ['type' => 'empty'])
+                );
+            }
+            unset($row);
+
+            return [
+                'name' => $deck['name'],
+                'rows' => $rows,
+            ];
+        })->values()->all();
+
+        return ['version' => 1, 'decks' => $decks];
+    }
+
+    /**
+     * Validate and normalize admin-defined geometry before it is persisted.
+     */
+    public function validateCustomLayout(mixed $layout, array $expectedSeatCounts = []): array
+    {
+        if (is_string($layout)) {
+            $layout = json_decode($layout, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new InvalidArgumentException('The custom seat layout is not valid JSON.');
+            }
+        }
+
+        if (!is_array($layout) || !is_array($layout['decks'] ?? null) || !$layout['decks']) {
+            throw new InvalidArgumentException('The custom seat layout must contain at least one deck.');
+        }
+
+        if (count($layout['decks']) > 5) {
+            throw new InvalidArgumentException('A seat layout can contain up to five decks.');
+        }
+
+        $seatIds = [];
+        $seatLabels = [];
+        $decks = [];
+
+        foreach (array_values($layout['decks']) as $deckIndex => $deck) {
+            if (!is_array($deck) || !is_array($deck['rows'] ?? null) || !$deck['rows']) {
+                throw new InvalidArgumentException('Each deck must contain at least one row.');
+            }
+
+            if (count($deck['rows']) > 40) {
+                throw new InvalidArgumentException('A deck can contain up to 40 rows.');
+            }
+
+            $rows = [];
+            $deckSeatCount = 0;
+            $columnCount = null;
+
+            foreach (array_values($deck['rows']) as $row) {
+                if (!is_array($row) || !$row || count($row) > 12) {
+                    throw new InvalidArgumentException('Every row must contain between 1 and 12 positions.');
+                }
+
+                $columnCount ??= count($row);
+                if (count($row) !== $columnCount) {
+                    throw new InvalidArgumentException('All rows on a deck must use the same number of positions.');
+                }
+
+                $cells = [];
+                foreach (array_values($row) as $cell) {
+                    $cell = is_array($cell) ? $cell : [];
+                    $type = strtolower(trim((string) ($cell['type'] ?? 'empty')));
+                    if (!in_array($type, ['seat', 'empty', 'aisle', 'cr', 'covered'], true)) {
+                        throw new InvalidArgumentException('A layout position has an unsupported type.');
+                    }
+
+                    if ($type !== 'seat') {
+                        $cells[] = $type === 'cr'
+                            ? [
+                                'type' => 'cr',
+                                'label' => 'CR',
+                                'row_span' => min(max((int) ($cell['row_span'] ?? 1), 1), 10),
+                                'span' => min(max((int) ($cell['span'] ?? 1), 1), 6),
+                            ]
+                            : ['type' => $type];
+                        continue;
+                    }
+
+                    $label = strtoupper(trim(strip_tags((string) ($cell['label'] ?? ''))));
+                    if ($label === '' || mb_strlen($label) > 20) {
+                        throw new InvalidArgumentException('Every seat needs a label of 20 characters or fewer.');
+                    }
+
+                    $seatId = strtoupper(trim(strip_tags((string) ($cell['id'] ?? ''))));
+                    $seatId = $seatId ?: ($deckIndex + 1) . '-' . $label;
+                    if (mb_strlen($seatId) > 40) {
+                        throw new InvalidArgumentException('A seat identifier cannot exceed 40 characters.');
+                    }
+
+                    if (isset($seatIds[$seatId])) {
+                        throw new InvalidArgumentException("Seat identifier {$seatId} is used more than once.");
+                    }
+                    if (isset($seatLabels[$label])) {
+                        throw new InvalidArgumentException("Seat label {$label} is used more than once.");
+                    }
+
+                    $aliases = collect((array) ($cell['aliases'] ?? []))
+                        ->map(fn ($alias) => strtoupper(trim(strip_tags((string) $alias))))
+                        ->filter(fn (string $alias) => $alias !== '' && mb_strlen($alias) <= 40)
+                        ->reject(fn (string $alias) => $alias === $seatId || $alias === $label)
+                        ->unique()
+                        ->values()
+                        ->all();
+
+                    $cells[] = [
+                        'type' => 'seat',
+                        'id' => $seatId,
+                        'label' => $label,
+                        'aliases' => $aliases,
+                        'priority' => filter_var($cell['priority'] ?? false, FILTER_VALIDATE_BOOL),
+                    ];
+                    $seatIds[$seatId] = true;
+                    $seatLabels[$label] = true;
+                    $deckSeatCount++;
+                }
+
+                $rows[] = $cells;
+            }
+
+            if (isset($expectedSeatCounts[$deckIndex]) && $deckSeatCount !== (int) $expectedSeatCounts[$deckIndex]) {
+                $deckNumber = $deckIndex + 1;
+                throw new InvalidArgumentException(
+                    "Deck {$deckNumber} must contain exactly {$expectedSeatCounts[$deckIndex]} seats; {$deckSeatCount} configured."
+                );
+            }
+
+            $decks[] = [
+                'name' => trim(strip_tags((string) ($deck['name'] ?? ''))) ?: $this->deckName($deckIndex),
+                'rows' => $rows,
+            ];
+        }
+
+        if ($expectedSeatCounts && count($decks) !== count($expectedSeatCounts)) {
+            throw new InvalidArgumentException('The custom layout must contain the configured number of decks.');
+        }
+
+        return ['version' => 1, 'decks' => $decks];
+    }
+
+    /**
      * Size every manifest row against one Legal portrait page. Both decks
      * share the same row height so their geometry stays visually consistent.
      */
@@ -231,11 +418,29 @@ class SeatLayoutService
             $groups = ['left' => 1, 'right' => 1];
         }
 
+        $customLayout = null;
+        $customLayoutValue = $this->value($fleetType, 'custom_seat_layout');
+        if ($customLayoutValue) {
+            try {
+                $customLayout = $this->validateCustomLayout($customLayoutValue);
+            } catch (InvalidArgumentException) {
+                $customLayout = null;
+            }
+        }
+
+        if ($customLayout) {
+            $customSeatsPerRow = collect($customLayout['decks'])
+                ->flatMap(fn (array $deck) => $deck['rows'])
+                ->map(fn (array $row) => collect($row)->where('type', '!=', 'aisle')->count())
+                ->max();
+            $customGroups = $this->customGroups($customLayout['decks'][0]['rows'][0] ?? []);
+        }
+
         return [
             'name' => (string) $this->value($fleetType, 'name', 'Fleet Type'),
             'seat_layout' => $seatLayout,
-            'groups' => $groups,
-            'seats_per_row' => array_sum($groups),
+            'groups' => $customGroups ?? $groups,
+            'seats_per_row' => max((int) ($customSeatsPerRow ?? array_sum($groups)), 1),
             'deck_seats' => array_map('intval', array_values((array) $this->value($fleetType, 'deck_seats', []))),
             'last_row' => array_map('intval', array_values((array) $this->value($fleetType, 'last_row', []))),
             'prefixes' => array_map(fn ($prefix) => strtoupper(trim((string) $prefix)), array_values((array) $this->value($fleetType, 'prefixes', []))),
@@ -245,7 +450,144 @@ class SeatLayoutService
             'cr_row_covered' => max((int) $this->value($fleetType, 'cr_row_covered', 1), 1),
             'cr_column_covered' => max((int) $this->value($fleetType, 'cr_column_covered', 1), 1),
             'cr_override_seat' => filter_var($this->value($fleetType, 'cr_override_seat', false), FILTER_VALIDATE_BOOL),
+            'custom_layout' => $customLayout,
         ];
+    }
+
+    private function buildCustomDecks(array $config): array
+    {
+        return collect($config['custom_layout']['decks'])->map(function (array $deck, int $deckIndex) {
+            $rows = collect($deck['rows'])->map(function (array $slots, int $rowIndex) use ($deckIndex) {
+                $groups = [];
+                $cells = [];
+                $groupNumber = 0;
+
+                $flush = function () use (&$groups, &$cells, &$groupNumber): void {
+                    if (!$cells) {
+                        return;
+                    }
+
+                    $groups[] = ['name' => 'custom-' . $groupNumber, 'cells' => $cells];
+                    $cells = [];
+                    $groupNumber++;
+                };
+
+                foreach ($slots as $slot) {
+                    if ($slot['type'] === 'aisle') {
+                        $flush();
+                        continue;
+                    }
+
+                    $cells[] = $this->customCell($slot, $deckIndex, $rowIndex, $groupNumber);
+                }
+                $flush();
+
+                return [
+                    'number' => $rowIndex + 1,
+                    'centered' => false,
+                    'is_front_row' => $rowIndex === 0,
+                    'groups' => $groups ?: [[
+                        'name' => 'custom-0',
+                        'cells' => [$this->emptyCell($deckIndex)],
+                    ]],
+                ];
+            })->values()->all();
+
+            return [
+                'number' => $deckIndex + 1,
+                'name' => $deck['name'] ?: $this->deckName($deckIndex),
+                'prefix' => '',
+                'rows' => $rows,
+            ];
+        })->values()->all();
+    }
+
+    private function customCell(array $slot, int $deckIndex, int $rowIndex, int $groupNumber): array
+    {
+        $base = [
+            'type' => $slot['type'],
+            'label' => $slot['type'] === 'cr' ? 'CR' : '',
+            'seat_id' => null,
+            'seat_aliases' => [],
+            'deck' => $deckIndex + 1,
+            'state' => 'static',
+            'row' => $rowIndex + 1,
+            'group' => 'custom-' . $groupNumber,
+            'is_sc_pwd' => false,
+        ];
+
+        if ($slot['type'] === 'seat') {
+            return array_merge($base, [
+                'label' => $slot['label'],
+                'seat_id' => $slot['id'],
+                'seat_aliases' => $slot['aliases'] ?? [],
+                'state' => 'available',
+                'is_sc_pwd' => (bool) ($slot['priority'] ?? false),
+            ]);
+        }
+
+        if ($slot['type'] === 'cr') {
+            return array_merge($base, [
+                'span' => $slot['span'] ?? 1,
+                'row_span' => $slot['row_span'] ?? 1,
+            ]);
+        }
+
+        return $base;
+    }
+
+    private function editableCell(array $cell): array
+    {
+        return match ($cell['type']) {
+            'seat' => [
+                'type' => 'seat',
+                'id' => $cell['seat_id'],
+                'label' => $cell['label'],
+                'aliases' => $cell['seat_aliases'] ?? [],
+                'priority' => (bool) ($cell['is_sc_pwd'] ?? false),
+            ],
+            'cr' => [
+                'type' => 'cr',
+                'label' => 'CR',
+                'span' => $cell['span'] ?? 1,
+                'row_span' => $cell['row_span'] ?? 1,
+            ],
+            'covered' => ['type' => 'covered'],
+            default => ['type' => 'empty'],
+        };
+    }
+
+    private function customGroups(array $row): array
+    {
+        $groups = [];
+        $size = 0;
+
+        foreach ($row as $cell) {
+            if (($cell['type'] ?? null) === 'aisle') {
+                if ($size > 0) {
+                    $groups['custom-' . count($groups)] = $size;
+                    $size = 0;
+                }
+                continue;
+            }
+
+            $size++;
+        }
+
+        if ($size > 0) {
+            $groups['custom-' . count($groups)] = $size;
+        }
+
+        return $groups ?: ['custom-0' => 1];
+    }
+
+    private function deckName(int $deckIndex): string
+    {
+        return match ($deckIndex) {
+            0 => 'Lower Deck',
+            1 => 'Upper Deck',
+            default => 'Deck ' . ($deckIndex + 1),
+        };
     }
 
     private function buildDeck(array $config, int $deckIndex, int $seatCount): array
@@ -511,7 +853,10 @@ class SeatLayoutService
                     return $seat;
                 }
 
-                return $seatIndex->first(fn (array $cell) => $cell['label'] === $seat)['seat_id'] ?? null;
+                return $seatIndex->first(function (array $cell) use ($seat) {
+                    return $cell['label'] === $seat
+                        || in_array($seat, $cell['seat_aliases'] ?? [], true);
+                })['seat_id'] ?? null;
             })
             ->filter()
             ->unique()

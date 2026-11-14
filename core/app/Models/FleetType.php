@@ -18,7 +18,8 @@ class FleetType extends Model
         'prefixes' => 'object',
         'disabled_seats' => 'object',
         'cr_seat_range' => 'object',
-        'last_row' => 'object'
+        'last_row' => 'object',
+        'custom_seat_layout' => 'array',
     ];
 
     public function vehicles(){
