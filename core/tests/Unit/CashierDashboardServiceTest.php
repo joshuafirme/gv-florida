@@ -27,7 +27,7 @@ class CashierDashboardServiceTest extends TestCase
 
         $this->assertSame([
             'tickets' => 2,
-            'gross_sales' => 1350.0,
+            'gross_sales' => 1400.0,
             'discounts' => 200.0,
             'surcharges' => 50.0,
             'refunds' => 400.0,
@@ -79,13 +79,13 @@ class CashierDashboardServiceTest extends TestCase
 
         $summary = $service->summarize($transactions);
 
-        $this->assertSame(1680.0, $summary['gross_sales']);
+        $this->assertSame(2100.0, $summary['gross_sales']);
         $this->assertSame(420.0, $summary['surcharges']);
         $this->assertSame(300.0, $summary['refunds']);
         $this->assertSame(1800.0, $summary['net_collection']);
     }
 
-    public function test_upgrade_fare_adds_to_net_without_reducing_gross_sales(): void
+    public function test_upgrade_fare_is_included_in_gross_sales(): void
     {
         $service = new CashierDashboardService(
             $this->createMock(CashierTransactionRecorder::class)
@@ -98,7 +98,7 @@ class CashierDashboardServiceTest extends TestCase
 
         $summary = $service->summarize($transactions);
 
-        $this->assertSame(129080.0, $summary['gross_sales']);
+        $this->assertSame(129880.0, $summary['gross_sales']);
         $this->assertSame(800.0, $summary['surcharges']);
         $this->assertSame(540.0, $summary['refunds']);
         $this->assertSame(129340.0, $summary['net_collection']);

@@ -324,7 +324,7 @@
     </table>
 
     <div class="note">
-        Net Collection = Fares + Surcharges and transfer upgrades - Refunds and management transfer credits - Voids.
+        Gross Sales includes ticket collections, surcharges, and transfer upgrade add-fares. Net Collection deducts refunds, management transfer credits, and voids.
     </div>
 </body>
 </html>
