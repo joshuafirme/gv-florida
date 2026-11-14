@@ -112,8 +112,8 @@ class CashierDashboardService
         return [
             'tickets' => $sold->count(),
             // Sold amounts already include sale-time surcharges. Upgrade fares
-            // are separate positive events and must not be deducted from gross.
-            'gross_sales' => (float) $sold->sum('amount') - $saleSurcharges,
+            // are separate positive collections and also form part of gross sales.
+            'gross_sales' => (float) $sold->sum('amount') + $upgradeFares,
             'discounts' => (float) $sold->sum('discount_amount')
                 + abs((float) $transactions->where('status', 'Discount Override')->sum('amount')),
             'surcharges' => $surcharges,

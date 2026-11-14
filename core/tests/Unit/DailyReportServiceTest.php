@@ -31,6 +31,8 @@ class DailyReportServiceTest extends TestCase
         $report = $service->compile($transactions);
 
         $this->assertSame(2, $report['summary']['tickets']);
+        $this->assertSame(1400.0, $report['summary']['gross_sales']);
+        $this->assertSame(50.0, $report['summary']['surcharges']);
         $this->assertSame(800.0, $report['summary']['net_collection']);
         $this->assertSame(400.0, $report['summary']['refunds']);
         $this->assertSame([
@@ -96,7 +98,7 @@ class DailyReportServiceTest extends TestCase
         );
     }
 
-    public function test_upgrade_fare_is_added_to_daily_and_cashier_totals_without_reducing_gross(): void
+    public function test_upgrade_fare_is_added_to_daily_and_cashier_gross_sales(): void
     {
         $recorder = $this->createMock(CashierTransactionRecorder::class);
         $service = new DailyReportService(
@@ -114,12 +116,12 @@ class DailyReportServiceTest extends TestCase
         $cashier = $report['cashier_collections']->first();
         $channel = $report['channel_collections']->first();
 
-        $this->assertSame(129080.0, $report['summary']['gross_sales']);
+        $this->assertSame(129880.0, $report['summary']['gross_sales']);
         $this->assertSame(800.0, $report['summary']['surcharges']);
         $this->assertSame(540.0, $report['summary']['refunds']);
         $this->assertSame(129340.0, $report['summary']['net_collection']);
         $this->assertSame('Jezleah Ramos', $cashier['cashier']);
-        $this->assertSame(129080.0, $cashier['summary']['gross_sales']);
+        $this->assertSame(129880.0, $cashier['summary']['gross_sales']);
         $this->assertSame(129340.0, $cashier['summary']['net_collection']);
         $this->assertSame('Kiosk', $channel['channel']);
         $this->assertSame(129080.0, $channel['amount']);

@@ -342,7 +342,7 @@
         </section>
 
         <footer class="daily-report__footer">
-            Net Revenue = Ticket Sales + Surcharges and transfer upgrades - Refunds and management transfer credits - Voids.
+            Gross Sales includes ticket collections, surcharges, and transfer upgrade add-fares. Net Revenue deducts refunds, management transfer credits, and voids.
         </footer>
     </div>
 @endsection
