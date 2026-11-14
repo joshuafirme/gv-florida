@@ -1,0 +1,204 @@
+.seat-layout-workspace {
+    border: 1px solid #e4e7ec;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.seat-layout-workspace__header,
+.seat-layout-editor__toolbar,
+.seat-layout-editor__properties {
+    align-items: center;
+    background: #f8f9fb;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: space-between;
+    padding: 10px 12px;
+}
+
+.seat-layout-workspace__header {
+    border-bottom: 1px solid #e4e7ec;
+}
+
+.seat-layout-workspace__header h6 {
+    color: #344054;
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.seat-layout-editor {
+    background: #fff;
+}
+
+.seat-layout-editor__deck-tabs {
+    border-bottom: 1px solid #e4e7ec;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 8px 12px 0;
+}
+
+.seat-layout-editor__deck-tab {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 10px;
+    white-space: nowrap;
+}
+
+.seat-layout-editor__deck-tab.is-active {
+    border-bottom-color: #df2a82;
+    color: #c51f70;
+}
+
+.seat-layout-editor__toolbar {
+    border-bottom: 1px solid #e4e7ec;
+    justify-content: flex-start;
+}
+
+.seat-layout-editor__toolbar-group {
+    align-items: center;
+    display: flex;
+    gap: 5px;
+}
+
+.seat-layout-editor__icon-btn {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #d0d5dd;
+    border-radius: 6px;
+    color: #475467;
+    display: inline-flex;
+    height: 34px;
+    justify-content: center;
+    padding: 0;
+    width: 34px;
+}
+
+.seat-layout-editor__icon-btn:hover,
+.seat-layout-editor__icon-btn:focus {
+    border-color: #df2a82;
+    color: #df2a82;
+}
+
+.seat-layout-editor__number-prefix {
+    border: 1px solid #d0d5dd;
+    border-radius: 6px;
+    font-size: 12px;
+    height: 34px;
+    padding: 6px 8px;
+    width: 72px;
+}
+
+.seat-layout-editor__count {
+    color: #667085;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.seat-layout-editor__canvas {
+    background: #f7f8fa;
+    max-height: 520px;
+    overflow: auto;
+    padding: 18px;
+}
+
+.seat-layout-editor__grid {
+    display: grid;
+    gap: 8px;
+    margin: 0 auto;
+    min-width: max-content;
+    width: fit-content;
+}
+
+.seat-layout-editor__cell {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #b8c0cc;
+    border-radius: 6px;
+    color: #344054;
+    cursor: grab;
+    display: flex;
+    font-size: 11px;
+    font-weight: 700;
+    height: 48px;
+    justify-content: center;
+    min-width: 50px;
+    padding: 3px;
+    position: relative;
+    user-select: none;
+}
+
+.seat-layout-editor__cell.is-selected {
+    border-color: #df2a82;
+    box-shadow: 0 0 0 3px rgba(223, 42, 130, .14);
+}
+
+.seat-layout-editor__cell.is-dragging {
+    opacity: .45;
+}
+
+.seat-layout-editor__cell--aisle {
+    background: repeating-linear-gradient(90deg, #f3f4f6, #f3f4f6 5px, #fff 5px, #fff 10px);
+    border-style: dashed;
+    color: #98a2b3;
+}
+
+.seat-layout-editor__cell--empty,
+.seat-layout-editor__cell--covered {
+    background: #eef1f4;
+    border-style: dashed;
+    color: #98a2b3;
+}
+
+.seat-layout-editor__cell--cr {
+    background: #eaf0f5;
+    color: #526474;
+}
+
+.seat-layout-editor__cell.is-priority {
+    background: #fff4c2;
+    border-color: #d6ad00;
+}
+
+.seat-layout-editor__properties {
+    border-top: 1px solid #e4e7ec;
+    justify-content: flex-start;
+}
+
+.seat-layout-editor__field {
+    margin: 0;
+    min-width: 105px;
+}
+
+.seat-layout-editor__field label {
+    color: #667085;
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+
+.seat-layout-editor__field .form-control {
+    font-size: 12px;
+    height: 34px;
+    padding: 5px 8px;
+}
+
+.seat-layout-editor__priority {
+    align-items: center;
+    display: flex;
+    font-size: 11px;
+    gap: 6px;
+    margin: 17px 0 0;
+}
+
+@media (max-width: 767px) {
+    .seat-layout-editor__canvas { padding: 12px; }
+    .seat-layout-editor__count { margin-left: 0; width: 100%; }
+}

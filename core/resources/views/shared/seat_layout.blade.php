@@ -33,6 +33,7 @@
                                     @endif
 
                                     @if ($cell['type'] === 'covered')
+                                        <div class="seat-layout-cell seat-layout-cell--covered" aria-hidden="true"></div>
                                         @continue
                                     @endif
 

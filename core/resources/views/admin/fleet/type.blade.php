@@ -86,7 +86,7 @@
     <x-confirmation-modal />
 
     <div id="cuModal" class="modal fade" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-dialog modal-xl" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title"></h5>
@@ -98,8 +98,9 @@
                     @csrf
                     <div class="modal-body">
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-lg-4">
                                 <input type="hidden" id="fleet_id">
+                                <input type="hidden" name="custom_seat_layout" id="custom_seat_layout">
                                 <div class="form-group">
                                     <label> @lang('Name')</label>
                                     <input type="text" class="form-control" name="name" required>
@@ -195,8 +196,100 @@
                                         data-off="@lang('NO')" name="has_ac">
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div id="seat-layout-container"></div>
+                            <div class="col-lg-8">
+                                <div class="seat-layout-workspace" id="seat-layout-workspace">
+                                    <div class="seat-layout-workspace__header">
+                                        <h6>@lang('Seat Configuration')</h6>
+                                        <div class="button--group">
+                                            <button type="button" class="btn btn-sm btn-outline--primary" data-action="customize">
+                                                <i class="las la-arrows-alt"></i> @lang('Customize')
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline--danger" data-action="reset" disabled>
+                                                <i class="las la-undo"></i> @lang('Reset')
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div data-role="preview">
+                                        <div id="seat-layout-container" class="p-3"></div>
+                                    </div>
+
+                                    <div class="seat-layout-editor d-none" data-role="editor">
+                                        <div class="seat-layout-editor__deck-tabs" data-role="deck-tabs"></div>
+                                        <div class="seat-layout-editor__toolbar">
+                                            <div class="seat-layout-editor__toolbar-group">
+                                                <button type="button" class="seat-layout-editor__icon-btn" data-action="add-row" title="@lang('Add row')">
+                                                    <i class="las la-plus"></i>
+                                                </button>
+                                                <button type="button" class="seat-layout-editor__icon-btn" data-action="remove-row" title="@lang('Remove last row')">
+                                                    <i class="las la-minus"></i>
+                                                </button>
+                                                <button type="button" class="seat-layout-editor__icon-btn" data-action="add-column" title="@lang('Add column')">
+                                                    <i class="las la-columns"></i>
+                                                </button>
+                                                <button type="button" class="seat-layout-editor__icon-btn" data-action="remove-column" title="@lang('Remove last column')">
+                                                    <i class="las la-compress-arrows-alt"></i>
+                                                </button>
+                                            </div>
+                                            <div class="seat-layout-editor__toolbar-group">
+                                                <button type="button" class="seat-layout-editor__icon-btn" data-action="move-left" title="@lang('Move left')">
+                                                    <i class="las la-arrow-left"></i>
+                                                </button>
+                                                <button type="button" class="seat-layout-editor__icon-btn" data-action="move-up" title="@lang('Move up')">
+                                                    <i class="las la-arrow-up"></i>
+                                                </button>
+                                                <button type="button" class="seat-layout-editor__icon-btn" data-action="move-down" title="@lang('Move down')">
+                                                    <i class="las la-arrow-down"></i>
+                                                </button>
+                                                <button type="button" class="seat-layout-editor__icon-btn" data-action="move-right" title="@lang('Move right')">
+                                                    <i class="las la-arrow-right"></i>
+                                                </button>
+                                            </div>
+                                            <div class="seat-layout-editor__toolbar-group">
+                                                <input type="text" class="seat-layout-editor__number-prefix" data-field="number-prefix"
+                                                    maxlength="8" placeholder="@lang('Prefix')" title="@lang('Seat number prefix')">
+                                                <button type="button" class="seat-layout-editor__icon-btn" data-action="number-ltr" title="@lang('Number left to right')">
+                                                    <i class="las la-long-arrow-alt-right"></i>
+                                                </button>
+                                                <button type="button" class="seat-layout-editor__icon-btn" data-action="number-rtl" title="@lang('Number right to left')">
+                                                    <i class="las la-long-arrow-alt-left"></i>
+                                                </button>
+                                            </div>
+                                            <span class="seat-layout-editor__count" data-role="seat-count"></span>
+                                        </div>
+                                        <div class="seat-layout-editor__canvas">
+                                            <div class="seat-layout-editor__grid" data-role="grid"></div>
+                                        </div>
+                                        <div class="seat-layout-editor__properties d-none" data-role="properties">
+                                            <div class="seat-layout-editor__field">
+                                                <label>@lang('Position Type')</label>
+                                                <select class="form-control" data-field="type">
+                                                    <option value="seat">@lang('Seat')</option>
+                                                    <option value="empty">@lang('Empty')</option>
+                                                    <option value="aisle">@lang('Aisle')</option>
+                                                    <option value="cr">@lang('Comfort Room')</option>
+                                                    <option value="covered">@lang('Covered')</option>
+                                                </select>
+                                            </div>
+                                            <div class="seat-layout-editor__field" data-wrap="label">
+                                                <label>@lang('Seat No.')</label>
+                                                <input type="text" class="form-control" data-field="label" maxlength="20">
+                                            </div>
+                                            <label class="seat-layout-editor__priority" data-wrap="priority">
+                                                <input type="checkbox" data-field="priority">
+                                                <span>@lang('SC/PWD')</span>
+                                            </label>
+                                            <div class="seat-layout-editor__field" data-wrap="cr-span">
+                                                <label>@lang('Column Span')</label>
+                                                <input type="number" class="form-control" data-field="span" min="1" max="6">
+                                            </div>
+                                            <div class="seat-layout-editor__field" data-wrap="cr-row-span">
+                                                <label>@lang('Row Span')</label>
+                                                <input type="number" class="form-control" data-field="row-span" min="1" max="10">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -218,6 +311,11 @@
 
 @push('script-lib')
     <script src="{{ asset('assets/admin/js/cu-modal.js?v=' . buildVer()) }}"></script>
+    <script src="{{ asset('assets/admin/js/seat-layout-editor.js?v=' . buildVer()) }}"></script>
+@endpush
+
+@push('style')
+    <link rel="stylesheet" href="{{ asset('assets/admin/css/seat-layout-editor.css?v=' . buildVer()) }}">
 @endpush
 
 @push('script')
@@ -225,6 +323,21 @@
         (function($) {
 
             "use strict";
+
+            let customPreviewTimer = null;
+            const seatEditor = new window.FleetSeatLayoutEditor(
+                document.getElementById('seat-layout-workspace'),
+                {
+                    expectedCounts: () => $('#postForm [name="deck_seats[]"]').map(function() {
+                        return parseInt($(this).val(), 10) || 0;
+                    }).get(),
+                    onChange: layout => {
+                        $('#custom_seat_layout').val(layout ? JSON.stringify(layout) : '');
+                        window.clearTimeout(customPreviewTimer);
+                        customPreviewTimer = window.setTimeout(refreshFleetPreview, 180);
+                    }
+                }
+            );
 
             class BusLayout {
                 constructor(fleet) {
@@ -541,7 +654,8 @@
                     }
                 }).done(function(response) {
                     $container.html(response.html);
-                    syncDisabledSeatOptions(response.seat_ids || []);
+                    syncDisabledSeatOptions(response.seat_options || response.seat_ids || []);
+                    seatEditor.setFallback(response.editor_layout || null);
                     $container.off('click.fleetPreview').on('click.fleetPreview',
                         '.seat:not(.disabled-seat, .comfort-room)', function() {
                             $(this).toggleClass('selected');
@@ -554,15 +668,15 @@
                 });
             }
 
-            function syncDisabledSeatOptions(seatIds) {
+            function syncDisabledSeatOptions(seatOptions) {
                 const $select = $('.disabled_seats');
                 const selected = arrayValue($select.val()).map(String);
 
                 $select.empty();
-                seatIds.forEach(seatId => {
-                    const value = String(seatId);
-                    const label = value.replace(/^\d+-/, '');
-                    const isSelected = selected.includes(value) || selected.includes(label);
+                seatOptions.forEach(seat => {
+                    const value = String(typeof seat === 'object' ? seat.id : seat);
+                    const label = String(typeof seat === 'object' ? seat.label : value.replace(/^\d+-/, ''));
+                    const isSelected = Boolean(seat.disabled) || selected.includes(value) || selected.includes(label);
                     $select.append(new Option(label, value, false, isSelected));
                 });
                 $select.trigger('change.select2');
@@ -598,7 +712,8 @@
                     cr_position: $('#postForm [name="cr_position"]').val() || '',
                     cr_override_seat: $('#postForm [name="cr_override_seat"]').is(':checked'),
                     cr_row_covered: parseInt($('#postForm [name="cr_row_covered"]').val(), 10) || 1,
-                    cr_column_covered: parseInt($('#postForm [name="cr_column_covered"]').val(), 10) || 1
+                    cr_column_covered: parseInt($('#postForm [name="cr_column_covered"]').val(), 10) || 1,
+                    custom_seat_layout: $('#custom_seat_layout').val() || ''
                 };
             }
 
@@ -713,6 +828,23 @@
                 refreshFleetPreview();
             });
 
+            $('#cuModal').on('input change', [
+                '[name="seat_layout"]',
+                '[name="deck"]',
+                '[name="deck_seats[]"]',
+                '[name="last_row[]"]',
+                '[name="prefixes[]"]',
+                '[name="cr_position"]',
+                '[name="cr_row"]',
+                '[name="cr_row_covered"]',
+                '[name="cr_column_covered"]',
+                '[name="cr_override_seat"]'
+            ].join(','), function(event) {
+                if (event.originalEvent && $('#custom_seat_layout').val()) {
+                    seatEditor.reset();
+                }
+            });
+
             $('#cuModal').on('input', '[name="deck_seats[]"], [name="prefixes[]"]', function() {
                 syncLastRowLimits();
                 refreshDisabledSeatOptions();
@@ -794,6 +926,8 @@
                 setTimeout(function() {
                 if (!data) {
                     $('#fleet_id').val('');
+                    $('#custom_seat_layout').val('');
+                    seatEditor.setSaved(null);
                     modal.find('input[name=cr_row_covered]').val(1);
                     modal.find('input[name=cr_column_covered]').val(1);
                     $('.showSeat').empty();
@@ -806,6 +940,16 @@
                 }
 
                 $('#fleet_id').val(data.id);
+                let savedCustomLayout = data.custom_seat_layout || null;
+                if (savedCustomLayout && typeof savedCustomLayout === 'string') {
+                    try {
+                        savedCustomLayout = JSON.parse(savedCustomLayout);
+                    } catch (error) {
+                        savedCustomLayout = null;
+                    }
+                }
+                $('#custom_seat_layout').val(savedCustomLayout ? JSON.stringify(savedCustomLayout) : '');
+                seatEditor.setSaved(savedCustomLayout);
                 modal.find('input[name=name]').val(data.name || '');
                 modal.find('select[name=seat_layout]').val(data.seat_layout || '').trigger('change.select2');
                 modal.find('input[name=deck]').val(data.deck || 1);
