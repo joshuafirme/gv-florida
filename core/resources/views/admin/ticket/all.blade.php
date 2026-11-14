@@ -102,6 +102,9 @@
                                     @if ($ticket['passenger_id'])
                                         <small>ID: {{ $ticket['passenger_id'] }}</small>
                                     @endif
+                                    @if ($ticket['passenger_contact'])
+                                        <small><i class="las la-phone"></i> {{ $ticket['passenger_contact'] }}</small>
+                                    @endif
                                 </td>
                                 <td data-label="Booking Source">{{ $ticket['source'] }}</td>
                                 <td data-label="Payment Method">{{ $ticket['payment_method'] }}</td>

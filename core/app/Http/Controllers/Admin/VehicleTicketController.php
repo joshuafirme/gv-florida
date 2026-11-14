@@ -554,6 +554,8 @@ class VehicleTicketController extends Controller
             'passenger_name' => $snapshot['passenger_name'] ?? $passenger['name'],
             'passenger_type' => $snapshot['passenger_type'] ?? $passenger['type'],
             'passenger_id' => $snapshot['passenger_id'] ?? ($passenger['id_number'] ?: '-'),
+            'passenger_contact' => $snapshot['passenger_contact']
+                ?? ($passenger['contact_number'] ?: '-'),
             'booking_source' => $snapshot['booking_source'] ?? ($ticket->kiosk_id ? ($ticket->kiosk?->name ?: 'Kiosk') : 'Online'),
             'payment_method' => $snapshot['payment_method'] ?? $this->paymentMethod($ticket),
             'fare' => (float) $ticketVoid->original_fare,
@@ -636,6 +638,9 @@ class VehicleTicketController extends Controller
                 ? ($discounted ? ($passenger['discount_name'] ?? 'Discounted') : 'Regular')
                 : getPassengerType($deposit),
             'id_number' => $passenger['id_number'] ?? null,
+            'contact_number' => app(\App\Services\PassengerContactService::class)->format(
+                $passenger['contact_number'] ?? $ticket->user?->mobileNumber
+            ),
             'fare' => round((float) ($passenger['fare'] ?? $this->ticketFare($ticket, $slip)), 2),
         ];
     }
@@ -693,6 +698,7 @@ class VehicleTicketController extends Controller
             'passenger_name' => $passenger['name'],
             'passenger_type' => $passenger['type'],
             'passenger_id' => $passenger['id_number'] ?: '-',
+            'passenger_contact' => $passenger['contact_number'] ?: '-',
             'booking_source' => $ticket->kiosk_id ? ($ticket->kiosk?->name ?: 'Kiosk') : 'Online',
             'booking_source_reference' => $ticket->kiosk_id ? $ticket->kiosk?->uid : $ticket->user?->username,
             'payment_method' => $this->paymentMethod($ticket),
@@ -1218,6 +1224,7 @@ class VehicleTicketController extends Controller
             'passenger_name' => $passenger['name'],
             'passenger_type' => $passenger['type'],
             'passenger_id' => $passenger['id_number'],
+            'passenger_contact' => $passenger['contact_number'],
             'source' => $ticket->kiosk_id ? ($ticket->kiosk?->name ?: 'Kiosk') : ($ticket->user_id ? 'Online' : 'Counter'),
             'device_id' => $ticket->kiosk?->uid,
             'payment_method' => $this->paymentMethod($ticket),
@@ -1464,6 +1471,9 @@ class VehicleTicketController extends Controller
             : (($snapshot['departure_time'] ?? null)
                 ? Carbon::parse($snapshot['departure_time'])->format('g:i A')
                 : '-');
+        $currentPassenger = $currentTicket && $slip
+            ? app(TicketPassengerResolver::class)->forSeat($currentTicket, (string) $slip->seat)
+            : null;
 
         return [
             'id' => $event->id,
@@ -1482,6 +1492,9 @@ class VehicleTicketController extends Controller
             'passenger_name' => $event->passenger_name ?: ($snapshot['passenger_name'] ?? 'Guest'),
             'passenger_type' => $event->passenger_type ?: ($snapshot['passenger_type'] ?? 'Regular'),
             'passenger_id' => $event->passenger_id ?: ($snapshot['passenger_id'] ?? null),
+            'passenger_contact' => $snapshot['passenger_contact']
+                ?? $currentPassenger['contact_number']
+                ?? null,
             'booking_source' => $source,
             'payment_method' => $event->payment_method ?: ($snapshot['payment_method'] ?? '-'),
             'processed_by' => $event->admin?->name ?: $event->admin?->username ?: '-',

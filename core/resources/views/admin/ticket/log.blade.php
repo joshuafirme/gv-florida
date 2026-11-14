@@ -63,6 +63,9 @@
                                                 : 'Regular')
                                             : getPassengerType($paymentRecord);
                                         $passengerIdNumber = $seatPassenger['id_number'] ?? $paymentRecord?->userDiscount?->id_number;
+                                        $passengerContactNumber = app(\App\Services\PassengerContactService::class)->format(
+                                            $seatPassenger['contact_number'] ?? $item->user?->mobileNumber
+                                        );
                                         $latestTransfer = $ticketSlip?->transactionEvents?->first();
                                         $transferAuthorization = $latestTransfer ? data_get($latestTransfer->snapshot, 'authorization', []) : [];
                                     @endphp
@@ -135,6 +138,9 @@
                                             <div class="text-muted">{{ $passengerType }}</div>
                                             @if ($passengerIdNumber)
                                                 <small class="text-muted">ID: {{ $passengerIdNumber }}</small>
+                                            @endif
+                                            @if ($passengerContactNumber)
+                                                <small class="text-muted d-block"><i class="las la-phone"></i> {{ $passengerContactNumber }}</small>
                                             @endif
                                         </td>
                                         <td>{{ $item->kiosk_id ? $item?->kiosk?->name : 'Online' }}</td>

@@ -241,6 +241,8 @@
                                                     'name' => $deposit->user?->fullname ?: __('Guest'),
                                                     'type' => getPassengerType($deposit),
                                                     'id_number' => $deposit->userDiscount?->id_number,
+                                                    'contact_number' => app(\App\Services\PassengerContactService::class)
+                                                        ->format($deposit->user?->mobileNumber),
                                                 ];
 
                                             return [
@@ -248,6 +250,7 @@
                                                 'name' => $passenger['name'] ?: __('Guest'),
                                                 'type' => $passenger['type'] ?: __('Regular'),
                                                 'id_number' => $passenger['id_number'] ?? null,
+                                                'contact_number' => $passenger['contact_number'] ?? null,
                                             ];
                                         });
                                         $depositListKey = 'deposit-' . $deposit->id;
@@ -1357,6 +1360,12 @@
             margin-left: 7px;
         }
 
+        .payment-ticket-contact {
+            color: #697384;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+
         .payment-ticket-fare,
         .payment-detail-row strong {
             color: #101318;
@@ -1755,6 +1764,7 @@
                                     </div>
                                 </div>
                             ` : ''}
+                            ${ticket.contact_number ? `<div class="payment-ticket-contact"><i class="las la-phone"></i> ${escapeHtml(ticket.contact_number)}</div>` : ''}
                         </div>
                     `).join('');
                 }
