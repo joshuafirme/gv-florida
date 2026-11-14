@@ -1552,6 +1552,16 @@
                 const processingAdminId = {{ auth('admin')->id() }};
                 const csrfToken = @json(csrf_token());
                 const pendingStatusUrl = @json(route('admin.deposit.pending.status'));
+                const printerTimeouts = {
+                    connection: 8000,
+                    discovery: 5000,
+                    job: 15000
+                };
+                const requestTimeouts = {
+                    lease: 10000,
+                    confirmation: 20000,
+                    reservationSlip: 30000
+                };
                 const params = new URLSearchParams(window.location.search);
 
                 if (params.get('newly_approved')) {
@@ -1579,6 +1589,39 @@
                     return `${appBaseUrl.replace(/\/$/, '')}/${String(value).replace(/^\/+/, '')}`;
                 };
 
+                function withTimeout(promise, timeout, message) {
+                    let timer;
+                    const timeoutPromise = new Promise((resolve, reject) => {
+                        timer = window.setTimeout(() => reject(new Error(message)), timeout);
+                    });
+
+                    return Promise.race([promise, timeoutPromise])
+                        .finally(() => window.clearTimeout(timer));
+                }
+
+                function jsonRequest(options, timeout, timeoutMessage) {
+                    return new Promise((resolve, reject) => {
+                        $.ajax({
+                            ...options,
+                            dataType: 'json',
+                            timeout
+                        }).done(resolve).fail(function(xhr, textStatus, errorThrown) {
+                            const timedOut = textStatus === 'timeout';
+                            const error = new Error(
+                                timedOut
+                                    ? timeoutMessage
+                                    : (xhr.responseJSON?.message || errorThrown || 'The request failed.')
+                            );
+                            error.responseJSON = xhr.responseJSON;
+                            error.status = xhr.status;
+                            error.timedOut = timedOut;
+                            reject(error);
+                        });
+                    });
+                }
+
+                const wait = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
+
                 function discountOptionsHtml(payment) {
                     return (payment.discounts || []).map(discount =>
                         `<option value="${escapeHtml(discount.id)}">${escapeHtml(discount.name)} - ${escapeHtml(discount.percentage)}%</option>`
@@ -1590,20 +1633,21 @@
                     processingHeartbeatTimer = null;
                 }
 
-                function renewProcessingLease() {
-                    if (!activePayment?.processing_token) {
+                function renewProcessingLease(payment = activePayment) {
+                    if (!payment?.processing_token) {
                         return Promise.reject(new Error('No active payment processing session.'));
                     }
 
                     return $.ajax({
-                        url: activePayment.heartbeat_url,
+                        url: payment.heartbeat_url,
                         method: 'POST',
                         data: {
                             _token: csrfToken,
-                            deposit_id: activePayment.deposit_id,
-                            processing_token: activePayment.processing_token
+                            deposit_id: payment.deposit_id,
+                            processing_token: payment.processing_token
                         },
-                        dataType: 'json'
+                        dataType: 'json',
+                        timeout: requestTimeouts.lease
                     });
                 }
 
@@ -1611,6 +1655,8 @@
                     stopProcessingHeartbeat();
                     processingHeartbeatTimer = window.setInterval(function() {
                         renewProcessingLease().fail(function(xhr) {
+                            if (paymentFinalizationInProgress) return;
+
                             stopProcessingHeartbeat();
                             notify('error', xhr.responseJSON?.message ||
                                 'This payment processing session has ended.');
@@ -1958,21 +2004,92 @@
                         throw new Error('QZ Tray is not available. Please start QZ Tray and try again.');
                     }
 
-                    await connectQZ();
-                    const printer = await getPrinter();
+                    await withTimeout(
+                        Promise.resolve().then(() => connectQZ()),
+                        printerTimeouts.connection,
+                        'Printer connection timed out. Please check QZ Tray.'
+                    );
+                    const printer = await withTimeout(
+                        Promise.resolve().then(() => getPrinter()),
+                        printerTimeouts.discovery,
+                        'Printer discovery timed out. Please check the default printer.'
+                    );
+
+                    if (!printer) {
+                        throw new Error('No default printer was detected.');
+                    }
+
                     const config = qz.configs.create(printer, {
                         scaleContent: true,
                         colorType: 'color'
                     });
 
-                    return qz.print(config, [{
-                        type: 'pdf',
-                        format: 'file',
-                        data: fileUrl,
-                        options: {
-                            autoRotate: true
+                    return withTimeout(
+                        qz.print(config, [{
+                            type: 'pdf',
+                            format: 'file',
+                            data: fileUrl,
+                            options: {
+                                autoRotate: true
+                            }
+                        }]),
+                        printerTimeouts.job,
+                        'The printer did not acknowledge the print job in time.'
+                    );
+                }
+
+                function completeConfirmedPayment(payment, button, originalLabel) {
+                    activePayment = null;
+                    paymentFinalizationInProgress = false;
+                    stopProcessingHeartbeat();
+                    confirmPaymentModal.hide();
+                    button.prop('disabled', false).html(originalLabel);
+
+                    $(`tr[data-pending-deposit-id="${Number(payment.deposit_id)}"]`)
+                        .fadeOut(180, function() {
+                            $(this).remove();
+                        });
+                }
+
+                function openPrintFallback(openUrl) {
+                    localStorage.setItem('to_print_ticket', openUrl);
+                    const previewWindow = window.open(openUrl, '_blank');
+
+                    if (previewWindow) {
+                        previewWindow.opener = null;
+                        localStorage.removeItem('to_print_ticket');
+                    }
+
+                    return Boolean(previewWindow);
+                }
+
+                function requestPaymentConfirmation(payment) {
+                    return jsonRequest({
+                        url: payment.confirmation_url,
+                        method: 'POST',
+                        data: {
+                            _token: csrfToken,
+                            deposit_id: payment.deposit_id,
+                            processing_token: payment.processing_token
+                        },
+                        headers: {
+                            Accept: 'application/json'
                         }
-                    }]);
+                    }, requestTimeouts.confirmation, 'Payment confirmation timed out.');
+                }
+
+                async function finalizePendingPayment(payment) {
+                    try {
+                        return await requestPaymentConfirmation(payment);
+                    } catch (error) {
+                        if (!error.timedOut) throw error;
+
+                        notify('warning', 'The confirmation response is delayed. Checking the payment again...');
+                        await wait(1000);
+
+                        // The endpoint is idempotent for the cashier who completed the payment.
+                        return requestPaymentConfirmation(payment);
+                    }
                 }
 
                 async function confirmAndPrintPayment() {
@@ -1989,57 +2106,49 @@
                         '<i class="las la-spinner la-spin"></i> Processing...'
                     );
                     paymentFinalizationInProgress = true;
+                    const confirmedPayment = activePayment;
+                    stopProcessingHeartbeat();
 
                     try {
-                        await renewProcessingLease();
+                        await renewProcessingLease(confirmedPayment);
+                        const confirmation = await finalizePendingPayment(confirmedPayment);
+                        completeConfirmedPayment(confirmedPayment, button, originalLabel);
+                        notify('success', 'Payment confirmed. Sending the reservation slip to the printer.');
 
-                        const validation = await $.getJSON(activePayment.validate_url, {
-                            processing_token: activePayment.processing_token,
-                            admin_id: processingAdminId
-                        });
+                        try {
+                            const result = await jsonRequest({
+                                url: confirmation.print_url || confirmedPayment.print_url,
+                                method: 'GET',
+                                data: {
+                                    admin_request: true,
+                                    admin_id: processingAdminId
+                                }
+                            }, requestTimeouts.reservationSlip, 'Reservation slip generation timed out.');
 
-                        if (!validation.success) {
-                            throw {
-                                responseJSON: validation
-                            };
-                        }
+                            if (!result.success || !result.file_url) {
+                                throw new Error(result.message || 'Unable to create the reservation slip.');
+                            }
 
-                        const result = await $.getJSON(activePayment.print_url, {
-                            admin_request: true,
-                            admin_id: processingAdminId,
-                            processing_token: activePayment.processing_token
-                        });
+                            const printUrl = absoluteUrl(result.file_url);
+                            const openUrl = absoluteUrl(
+                                result.reservation_slip_url || confirmation.reservation_slip_url || result.file_url
+                            );
 
-                        if (!result.success || !result.file_url) {
-                            throw new Error(
-                                result.message || 'Unable to create the reservation slip.'
+                            await printReservation(printUrl);
+                            localStorage.removeItem('to_print_ticket');
+                            notify('success', 'Reservation slip printed successfully.');
+                        } catch (printError) {
+                            const openUrl = absoluteUrl(
+                                confirmation.reservation_slip_url || confirmedPayment.reservation_slip_url
+                            );
+                            const previewOpened = openPrintFallback(openUrl);
+                            notify(
+                                'warning',
+                                previewOpened
+                                    ? `Payment was confirmed, but automatic printing failed: ${printError.message} The reservation slip was opened for manual printing.`
+                                    : `Payment was confirmed, but automatic printing failed: ${printError.message} Open the reservation slip from Approved Deposits.`
                             );
                         }
-
-                        const printUrl = absoluteUrl(result.file_url);
-                        const openUrl = absoluteUrl(
-                            result.reservation_slip_url || result.file_url
-                        );
-
-                        await printReservation(printUrl);
-
-                        localStorage.setItem('to_print_ticket', openUrl);
-
-                        notify(
-                            'success',
-                            'Payment confirmed and reservation slip prepared.'
-                        );
-
-                        activePayment = null;
-                        stopProcessingHeartbeat();
-                        confirmPaymentModal.hide();
-
-                        const reloadParams = new URLSearchParams(window.location.search);
-                        reloadParams.set('newly_approved', true);
-
-                        setTimeout(() => {
-                            window.location.search = reloadParams.toString();
-                        }, 900);
                     } catch (error) {
                         paymentFinalizationInProgress = false;
                         const message =
@@ -2049,6 +2158,10 @@
 
                         notify('error', message);
                         button.prop('disabled', false).html(originalLabel);
+
+                        if (activePayment?.deposit_id === confirmedPayment.deposit_id) {
+                            startProcessingHeartbeat();
+                        }
                     }
                 }
 
