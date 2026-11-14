@@ -84,7 +84,17 @@
                                         <strong>{{ showAmount($ticket['original_fare']) }}</strong>
                                     @endif
                                 </td>
-                                <td data-label="Passenger"><strong>{{ $ticket['passenger_name'] }}</strong><span class="validation-meta">{{ $ticket['passenger_type'] }}{{ $ticket['passenger_id'] ? ' - ID ' . $ticket['passenger_id'] : '' }}</span></td>
+                                <td data-label="Passenger">
+                                    <strong>{{ $ticket['passenger_name'] }}</strong>
+                                    <span class="validation-meta">
+                                        {{ $ticket['passenger_type'] }}{{ $ticket['passenger_id'] ? ' - ID ' . $ticket['passenger_id'] : '' }}
+                                    </span>
+                                    @if ($ticket['passenger_phone'])
+                                        <span class="validation-meta">
+                                            <i class="las la-phone"></i> {{ $ticket['passenger_phone'] }}
+                                        </span>
+                                    @endif
+                                </td>
                                 <td data-label="Payment">{{ $ticket['payment_method'] }}</td>
                                 <td data-label="Validated">
                                     <strong>{{ $ticket['validated_by'] ?: '-' }}</strong>

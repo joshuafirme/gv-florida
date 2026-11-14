@@ -46,6 +46,20 @@
                             @lang('Passenger Type')
                             <span class="fw-bold">{{ getPassengerType($deposit) }}</span>
                         </li>
+                        @php
+                            $passengerContacts = collect($deposit->bookedTicket->passenger_manifest ?: [])
+                                ->pluck('contact_number')
+                                ->map(fn ($number) => app(\App\Services\PassengerContactService::class)->format($number))
+                                ->filter()
+                                ->unique()
+                                ->values();
+                        @endphp
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            @lang('Passenger Contact Number')
+                            <span class="fw-bold text-end">
+                                {{ $passengerContacts->isNotEmpty() ? $passengerContacts->implode(', ') : '-' }}
+                            </span>
+                        </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Username')
                             @if ($deposit->user)

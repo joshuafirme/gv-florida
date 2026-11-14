@@ -390,7 +390,7 @@ class OnlineTicketValidationController extends Controller
         $ticket = $slip->bookedTicket;
         $payment = $ticket->payment_record;
         $validation = $slip->onlineValidation;
-        $contact = $this->passengerContact($ticket);
+        $contact = $this->passengerContact($ticket, $slip);
         $snapshot = $this->transactionRecorder->ticketSnapshotFor($ticket, $slip);
         $originalFare = (float) ($validation?->original_fare ?: ($snapshot['fare'] ?? 0));
         $discountAmount = (float) ($validation?->discount_amount ?? 0);
@@ -454,12 +454,15 @@ class OnlineTicketValidationController extends Controller
         return $data;
     }
 
-    private function passengerContact(BookedTicket $ticket): array
+    private function passengerContact(BookedTicket $ticket, ?SlipSeriesNumber $slip = null): array
     {
         $email = trim((string) $ticket->user?->email);
-        $phone = trim((string) $ticket->user?->mobileNumber);
+        $passenger = $slip
+            ? app(\App\Services\TicketPassengerResolver::class)->forSeat($ticket, (string) $slip->seat)
+            : ['contact_number' => null];
+        $phone = trim((string) ($passenger['contact_number'] ?: $ticket->user?->mobileNumber));
 
-        if ($phone !== '' && !str_starts_with($phone, '+')) {
+        if ($phone !== '' && !$passenger['contact_number'] && !str_starts_with($phone, '+')) {
             $phone = '+' . $phone;
         }
 

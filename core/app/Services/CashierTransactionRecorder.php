@@ -784,6 +784,7 @@ class CashierTransactionRecorder
             'passenger_name' => $passenger['name'],
             'passenger_type' => $passenger['type'],
             'passenger_id' => $passenger['id_number'],
+            'passenger_contact' => $passenger['contact_number'],
             'journey_date' => $ticket->date_of_journey
                 ? Carbon::parse($ticket->date_of_journey)->format('Y-m-d')
                 : null,

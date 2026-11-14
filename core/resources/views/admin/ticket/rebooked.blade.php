@@ -59,6 +59,9 @@
                                                     &middot; ID {{ $event['passenger_id'] }}
                                                 @endif
                                             </span>
+                                            @if ($event['passenger_contact'])
+                                                <span class="rebooked-meta"><i class="las la-phone"></i> {{ $event['passenger_contact'] }}</span>
+                                            @endif
                                         </td>
                                         <td data-label="Booking Source">{{ $event['booking_source'] }}</td>
                                         <td data-label="Payment Method">{{ $event['payment_method'] }}</td>
@@ -208,6 +211,7 @@
                         detailRow('Seat No.', formatSeat(data.seat)),
                         detailRow('Fare', currency.format(Number(data.fare) || 0)),
                         detailRow('Passenger', passenger),
+                        detailRow('Contact Number', data.passenger_contact || '-'),
                         detailRow('Booking Source', data.booking_source),
                         detailRow('Payment Method', data.payment_method),
                         detailRow('Rebooking Sequence', data.sequence),

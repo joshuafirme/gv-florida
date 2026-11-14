@@ -36,6 +36,8 @@
                                         } elseif ($ticket?->deposit) {
                                             $payment = $ticket->deposit->gatewayCurrency()->name;
                                         }
+                                        $passenger = app(\App\Services\TicketPassengerResolver::class)
+                                            ->forSeat($ticket, (string) $cancellation->slipSeriesNumber->seat);
                                     @endphp
                                     <tr>
                                         <td data-label="Source">
@@ -58,8 +60,11 @@
                                         </td>
                                         <td data-label="Fare"><strong>{{ showAmount($cancellation->original_fare) }}</strong></td>
                                         <td data-label="Passenger">
-                                            {{ $ticket->deposit?->userDiscount?->passenger_name ?: ($ticket->user?->fullname ?: 'Guest') }}
-                                            <div class="text-muted">{{ getPassengerType($ticket->deposit) }}</div>
+                                            {{ $passenger['name'] }}
+                                            <div class="text-muted">{{ $passenger['type'] }}</div>
+                                            @if ($passenger['contact_number'])
+                                                <div class="text-muted"><i class="las la-phone"></i> {{ $passenger['contact_number'] }}</div>
+                                            @endif
                                         </td>
                                         <td data-label="Payment">{{ $payment }}</td>
                                         <td data-label="Processed By">

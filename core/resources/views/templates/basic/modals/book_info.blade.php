@@ -21,6 +21,7 @@
                         <div><span>@lang('Origin')</span><strong data-ticket-detail="origin">-</strong></div>
                         <div><span>@lang('Destination')</span><strong data-ticket-detail="destination">-</strong></div>
                         <div><span>@lang('Seat(s)')</span><strong data-ticket-detail="seats">-</strong></div>
+                        <div><span>@lang('Contact Number')</span><strong data-ticket-detail="contact_numbers">-</strong></div>
                         <div><span>@lang('Ticket Status')</span><strong><span id="ticketModalTicketStatus" class="ticket-status">-</span></strong></div>
                     </div>
                 </section>
