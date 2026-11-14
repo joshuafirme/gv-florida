@@ -21,6 +21,11 @@
             @else
                 <strong title="{{ $ticketRow['name'] }}">{{ $ticketRow['name'] }}</strong>
                 <span title="{{ $passengerMeta }}">{{ $passengerMeta }}</span>
+                @if ($ticketRow['contact_number'] ?? null)
+                    <span title="@lang('Contact Number') {{ $ticketRow['contact_number'] }}">
+                        <i class="las la-phone"></i> {{ $ticketRow['contact_number'] }}
+                    </span>
+                @endif
             @endif
         </div>
     @empty

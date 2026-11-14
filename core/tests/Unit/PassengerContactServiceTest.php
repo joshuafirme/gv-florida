@@ -25,4 +25,12 @@ class PassengerContactServiceTest extends TestCase
         $this->assertFalse($service->isValid('08171234567'));
         $this->assertFalse($service->isValid([]));
     }
+
+    public function test_it_formats_contact_numbers_for_display(): void
+    {
+        $service = new PassengerContactService;
+
+        $this->assertSame('0917 123 4567', $service->format('+63 917 123 4567'));
+        $this->assertNull($service->format(''));
+    }
 }

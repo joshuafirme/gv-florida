@@ -287,6 +287,7 @@ class UserController extends Controller
             'trip.schedule',
             'pickup',
             'drop',
+            'user',
             'deposit.gateway',
             'paymentSourceDeposit.gateway',
         ])
@@ -376,6 +377,20 @@ class UserController extends Controller
         ], true)
             && filled($payment?->expiry_limit)
             && !isExpired($payment->expiry_limit);
+        $contactFormatter = app(\App\Services\PassengerContactService::class);
+        $contactNumbers = collect($ticket->passenger_manifest ?: [])
+            ->pluck('contact_number')
+            ->map(fn ($number) => $contactFormatter->format($number))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($contactNumbers->isEmpty()) {
+            $accountContact = $contactFormatter->format($ticket->user?->mobileNumber);
+            if ($accountContact) {
+                $contactNumbers->push($accountContact);
+            }
+        }
 
         return [
             'id' => $ticket->id,
@@ -393,6 +408,7 @@ class UserController extends Controller
                 : '-',
             'bus_class' => $ticket->trip?->fleetType?->name ?: '-',
             'seats' => $ticket->seats ? formatSeatLabel($ticket->seats) : '-',
+            'contact_numbers' => $contactNumbers->isNotEmpty() ? $contactNumbers->implode(', ') : '-',
             'ticket_status' => $ticketStatus,
             'ticket_tone' => $ticketTone,
             'fare' => showAmount($fareAmount),

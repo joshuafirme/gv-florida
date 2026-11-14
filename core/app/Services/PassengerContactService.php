@@ -27,4 +27,19 @@ final class PassengerContactService
     {
         return preg_match('/^09\d{9}$/', $this->normalize($value)) === 1;
     }
+
+    public function format(mixed $value): ?string
+    {
+        $number = $this->normalize($value);
+
+        if ($number === '') {
+            return null;
+        }
+
+        if ($this->isValid($number)) {
+            return substr($number, 0, 4).' '.substr($number, 4, 3).' '.substr($number, 7, 4);
+        }
+
+        return is_scalar($value) ? trim((string) $value) : null;
+    }
 }

@@ -6,6 +6,12 @@ use App\Models\BookedTicket;
 
 class TicketPassengerResolver
 {
+    public function __construct(
+        private ?PassengerContactService $contacts = null
+    ) {
+        $this->contacts ??= new PassengerContactService();
+    }
+
     public function forSeat(BookedTicket $ticket, string $seat): array
     {
         $entry = $this->manifestEntry($ticket, $seat);
@@ -22,6 +28,9 @@ class TicketPassengerResolver
                     ? ($entry['discount_name'] ?? 'Discounted')
                     : 'Regular',
                 'id_number' => $entry['id_number'] ?? null,
+                'contact_number' => $this->contacts->format(
+                    $entry['contact_number'] ?? $ticket->user?->mobileNumber
+                ),
                 'entry' => $entry,
             ];
         }
@@ -35,6 +44,7 @@ class TicketPassengerResolver
                 ?: 'Guest',
             'type' => getPassengerType($deposit),
             'id_number' => $deposit?->userDiscount?->id_number,
+            'contact_number' => $this->contacts->format($ticket->user?->mobileNumber),
             'entry' => [],
         ];
     }

@@ -52,6 +52,7 @@ class TicketPassengerResolverTest extends TestCase
                 'seat' => '1-D1',
                 'name' => '',
                 'passenger_type' => 'regular',
+                'contact_number' => '09171234567',
                 'fare' => 2100,
             ],
             [
@@ -61,6 +62,7 @@ class TicketPassengerResolverTest extends TestCase
                 'discount_id' => 1,
                 'discount_name' => 'Senior Citizen',
                 'id_number' => '13221',
+                'contact_number' => '09171234567',
                 'fare' => 1680,
             ],
         ];
@@ -73,9 +75,11 @@ class TicketPassengerResolverTest extends TestCase
         $this->assertSame('Guest', $regular['name']);
         $this->assertSame('Regular', $regular['type']);
         $this->assertNull($regular['id_number']);
+        $this->assertSame('0917 123 4567', $regular['contact_number']);
 
         $this->assertSame('Ms Karen', $discounted['name']);
         $this->assertSame('Senior Citizen', $discounted['type']);
         $this->assertSame('13221', $discounted['id_number']);
+        $this->assertSame('0917 123 4567', $discounted['contact_number']);
     }
 }

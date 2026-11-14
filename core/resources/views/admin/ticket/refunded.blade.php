@@ -22,7 +22,11 @@
                             </thead>
                             <tbody>
                                 @forelse ($refunds as $refund)
-                                    @php $ticket = $refund->bookedTicket; @endphp
+                                    @php
+                                        $ticket = $refund->bookedTicket;
+                                        $passenger = app(\App\Services\TicketPassengerResolver::class)
+                                            ->forSeat($ticket, (string) $refund->slipSeriesNumber->seat);
+                                    @endphp
                                     <tr>
                                         <td data-label="Ticket No.">
                                             <strong>{{ $refund->slip_series_number_id }}</strong>
@@ -30,8 +34,11 @@
                                         </td>
                                         <td data-label="PNR">{{ $ticket->pnr_number }}</td>
                                         <td data-label="Passenger">
-                                            {{ $ticket->deposit?->userDiscount?->passenger_name ?: ($ticket->user?->fullname ?: 'Guest') }}
+                                            {{ $passenger['name'] }}
                                             <div class="text-muted">Seat {{ formatSeatLabel($refund->slipSeriesNumber->seat) }}</div>
+                                            @if ($passenger['contact_number'])
+                                                <div class="text-muted"><i class="las la-phone"></i> {{ $passenger['contact_number'] }}</div>
+                                            @endif
                                         </td>
                                         <td data-label="Trip">
                                             {{ $ticket->pickup->name }}

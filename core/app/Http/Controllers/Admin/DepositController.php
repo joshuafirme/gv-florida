@@ -409,6 +409,9 @@ class DepositController extends Controller
                 'discount_name' => $passenger['discount_name'] ?? null,
                 'discount_percentage' => (float) ($passenger['discount_percentage'] ?? 0),
                 'id_number' => $passenger['id_number'] ?? null,
+                'contact_number' => app(\App\Services\PassengerContactService::class)->format(
+                    $passenger['contact_number'] ?? null
+                ),
                 'is_discounted' => $isDiscounted,
                 'passenger_name' => ($passenger['name'] ?? null) ?: $fallbackPassengerName,
                 'passenger_type' => $passenger

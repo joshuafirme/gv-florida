@@ -43,6 +43,10 @@
                                         $passengerType = $passenger
                                             ? ($discounted ? ($passenger['discount_name'] ?? 'Discounted') : 'Regular')
                                             : getPassengerType($ticket?->deposit);
+                                        $passengerContact = $snapshot['passenger_contact']
+                                            ?? app(\App\Services\PassengerContactService::class)->format(
+                                                $passenger['contact_number'] ?? $ticket?->user?->mobileNumber
+                                            );
                                         $paymentMethod = '-';
                                         if ($ticket?->deposit?->pchannel) {
                                             $paymentMethod = readPaymentChannel($ticket->deposit->pchannel);
@@ -75,6 +79,9 @@
                                                     - ID {{ $snapshot['passenger_id'] ?? $passenger['id_number'] }}
                                                 @endif
                                             </span>
+                                            @if ($passengerContact && $passengerContact !== '-')
+                                                <span class="voided-meta"><i class="las la-phone"></i> {{ $passengerContact }}</span>
+                                            @endif
                                         </td>
                                         <td data-label="Booking Source">{{ $ticket?->kiosk_id ? 'Kiosk' : 'Online' }}</td>
                                         <td data-label="Payment Method">{{ $snapshot['payment_method'] ?? $paymentMethod }}</td>
@@ -191,6 +198,7 @@
                         detailRow('Passenger', data.passenger_name),
                         detailRow('Passenger Type', data.passenger_type),
                         detailRow('Passenger ID No.', data.passenger_id),
+                        detailRow('Contact Number', data.passenger_contact),
                         detailRow('Booking Source', data.booking_source),
                         detailRow('Payment Method', data.payment_method),
                         detailRow('Original Fare', currency.format(Number(data.fare) || 0)),

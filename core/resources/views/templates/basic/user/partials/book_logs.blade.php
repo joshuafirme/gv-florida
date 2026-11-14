@@ -51,6 +51,7 @@
                             <th>@lang('Departure')</th>
                             <th>@lang('Bus Class')</th>
                             <th>@lang('Seats')</th>
+                            <th>@lang('Contact Number')</th>
                             <th>@lang('Ticket Status')</th>
                             <th>@lang('Fare')</th>
                             <th>@lang('Payment Method')</th>
@@ -70,6 +71,7 @@
                                 <td class="ticket-time"><i class="las la-clock"></i> {{ $ticket['departure_time'] }}</td>
                                 <td>{{ $ticket['bus_class'] }}</td>
                                 <td><strong>{{ $ticket['seats'] }}</strong></td>
+                                <td>{{ $ticket['contact_numbers'] }}</td>
                                 <td><span class="ticket-status ticket-status--{{ $ticket['ticket_tone'] }}">{{ __($ticket['ticket_status']) }}</span></td>
                                 <td class="ticket-fare">{{ $ticket['fare'] }}</td>
                                 <td>{{ $ticket['payment_method'] }}</td>
@@ -123,6 +125,7 @@
                     <div class="mobile-ticket-card__details" hidden>
                         <div><span>@lang('Bus Class')</span><strong>{{ $ticket['bus_class'] }}</strong></div>
                         <div><span>@lang('Booked Seats')</span><strong class="text--base">{{ $ticket['seats'] }}</strong></div>
+                        <div><span>@lang('Contact Number')</span><strong>{{ $ticket['contact_numbers'] }}</strong></div>
                         <div><span>@lang('Payment Method')</span><strong>{{ $ticket['payment_method'] }}</strong></div>
                         <div><span>@lang('Payment Status')</span><span class="ticket-status ticket-status--{{ $ticket['payment_tone'] }}">{{ __($ticket['payment_status']) }}</span></div>
                         <div>
