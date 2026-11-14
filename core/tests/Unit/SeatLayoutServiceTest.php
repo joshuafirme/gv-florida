@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\FleetType;
 use App\Services\SeatLayoutService;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 class SeatLayoutServiceTest extends TestCase
@@ -219,6 +220,68 @@ class SeatLayoutServiceTest extends TestCase
         );
         $this->assertLessThanOrEqual(300.0, $print['row_height_mm'] * $print['row_count']);
         $this->assertLessThanOrEqual(30.0, $print['row_height_mm']);
+    }
+
+    public function test_custom_layout_preserves_position_labels_aisles_and_legacy_aliases(): void
+    {
+        $fleetType = new FleetType();
+        $fleetType->name = 'Custom Executive';
+        $fleetType->seat_layout = '2x1';
+        $fleetType->deck_seats = [5];
+        $fleetType->prefixes = ['D'];
+        $fleetType->disabled_seats = ['D5'];
+        $fleetType->custom_seat_layout = [
+            'version' => 1,
+            'decks' => [[
+                'name' => 'Lower Deck',
+                'rows' => [
+                    [
+                        ['type' => 'seat', 'id' => '1-D2', 'label' => 'D2', 'priority' => true],
+                        ['type' => 'seat', 'id' => '1-D1', 'label' => 'D1', 'priority' => true],
+                        ['type' => 'aisle'],
+                        ['type' => 'seat', 'id' => '1-D3', 'label' => 'D3', 'priority' => true],
+                    ],
+                    [
+                        ['type' => 'seat', 'id' => '1-D4', 'label' => 'D4'],
+                        ['type' => 'empty'],
+                        ['type' => 'aisle'],
+                        [
+                            'type' => 'seat',
+                            'id' => '1-D5',
+                            'label' => 'D5',
+                            'aliases' => ['D9', '1-D9'],
+                        ],
+                    ],
+                ],
+            ]],
+        ];
+
+        $service = new SeatLayoutService();
+        $layout = $service->layout($fleetType, ['booked' => ['D9']]);
+        $rows = $layout['decks'][0]['rows'];
+
+        $this->assertTrue($layout['is_custom']);
+        $this->assertSame(['D2', 'D1'], array_column($rows[0]['groups'][0]['cells'], 'label'));
+        $this->assertSame(['D3'], array_column($rows[0]['groups'][1]['cells'], 'label'));
+        $this->assertTrue($rows[0]['groups'][0]['cells'][0]['is_sc_pwd']);
+        $this->assertSame('1-D5', $service->canonicalSeatId($fleetType, 'D9'));
+        $this->assertSame('disabled', $rows[1]['groups'][1]['cells'][0]['state']);
+    }
+
+    public function test_custom_layout_validation_requires_the_configured_seat_count(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Deck 1 must contain exactly 2 seats; 1 configured.');
+
+        (new SeatLayoutService())->validateCustomLayout([
+            'version' => 1,
+            'decks' => [[
+                'rows' => [[
+                    ['type' => 'seat', 'id' => '1-A1', 'label' => 'A1'],
+                    ['type' => 'aisle'],
+                ]],
+            ]],
+        ], [2]);
     }
 
     private function sleeperFleet(): FleetType

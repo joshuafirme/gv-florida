@@ -234,6 +234,7 @@
                                 <div class="manifest-seat-group" style="--manifest-group-size: {{ count($group['cells']) }};">
                                     @foreach ($group['cells'] as $cell)
                                         @if ($cell['type'] === 'covered')
+                                            <div class="manifest-seat-empty manifest-seat-covered" aria-hidden="true"></div>
                                             @continue
                                         @endif
 

@@ -61,7 +61,8 @@
     width: var(--seat-cell-width);
 }
 
-.shared-seat-layout .seat-layout-cell--empty {
+.shared-seat-layout .seat-layout-cell--empty,
+.shared-seat-layout .seat-layout-cell--covered {
     visibility: hidden;
 }
 
