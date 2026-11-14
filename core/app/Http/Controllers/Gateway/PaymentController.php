@@ -580,10 +580,14 @@ class PaymentController extends Controller
     }
 
 
-    public static function userDataUpdate($deposit, $isManual = null)
+    public static function userDataUpdate(
+        $deposit,
+        $isManual = null,
+        bool $sendNotification = true
+    ): bool
     {
         if (!in_array($deposit->status, [Status::PAYMENT_INITIATE, Status::PAYMENT_PENDING])) {
-            return;
+            return false;
         }
 
         $payment = DB::transaction(function () use ($deposit) {
@@ -605,7 +609,7 @@ class PaymentController extends Controller
         });
 
         if (!$payment) {
-            return;
+            return false;
         }
 
         [$deposit, $bookedTicket] = $payment;
@@ -625,7 +629,11 @@ class PaymentController extends Controller
         }
 
 
-        app(PaymentSuccessNotifier::class)->send($deposit, $bookedTicket, (bool) $isManual);
+        if ($sendNotification) {
+            app(PaymentSuccessNotifier::class)->send($deposit, $bookedTicket, (bool) $isManual);
+        }
+
+        return true;
     }
 
     public function manualDepositConfirm()

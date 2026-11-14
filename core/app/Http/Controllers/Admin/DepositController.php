@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Constants\Status;
 use App\Models\Deposit;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Gateway\PaymentController;
 use App\Models\Admin;
 use App\Models\BookedTicket;
 use App\Models\Discount;
@@ -142,6 +143,59 @@ class DepositController extends Controller
         }
 
         return response()->json(['success' => true]);
+    }
+
+    public function confirmPendingPayment(
+        Request $request,
+        PendingPaymentProcessingService $processing
+    ) {
+        $validated = $request->validate([
+            'deposit_id' => ['required', 'integer'],
+            'processing_token' => ['required', 'string', 'size:64'],
+        ]);
+        $admin = auth('admin')->user();
+        $deposit = Deposit::with('bookedTicket')->findOrFail($validated['deposit_id']);
+
+        if ((int) $deposit->status === Status::PAYMENT_SUCCESS) {
+            if ((int) $deposit->processed_by_admin_id !== (int) $admin->id) {
+                return response()->json([
+                    'message' => 'This payment was already processed by another staff member.',
+                ], 409);
+            }
+
+            return response()->json($this->confirmedPaymentPayload($deposit));
+        }
+
+        if ((int) $deposit->status !== Status::PAYMENT_PENDING
+            || !$processing->renew($deposit, (int) $admin->id, $validated['processing_token'])) {
+            return response()->json([
+                'message' => 'This payment processing session is no longer active.',
+            ], 409);
+        }
+
+        $deposit->processed_by_name = $admin->name;
+        $deposit->processed_by_admin_id = $admin->id;
+        $deposit->save();
+
+        $ticket = $deposit->bookedTicket;
+        $ticket->approved_by = $admin->id;
+        $ticket->save();
+
+        // Complete the sale before preparing the PDF or contacting notification providers.
+        $paymentCompleted = PaymentController::userDataUpdate($deposit, true, false);
+        $deposit->refresh()->load('bookedTicket');
+
+        if ((int) $deposit->status !== Status::PAYMENT_SUCCESS) {
+            return response()->json([
+                'message' => 'Unable to complete this payment. Please try again.',
+            ], 409);
+        }
+
+        if ($paymentCompleted) {
+            $this->sendPaymentNotificationAfterResponse($deposit->id, $ticket->id);
+        }
+
+        return response()->json($this->confirmedPaymentPayload($deposit));
     }
 
     public function releaseProcessing(Request $request)
@@ -436,6 +490,7 @@ class DepositController extends Controller
             'processing_lease_expires_at' => $deposit->processing_lease_expires_at?->toIso8601String(),
             'heartbeat_url' => route('admin.deposit.pending.processing.heartbeat'),
             'release_url' => route('admin.deposit.pending.processing.release'),
+            'confirmation_url' => route('admin.deposit.pending.confirm'),
             'tickets' => $tickets,
             'discounts' => Discount::query()
                 ->where('status', Status::ENABLE)
@@ -464,6 +519,33 @@ class DepositController extends Controller
             'heartbeat_url' => route('admin.deposit.pending.processing.heartbeat'),
             'release_url' => route('admin.deposit.pending.processing.release'),
         ];
+    }
+
+    private function confirmedPaymentPayload(Deposit $deposit): array
+    {
+        $ticket = $deposit->bookedTicket;
+
+        return [
+            'success' => true,
+            'print_url' => url("api/ticket/download/reservation-slip/{$ticket->id}"),
+            'reservation_slip_url' => route('admin.trip.reservationSlip', $ticket->id),
+        ];
+    }
+
+    private function sendPaymentNotificationAfterResponse(int $depositId, int $ticketId): void
+    {
+        app()->terminating(function () use ($depositId, $ticketId) {
+            try {
+                $deposit = Deposit::find($depositId);
+                $ticket = BookedTicket::find($ticketId);
+
+                if ($deposit && $ticket && (int) $deposit->status === Status::PAYMENT_SUCCESS) {
+                    app(PaymentSuccessNotifier::class)->send($deposit, $ticket, true);
+                }
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        });
     }
 
     private function validatedPaymentFilters(Request $request): array
