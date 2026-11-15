@@ -75,6 +75,11 @@ class Trip extends Model
         return $this->hasMany(TripChannelAvailability::class);
     }
 
+    public function prioritySeatAccesses()
+    {
+        return $this->hasMany(TripPrioritySeatAccess::class);
+    }
+
     //scope
     public function scopeActive($query)
     {

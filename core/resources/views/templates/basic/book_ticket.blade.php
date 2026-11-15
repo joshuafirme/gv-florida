@@ -175,8 +175,15 @@
                             <div class="seat"><span></span></div>
                             <p>@lang('Senior Citizen / PWD')</p>
                         </div>
+                        <div class="seat-condition walk-in-only-legend">
+                            <div class="seat"><span></span></div>
+                            <p>@lang('Walk-In Only')</p>
+                        </div>
                     </div>
-                    @include('templates.basic.partials.seat_layout', ['fleetType' => $trip->fleetType])
+                    @include('templates.basic.partials.seat_layout', [
+                        'fleetType' => $trip->fleetType,
+                        'seatLayout' => $seatLayout,
+                    ])
 
                 </div>
             </div>
@@ -383,6 +390,15 @@
 
             .booking-seat-flow .seat-for-reserved .sc-pwd-legend .seat span {
                 border-color: #8f7300;
+            }
+
+            .booking-seat-flow .seat-for-reserved .walk-in-only-legend .seat {
+                background: #fff4d6;
+                border-color: #d99a24;
+            }
+
+            .booking-seat-flow .seat-for-reserved .walk-in-only-legend .seat span {
+                border-color: #8a5c00;
             }
 
             .booking-seat-flow.is-kiosk .seat-plan-inner .seat-wrapper .seat:not(.comfort-room) {
@@ -1066,6 +1082,11 @@
                                 return;
                             }
 
+                            synchronizePrioritySeatAccess(
+                                response.prioritySeatIds || [],
+                                response.priorityRestrictedSeats || []
+                            );
+
                             // --- INITIAL LOAD: Build Dropping Points ---
                             if (isInitialLoad) {
                                 var stoppages = response.stoppages;
@@ -1203,10 +1224,44 @@
                 // ==========================================
                 // UI HELPERS & SEAT LOGIC
                 // ==========================================
+                function synchronizePrioritySeatAccess(prioritySeats, restrictedSeats) {
+                    const restricted = new Set((restrictedSeats || []).map(String));
+
+                    (prioritySeats || []).forEach(function(seat) {
+                        const seatNode = $(`.seat-wrapper .seat[data-seat="${seat}"]`);
+                        const seatCell = seatNode.parent();
+
+                        seatCell.removeClass('is-walk-in-only');
+                        seatNode.find('.seat-channel-label').remove();
+
+                        if (!seatCell.hasClass('is-booked')
+                            && !seatCell.hasClass('is-disabled')
+                            && !seatCell.hasClass('seat-condition')) {
+                            seatCell.removeClass('disabled');
+                            seatNode.attr('aria-disabled', 'false')
+                                .attr('title', 'Senior Citizen / PWD priority seat');
+                        }
+
+                        if (!restricted.has(String(seat))) {
+                            return;
+                        }
+
+                        seatCell.addClass('is-walk-in-only disabled');
+                        seatNode.attr('aria-disabled', 'true')
+                            .attr('title', 'Priority Seat - Walk-In Only');
+
+                        if (!seatNode.find('.seat-channel-label').length) {
+                            seatNode.children('span[aria-hidden="true"]').first().before(
+                                '<span class="seat-channel-label">Walk-In Only</span>'
+                            );
+                        }
+                    });
+                }
+
                 function showBookedSeat() {
                     // ONLY clear the disabled/booked classes. DO NOT remove the `.selected` class.
                     $('.seat-wrapper .seat').parent().removeClass(
-                        'seat-condition selected-by-ladies selected-by-gents selected-by-others disabled');
+                        'seat-condition selected-by-ladies selected-by-gents selected-by-others is-walk-in-only disabled');
 
                     var destinationId = $('select[name="dropping_point"]').val();
 

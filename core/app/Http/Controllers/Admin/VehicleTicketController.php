@@ -1795,7 +1795,12 @@ class VehicleTicketController extends Controller
         // Combine booked and disabled seats to check against
         $unavailableSeats = array_merge(
             $bookedSeatsArray,
-            $this->disabledSeatIdentifiers($data->trip, $disabledSeats)
+            $this->disabledSeatIdentifiers($data->trip, $disabledSeats),
+            app(\App\Services\PrioritySeatAccessService::class)->restrictedSeatIds(
+                $data->trip,
+                $request->date_of_journey,
+                true
+            )
         );
 
         // D. Check for overlaps (if any requested seat is inside the unavailable array)
@@ -1934,6 +1939,7 @@ class VehicleTicketController extends Controller
         $fleetType = $trip->fleetType;
         $seatLayout = app(SeatLayoutService::class)->layout($fleetType, [
             'booked' => $availability['booked'],
+            'walk_in_only' => $availability['priority_restricted'],
         ]);
         $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'seatLayout'))->render();
 
@@ -2214,7 +2220,7 @@ class VehicleTicketController extends Controller
             $slip = $this->transferableSlip($slip, true);
             $ticket = $slip->bookedTicket;
             [$trip, $drop, $date] = $this->resolveTransferTarget($ticket, $slip, $validated, true);
-            $seat = $this->validatedTransferSeat($trip, $ticket, $slip, [$validated['seat']]);
+            $seat = $this->validatedTransferSeat($trip, $ticket, $slip, $date, [$validated['seat']]);
 
             return app(TransferSeatHoldService::class)->create(
                 auth('admin')->user(),
@@ -2286,7 +2292,7 @@ class VehicleTicketController extends Controller
             $ticket = $slip->bookedTicket;
             [$trip, $drop, $date, $fare] = $this->resolveTransferTarget($ticket, $slip, $validated, true);
             $submittedSeats = array_values(array_unique($validated['seats']));
-            $requestedSeat = $this->validatedTransferSeat($trip, $ticket, $slip, $submittedSeats);
+            $requestedSeat = $this->validatedTransferSeat($trip, $ticket, $slip, $date, $submittedSeats);
             $requestedSeats = [$requestedSeat];
             $hold = app(TransferSeatHoldService::class)->lockForConfirmation(
                 $validated['hold_token'],
@@ -2647,6 +2653,7 @@ class VehicleTicketController extends Controller
         );
         $seatLayout = app(SeatLayoutService::class)->layout($trip->fleetType, [
             'booked' => $availability['booked'],
+            'walk_in_only' => $availability['priority_restricted'],
         ]);
         $fleetType = $trip->fleetType;
         $selectedSeats = $preselectCurrentSeat
@@ -3388,11 +3395,23 @@ class VehicleTicketController extends Controller
         $booked = $seatConflicts->normalizeSeats($booked->all());
         $disabled = array_values((array) ($trip->fleetType->disabled_seats ?? []));
         $disabledFull = $this->disabledSeatIdentifiers($trip, $disabled);
+        $priorityRestricted = app(\App\Services\PrioritySeatAccessService::class)
+            ->restrictedSeatIds($trip, $date, true);
+
+        if ((int) $trip->id === (int) $ticket->trip_id && $date === $ticketDate) {
+            $currentTargetSeats = collect($targetSlips ?: $ticket->activeSlipSeriesNumbers)
+                ->pluck('seat')
+                ->map(fn ($seat) => (string) $seat)
+                ->all();
+            $priorityRestricted = array_values(array_diff($priorityRestricted, $currentTargetSeats));
+        }
+        $disabledFull = array_values(array_unique(array_merge($disabledFull, $priorityRestricted)));
 
         return [
             'booked' => $booked,
             'disabled' => $disabled,
             'disabled_full' => $disabledFull,
+            'priority_restricted' => $priorityRestricted,
         ];
     }
 
@@ -3400,6 +3419,7 @@ class VehicleTicketController extends Controller
         Trip $trip,
         BookedTicket $ticket,
         SlipSeriesNumber $slip,
+        string $date,
         array $submittedSeats
     ): string {
         $requestedSeats = app(SeatLayoutService::class)->canonicalizeSeats($trip->fleetType, $submittedSeats);
@@ -3417,10 +3437,21 @@ class VehicleTicketController extends Controller
             ]);
         }
 
-        if ((int) $trip->id === (int) $ticket->trip_id) {
-            $currentSeat = app(SeatLayoutService::class)
-                ->canonicalizeSeats($trip->fleetType, [(string) $slip->seat])[0] ?? (string) $slip->seat;
+        $priorityRestricted = app(\App\Services\PrioritySeatAccessService::class)
+            ->restrictedSeatIds($trip, $date, true);
+        $currentSeat = app(SeatLayoutService::class)
+            ->canonicalizeSeats($trip->fleetType, [(string) $slip->seat])[0] ?? (string) $slip->seat;
+        $sameTripAndDate = (int) $trip->id === (int) $ticket->trip_id
+            && Carbon::parse($ticket->date_of_journey)->isSameDay($date);
 
+        if (in_array($seat, $priorityRestricted, true)
+            && !($sameTripAndDate && $seat === $currentSeat)) {
+            throw ValidationException::withMessages([
+                'seat' => 'Priority Seats are currently unavailable for walk-in transactions.',
+            ]);
+        }
+
+        if ((int) $trip->id === (int) $ticket->trip_id) {
             if ($seat !== $currentSeat) {
                 throw ValidationException::withMessages([
                     'seat' => 'The seat cannot be changed when editing only the dropping point.',
@@ -3570,6 +3601,11 @@ class VehicleTicketController extends Controller
 
         $seatLayout = app(SeatLayoutService::class)->layout($fleetType, [
             'booked' => $bookedSeatsArray,
+            'walk_in_only' => app(\App\Services\PrioritySeatAccessService::class)->restrictedSeatIds(
+                $trip,
+                $request->date,
+                true
+            ),
         ]);
         $html = view('templates.basic.partials.seat_layout', compact('fleetType', 'seatLayout'))->render();
 
@@ -3589,7 +3625,14 @@ class VehicleTicketController extends Controller
             'status' => 'success',
             'html' => $html,
             'booked_seats' => array_unique($seats),
-            'disabled_seats' => $disabled_seats,
+            'disabled_seats' => array_values(array_unique(array_merge(
+                $disabled_seats,
+                app(\App\Services\PrioritySeatAccessService::class)->restrictedSeatIds(
+                    $trip,
+                    $request->date,
+                    true
+                )
+            ))),
             'required_seats' => $requiredSeatsCount
         ]);
     }

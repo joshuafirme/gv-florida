@@ -34,6 +34,7 @@ class SeatLayoutService
             'booked' => $this->canonicalizeFromIndex($seatIndex, $states['booked'] ?? []),
             'pending' => $this->canonicalizeFromIndex($seatIndex, $states['pending'] ?? []),
             'locked' => $this->canonicalizeFromIndex($seatIndex, $states['locked'] ?? []),
+            'walk_in_only' => $this->canonicalizeFromIndex($seatIndex, $states['walk_in_only'] ?? []),
         ];
 
         foreach ($decks as &$deck) {
@@ -49,6 +50,7 @@ class SeatLayoutService
                             in_array($cell['seat_id'], $stateIds['locked'], true) => 'locked',
                             in_array($cell['seat_id'], $stateIds['booked'], true) => 'booked',
                             in_array($cell['seat_id'], $stateIds['pending'], true) => 'pending',
+                            in_array($cell['seat_id'], $stateIds['walk_in_only'], true) => 'walk_in_only',
                             default => 'available',
                         };
                     }

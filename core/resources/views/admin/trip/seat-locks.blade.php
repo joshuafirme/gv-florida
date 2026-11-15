@@ -28,6 +28,10 @@
                     <span>Available</span>
                     <strong class="is-available">{{ $stats['available'] }}</strong>
                 </div>
+                <div>
+                    <span>Priority</span>
+                    <strong class="is-priority">{{ count($prioritySeatIds) }}</strong>
+                </div>
             </div>
         </header>
 
@@ -44,6 +48,69 @@
                 </div>
             </form>
         </div>
+
+        <section class="priority-seat-access" aria-labelledby="prioritySeatAccessTitle">
+            <div class="priority-seat-access__heading">
+                <div>
+                    <span class="priority-seat-access__icon"><i class="las la-universal-access"></i></span>
+                    <div>
+                        <h3 id="prioritySeatAccessTitle">Priority Seat Access</h3>
+                        <p>Controls {{ count($prioritySeatIds) }} SC/PWD Priority Seat(s) for {{ $date->format('M d, Y') }}.</p>
+                    </div>
+                </div>
+                @if ($priorityAccess)
+                    <small>
+                        Last updated by {{ $priorityAccess->updatedBy?->name ?: $priorityAccess->updatedBy?->username ?: 'Administrator' }}
+                        &middot; {{ $priorityAccess->updated_at?->format('M d, Y h:i A') }}
+                    </small>
+                @endif
+            </div>
+
+            <div class="priority-seat-access__channels">
+                <div class="priority-channel is-online {{ $onlinePriorityEnabled ? 'is-enabled' : 'is-disabled' }}">
+                    <span class="priority-channel__symbol"><i class="las la-globe"></i></span>
+                    <div>
+                        <strong>Online Booking</strong>
+                        <span>{{ $onlinePriorityEnabled ? 'Passengers may select Priority Seats' : 'Priority Seats are Walk-In Only' }}</span>
+                    </div>
+                    <span class="priority-channel__status">
+                        {{ $onlinePriorityEnabled ? 'Available' : 'Unavailable' }}
+                    </span>
+                    <button type="button" class="btn btn-sm {{ $onlinePriorityEnabled ? 'btn-outline--danger' : 'btn-outline--success' }} js-priority-access"
+                        data-channel="online"
+                        data-action="{{ $onlinePriorityEnabled ? 'disable' : 'enable' }}"
+                        @disabled(count($prioritySeatIds) === 0)>
+                        <i class="las la-{{ $onlinePriorityEnabled ? 'lock' : 'unlock' }}"></i>
+                        {{ $onlinePriorityEnabled ? 'Disable' : 'Enable' }}
+                    </button>
+                </div>
+
+                <div class="priority-channel is-walk-in {{ $walkInPriorityEnabled ? 'is-enabled' : 'is-disabled' }}">
+                    <span class="priority-channel__symbol"><i class="las la-user-friends"></i></span>
+                    <div>
+                        <strong>Walk-In Booking</strong>
+                        <span>{{ $walkInPriorityEnabled ? 'Staff may assign Priority Seats' : 'Priority Seats cannot be selected' }}</span>
+                    </div>
+                    <span class="priority-channel__status">
+                        {{ $walkInPriorityEnabled ? 'Available' : 'Unavailable' }}
+                    </span>
+                    <button type="button" class="btn btn-sm {{ $walkInPriorityEnabled ? 'btn-outline--danger' : 'btn-outline--success' }} js-priority-access"
+                        data-channel="walk_in"
+                        data-action="{{ $walkInPriorityEnabled ? 'disable' : 'enable' }}"
+                        @disabled(count($prioritySeatIds) === 0)>
+                        <i class="las la-{{ $walkInPriorityEnabled ? 'lock' : 'unlock' }}"></i>
+                        {{ $walkInPriorityEnabled ? 'Disable' : 'Enable' }}
+                    </button>
+                </div>
+            </div>
+
+            @if (count($prioritySeatIds) === 0)
+                <p class="priority-seat-access__empty">
+                    <i class="las la-info-circle"></i>
+                    No Priority Seats are configured. Mark seats as SC/PWD in the Fleet Seat Layout first.
+                </p>
+            @endif
+        </section>
 
         <div class="seat-lock-legend" aria-label="Seat status legend">
             <span><i class="legend-swatch is-available"></i> Available &mdash; select to lock</span>
@@ -126,6 +193,68 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="prioritySeatAccessModal" tabindex="-1"
+        aria-labelledby="prioritySeatAccessModalTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content seat-lock-modal">
+                <div class="modal-header">
+                    <div>
+                        <span class="seat-lock-modal__icon"><i class="las la-universal-access"></i></span>
+                        <h5 class="modal-title" id="prioritySeatAccessModalTitle">Update Priority Seat Access</h5>
+                        <p class="js-priority-access-subtitle"></p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="prioritySeatAccessForm">
+                    @csrf
+                    <input type="hidden" name="date" value="{{ $date->format('Y-m-d') }}">
+                    <input type="hidden" name="channel">
+                    <input type="hidden" name="action">
+
+                    <div class="modal-body">
+                        <label class="seat-lock-label" for="prioritySeatAccessReason">Reason</label>
+                        <div class="seat-lock-reasons priority-access-reasons">
+                            @foreach (['Passenger assistance', 'Terminal seat allocation', 'Online priority seat release', 'Operational requirement', 'Release for general sale', 'Other'] as $reason)
+                                <button type="button" class="seat-lock-reason-chip priority-access-reason"
+                                    data-reason="{{ $reason }}">
+                                    {{ $reason }}
+                                </button>
+                            @endforeach
+                        </div>
+                        <textarea id="prioritySeatAccessReason" name="reason" rows="3"
+                            placeholder="Enter the reason for changing channel access" required></textarea>
+
+                        <div class="seat-lock-authorization">
+                            <div class="seat-lock-authorization__title">
+                                <i class="las la-shield-alt"></i>
+                                <div>
+                                    <strong>Authorization Required</strong>
+                                    <p>An administrator with Manage Seat Locks permission must approve this change.</p>
+                                </div>
+                            </div>
+                            <label class="seat-lock-label" for="prioritySeatAuthorizationCode">Authorization Code</label>
+                            <div class="seat-lock-code">
+                                <input id="prioritySeatAuthorizationCode" type="password" name="authorization_code"
+                                    placeholder="Enter authorization code" autocomplete="new-password" required>
+                                <button type="button" id="togglePrioritySeatCode" aria-label="Show authorization code">
+                                    <i class="las la-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="seat-lock-error js-priority-access-error" role="alert"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn--light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn--primary js-priority-access-submit">
+                            Save Access
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('style')
@@ -156,7 +285,7 @@
         .seat-lock-stats {
             display: grid;
             gap: 8px;
-            grid-template-columns: repeat(4, minmax(80px, 1fr));
+            grid-template-columns: repeat(5, minmax(80px, 1fr));
         }
 
         .seat-lock-stats > div {
@@ -184,6 +313,100 @@
         .seat-lock-stats .is-booked { color: #1477a5; }
         .seat-lock-stats .is-locked { color: #a85b00; }
         .seat-lock-stats .is-available { color: #14804a; }
+        .seat-lock-stats .is-priority { color: #9a6500; }
+
+        .priority-seat-access {
+            background: #fff;
+            border: 1px solid #dfe2e7;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            padding: 18px;
+        }
+
+        .priority-seat-access__heading,
+        .priority-seat-access__heading > div,
+        .priority-channel {
+            align-items: center;
+            display: flex;
+        }
+
+        .priority-seat-access__heading {
+            gap: 16px;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .priority-seat-access__heading > div { gap: 10px; }
+        .priority-seat-access__heading h3 { font-size: 15px; margin: 0 0 3px; }
+        .priority-seat-access__heading p { color: #727986; font-size: 11px; margin: 0; }
+        .priority-seat-access__heading small { color: #818894; font-size: 10px; text-align: right; }
+
+        .priority-seat-access__icon,
+        .priority-channel__symbol {
+            align-items: center;
+            border-radius: 6px;
+            display: inline-flex;
+            flex: 0 0 auto;
+            justify-content: center;
+        }
+
+        .priority-seat-access__icon {
+            background: #fff3cf;
+            color: #9a6500;
+            font-size: 19px;
+            height: 36px;
+            width: 36px;
+        }
+
+        .priority-seat-access__channels {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .priority-channel {
+            border: 1px solid #e1e4e9;
+            border-radius: 7px;
+            gap: 10px;
+            min-height: 64px;
+            padding: 10px 12px;
+        }
+
+        .priority-channel__symbol {
+            background: #f1f3f6;
+            color: #596273;
+            font-size: 17px;
+            height: 32px;
+            width: 32px;
+        }
+
+        .priority-channel > div { flex: 1 1 auto; min-width: 0; }
+        .priority-channel > div strong { display: block; font-size: 12px; }
+        .priority-channel > div span { color: #747c89; display: block; font-size: 10px; margin-top: 2px; }
+
+        .priority-channel__status {
+            border-radius: 999px;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 5px 8px;
+            white-space: nowrap;
+        }
+
+        .priority-channel.is-disabled .priority-channel__status {
+            background: #fff0f0;
+            color: #b52f37;
+        }
+
+        .priority-channel.is-enabled .priority-channel__status {
+            background: #e8f8ee;
+            color: #187a43;
+        }
+
+        .priority-seat-access__empty {
+            color: #8a640e;
+            font-size: 11px;
+            margin: 12px 0 0;
+        }
 
         .seat-lock-toolbar {
             align-items: center;
@@ -544,8 +767,18 @@
             }
 
             .seat-lock-stats {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
                 width: 100%;
             }
+
+            .priority-seat-access__heading {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .priority-seat-access__heading small { text-align: left; }
+            .priority-seat-access__channels { grid-template-columns: 1fr; }
+            .priority-channel { flex-wrap: wrap; }
 
             .seat-lock-toolbar {
                 align-items: stretch;
@@ -582,6 +815,9 @@
             const modalElement = document.getElementById('seatLockModal');
             const seatLockModal = new bootstrap.Modal(modalElement);
             const actionUrl = @json(route('admin.trip.seat-locks.change', $trip->id));
+            const priorityModalElement = document.getElementById('prioritySeatAccessModal');
+            const prioritySeatAccessModal = new bootstrap.Modal(priorityModalElement);
+            const priorityAccessUrl = @json(route('admin.trip.seat-locks.priority-access', $trip->id));
 
             $('#seatLockDate').on('change', function() {
                 $('#seatLockDateForm').trigger('submit');
@@ -671,6 +907,85 @@
                     window.location.reload();
                 } catch (error) {
                     $('.js-seat-lock-error').text(error.message).show();
+                    submitButton.prop('disabled', false).html(originalLabel);
+                }
+            });
+
+            $('.js-priority-access').on('click', function() {
+                const action = $(this).data('action');
+                const channel = $(this).data('channel');
+                const channelLabel = channel === 'online' ? 'Online Booking' : 'Walk-In Booking';
+                const enabling = action === 'enable';
+                $('#prioritySeatAccessForm')[0].reset();
+                $('#prioritySeatAccessForm input[name="date"]').val(@json($date->format('Y-m-d')));
+                $('#prioritySeatAccessForm input[name="channel"]').val(channel);
+                $('#prioritySeatAccessForm input[name="action"]').val(action);
+                $('.priority-access-reason').removeClass('is-selected');
+                $('.js-priority-access-error').hide().text('');
+                $('#prioritySeatAccessModalTitle').text(
+                    `${enabling ? 'Enable' : 'Disable'} Priority Seats for ${channelLabel}`
+                );
+                $('.js-priority-access-subtitle').text(
+                    enabling
+                        ? `Priority Seats will become selectable through ${channelLabel} on this date.`
+                        : `Priority Seats will become unavailable through ${channelLabel} on this date.`
+                );
+                $('.js-priority-access-submit')
+                    .html(`<i class="las la-${enabling ? 'unlock' : 'lock'}"></i> ${enabling ? 'Enable' : 'Disable'} ${channelLabel}`);
+                prioritySeatAccessModal.show();
+            });
+
+            $('.priority-access-reason').on('click', function() {
+                const reason = $(this).data('reason');
+                $('.priority-access-reason').removeClass('is-selected');
+                $(this).addClass('is-selected');
+                $('#prioritySeatAccessReason').val(reason === 'Other' ? '' : reason).trigger('focus');
+            });
+
+            $('#togglePrioritySeatCode').on('click', function() {
+                const input = document.getElementById('prioritySeatAuthorizationCode');
+                const show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                $(this).attr('aria-label', show ? 'Hide authorization code' : 'Show authorization code')
+                    .find('i')
+                    .toggleClass('la-eye', !show)
+                    .toggleClass('la-eye-slash', show);
+            });
+
+            $('#prioritySeatAccessForm').on('submit', async function(event) {
+                event.preventDefault();
+
+                const form = this;
+                const submitButton = $('.js-priority-access-submit');
+                const originalLabel = submitButton.html();
+                $('.js-priority-access-error').hide().text('');
+                submitButton.prop('disabled', true)
+                    .html('<i class="las la-spinner la-spin"></i> Verifying...');
+
+                try {
+                    const response = await fetch(priorityAccessUrl, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        const message = result.message
+                            || (result.errors ? Object.values(result.errors).flat()[0] : null)
+                            || 'Unable to update Priority Seat access.';
+                        throw new Error(message);
+                    }
+
+                    if (typeof notify === 'function') {
+                        notify('success', result.message);
+                    }
+                    window.location.reload();
+                } catch (error) {
+                    $('.js-priority-access-error').text(error.message).show();
                     submitButton.prop('disabled', false).html(originalLabel);
                 }
             });

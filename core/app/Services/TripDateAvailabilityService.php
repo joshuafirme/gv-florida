@@ -20,7 +20,8 @@ class TripDateAvailabilityService
 
     public function __construct(
         private readonly SeatConflictService $seatConflictService,
-        private readonly SeatLayoutService $seatLayoutService
+        private readonly SeatLayoutService $seatLayoutService,
+        private readonly PrioritySeatAccessService $prioritySeatAccessService
     ) {
     }
 
@@ -41,6 +42,8 @@ class TripDateAvailabilityService
                 'schedule',
                 'fleetType',
                 'channelAvailabilities' => fn ($availability) => $availability
+                    ->whereBetween('journey_date', [$today->format('Y-m-d'), $lastDate->format('Y-m-d')]),
+                'prioritySeatAccesses' => fn ($access) => $access
                     ->whereBetween('journey_date', [$today->format('Y-m-d'), $lastDate->format('Y-m-d')]),
             ])
             ->whereHas('schedule');
@@ -95,6 +98,7 @@ class TripDateAvailabilityService
                     $dateKey,
                     $bookings,
                     $seatLocks,
+                    $kioskId,
                     $pickup,
                     $destination
                 ) {
@@ -117,7 +121,14 @@ class TripDateAvailabilityService
                     return $trip->fleetType
                         && $this->seatLayoutService->availableSeatCount(
                             $trip->fleetType,
-                            ['booked' => $bookedSeats]
+                            [
+                                'booked' => $bookedSeats,
+                                'walk_in_only' => $this->prioritySeatAccessService->restrictedSeatIds(
+                                    $trip,
+                                    $dateKey,
+                                    (bool) $kioskId
+                                ),
+                            ]
                         ) > 0;
                 });
 
@@ -138,7 +149,12 @@ class TripDateAvailabilityService
         } catch (\Throwable $exception) {
             return self::NOT_OPEN;
         }
-        $trip->loadMissing(['route', 'schedule', 'fleetType', 'channelAvailabilities']);
+        $trip->loadMissing([
+            'route',
+            'schedule',
+            'fleetType',
+            'channelAvailabilities',
+        ]);
         $today = BusinessTime::today();
 
         if ($date->lt($today) || $date->gt($today->copy()->addDays(getAllowedAdvanceBookingDays($kioskId)))) {
@@ -162,7 +178,14 @@ class TripDateAvailabilityService
 
         return $trip->fleetType && $this->seatLayoutService->availableSeatCount(
             $trip->fleetType,
-            ['booked' => $unavailableSeats]
+            [
+                'booked' => $unavailableSeats,
+                'walk_in_only' => $this->prioritySeatAccessService->restrictedSeatIds(
+                    $trip,
+                    $date,
+                    (bool) $kioskId
+                ),
+            ]
         ) > 0
             ? self::AVAILABLE
             : self::FULLY_BOOKED;
