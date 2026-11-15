@@ -101,4 +101,13 @@ class CashierTransactionEvent extends Model
     {
         return app(TransactionReasonFormatter::class)->format($this);
     }
+
+    public function hasReportPaymentMovement(): bool
+    {
+        if (abs((float) $this->amount) >= 0.005) {
+            return true;
+        }
+
+        return !in_array($this->status, ['Rebooked', 'Validated'], true);
+    }
 }

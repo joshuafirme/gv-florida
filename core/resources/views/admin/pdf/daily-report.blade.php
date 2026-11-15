@@ -353,8 +353,12 @@
                     <td><strong class="transaction-travel-date">{{ $transaction->journey_date?->format('M j, Y') ?: '-' }}</strong><span class="transaction-departure-time">{{ $departureTime ?: '-' }}</span></td>
                     <td><strong>{{ $transaction->trip_class ?: '-' }}</strong><br><span class="subtle">{{ $transaction->trip_route ?: '-' }}</span></td>
                     <td>{{ $seat ?: '-' }}</td><td><strong class="transaction-km-post">{{ $transaction->km_post ? 'KM ' . $transaction->km_post : '-' }}</strong><br><span class="subtle">{{ $transaction->drop_off ?: '' }}</span></td>
-                    <td>{{ $transaction->payment_method ?: '-' }}</td>
-                    <td class="right total {{ $transaction->amount < 0 ? 'negative' : '' }}"><strong class="transaction-amount">{{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}</strong></td>
+                    <td>{{ $transaction->hasReportPaymentMovement() ? ($transaction->payment_method ?: '-') : '' }}</td>
+                    <td class="right total {{ $transaction->amount < 0 ? 'negative' : '' }}">
+                        @if ($transaction->hasReportPaymentMovement())
+                            <strong class="transaction-amount">{{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}</strong>
+                        @endif
+                    </td>
                     <td class="right {{ $adjustmentAmount > 0 ? 'negative' : '' }}">{{ $adjustmentAmount > 0 ? '-' . showAmount($adjustmentAmount) : '-' }}</td>
                     <td>{{ $transaction->status }}</td>
                     <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
