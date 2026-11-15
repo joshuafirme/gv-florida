@@ -111,6 +111,10 @@
                 margin-bottom: 10px;
             }
 
+            .header-bottom {
+                z-index: 1100;
+            }
+
             .booking-flow-stepper {
                 --booking-flow-progress: 0;
                 background: #fff;
@@ -254,10 +258,6 @@
             }
 
             @media (max-width: 991px) {
-                .header-bottom {
-                    z-index: 1100;
-                }
-
                 .header-bottom .menu.active {
                     max-height: calc(100dvh - 60px);
                     overscroll-behavior: contain;

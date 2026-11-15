@@ -284,12 +284,13 @@
             opacity: 1;
         }
 
-        .header-bottom.is-notification-open { z-index: 1060 !important; }
+        .header-bottom.is-notification-open,
+        .header-bottom:has(.passenger-notification-menu.show) { z-index: 1120 !important; }
         .passenger-notification { align-items: center; display: flex; }
         .passenger-notification-bell { align-items: center; background: transparent; border: 0; color: #343a4a; display: inline-flex; justify-content: center; padding: 7px; position: relative; }
         .passenger-notification-bell i { font-size: 21px; }
         .passenger-notification-count { align-items: center; background: var(--booking-primary, #df2a82); border: 2px solid #fff; border-radius: 999px; color: #fff; display: flex; font-size: 9px; font-weight: 800; height: 19px; justify-content: center; min-width: 19px; padding: 0 4px; position: absolute; right: -6px; top: -6px; }
-        .passenger-notification-menu { border: 1px solid #e8ebef; border-radius: 8px; box-shadow: 0 16px 38px rgba(31, 41, 55, .18); margin-top: 12px !important; min-width: 370px; overflow: hidden; padding: 0; z-index: 1070; }
+        .passenger-notification-menu { border: 1px solid #e8ebef; border-radius: 8px; box-shadow: 0 16px 38px rgba(31, 41, 55, .18); margin-top: 12px !important; min-width: 370px; overflow: hidden; padding: 0; z-index: 1130; }
         .passenger-notification-head { align-items: center; border-bottom: 1px solid #edf0f5; display: flex; justify-content: space-between; padding: 14px 16px; }
         .passenger-notification-head strong { color: #172033; font-size: 15px; }
         .passenger-notification-read-all { background: transparent; border: 0; color: #168c91; font-size: 12px; font-weight: 700; padding: 3px 0; text-transform: none; }
