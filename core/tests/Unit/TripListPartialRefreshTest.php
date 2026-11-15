@@ -99,4 +99,16 @@ class TripListPartialRefreshTest extends TestCase
         $this->assertMatchesRegularExpression('/\.passenger-reminders-content\s*>\s*footer\s*\{[^}]*flex:\s*0 0 auto;[^}]*padding:\s*14px 28px 20px;/s', $reminders);
         $this->assertStringContainsString("dropdownParent: routeSelect.closest('.journey-point-selector')", $ticketView);
     }
+
+    public function test_kiosk_seat_refresh_clears_stale_priority_seat_restrictions(): void
+    {
+        $bookingView = file_get_contents(resource_path('views/templates/basic/book_ticket.blade.php'));
+        $controller = file_get_contents(app_path('Http/Controllers/SiteController.php'));
+
+        $this->assertStringContainsString("'prioritySeatIds' => \$prioritySeatIds", $controller);
+        $this->assertStringContainsString('function synchronizePrioritySeatAccess', $bookingView);
+        $this->assertStringContainsString("seatCell.removeClass('is-walk-in-only')", $bookingView);
+        $this->assertStringContainsString("seatNode.attr('aria-disabled', 'false')", $bookingView);
+        $this->assertStringContainsString('response.priorityRestrictedSeats || []', $bookingView);
+    }
 }

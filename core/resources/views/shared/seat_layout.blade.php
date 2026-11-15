@@ -47,12 +47,12 @@
 
                                     @php
                                         $state = $cell['state'];
-                                        $isUnavailable = in_array($state, ['disabled', 'booked', 'pending', 'locked'], true);
+                                        $isUnavailable = in_array($state, ['disabled', 'booked', 'pending', 'locked', 'walk_in_only'], true);
                                         $customerState = in_array($state, ['booked', 'pending', 'locked'], true) ? 'booked' : $state;
                                         $lock = $lockedSeatDetails->get($cell['seat_id']);
                                     @endphp
 
-                                    <div class="seat-layout-cell is-{{ $customerState }} {{ $isUnavailable ? 'disabled' : '' }} {{ $cell['is_sc_pwd'] ? 'is-sc-pwd' : '' }} {{ $seatLayoutMode === 'lock' && $state === 'locked' ? 'is-admin-locked' : '' }}">
+                                    <div class="seat-layout-cell is-{{ $customerState }} {{ $isUnavailable ? 'disabled' : '' }} {{ $cell['is_sc_pwd'] ? 'is-sc-pwd' : '' }} {{ $state === 'walk_in_only' ? 'is-walk-in-only' : '' }} {{ $seatLayoutMode === 'lock' && $state === 'locked' ? 'is-admin-locked' : '' }}">
                                         @if ($seatLayoutMode === 'lock')
                                             @php
                                                 $isStatic = in_array($state, ['booked', 'pending', 'disabled'], true);
@@ -68,6 +68,7 @@
                                                 title="{{ match ($state) {
                                                     'locked' => 'Locked: ' . ($lock?->reason ?: 'Administrative lock'),
                                                     'booked', 'pending' => 'Booked or held by a passenger transaction',
+                                                    'walk_in_only' => 'Priority Seat - Walk-In Only',
                                                     'disabled' => 'Non-operational seat',
                                                     default => 'Available seat',
                                                 } }}">
@@ -86,10 +87,14 @@
                                                 title="{{ match ($state) {
                                                     'disabled' => 'Non-operational seat',
                                                     'booked', 'pending', 'locked' => 'Already booked',
+                                                    'walk_in_only' => 'Priority Seat - Walk-In Only',
                                                     default => $cell['is_sc_pwd'] ? 'Senior Citizen / PWD priority seat' : 'Available seat',
                                                 } }}">
                                                 {{ $cell['label'] }}
                                                 @if ($cell['is_sc_pwd']) <small>SC/PWD</small> @endif
+                                                @if ($state === 'walk_in_only')
+                                                    <span class="seat-channel-label">Walk-In Only</span>
+                                                @endif
                                                 <span aria-hidden="true"></span>
                                             </span>
                                         @endif

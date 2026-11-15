@@ -207,6 +207,7 @@ Route::middleware('admin')->group(function () {
         ->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/', 'change')->name('change');
+            Route::post('/priority-access', 'priorityAccess')->name('priority-access');
         });
 
     Route::controller('TripChannelAccessController')

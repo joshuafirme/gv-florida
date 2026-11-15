@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AdminSeatLock;
 use App\Models\Trip;
 use App\Services\AdminSeatLockService;
+use App\Services\PrioritySeatAccessService;
 use App\Services\SeatConflictService;
 use App\Services\SeatLayoutService;
 use Carbon\Carbon;
@@ -17,7 +18,8 @@ class AdminSeatLockController extends Controller
         Request $request,
         Trip $trip,
         SeatConflictService $seatConflictService,
-        SeatLayoutService $seatLayoutService
+        SeatLayoutService $seatLayoutService,
+        PrioritySeatAccessService $prioritySeatAccessService
     ) {
         $request->validate([
             'date' => 'nullable|date',
@@ -62,6 +64,10 @@ class AdminSeatLockController extends Controller
             'locked' => $lockedSeats->count(),
             'available' => max($seatIds->count() - $unavailable->count(), 0),
         ];
+        $prioritySeatIds = $prioritySeatAccessService->prioritySeatIds($trip->fleetType);
+        $priorityAccess = $prioritySeatAccessService->accessFor($trip, $date);
+        $onlinePriorityEnabled = (bool) $priorityAccess?->online_enabled;
+        $walkInPriorityEnabled = (bool) $priorityAccess?->walk_in_enabled;
 
         return view('admin.trip.seat-locks', compact(
             'pageTitle',
@@ -71,7 +77,11 @@ class AdminSeatLockController extends Controller
             'bookedSeats',
             'lockedSeats',
             'disabledSeats',
-            'stats'
+            'stats',
+            'prioritySeatIds',
+            'priorityAccess',
+            'onlinePriorityEnabled',
+            'walkInPriorityEnabled'
         ));
     }
 
@@ -103,6 +113,42 @@ class AdminSeatLockController extends Controller
             'message' => $validated['action'] === 'lock'
                 ? 'Seat ' . formatSeatLabel($seatLock->seat_no) . ' was locked successfully.'
                 : 'Seat ' . formatSeatLabel($seatLock->seat_no) . ' was unlocked successfully.',
+        ]);
+    }
+
+    public function priorityAccess(
+        Request $request,
+        Trip $trip,
+        PrioritySeatAccessService $prioritySeatAccessService
+    ) {
+        $validated = $request->validate([
+            'date' => 'required|date',
+            'channel' => 'required|in:online,walk_in',
+            'action' => 'required|in:enable,disable',
+            'reason' => 'required|string|max:1000',
+            'authorization_code' => 'required|string|max:100',
+        ]);
+
+        $enabled = $validated['action'] === 'enable';
+        $prioritySeatAccessService->change(
+            $trip,
+            Carbon::parse($validated['date'])->startOfDay(),
+            $validated['channel'],
+            $enabled,
+            trim($validated['reason']),
+            $validated['authorization_code'],
+            $request->user('admin')
+        );
+
+        $channelLabel = $validated['channel'] === PrioritySeatAccessService::ONLINE
+            ? 'online booking'
+            : 'walk-in booking';
+
+        return response()->json([
+            'success' => true,
+            'message' => $enabled
+                ? "Priority Seats are now available for {$channelLabel} on the selected date."
+                : "Priority Seats are now unavailable for {$channelLabel} on the selected date.",
         ]);
     }
 }

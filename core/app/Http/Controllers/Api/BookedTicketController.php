@@ -78,12 +78,15 @@ class BookedTicketController extends Controller
                 $request->destination_id
             ))
             ->map(fn ($seat) => preg_replace('/^\d+-/', '', (string) $seat));
+        $priorityRestrictedSeats = app(\App\Services\PrioritySeatAccessService::class)
+            ->restrictedSeatIds($trip, $date, true);
         $seatLayout = app(SeatLayoutService::class)->layout($fleetType, [
             'booked' => $bookedSeatLabels
             ->merge($lockedSeatLabels)
             ->unique()
             ->values()
             ->all(),
+            'walk_in_only' => $priorityRestrictedSeats,
         ]);
 
         // 4. Render the same partial used by the passenger and admin seat maps.

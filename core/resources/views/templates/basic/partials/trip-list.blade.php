@@ -20,9 +20,17 @@
                 $requestedPickupId,
                 $requestedDropId,
             );
+            $priorityRestrictedSeatIds = app(App\Services\PrioritySeatAccessService::class)->restrictedSeatIds(
+                $trip,
+                $date_of_journey,
+                (bool) $kiosk_id,
+            );
             $available_seats_ctr = app(App\Services\SeatLayoutService::class)->availableSeatCount(
                 $trip->fleetType,
-                ['booked' => $unavailableSeatIds],
+                [
+                    'booked' => $unavailableSeatIds,
+                    'walk_in_only' => $priorityRestrictedSeatIds,
+                ],
             );
 
             $stoppageArr = $trip->route->stoppages ?? [];

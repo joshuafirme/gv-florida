@@ -494,6 +494,11 @@ class SiteController extends Controller
                 $pickupPoint,
                 $droppingPoint
             ),
+            'walk_in_only' => app(\App\Services\PrioritySeatAccessService::class)->restrictedSeatIds(
+                $trip,
+                $journeyDate,
+                (bool) $request->kiosk_id
+            ),
         ]);
 
         if (auth()->user()) {
@@ -585,14 +590,28 @@ class SiteController extends Controller
         $stoppages = array_map('strval', $stoppages ?? []);
 
         // 3. Determine Travel Direction (Reverse Logic)
-        $trip = Trip::find($request->trip_id);
+        $trip = Trip::with('fleetType')->find($request->trip_id);
+        $prioritySeatIds = [];
+        $priorityRestrictedSeats = [];
         $reverse = false;
+        $journeyDate = $request->date
+            ?: $request->date_of_journey
+            ?: BusinessTime::now()->format('Y-m-d');
 
         if ($trip) {
+            $prioritySeatAccess = app(\App\Services\PrioritySeatAccessService::class);
+            $prioritySeatIds = $trip->fleetType
+                ? $prioritySeatAccess->prioritySeatIds($trip->fleetType)
+                : [];
+            $priorityRestrictedSeats = $prioritySeatAccess->restrictedSeatIds(
+                $trip,
+                $journeyDate,
+                (bool) $request->kiosk_id
+            );
             if ($message = $this->bookingChannelError(
                 $trip,
                 $request->kiosk_id,
-                $request->date ?: $request->date_of_journey
+                $journeyDate
             )) {
                 return response()->json([
                     'error' => $message,
@@ -639,7 +658,9 @@ class SiteController extends Controller
             'reqDestination' => (string) $request->destination_id,
             'reverse' => $reverse,
             'stoppages' => $stoppages,
-            'price' => $price
+            'price' => $price,
+            'prioritySeatIds' => $prioritySeatIds,
+            'priorityRestrictedSeats' => $priorityRestrictedSeats,
         ]);
     }
 
@@ -687,6 +708,22 @@ class SiteController extends Controller
             return response()->json([
                 'available' => false,
                 'message' => 'Select the pickup and dropping points in the correct trip order.',
+            ], 422);
+        }
+
+        $priorityRestrictedSeats = app(\App\Services\PrioritySeatAccessService::class)->restrictedSeatIds(
+            $trip,
+            $request->date_of_journey,
+            (bool) $request->kiosk_id
+        );
+        $selectedPrioritySeats = array_values(array_intersect($seats, $priorityRestrictedSeats));
+        if ($selectedPrioritySeats) {
+            return response()->json([
+                'available' => false,
+                'conflicting_seats' => $selectedPrioritySeats,
+                'message' => $request->kiosk_id
+                    ? 'Priority Seats are currently unavailable for walk-in booking.'
+                    : 'Priority Seats are reserved for walk-in passengers.',
             ], 422);
         }
 
@@ -820,6 +857,20 @@ class SiteController extends Controller
                 return redirect()->back()->withNotify($notify);
             }
 
+            $priorityRestrictedSeats = app(\App\Services\PrioritySeatAccessService::class)->restrictedSeatIds(
+                $lockedTrip,
+                $request->date_of_journey,
+                (bool) $request->kiosk_id
+            );
+            $selectedPrioritySeats = array_values(array_intersect($seats, $priorityRestrictedSeats));
+            if ($selectedPrioritySeats) {
+                DB::rollBack();
+                $notify[] = ['error', $request->kiosk_id
+                    ? 'Priority Seats are currently unavailable for walk-in booking.'
+                    : 'Priority Seats are reserved for walk-in passengers.'];
+                return redirect()->back()->withInput()->withNotify($notify);
+            }
+
             $unavailableSeats = array_values(array_intersect(
                 $seats,
                 $seatConflicts->unavailableSeats(
@@ -875,8 +926,18 @@ class SiteController extends Controller
         $now = BusinessTime::now();
         $request = request();
         $cutoffMinutes = getBookingCutoffMinutes($request->kiosk_id);
+        $journeyDate = BusinessTime::parse(
+            $request->date_of_journey ?: BusinessTime::now()
+        )->format('Y-m-d');
 
-        $query = Trip::with(['fleetType', 'route', 'schedule', 'startFrom', 'endTo'])
+        $query = Trip::with([
+            'fleetType',
+            'route',
+            'schedule',
+            'startFrom',
+            'endTo',
+            'prioritySeatAccesses' => fn ($access) => $access->whereDate('journey_date', $journeyDate),
+        ])
             ->withMin('schedule as earliest_start', 'start_from')
             ->forBookingChannel($request->kiosk_id, $request->date_of_journey)
             ->whereHas('schedule', function ($q) use ($now, $request, $cutoffMinutes) {

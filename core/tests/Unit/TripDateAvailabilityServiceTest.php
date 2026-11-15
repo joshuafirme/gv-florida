@@ -65,6 +65,18 @@ class TripDateAvailabilityServiceTest extends TestCase
             $table->boolean('is_enabled');
             $table->timestamps();
         });
+        Schema::create('trip_priority_seat_accesses', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('trip_id');
+            $table->date('journey_date');
+            $table->boolean('online_enabled')->default(false);
+            $table->boolean('walk_in_enabled')->default(false);
+            $table->text('reason')->nullable();
+            $table->unsignedBigInteger('updated_by_admin_id')->nullable();
+            $table->unsignedBigInteger('authorized_by_admin_id')->nullable();
+            $table->timestamp('authorized_at')->nullable();
+            $table->timestamps();
+        });
         Schema::create('booked_tickets', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('trip_id');
@@ -112,7 +124,7 @@ class TripDateAvailabilityServiceTest extends TestCase
                 'id' => 1,
                 'name' => 'Test Bus',
                 'seat_layout' => '1x1',
-                'deck_seats' => json_encode([2]),
+                'deck_seats' => json_encode([3]),
                 'last_row' => json_encode([0]),
                 'prefixes' => json_encode(['']),
                 'disabled_seats' => json_encode([]),
@@ -136,7 +148,7 @@ class TripDateAvailabilityServiceTest extends TestCase
                 'date_of_journey' => '2026-10-22',
                 'pickup_point' => 1,
                 'dropping_point' => 2,
-                'seats' => json_encode(['1-1', '1-2']),
+                'seats' => json_encode(['1-1', '1-2', '1-3']),
                 'status' => Status::BOOKED_APPROVED,
             ]);
             DB::table('trip_channel_availabilities')->insert([

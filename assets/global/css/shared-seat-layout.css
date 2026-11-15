@@ -96,7 +96,7 @@
     width: var(--seat-cell-width);
 }
 
-.shared-seat-layout .seat-wrapper .seat > span {
+.shared-seat-layout .seat-wrapper .seat > span:not(.seat-channel-label) {
     border: 1px solid currentColor;
     border-radius: 2px;
     bottom: 5px;
@@ -125,12 +125,38 @@
     content: none !important;
 }
 
+.shared-seat-layout .seat-wrapper .seat .seat-channel-label {
+    background: #8a5c00;
+    border-radius: 3px;
+    color: #fff;
+    display: block;
+    font-size: 5px;
+    font-weight: 800;
+    left: 50%;
+    line-height: 1;
+    padding: 2px 3px;
+    position: absolute;
+    text-transform: uppercase;
+    top: calc(100% + 2px);
+    transform: translateX(-50%);
+    white-space: nowrap;
+    z-index: 3;
+}
+
 .shared-seat-layout .seat-layout-cell.disabled .seat,
 .shared-seat-layout .seat-layout-cell.is-booked .seat,
 .shared-seat-layout .seat-layout-cell.is-booked .seat.selected {
     background: #5142b8;
     border-color: #5142b8;
     color: #fff;
+    cursor: not-allowed;
+}
+
+.shared-seat-layout .seat-layout-cell.is-walk-in-only .seat,
+.shared-seat-layout .seat-layout-cell.is-walk-in-only .seat.selected {
+    background: #fff4d6;
+    border-color: #d99a24;
+    color: #725000;
     cursor: not-allowed;
 }
 
