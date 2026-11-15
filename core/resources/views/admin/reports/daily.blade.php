@@ -310,9 +310,11 @@
                                 <td><strong>{{ $transaction->trip_class ?: '-' }}</strong><br><small>{{ $transaction->trip_route ?: '-' }}</small></td>
                                 <td>{{ $seat ?: '-' }}</td>
                                 <td><strong class="daily-data--km-post">{{ $transaction->km_post ? 'KM ' . $transaction->km_post : '-' }}</strong><br><small>{{ $transaction->drop_off ?: '' }}</small></td>
-                                <td>{{ $transaction->payment_method ?: '-' }}</td>
+                                <td>{{ $transaction->hasReportPaymentMovement() ? ($transaction->payment_method ?: '-') : '' }}</td>
                                 <td class="text-end daily-total {{ $transaction->amount < 0 ? 'daily-negative' : '' }}">
-                                    <strong class="daily-data--amount">{{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}</strong>
+                                    @if ($transaction->hasReportPaymentMovement())
+                                        <strong class="daily-data--amount">{{ $transaction->amount < 0 ? '-' : '' }}{{ showAmount(abs($transaction->amount)) }}</strong>
+                                    @endif
                                 </td>
                                 <td class="text-end daily-total {{ $adjustmentAmount > 0 ? 'daily-negative' : '' }}">
                                     {{ $adjustmentAmount > 0 ? '-' . showAmount($adjustmentAmount) : '-' }}

@@ -129,10 +129,12 @@
                                     @endif
                                 </td>
                                 <td class="text-end payment-details-cell">
-                                    <strong class="amount-cell {{ $amount < 0 ? 'shift-negative' : '' }}">
-                                        {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
-                                    </strong>
-                                    <small>{{ $transaction->payment_method ?: '-' }}</small>
+                                    @if ($transaction->hasReportPaymentMovement())
+                                        <strong class="amount-cell {{ $amount < 0 ? 'shift-negative' : '' }}">
+                                            {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
+                                        </strong>
+                                        <small>{{ $transaction->payment_method ?: '-' }}</small>
+                                    @endif
                                 </td>
                                 <td class="text-end {{ $adjustmentAmount > 0 ? 'shift-negative' : '' }}">
                                     {{ $adjustmentAmount > 0 ? '-' . showAmount($adjustmentAmount) : '-' }}

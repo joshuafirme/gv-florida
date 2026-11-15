@@ -295,10 +295,12 @@
                         @endif
                     </td>
                     <td class="right payment-details">
-                        <strong class="amount {{ $amount < 0 ? 'negative' : '' }}">
-                            {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
-                        </strong>
-                        <span class="sub">{{ $transaction->payment_method ?: '-' }}</span>
+                        @if ($transaction->hasReportPaymentMovement())
+                            <strong class="amount {{ $amount < 0 ? 'negative' : '' }}">
+                                {{ $amount < 0 ? '-' : '' }}{{ showAmount(abs($amount)) }}
+                            </strong>
+                            <span class="sub">{{ $transaction->payment_method ?: '-' }}</span>
+                        @endif
                     </td>
                     <td class="right {{ $adjustmentAmount > 0 ? 'negative' : '' }}">
                         {{ $adjustmentAmount > 0 ? '-' . showAmount($adjustmentAmount) : '-' }}
