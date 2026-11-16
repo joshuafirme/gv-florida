@@ -1,10 +1,10 @@
 <?php
 
 namespace App\Notify;
-use App\Models\BookedTicket;
 use App\Notify\NotifyProcess;
 use App\Notify\Notifiable;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\File;
 use Mailjet\Client;
 use Mailjet\Resources;
 use PHPMailer\PHPMailer\Exception;
@@ -110,17 +110,12 @@ class Email extends NotifyProcess implements Notifiable
 		$mail->addReplyTo($this->getEmailFrom()['email'], $this->getEmailFrom()['name']);
 
 		if ($this->hasFile) {
-			// dd($this->ticket->pnr_number);
 			try {
-				$pdf = Pdf::loadView('templates.basic.user.print_ticket', ['ticket' => $this->ticket]);
+				$pdf = $this->ticketVoucherPdf();
 				$pdfContent = $pdf->output();
 				$mail->addStringAttachment($pdfContent, "{$this->ticket->pnr_number}.pdf", 'base64', 'application/pdf');
-			} catch (\Exception $e) {
-
-				// $response = "Message: " . $e->getMessage() . "<br>" .
-				// 	"File: " . $e->getFile() . "<br>" .
-				// 	"Line: " . $e->getLine() . "<br>";
-				// dd($response);
+			} catch (\Throwable $e) {
+				report($e);
 			}
 		}
 
@@ -191,6 +186,79 @@ class Email extends NotifyProcess implements Notifiable
 		return [
 			'email' => $this->sentFrom,
 			'name' => $this->replaceTemplateShortCode($this->template->email_sent_from_name ?? gs('site_name')),
+		];
+	}
+
+	private function ticketVoucherPdf()
+	{
+		$isKioskBooking = $this->ticket->isKioskBooking();
+		$this->ticket->loadMissing([
+			'trip.fleetType',
+			'trip.startFrom',
+			'trip.endTo',
+			'trip.schedule',
+			'trip.route',
+			'pickup',
+			'drop',
+			'user',
+			'deposit.gateway',
+			'deposit.userDiscount',
+			'paymentSourceDeposit.gateway',
+			'paymentSourceDeposit.userDiscount',
+		]);
+		$this->ticket->useCanonicalPaymentRecord();
+
+		$view = $isKioskBooking
+			? 'templates.basic.user.print_ticket'
+			: 'templates.basic.user.print_ticket_online';
+		$pdf = ($isKioskBooking
+			? Pdf::setOptions(['isRemoteEnabled' => true])
+			: Pdf::setOptions($this->onlineTicketPdfOptions(), true)
+		)->loadView($view, [
+			'ticket' => $this->ticket,
+			'pageTitle' => 'Ticket Print',
+			'renderForPdf' => true,
+		]);
+
+		if ($isKioskBooking) {
+			return $pdf->setPaper([0, 0, 144, 600], 'portrait');
+		}
+
+		$this->registerOnlineTicketFonts($pdf);
+
+		return $pdf->setPaper('A4', 'portrait');
+	}
+
+	private function registerOnlineTicketFonts($pdf): void
+	{
+		$fontMetrics = $pdf->getDomPDF()->getFontMetrics();
+		$fontDirectory = public_path('assets/fonts/montserrat');
+
+		foreach ([
+			['file' => 'Montserrat-Regular.ttf', 'weight' => 400],
+			['file' => 'Montserrat-SemiBold.ttf', 'weight' => 600],
+			['file' => 'Montserrat-Bold.ttf', 'weight' => 700],
+			['file' => 'Montserrat-ExtraBold.ttf', 'weight' => 800],
+		] as $font) {
+			$fontMetrics->registerFont([
+				'family' => 'Montserrat',
+				'style' => 'normal',
+				'weight' => $font['weight'],
+			], 'file://' . str_replace('\\', '/', $fontDirectory . '/' . $font['file']));
+		}
+	}
+
+	private function onlineTicketPdfOptions(): array
+	{
+		$fontCache = storage_path('fonts');
+		File::ensureDirectoryExists($fontCache);
+
+		return [
+			'isRemoteEnabled' => true,
+			'defaultMediaType' => 'print',
+			'fontDir' => $fontCache,
+			'fontCache' => $fontCache,
+			'chroot' => [base_path(), public_path()],
 		];
 	}
 }

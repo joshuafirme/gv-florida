@@ -30,6 +30,8 @@ class OnlineVoucherLayoutTest extends TestCase
         $this->assertStringContainsString('Scan for terminal validation', $view);
         $this->assertStringContainsString('Departure Date', $view);
         $this->assertStringContainsString('Departure Time', $view);
+        $this->assertStringNotContainsString('Trip / Bus No.', $view);
+        $this->assertStringNotContainsString('$vehicleNumber', $view);
         $this->assertStringContainsString('Passenger &amp; Seat Details', $view);
         $this->assertStringContainsString('Transaction Reference', $view);
         $this->assertStringContainsString('@page { size: A4 portrait; margin: 9mm; }', $view);
@@ -47,5 +49,17 @@ class OnlineVoucherLayoutTest extends TestCase
         $this->assertStringContainsString('@unless ($renderForPdf)', $view);
         $this->assertStringContainsString("'PHP ' . number_format", $view);
         $this->assertStringNotContainsString('showAmount($totalPaid)', $view);
+    }
+
+    public function test_online_email_attachment_uses_the_new_voucher_template(): void
+    {
+        $email = file_get_contents(app_path('Notify/Email.php'));
+
+        $this->assertStringContainsString("'templates.basic.user.print_ticket_online'", $email);
+        $this->assertStringContainsString("'templates.basic.user.print_ticket'", $email);
+        $this->assertStringContainsString('$this->ticket->isKioskBooking()', $email);
+        $this->assertStringContainsString("'renderForPdf' => true", $email);
+        $this->assertStringContainsString("setPaper('A4', 'portrait')", $email);
+        $this->assertStringContainsString("'family' => 'Montserrat'", $email);
     }
 }

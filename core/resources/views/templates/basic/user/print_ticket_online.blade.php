@@ -53,12 +53,6 @@
         $paymentMethod = getPaynamicsPChannel($payment->pchannel, true) ?: $gatewayName;
     }
     $paymentMethod = $paymentMethod ?: 'Online Payment';
-    $vehicle = $ticket->trip?->assignedVehicle?->vehicle;
-    $vehicleNumber = collect([$vehicle?->bus_no, $vehicle?->register_no, $vehicle?->nick_name])
-        ->map(fn ($value) => trim((string) $value))
-        ->filter()
-        ->unique()
-        ->implode(' / ');
     $pickupCity = trim((string) ($ticket->pickup?->city ?? ''));
     $dropCity = trim((string) ($ticket->drop?->city ?? ''));
     $showPickupCity = $pickupCity !== '' && strcasecmp($pickupCity, (string) $ticket->pickup?->name) !== 0;
@@ -211,6 +205,7 @@
         .detail-item { display: table-cell; padding: 2px 12px 8px 0; vertical-align: top; width: 25%; }
         .detail-item:last-child { padding-right: 0; }
         .detail-item--wide { width: 50%; }
+        .detail-item--full { width: 100%; }
         .detail-label { color: #8994a6; font-size: 7px; font-weight: 700; text-transform: uppercase; }
         .detail-value { color: #111827; font-size: 12px; font-weight: 800; margin-top: 2px; }
         .detail-value--primary { color: #bd155f; font-size: 14px; }
@@ -406,13 +401,9 @@
                 <div class="detail-divider"></div>
                 <div class="detail-grid">
                     <div class="detail-row">
-                        <div class="detail-item detail-item--wide">
+                        <div class="detail-item detail-item--full">
                             <div class="detail-label">Bus Class</div>
                             <div class="detail-value">{{ $ticket->trip?->fleetType?->name ?: $ticket->trip?->class ?: '-' }}</div>
-                        </div>
-                        <div class="detail-item detail-item--wide">
-                            <div class="detail-label">Trip / Bus No.</div>
-                            <div class="detail-value">{{ $vehicleNumber ?: ($ticket->trip?->route?->name ?: $ticket->trip?->title ?: '-') }}</div>
                         </div>
                     </div>
                 </div>
