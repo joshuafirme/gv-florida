@@ -413,7 +413,10 @@ class PaymentController extends Controller
         $deposit->btc_amount = 0;
         $deposit->btc_wallet = "";
         $deposit->status = Status::PAYMENT_INITIATE;
-        $deposit->expiry_limit = $this->pendingPaymentExpiration->expiresAt($expirationStartsAt);
+        $deposit->expiry_limit = $this->pendingPaymentExpiration->expiresAt(
+            $expirationStartsAt,
+            $isKioskBooking
+        );
         $deposit->success_url = route('user.deposit.done');
         $deposit->failed_url = urlPath('ticket');
         $deposit->final_amount = $finalAmount;
@@ -483,7 +486,10 @@ class PaymentController extends Controller
             ? Carbon::parse($deposit->expiry_limit)
             : ($isPaynamicsPayment
                 ? Paynamics::expiresAt($ticket->isKioskBooking(), $deposit->created_at)
-                : $this->pendingPaymentExpiration->expiresAt($deposit->created_at));
+                : $this->pendingPaymentExpiration->expiresAt(
+                    $deposit->created_at,
+                    $ticket->isKioskBooking()
+                ));
 
         if ($ticket->isKioskBooking()) {
             $layout = 'layouts.kiosk';

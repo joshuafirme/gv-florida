@@ -128,11 +128,21 @@
                         </div>
                     </div>
                 @else
+                    @php
+                        $remainingPaymentSeconds = max($expiresAt->getTimestamp() - now()->getTimestamp(), 0);
+                        $remainingPaymentMinutes = intdiv($remainingPaymentSeconds, 60);
+                        $remainingPaymentSecondsPart = str_pad(
+                            (string) ($remainingPaymentSeconds % 60),
+                            2,
+                            '0',
+                            STR_PAD_LEFT
+                        );
+                    @endphp
                     <div class="payment-window">
                         <strong>
                             <i class="las la-clock"></i>
                             {{ $isPaynamicsPayment ? 'Complete payment within' : 'Pay within' }}
-                            <span id="payCountdown" data-expires-at="{{ $expiresAt->toIso8601String() }}">15 mins 00 secs</span>
+                            <span id="payCountdown" data-expires-at="{{ $expiresAt->toIso8601String() }}">{{ $remainingPaymentMinutes }} mins {{ $remainingPaymentSecondsPart }} secs</span>
                         </strong>
                         <span>Valid until {{ showDateTime($expiresAt, 'M j, Y, g:i A') }} &middot; the seat is released if unpaid by then.</span>
                     </div>

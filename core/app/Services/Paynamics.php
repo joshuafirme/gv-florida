@@ -8,7 +8,6 @@ use Storage;
 
 class Paynamics
 {
-    public const KIOSK_EXPIRATION_MINUTES = 15;
     public const ONLINE_EXPIRATION_MINUTES = 30;
 
     public $user;
@@ -21,7 +20,7 @@ class Paynamics
     public static function expirationMinutes(bool $isKioskBooking): int
     {
         return $isKioskBooking
-            ? self::KIOSK_EXPIRATION_MINUTES
+            ? PendingPaymentExpirationService::expirationMinutes()
             : self::ONLINE_EXPIRATION_MINUTES;
     }
 

@@ -26,6 +26,7 @@ class PendingSeatExpirationTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('trip_id')->nullable();
             $table->unsignedBigInteger('pickup_point')->nullable();
+            $table->unsignedBigInteger('kiosk_id')->nullable();
             $table->date('date_of_journey')->nullable();
             $table->unsignedTinyInteger('status')->default(Status::BOOKED_PENDING);
             $table->text('seats')->nullable();
@@ -72,6 +73,23 @@ class PendingSeatExpirationTest extends TestCase
         $this->assertFalse(
             BookedTicket::query()->holdingSeats($now)->whereKey($ticketId)->exists()
         );
+    }
+
+    public function test_legacy_seat_holds_use_the_kiosk_expiration_only_for_kiosk_bookings(): void
+    {
+        config()->set('booking.kiosk_pending_payment_expiry_minutes', 5);
+        $now = CarbonImmutable::parse('2026-09-10 10:20:00');
+        $kioskTicketId = $this->insertPendingTicket($now->subMinutes(6), 1);
+        $onlineTicketId = $this->insertPendingTicket($now->subMinutes(10));
+
+        $heldTicketIds = BookedTicket::query()
+            ->holdingSeats($now)
+            ->orderBy('id')
+            ->pluck('id')
+            ->all();
+
+        $this->assertNotContains($kioskTicketId, $heldTicketIds);
+        $this->assertContains($onlineTicketId, $heldTicketIds);
     }
 
     public function test_expiration_updates_payment_and_ticket_and_broadcasts_release(): void
@@ -174,11 +192,12 @@ class PendingSeatExpirationTest extends TestCase
         );
     }
 
-    private function insertPendingTicket(CarbonImmutable $createdAt): int
+    private function insertPendingTicket(CarbonImmutable $createdAt, ?int $kioskId = null): int
     {
         return DB::table('booked_tickets')->insertGetId([
             'trip_id' => 8,
             'pickup_point' => 1,
+            'kiosk_id' => $kioskId,
             'date_of_journey' => '2026-09-12',
             'status' => Status::BOOKED_PENDING,
             'seats' => json_encode(['D1']),

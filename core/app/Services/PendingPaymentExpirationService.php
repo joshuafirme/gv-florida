@@ -10,23 +10,44 @@ use Illuminate\Support\Facades\DB;
 
 class PendingPaymentExpirationService
 {
-    public const EXPIRATION_MINUTES = 15;
+    public const DEFAULT_EXPIRATION_MINUTES = 15;
+
+    public static function expirationMinutes(bool $isKioskBooking = true): int
+    {
+        if (!$isKioskBooking) {
+            return self::DEFAULT_EXPIRATION_MINUTES;
+        }
+
+        return max(
+            (int) config(
+                'booking.kiosk_pending_payment_expiry_minutes',
+                self::DEFAULT_EXPIRATION_MINUTES
+            ),
+            1
+        );
+    }
 
     public function __construct(
         private readonly ?PaynamicsPaymentBroadcaster $paymentBroadcaster = null
     ) {
     }
 
-    public function expiresAt(CarbonInterface $createdAt): CarbonImmutable
+    public function expiresAt(
+        CarbonInterface $createdAt,
+        bool $isKioskBooking = true
+    ): CarbonImmutable
     {
         return CarbonImmutable::instance($createdAt)
-            ->addMinutes(self::EXPIRATION_MINUTES);
+            ->addMinutes(self::expirationMinutes($isKioskBooking));
     }
 
     public function expireDue(?CarbonInterface $now = null): int
     {
         $currentTime = $now ? CarbonImmutable::instance($now) : CarbonImmutable::now();
-        $legacyCutoff = $currentTime->subMinutes(self::EXPIRATION_MINUTES);
+        $legacyCutoff = $currentTime->subMinutes(min(
+            self::expirationMinutes(),
+            self::DEFAULT_EXPIRATION_MINUTES
+        ));
         $expiredCount = 0;
 
         Deposit::query()
@@ -116,7 +137,10 @@ class PendingPaymentExpirationService
             }
         }
 
-        return $this->expiresAt($deposit->created_at);
+        return $this->expiresAt(
+            $deposit->created_at,
+            $deposit->bookedTicket?->isKioskBooking() ?? true
+        );
     }
 
     private function hasActiveProcessingLease(Deposit $deposit, CarbonInterface $now): bool

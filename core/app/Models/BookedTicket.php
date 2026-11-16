@@ -251,42 +251,95 @@ class BookedTicket extends Model
     public function scopeHoldingSeats(Builder $query, ?CarbonInterface $at = null): Builder
     {
         $currentTime = $at ? CarbonImmutable::instance($at) : CarbonImmutable::now();
-        $legacyCutoff = $currentTime
-            ->subMinutes(\App\Services\PendingPaymentExpirationService::EXPIRATION_MINUTES)
+        $kioskLegacyCutoff = $currentTime
+            ->subMinutes(\App\Services\PendingPaymentExpirationService::expirationMinutes(true))
+            ->format('Y-m-d H:i:s');
+        $defaultLegacyCutoff = $currentTime
+            ->subMinutes(\App\Services\PendingPaymentExpirationService::expirationMinutes(false))
             ->format('Y-m-d H:i:s');
         $currentTimestamp = $currentTime->format('Y-m-d H:i:s');
 
-        return $query->where(function (Builder $statusQuery) use ($currentTimestamp, $legacyCutoff) {
+        return $query->where(function (Builder $statusQuery) use (
+            $currentTimestamp,
+            $kioskLegacyCutoff,
+            $defaultLegacyCutoff
+        ) {
             $statusQuery->where('status', Status::BOOKED_APPROVED)
-                ->orWhere(function (Builder $pendingQuery) use ($currentTimestamp, $legacyCutoff) {
+                ->orWhere(function (Builder $pendingQuery) use (
+                    $currentTimestamp,
+                    $kioskLegacyCutoff,
+                    $defaultLegacyCutoff
+                ) {
                     $pendingQuery->where('status', Status::BOOKED_PENDING)
-                        ->where(function (Builder $activeQuery) use ($currentTimestamp, $legacyCutoff) {
-                            $activeQuery->where(function (Builder $withoutDeposit) use ($legacyCutoff) {
+                        ->where(function (Builder $activeQuery) use (
+                            $currentTimestamp,
+                            $kioskLegacyCutoff,
+                            $defaultLegacyCutoff
+                        ) {
+                            $activeQuery->where(function (Builder $withoutDeposit) use (
+                                $kioskLegacyCutoff,
+                                $defaultLegacyCutoff
+                            ) {
                                 $withoutDeposit->whereDoesntHave('deposit')
-                                    ->where('created_at', '>', $legacyCutoff);
+                                    ->where(function (Builder $bookingExpiry) use (
+                                        $kioskLegacyCutoff,
+                                        $defaultLegacyCutoff
+                                    ) {
+                                        $bookingExpiry->where(function (Builder $kioskBooking) use ($kioskLegacyCutoff) {
+                                            $kioskBooking->where('kiosk_id', '>', 0)
+                                                ->where('created_at', '>', $kioskLegacyCutoff);
+                                        })->orWhere(function (Builder $otherBooking) use ($defaultLegacyCutoff) {
+                                            $otherBooking->where(function (Builder $source) {
+                                                $source->whereNull('kiosk_id')
+                                                    ->orWhere('kiosk_id', '<=', 0);
+                                            })->where('created_at', '>', $defaultLegacyCutoff);
+                                        });
+                                    });
                             })->orWhereHas('deposit', function (Builder $depositQuery) use (
                                 $currentTimestamp,
-                                $legacyCutoff
+                                $kioskLegacyCutoff,
+                                $defaultLegacyCutoff
                             ) {
                                 $depositQuery
                                     ->whereIn('status', [Status::PAYMENT_INITIATE, Status::PAYMENT_PENDING])
                                     ->where(function (Builder $expirationQuery) use (
                                         $currentTimestamp,
-                                        $legacyCutoff
+                                        $kioskLegacyCutoff,
+                                        $defaultLegacyCutoff
                                     ) {
                                         $expirationQuery->where('processing_lease_expires_at', '>', $currentTimestamp)
-                                            ->orWhere(function (Builder $voucherExpiry) use ($currentTimestamp, $legacyCutoff) {
+                                            ->orWhere(function (Builder $voucherExpiry) use (
+                                                $currentTimestamp,
+                                                $kioskLegacyCutoff,
+                                                $defaultLegacyCutoff
+                                            ) {
                                                 $voucherExpiry->where(function (Builder $configuredExpiry) use (
                                                     $currentTimestamp
                                                 ) {
                                                     $configuredExpiry->whereNotNull('expiry_limit')
                                                         ->where('expiry_limit', '!=', '')
                                                         ->where('expiry_limit', '>', $currentTimestamp);
-                                                })->orWhere(function (Builder $legacyExpiry) use ($legacyCutoff) {
+                                                })->orWhere(function (Builder $legacyExpiry) use (
+                                                    $kioskLegacyCutoff,
+                                                    $defaultLegacyCutoff
+                                                ) {
                                                     $legacyExpiry->where(function (Builder $missingExpiry) {
                                                         $missingExpiry->whereNull('expiry_limit')
                                                             ->orWhere('expiry_limit', '');
-                                                    })->where('created_at', '>', $legacyCutoff);
+                                                    })->where(function (Builder $sourceExpiry) use (
+                                                        $kioskLegacyCutoff,
+                                                        $defaultLegacyCutoff
+                                                    ) {
+                                                        $sourceExpiry->where(function (Builder $kioskBooking) use ($kioskLegacyCutoff) {
+                                                            $kioskBooking->where('booked_tickets.kiosk_id', '>', 0)
+                                                                ->where('deposits.created_at', '>', $kioskLegacyCutoff);
+                                                        })->orWhere(function (Builder $otherBooking) use ($defaultLegacyCutoff) {
+                                                            $otherBooking->where(function (Builder $source) {
+                                                                $source->whereNull('booked_tickets.kiosk_id')
+                                                                    ->orWhere('booked_tickets.kiosk_id', '<=', 0);
+                                                            })->where('deposits.created_at', '>', $defaultLegacyCutoff);
+                                                        });
+                                                    });
                                                 });
                                             });
                                     });

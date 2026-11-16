@@ -80,6 +80,7 @@ class TripDateAvailabilityServiceTest extends TestCase
         Schema::create('booked_tickets', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('trip_id');
+            $table->unsignedBigInteger('kiosk_id')->nullable();
             $table->date('date_of_journey');
             $table->unsignedBigInteger('pickup_point');
             $table->unsignedBigInteger('dropping_point');
