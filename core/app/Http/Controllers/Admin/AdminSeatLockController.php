@@ -66,8 +66,8 @@ class AdminSeatLockController extends Controller
         ];
         $prioritySeatIds = $prioritySeatAccessService->prioritySeatIds($trip->fleetType);
         $priorityAccess = $prioritySeatAccessService->accessFor($trip, $date);
-        $onlinePriorityEnabled = (bool) $priorityAccess?->online_enabled;
-        $walkInPriorityEnabled = (bool) $priorityAccess?->walk_in_enabled;
+        $onlinePriorityEnabled = $prioritySeatAccessService->onlineEnabled($trip, $date);
+        $walkInPriorityEnabled = $prioritySeatAccessService->walkInEnabled($trip, $date);
 
         return view('admin.trip.seat-locks', compact(
             'pageTitle',

@@ -25,28 +25,26 @@ class PrioritySeatAccessServiceTest extends TestCase
         );
     }
 
-    public function test_walk_in_priority_seats_default_to_unavailable(): void
+    public function test_walk_in_priority_seats_default_to_available(): void
     {
         [$service, $trip] = $this->serviceAndTrip();
 
-        $this->assertSame(
-            $service->prioritySeatIds($trip->fleetType),
-            $service->restrictedSeatIds($trip, '2026-11-15', true)
-        );
+        $this->assertTrue($service->walkInEnabled($trip, '2026-11-15'));
+        $this->assertSame([], $service->restrictedSeatIds($trip, '2026-11-15', true));
     }
 
-    public function test_authorized_date_setting_releases_priority_seats_for_walk_in_only(): void
+    public function test_explicit_date_setting_can_disable_priority_seats_for_walk_in_only(): void
     {
         [$service, $trip] = $this->serviceAndTrip();
         $access = new TripPrioritySeatAccess();
         $access->setDateFormat('Y-m-d H:i:s');
         $access->journey_date = Carbon::parse('2026-11-15');
-        $access->walk_in_enabled = true;
+        $access->walk_in_enabled = false;
         $trip->setRelation('prioritySeatAccesses', collect([$access]));
 
-        $this->assertSame([], $service->restrictedSeatIds($trip, '2026-11-15', true));
+        $this->assertNotEmpty($service->restrictedSeatIds($trip, '2026-11-15', true));
         $this->assertNotEmpty($service->restrictedSeatIds($trip, '2026-11-15', false));
-        $this->assertNotEmpty($service->restrictedSeatIds($trip, '2026-11-16', true));
+        $this->assertSame([], $service->restrictedSeatIds($trip, '2026-11-16', true));
     }
 
     public function test_online_and_walk_in_access_are_controlled_independently(): void

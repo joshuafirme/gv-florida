@@ -54,7 +54,9 @@ class PrioritySeatAccessService
 
     public function walkInEnabled(Trip $trip, Carbon|string $journeyDate): bool
     {
-        return (bool) $this->accessFor($trip, $journeyDate)?->walk_in_enabled;
+        $access = $this->accessFor($trip, $journeyDate);
+
+        return $access ? (bool) $access->walk_in_enabled : true;
     }
 
     public function onlineEnabled(Trip $trip, Carbon|string $journeyDate): bool
@@ -132,7 +134,7 @@ class PrioritySeatAccessService
             $access->journey_date = $journeyDate->format('Y-m-d');
             if (!$access->exists) {
                 $access->online_enabled = false;
-                $access->walk_in_enabled = false;
+                $access->walk_in_enabled = true;
             }
             $access->{$channel === self::ONLINE ? 'online_enabled' : 'walk_in_enabled'} = $enabled;
             $access->reason = $reason;

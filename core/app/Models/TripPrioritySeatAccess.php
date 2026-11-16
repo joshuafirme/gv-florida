@@ -8,6 +8,11 @@ class TripPrioritySeatAccess extends Model
 {
     protected $guarded = ['id'];
 
+    protected $attributes = [
+        'online_enabled' => false,
+        'walk_in_enabled' => true,
+    ];
+
     protected $casts = [
         'journey_date' => 'date',
         'online_enabled' => 'boolean',

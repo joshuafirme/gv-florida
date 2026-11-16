@@ -49,7 +49,7 @@ class PrioritySeatAccessPersistenceTest extends TestCase
             $table->unsignedBigInteger('trip_id');
             $table->date('journey_date');
             $table->boolean('online_enabled')->default(false);
-            $table->boolean('walk_in_enabled')->default(false);
+            $table->boolean('walk_in_enabled')->default(true);
             $table->text('reason');
             $table->unsignedBigInteger('updated_by_admin_id')->nullable();
             $table->unsignedBigInteger('authorized_by_admin_id')->nullable();
@@ -131,7 +131,7 @@ class PrioritySeatAccessPersistenceTest extends TestCase
         $this->assertSame(22, $event->snapshot['authorized_by_admin_id']);
     }
 
-    public function test_authorized_online_access_can_be_enabled_without_enabling_walk_in(): void
+    public function test_authorized_online_access_preserves_default_walk_in_access(): void
     {
         $trip = $this->createTrip();
         $performedBy = (new Admin())->forceFill(['id' => 11, 'name' => 'Dispatcher']);
@@ -167,12 +167,13 @@ class PrioritySeatAccessPersistenceTest extends TestCase
         );
 
         $this->assertTrue($record->online_enabled);
-        $this->assertFalse($record->walk_in_enabled);
+        $this->assertTrue($record->walk_in_enabled);
         $this->assertSame(
             [],
             app(PrioritySeatAccessService::class)->restrictedSeatIds($trip, '2026-11-15', false)
         );
-        $this->assertNotEmpty(
+        $this->assertSame(
+            [],
             app(PrioritySeatAccessService::class)->restrictedSeatIds($trip, '2026-11-15', true)
         );
 

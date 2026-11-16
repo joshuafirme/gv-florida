@@ -70,7 +70,7 @@ class TripDateAvailabilityServiceTest extends TestCase
             $table->unsignedBigInteger('trip_id');
             $table->date('journey_date');
             $table->boolean('online_enabled')->default(false);
-            $table->boolean('walk_in_enabled')->default(false);
+            $table->boolean('walk_in_enabled')->default(true);
             $table->text('reason')->nullable();
             $table->unsignedBigInteger('updated_by_admin_id')->nullable();
             $table->unsignedBigInteger('authorized_by_admin_id')->nullable();
