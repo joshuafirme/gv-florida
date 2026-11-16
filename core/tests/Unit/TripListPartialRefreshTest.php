@@ -111,4 +111,21 @@ class TripListPartialRefreshTest extends TestCase
         $this->assertStringContainsString("seatNode.attr('aria-disabled', 'false')", $bookingView);
         $this->assertStringContainsString('response.priorityRestrictedSeats || []', $bookingView);
     }
+
+    public function test_kiosk_origin_is_static_and_enforced_throughout_booking(): void
+    {
+        $ticketView = file_get_contents(resource_path('views/templates/basic/ticket.blade.php'));
+        $controller = file_get_contents(app_path('Http/Controllers/SiteController.php'));
+
+        $this->assertStringContainsString('journey-point-selector__origin-static', $ticketView);
+        $this->assertStringContainsString('name="pickup" id="ticket-pickup"', $ticketView);
+        $this->assertStringContainsString("filter('select')", $ticketView);
+        $this->assertStringContainsString("enforceKioskOrigin(\$request, ['pickup', 'counter_id'])", $controller);
+        $this->assertStringContainsString("enforceKioskOrigin(\$request, ['pickup', 'start_from', 'counter_id'])", $controller);
+        $this->assertStringContainsString("enforceKioskOrigin(\$request, ['source_id', 'pickup_point'])", $controller);
+        $this->assertSame(2, substr_count(
+            $controller,
+            "enforceKioskOrigin(\$request, ['pickup_point'])"
+        ));
+    }
 }

@@ -996,6 +996,30 @@
             white-space: nowrap;
         }
 
+        .journey-point-selector__origin-static {
+            align-items: flex-end;
+            background: #fff;
+            border-radius: 12px 0 0 12px;
+            color: #111827;
+            display: flex;
+            font-size: 18px;
+            font-weight: 900;
+            height: 64px;
+            line-height: 20px;
+            min-height: 64px;
+            overflow: hidden;
+            padding: 25px 32px 7px 16px;
+            pointer-events: none;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .journey-point-selector__origin-static span {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .trip-availability {
             border-radius: 8px;
             margin-top: 12px;
@@ -1896,16 +1920,25 @@
                     <div class="col-12">
                         <div class="journey-point-selector">
                             <div class="form--group ticket-search-field journey-point-selector__field">
-                                <label class="trip-search-label" for="ticket-pickup">@lang('From')</label>
+                                <label class="trip-search-label" for="{{ $kiosk_id ? 'ticket-pickup-display' : 'ticket-pickup' }}">@lang('From')</label>
                                 <i class="las la-location-arrow"></i>
-                                <select name="pickup" id="ticket-pickup" class="form--control select2">
-                                    <option value="">@lang('Select Origin')</option>
-                                    @foreach ($counters as $counter)
-                                        <option value="{{ $counter->id }}" @selected(request('pickup', $selected_counter ?? '') == $counter->id)>
-                                            {{ __($counter->name) }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                @if ($kiosk_id)
+                                    <input type="hidden" name="pickup" id="ticket-pickup"
+                                        value="{{ $kioskTerminal?->id }}">
+                                    <div id="ticket-pickup-display" class="journey-point-selector__origin-static"
+                                        role="textbox" aria-readonly="true" tabindex="-1">
+                                        <span>{{ __($kioskTerminal?->name ?: 'Assigned terminal unavailable') }}</span>
+                                    </div>
+                                @else
+                                    <select name="pickup" id="ticket-pickup" class="form--control select2">
+                                        <option value="">@lang('Select Origin')</option>
+                                        @foreach ($counters as $counter)
+                                            <option value="{{ $counter->id }}" @selected(request('pickup', $selected_counter ?? '') == $counter->id)>
+                                                {{ __($counter->name) }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                @endif
                             </div>
                             <span class="journey-point-selector__direction" aria-hidden="true">
                                 <i class="las la-arrow-right"></i>
@@ -2081,7 +2114,7 @@
             @endif
 
             $('.select2').not('#ticket-pickup, #ticket-destination').select2();
-            $('#ticket-pickup, #ticket-destination').each(function() {
+            $('#ticket-pickup, #ticket-destination').filter('select').each(function() {
                 const routeSelect = $(this);
 
                 routeSelect.select2({

@@ -174,6 +174,8 @@ class SiteController extends Controller
 
     public function ticket(Request $request)
     {
+        $kiosk = $this->enforceKioskOrigin($request, ['pickup', 'counter_id']);
+
         if ($request->filled('date_of_journey')) {
             try {
                 $formattedDate = Carbon::parse($request->date_of_journey)->format('m/d/Y');
@@ -264,10 +266,8 @@ class SiteController extends Controller
         }
         $counters = $this->availableOriginCounters($originTripsQuery);
 
-        if ($request->kiosk_id && $request->counter_id) {
-            $counters = $counters
-                ->where('id', (int) $request->counter_id)
-                ->values();
+        if ($kiosk) {
+            $counters = collect([$kiosk->counter])->filter()->values();
         }
 
         $pickup = $request->pickup ?: $request->counter_id;
@@ -424,6 +424,7 @@ class SiteController extends Controller
         }
 
         $bookingNotices = app(PassengerReminderService::class)->activeContent();
+        $kioskTerminal = $kiosk?->counter;
 
         return view("Template::ticket", compact(
             'pageTitle',
@@ -439,12 +440,15 @@ class SiteController extends Controller
             'availableJourneyDates',
             'journeyDateStatuses',
             'layout',
-            'bookingNotices'
+            'bookingNotices',
+            'kioskTerminal'
         ));
     }
 
     public function showSeat(Request $request, $id)
     {
+        $this->enforceKioskOrigin($request, ['pickup', 'start_from', 'counter_id']);
+
         $trip = Trip::with([
             'fleetType',
             'route',
@@ -572,6 +576,8 @@ class SiteController extends Controller
 
     public function getTicketPrice(Request $request)
     {
+        $this->enforceKioskOrigin($request, ['source_id', 'pickup_point']);
+
         // 1. Fetch Ticket Price Configuration
         $ticketPrice = TicketPrice::with('route')
             ->where('vehicle_route_id', $request->vehicle_route_id)
@@ -666,6 +672,8 @@ class SiteController extends Controller
 
     public function validateSeats(Request $request, $id)
     {
+        $this->enforceKioskOrigin($request, ['pickup_point']);
+
         $request->validate([
             'pickup_point' => 'required|integer|gt:0',
             'dropping_point' => 'required|integer|gt:0',
@@ -754,6 +762,8 @@ class SiteController extends Controller
     public function bookTicket(Request $request, $id)
     {
         try {
+            $this->enforceKioskOrigin($request, ['pickup_point']);
+
             $trip = Trip::with(['route', 'schedule', 'fleetType', 'channelAvailabilities'])->findOrFail($id);
             $request->validate([
                 "pickup_point" => "required|integer|gt:0",
@@ -1173,6 +1183,28 @@ class SiteController extends Controller
         }
 
         return response()->json($dropping_counters);
+    }
+
+    private function enforceKioskOrigin(Request $request, array $fields): ?Kiosk
+    {
+        if (!$request->filled('kiosk_id')) {
+            return null;
+        }
+
+        $kiosk = Kiosk::active()
+            ->with('counter')
+            ->findOrFail($request->integer('kiosk_id'));
+
+        abort_unless(
+            $kiosk->counter_id && $kiosk->counter,
+            422,
+            'This kiosk does not have an assigned terminal.'
+        );
+
+        $origin = (string) $kiosk->counter_id;
+        $request->merge(array_fill_keys($fields, $origin));
+
+        return $kiosk;
     }
 
     private function availableOriginCounters($tripsQuery)
