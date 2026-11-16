@@ -44,4 +44,21 @@ class PendingDepositPosPrintFlowTest extends TestCase
         $this->assertStringContainsString('if ($paymentCompleted) {', $controller);
         $this->assertStringContainsString('app()->terminating(function () use ($depositId, $ticketId)', $controller);
     }
+
+    public function test_payment_modal_handoffs_release_focus_before_hiding_the_source_modal(): void
+    {
+        $view = file_get_contents(resource_path('views/admin/deposit/log.blade.php'));
+
+        $focusRelease = strpos($view, 'releasePaymentModalFocus(sourceElement);');
+        $modalHide = strpos($view, 'sourceModal.hide();', $focusRelease);
+
+        $this->assertNotFalse($focusRelease);
+        $this->assertNotFalse($modalHide);
+        $this->assertLessThan($modalHide, $focusRelease);
+        $this->assertStringContainsString(".on('hide.bs.modal', function()", $view);
+        $this->assertStringContainsString("modalElement.contains(focusedElement)", $view);
+        $this->assertStringContainsString("focusedElement.blur();", $view);
+        $this->assertStringContainsString('if (paymentModalTransitionInProgress) return;', $view);
+        $this->assertStringContainsString("destinationElement.addEventListener('shown.bs.modal'", $view);
+    }
 }

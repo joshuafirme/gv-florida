@@ -1551,12 +1551,16 @@
                     style: 'currency',
                     currency: 'PHP'
                 });
-                const processPaymentModal = new bootstrap.Modal(document.getElementById('processPaymentModal'));
-                const confirmPaymentModal = new bootstrap.Modal(document.getElementById('confirmPaymentModal'));
-                const rejectPaymentModal = new bootstrap.Modal(document.getElementById('posRejectModal'));
+                const processPaymentElement = document.getElementById('processPaymentModal');
+                const confirmPaymentElement = document.getElementById('confirmPaymentModal');
+                const rejectPaymentElement = document.getElementById('posRejectModal');
+                const processPaymentModal = new bootstrap.Modal(processPaymentElement);
+                const confirmPaymentModal = new bootstrap.Modal(confirmPaymentElement);
+                const rejectPaymentModal = new bootstrap.Modal(rejectPaymentElement);
                 let activePayment = null;
                 let processingHeartbeatTimer = null;
                 let paymentFinalizationInProgress = false;
+                let paymentModalTransitionInProgress = false;
                 const appBaseUrl = @json(url('/'));
                 const processingAdminId = {{ auth('admin')->id() }};
                 const csrfToken = @json(csrf_token());
@@ -1630,6 +1634,36 @@
                 }
 
                 const wait = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
+
+                function releasePaymentModalFocus(modalElement) {
+                    const focusedElement = document.activeElement;
+
+                    if (focusedElement && modalElement.contains(focusedElement) &&
+                        typeof focusedElement.blur === 'function') {
+                        focusedElement.blur();
+                    }
+                }
+
+                function switchPaymentModal(sourceElement, sourceModal, destinationElement, destinationModal,
+                    focusSelector) {
+                    if (paymentModalTransitionInProgress) return;
+
+                    paymentModalTransitionInProgress = true;
+                    destinationElement.addEventListener('shown.bs.modal', function() {
+                        paymentModalTransitionInProgress = false;
+
+                        if (focusSelector) {
+                            $(focusSelector).trigger('focus');
+                        }
+                    }, { once: true });
+
+                    sourceElement.addEventListener('hidden.bs.modal', function() {
+                        destinationModal.show();
+                    }, { once: true });
+
+                    releasePaymentModalFocus(sourceElement);
+                    sourceModal.hide();
+                }
 
                 function discountOptionsHtml(payment) {
                     return (payment.discounts || []).map(discount =>
@@ -1963,6 +1997,10 @@
                     $('#posCashReceived').trigger('focus');
                 });
 
+                $('#processPaymentModal, #confirmPaymentModal, #posRejectModal').on('hide.bs.modal', function() {
+                    releasePaymentModalFocus(this);
+                });
+
                 $('#processPaymentModal, #confirmPaymentModal, #posRejectModal').on('hidden.bs.modal', function() {
                     window.setTimeout(function() {
                         const flowStillOpen = $('#processPaymentModal, #confirmPaymentModal, #posRejectModal')
@@ -1985,13 +2023,23 @@
                     if (!activePayment || !updateTenderedAmount()) return;
 
                     fillConfirmModal();
-                    $('#processPaymentModal').one('hidden.bs.modal', () => confirmPaymentModal.show());
-                    processPaymentModal.hide();
+                    switchPaymentModal(
+                        processPaymentElement,
+                        processPaymentModal,
+                        confirmPaymentElement,
+                        confirmPaymentModal,
+                        '#posConfirmPrintBtn'
+                    );
                 });
 
                 $('#posBackBtn').on('click', function() {
-                    $('#confirmPaymentModal').one('hidden.bs.modal', () => processPaymentModal.show());
-                    confirmPaymentModal.hide();
+                    switchPaymentModal(
+                        confirmPaymentElement,
+                        confirmPaymentModal,
+                        processPaymentElement,
+                        processPaymentModal,
+                        '#posCashReceived'
+                    );
                 });
 
                 $('#posRejectBtn').on('click', function() {
@@ -2000,8 +2048,13 @@
                     $('#posRejectForm').attr('action', activePayment.reject_url);
                     $('#posRejectDepositId').val(activePayment.deposit_id);
                     $('#posRejectMessage').val('');
-                    $('#processPaymentModal').one('hidden.bs.modal', () => rejectPaymentModal.show());
-                    processPaymentModal.hide();
+                    switchPaymentModal(
+                        processPaymentElement,
+                        processPaymentModal,
+                        rejectPaymentElement,
+                        rejectPaymentModal,
+                        '#posRejectMessage'
+                    );
                 });
 
                 $('#posRejectForm').on('submit', function() {
