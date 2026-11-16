@@ -123,8 +123,8 @@
                                 </td>
                                 <td><strong>{{ formatSeatLabel($transaction->seat_no) ?: '-' }}</strong></td>
                                 <td>
-                                    <strong>{{ $transaction->km_post ? 'KM ' . $transaction->km_post : ($transaction->drop_off ?: '-') }}</strong>
-                                    @if ($transaction->km_post && $transaction->drop_off)
+                                    <strong>{{ $transaction->km_post_label ?: ($transaction->drop_off ?: '-') }}</strong>
+                                    @if ($transaction->km_post_label && $transaction->drop_off)
                                         <small>{{ $transaction->drop_off }}</small>
                                     @endif
                                 </td>

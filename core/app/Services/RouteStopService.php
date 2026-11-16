@@ -13,6 +13,35 @@ use Illuminate\Validation\ValidationException;
 
 class RouteStopService
 {
+    public function kmPostForRoute(
+        ?VehicleRoute $route,
+        mixed $counterId,
+        mixed $fallback = null
+    ): int|float|string|null {
+        if ($route && filled($counterId)) {
+            $stop = collect($route->stopDefinitions())->first(
+                fn (array $stop) => (string) $stop['counter_id'] === (string) $counterId
+            );
+
+            if ($stop) {
+                return $this->kmPostValue($stop['km_post'] ?? null);
+            }
+        }
+
+        return $this->kmPostValue($fallback);
+    }
+
+    public function kmPostForTicket(BookedTicket $ticket): int|float|string|null
+    {
+        $ticket->loadMissing(['trip.route', 'drop']);
+
+        return $this->kmPostForRoute(
+            $ticket->trip?->route,
+            $ticket->dropping_point,
+            $ticket->drop?->km_post
+        );
+    }
+
     public function normalize(array $stops): array
     {
         return collect(array_values($stops))
@@ -186,5 +215,16 @@ class RouteStopService
         $number = (float) $value;
 
         return fmod($number, 1.0) === 0.0 ? (int) $number : $number;
+    }
+
+    protected function kmPostValue(mixed $value): int|float|string|null
+    {
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        $value = preg_replace('/^KM\s*/i', '', trim((string) $value));
+
+        return is_numeric($value) ? $this->numericValue($value) : $value;
     }
 }

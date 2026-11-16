@@ -36,12 +36,17 @@ class DailyReportService
 
         $allTransactions = CashierTransactionEvent::query()
             ->bookingTransactions()
-            ->with('admin:id,name,username')
+            ->with([
+                'admin:id,name,username',
+                'bookedTicket.trip.route',
+                'bookedTicket.drop',
+            ])
             ->reportableForDate($businessDate)
             ->orderByRaw("CASE WHEN reference_no IS NULL OR reference_no = '' THEN 1 ELSE 0 END")
             ->orderBy('reference_no')
             ->orderBy('id')
             ->get();
+        $this->dashboardService->applyDynamicKmPosts($allTransactions);
         $filters = $this->normalizeFilters($filters);
         $filterOptions = $this->filterOptions($allTransactions);
         $transactions = $this->filterTransactions($allTransactions, $filters);

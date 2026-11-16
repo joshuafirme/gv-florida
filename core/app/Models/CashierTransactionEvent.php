@@ -102,6 +102,19 @@ class CashierTransactionEvent extends Model
         return app(TransactionReasonFormatter::class)->format($this);
     }
 
+    public function getKmPostLabelAttribute(): ?string
+    {
+        $kmPost = trim((string) $this->km_post);
+
+        if ($kmPost === '') {
+            return null;
+        }
+
+        return str_starts_with(strtoupper($kmPost), 'KM ')
+            ? $kmPost
+            : 'KM ' . $kmPost;
+    }
+
     public function hasReportPaymentMovement(): bool
     {
         if (abs((float) $this->amount) >= 0.005) {

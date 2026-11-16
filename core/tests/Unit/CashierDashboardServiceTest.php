@@ -2,9 +2,15 @@
 
 namespace Tests\Unit;
 
+use App\Models\BookedTicket;
+use App\Models\CashierTransactionEvent;
+use App\Models\Counter;
+use App\Models\Trip;
+use App\Models\VehicleRoute;
 use App\Services\CashierDashboardService;
 use App\Services\CashierTransactionRecorder;
-use PHPUnit\Framework\TestCase;
+use App\Services\RouteStopService;
+use Tests\TestCase;
 
 class CashierDashboardServiceTest extends TestCase
 {
@@ -102,6 +108,37 @@ class CashierDashboardServiceTest extends TestCase
         $this->assertSame(800.0, $summary['surcharges']);
         $this->assertSame(540.0, $summary['refunds']);
         $this->assertSame(129340.0, $summary['net_collection']);
+    }
+
+    public function test_report_transactions_use_the_route_specific_km_post(): void
+    {
+        $route = new VehicleRoute([
+            'route_stops' => [
+                ['counter_id' => '1', 'km_post' => 0, 'sequence' => 1],
+                ['counter_id' => '2', 'km_post' => 595, 'sequence' => 2],
+            ],
+        ]);
+        $trip = new Trip();
+        $trip->setRelation('route', $route);
+        $drop = (new Counter())->forceFill(['id' => 2, 'name' => 'Laoag', 'km_post' => 488]);
+        $ticket = (new BookedTicket())->forceFill(['dropping_point' => 2]);
+        $ticket->setRelation('trip', $trip);
+        $ticket->setRelation('drop', $drop);
+        $transaction = (new CashierTransactionEvent())->forceFill([
+            'drop_off' => 'Laoag',
+            'km_post' => 488,
+            'snapshot' => ['dropping_point' => 2],
+        ]);
+        $transaction->setRelation('bookedTicket', $ticket);
+        $service = new CashierDashboardService(
+            $this->createMock(CashierTransactionRecorder::class),
+            new RouteStopService()
+        );
+
+        $service->applyDynamicKmPosts(collect([$transaction]));
+
+        $this->assertSame(595, $transaction->km_post);
+        $this->assertSame('KM 595', $transaction->km_post_label);
     }
 
     private function transaction(

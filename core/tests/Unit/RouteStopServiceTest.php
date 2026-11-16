@@ -2,6 +2,9 @@
 
 namespace Tests\Unit;
 
+use App\Models\BookedTicket;
+use App\Models\Counter;
+use App\Models\Trip;
 use App\Models\VehicleRoute;
 use App\Services\RouteStopService;
 use Tests\TestCase;
@@ -55,5 +58,35 @@ class RouteStopServiceTest extends TestCase
 
         $this->assertSame('2', $stops[1]['counter_id']);
         $this->assertSame(595.0, $stops[1]['km_post']);
+    }
+
+    public function test_ticket_km_post_uses_the_route_stop_instead_of_the_counter_default(): void
+    {
+        $route = new VehicleRoute([
+            'route_stops' => [
+                ['counter_id' => '1', 'km_post' => 0, 'sequence' => 1],
+                ['counter_id' => '2', 'km_post' => 595, 'sequence' => 2],
+            ],
+        ]);
+        $trip = (new Trip())->forceFill(['vehicle_route_id' => 5]);
+        $trip->setRelation('route', $route);
+        $drop = (new Counter())->forceFill(['id' => 2, 'km_post' => 488]);
+        $ticket = (new BookedTicket())->forceFill(['dropping_point' => 2]);
+        $ticket->setRelation('trip', $trip);
+        $ticket->setRelation('drop', $drop);
+
+        $this->assertSame(595, (new RouteStopService())->kmPostForTicket($ticket));
+    }
+
+    public function test_zero_is_kept_as_a_valid_route_km_post(): void
+    {
+        $route = new VehicleRoute([
+            'route_stops' => [
+                ['counter_id' => '1', 'km_post' => 0, 'sequence' => 1],
+                ['counter_id' => '2', 'km_post' => 100, 'sequence' => 2],
+            ],
+        ]);
+
+        $this->assertSame(0, (new RouteStopService())->kmPostForRoute($route, 1, 999));
     }
 }

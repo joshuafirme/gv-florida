@@ -18,7 +18,8 @@ class CashierDashboardService
     ];
 
     public function __construct(
-        private readonly CashierTransactionRecorder $transactionRecorder
+        private readonly CashierTransactionRecorder $transactionRecorder,
+        private readonly ?RouteStopService $routeStopService = null
     ) {
     }
 
@@ -28,17 +29,20 @@ class CashierDashboardService
 
         $transactions = CashierTransactionEvent::query()
             ->bookingTransactions()
+            ->with(['bookedTicket.trip.route', 'bookedTicket.drop'])
             ->where('admin_id', $admin->id)
             ->reportableForDate($date)
             ->orderBy('processed_at')
             ->orderBy('id')
             ->get();
+        $this->applyDynamicKmPosts($transactions);
 
         $newerStatusPriority = $this->statusPrioritySql('newer_events');
         $currentStatusPriority = $this->statusPrioritySql('cashier_transaction_events');
 
         $latestTransactions = CashierTransactionEvent::query()
             ->bookingTransactions()
+            ->with(['bookedTicket.trip.route', 'bookedTicket.drop'])
             ->where('cashier_transaction_events.admin_id', $admin->id)
             ->reportableForDate($date)
             ->whereNotExists(function ($newerEvent) use ($newerStatusPriority, $currentStatusPriority) {
@@ -87,6 +91,7 @@ class CashierDashboardService
             ->orderByDesc('processed_at')
             ->orderByDesc('id')
             ->get();
+        $this->applyDynamicKmPosts($latestTransactions);
 
         return [
             'transactions' => $transactions,
@@ -127,6 +132,38 @@ class CashierDashboardService
             'net_collection' => (float) $transactions->sum('amount'),
             'transaction_count' => $transactions->count(),
         ];
+    }
+
+    public function applyDynamicKmPosts(Collection $transactions): Collection
+    {
+        $routeStops = $this->routeStopService ?? app(RouteStopService::class);
+
+        return $transactions->each(function ($transaction) use ($routeStops) {
+            if (!$transaction instanceof CashierTransactionEvent || !$transaction->bookedTicket) {
+                return;
+            }
+
+            $ticket = $transaction->bookedTicket;
+            $snapshotDropId = data_get($transaction->snapshot, 'dropping_point');
+            $dropId = $snapshotDropId ?: $ticket->dropping_point;
+            $sameCurrentDrop = !$transaction->drop_off
+                || !$ticket->drop?->name
+                || strcasecmp((string) $transaction->drop_off, (string) $ticket->drop->name) === 0;
+
+            if (!$snapshotDropId && !$sameCurrentDrop) {
+                return;
+            }
+
+            $kmPost = $routeStops->kmPostForRoute(
+                $ticket->trip?->route,
+                $dropId,
+                $transaction->km_post
+            );
+
+            if ($kmPost !== null) {
+                $transaction->setAttribute('km_post', $kmPost);
+            }
+        });
     }
 
     public function statusMetrics(Collection $transactions, Collection $latestTransactions): array

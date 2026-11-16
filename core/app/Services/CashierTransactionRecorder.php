@@ -19,12 +19,15 @@ use Illuminate\Support\Collection;
 class CashierTransactionRecorder
 {
     private FareDiscountService $fareDiscounts;
+    private RouteStopService $routeStopService;
 
     public function __construct(
         private readonly TicketPassengerResolver $passengerResolver,
-        ?FareDiscountService $fareDiscounts = null
+        ?FareDiscountService $fareDiscounts = null,
+        ?RouteStopService $routeStopService = null
     ) {
         $this->fareDiscounts = $fareDiscounts ?? new FareDiscountService();
+        $this->routeStopService = $routeStopService ?? new RouteStopService();
     }
 
     public function recordSold(Deposit $deposit): void
@@ -775,6 +778,10 @@ class CashierTransactionRecorder
             'booked_ticket_id' => $ticket->id,
             'slip_series_number_id' => $slip->id,
             'deposit_id' => $deposit?->id,
+            'trip_id' => $ticket->trip_id,
+            'vehicle_route_id' => $ticket->trip?->vehicle_route_id,
+            'pickup_point' => $ticket->pickup_point,
+            'dropping_point' => $ticket->dropping_point,
             'source' => $ticket->kiosk_id ? 'Kiosk' : ($ticket->user_id ? 'Online' : 'Counter'),
             'processed_by' => $deposit?->processedBy?->name
                 ?: $deposit?->processedBy?->username
@@ -794,7 +801,7 @@ class CashierTransactionRecorder
                 ?: trim(($ticket->pickup?->name ?: '') . ' - ' . ($ticket->drop?->name ?: ''), ' -'),
             'seat_no' => $slip->seat,
             'drop_off' => $ticket->drop?->name,
-            'km_post' => $ticket->drop?->km_post,
+            'km_post' => $this->routeStopService->kmPostForTicket($ticket),
             'payment_method' => $this->paymentMethod($deposit),
             'base_fare' => round($baseFare, 2),
             'discount_amount' => round($discountAmount, 2),

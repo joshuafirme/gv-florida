@@ -631,13 +631,19 @@ class ManageTripController extends Controller
         }
         $fileContent = @file_get_contents($file);
         $terms_content = json_decode($fileContent);
+        $kmPost = $this->routeStopService->kmPostForTicket($ticket);
 
         $pdf = Pdf::setOptions([
             'isRemoteEnabled' => true,
             'defaultFont' => 'DejaVu Sans',
             'isHtml5ParserEnabled' => true,
             'isPhpEnabled' => true,
-        ])->loadView('admin.pdf.reservation-slip-preview', ['ticket' => $ticket, 'pageTitle' => "Reservation Slip", 'content' => $terms_content]);
+        ])->loadView('admin.pdf.reservation-slip-preview', [
+            'ticket' => $ticket,
+            'pageTitle' => 'Reservation Slip',
+            'content' => $terms_content,
+            'kmPost' => $kmPost,
+        ]);
 
         $pdf->setPaper([0, 0, 144, 500], 'portrait');
 

@@ -281,7 +281,7 @@
                 <div class="section-title">Trip Details</div>
                 <table class="details">
                     <tr><td class="label">Destination</td><td class="value strong">{{ $ticket->drop?->name ?: '-' }}</td></tr>
-                    <tr><td class="label">Drop-off Point</td><td class="value strong">{{ $ticket->drop?->km_post ? 'KM ' . $ticket->drop->km_post : '-' }}</td></tr>
+                    <tr><td class="label">Drop-off Point</td><td class="value strong">{{ filled($kmPost) ? 'KM ' . $kmPost : '-' }}</td></tr>
                     <tr><td class="label">Departure Date</td><td class="value">{{ date('M j, Y', strtotime($ticket->date_of_journey)) }}</td></tr>
                     <tr><td class="label">Departure Time</td><td class="value">{{ date('g:i A', strtotime($ticket->trip->schedule->start_from)) }}</td></tr>
                     <tr><td class="label">Bus Type</td><td class="value">{{ $ticket->trip?->fleetType?->name ?: '-' }}</td></tr>

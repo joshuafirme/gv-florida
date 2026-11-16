@@ -20,6 +20,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Gateway\PaymentController;
 use App\Services\PendingPaymentExpirationService;
 use App\Services\PendingPaymentProcessingService;
+use App\Services\RouteStopService;
 use App\Support\UserIdentitySanitizer;
 
 class UserController extends Controller
@@ -54,10 +55,10 @@ class UserController extends Controller
         ]);
     }
 
-    public function reservationSlip($id = null)
+    public function reservationSlip($id, RouteStopService $routeStopService)
     {
         // Eager load the deposit to avoid extra queries
-        $ticket = BookedTicket::with('deposit')->findOrFail($id);
+        $ticket = BookedTicket::with(['deposit', 'trip.route', 'drop'])->findOrFail($id);
 
         $admin_request = request('admin_request');
 
@@ -94,7 +95,7 @@ class UserController extends Controller
             }
 
             $ticket->refresh();
-            $ticket->load('deposit');
+            $ticket->load(['deposit', 'trip.route', 'drop']);
         }
 
         $dir = 'assets/admin/contents/';
@@ -108,6 +109,7 @@ class UserController extends Controller
 
         $fileContent = @file_get_contents($file);
         $content = json_decode($fileContent);
+        $kmPost = $routeStopService->kmPostForTicket($ticket);
 
         $reservationSlipView = $admin_request
             ? 'admin.pdf.reservation-slip-preview'
@@ -121,7 +123,8 @@ class UserController extends Controller
         ])->loadView($reservationSlipView, [
                     'ticket' => $ticket,
                     'content' => $content,
-                    'pageTitle' => "Reservation Slip"
+                    'pageTitle' => 'Reservation Slip',
+                    'kmPost' => $kmPost,
                 ]);
 
         $pdf->setPaper([0, 0, 144, $admin_request ? 500 : 600], 'portrait');

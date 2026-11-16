@@ -154,7 +154,7 @@
 
                     <tr>
                         <td class="label">KM Post:</td>
-                        <td class="value">{{ $ticket->drop->km_post }}</td>
+                        <td class="value">{{ filled($kmPost) ? $kmPost : '-' }}</td>
                     </tr>
 
                     <tr>
