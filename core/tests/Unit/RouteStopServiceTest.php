@@ -89,4 +89,17 @@ class RouteStopServiceTest extends TestCase
 
         $this->assertSame(0, (new RouteStopService())->kmPostForRoute($route, 1, 999));
     }
+
+    public function test_manifest_uses_the_trip_route_km_post_instead_of_the_counter_default(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/Admin/ManageTripController.php'));
+        $screen = file_get_contents(resource_path('views/admin/pdf/manifest-seat-layout.blade.php'));
+        $pdfCell = file_get_contents(resource_path('views/admin/pdf/partials/manifest-seat-cell.blade.php'));
+
+        $this->assertStringContainsString('$this->routeStopService->kmPostForRoute(', $controller);
+        $this->assertStringContainsString("'km_post' => \$kmPost", $controller);
+        $this->assertStringNotContainsString("'km_post' => \$booking->drop?->km_post", $controller);
+        $this->assertStringContainsString("\$manifest['km_post'] !== null", $screen);
+        $this->assertStringContainsString("\$manifest['km_post'] !== null", $pdfCell);
+    }
 }

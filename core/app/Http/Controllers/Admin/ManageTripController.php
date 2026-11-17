@@ -687,6 +687,11 @@ class ManageTripController extends Controller
         $seatManifest = collect();
 
         foreach ($bookings as $booking) {
+            $kmPost = $this->routeStopService->kmPostForRoute(
+                $trip->route,
+                $booking->dropping_point,
+                $booking->drop?->km_post
+            );
             $manifestSeats = $booking->activeSlipSeriesNumbers;
 
             // Pending and legacy bookings may hold seats before reference numbers are issued.
@@ -743,7 +748,7 @@ class ManageTripController extends Controller
                     'reference' => $slip->id,
                     'pnr' => $booking->pnr_number,
                     'destination' => $booking->drop?->name,
-                    'km_post' => $booking->drop?->km_post,
+                    'km_post' => $kmPost,
                     'blocked' => $pendingPayment,
                     'pending_payment' => $pendingPayment,
                     'online_booking' => $onlineBooking,

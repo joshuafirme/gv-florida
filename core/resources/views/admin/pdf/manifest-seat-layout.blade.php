@@ -273,7 +273,7 @@
                                                         <strong><i class="fas fa-lock"></i> Pending Payment &ndash; Temporarily Locked</strong>
                                                         <span>
                                                             {{ $manifest['passenger_name'] }} &middot; &rarr; {{ $manifest['destination'] ?: '-' }}
-                                                            @if ($manifest['km_post'])
+                                                            @if ($manifest['km_post'] !== null && $manifest['km_post'] !== '')
                                                                 &middot; KM {{ $manifest['km_post'] }}
                                                             @endif
                                                         </span>
@@ -307,7 +307,7 @@
                                                         <div class="manifest-passenger-dropoff">
                                                             <div>
                                                                 {{ $manifest['destination'] ?: '-' }}
-                                                                @if ($manifest['km_post'])
+                                                                @if ($manifest['km_post'] !== null && $manifest['km_post'] !== '')
                                                                     <span class="manifest-km-post">- KM {{ $manifest['km_post'] }}</span>
                                                                 @endif
                                                             </div>
