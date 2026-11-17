@@ -40,6 +40,14 @@ class CashierTransactionEventPaymentMovementTest extends TestCase
         $this->assertTrue($transaction->hasReportPaymentMovement());
     }
 
+    public function test_discount_override_uses_the_discount_applied_display_label(): void
+    {
+        $transaction = new CashierTransactionEvent(['status' => 'Discount Override']);
+
+        $this->assertSame('Discount Applied', $transaction->status_label);
+        $this->assertSame('Discount Override', $transaction->status);
+    }
+
     public static function nonMonetaryStatuses(): array
     {
         return [

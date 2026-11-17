@@ -324,7 +324,7 @@
             <col style="width: 7%"><col style="width: 4%"><col style="width: 7%">
             <col style="width: 7%"><col style="width: 8%"><col style="width: 6%"><col style="width: 9%">
             <col style="width: 4%"><col style="width: 6%"><col style="width: 6%"><col style="width: 6%">
-            <col style="width: 6%"><col style="width: 5%"><col style="width: 15%">
+            <col style="width: 6%"><col style="width: 7%"><col style="width: 13%">
         </colgroup>
         <thead>
             <tr>
@@ -360,7 +360,7 @@
                         @endif
                     </td>
                     <td class="right {{ $adjustmentAmount > 0 ? 'negative' : '' }}">{{ $adjustmentAmount > 0 ? '-' . showAmount($adjustmentAmount) : '-' }}</td>
-                    <td>{{ $transaction->status }}</td>
+                    <td>{{ $transaction->status_label }}</td>
                     <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                 </tr>
             @empty
