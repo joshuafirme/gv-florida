@@ -102,6 +102,13 @@ class CashierTransactionEvent extends Model
         return app(TransactionReasonFormatter::class)->format($this);
     }
 
+    public function getStatusLabelAttribute(): string
+    {
+        return $this->status === 'Discount Override'
+            ? 'Discount Applied'
+            : (string) $this->status;
+    }
+
     public function getKmPostLabelAttribute(): ?string
     {
         $kmPost = trim((string) $this->km_post);

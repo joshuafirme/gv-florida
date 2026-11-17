@@ -60,8 +60,8 @@
                         <col width="7%" style="width: 7%">
                         <col width="8.5%" style="width: 8.5%">
                         <col width="7.5%" style="width: 7.5%">
-                        <col width="6%" style="width: 6%">
-                        <col width="18%" style="width: 18%">
+                        <col width="8%" style="width: 8%">
+                        <col width="16%" style="width: 16%">
                     </colgroup>
                     <thead>
                         <tr>
@@ -139,7 +139,7 @@
                                 <td class="text-end {{ $adjustmentAmount > 0 ? 'shift-negative' : '' }}">
                                     {{ $adjustmentAmount > 0 ? '-' . showAmount($adjustmentAmount) : '-' }}
                                 </td>
-                                <td><span class="shift-status shift-status--{{ $statusClass }}">{{ $transaction->status }}</span></td>
+                                <td><span class="shift-status shift-status--{{ $statusClass }}">{{ $transaction->status_label }}</span></td>
                                 <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                             </tr>
                         @empty
@@ -325,10 +325,13 @@
 
         .shift-status {
             display: inline-flex;
-            padding: 2px 4px;
+            align-items: center;
+            padding: 3px 7px;
             border: 1px solid;
             border-radius: 4px;
             font-size: 9px;
+            line-height: 1.15;
+            max-width: 100%;
             white-space: nowrap;
         }
 
@@ -443,7 +446,7 @@
             }
 
             .shift-status {
-                padding: 1px 2px;
+                padding: 1.5px 3px;
             }
 
             .shift-report-footer {

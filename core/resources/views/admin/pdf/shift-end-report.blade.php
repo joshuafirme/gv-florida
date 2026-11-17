@@ -123,10 +123,11 @@
 
         .status {
             display: inline-block;
-            padding: 1px 2px;
+            padding: 1.5px 3px;
             border: 0.4px solid #b9c1cc;
             border-radius: 2px;
             font-size: 5.5px;
+            line-height: 1.15;
             white-space: nowrap;
         }
 
@@ -236,8 +237,8 @@
             <col width="7%" style="width: 7%">
             <col width="8.5%" style="width: 8.5%">
             <col width="7.5%" style="width: 7.5%">
-            <col width="6%" style="width: 6%">
-            <col width="18%" style="width: 18%">
+            <col width="8%" style="width: 8%">
+            <col width="16%" style="width: 16%">
         </colgroup>
         <thead>
             <tr>
@@ -305,7 +306,7 @@
                     <td class="right {{ $adjustmentAmount > 0 ? 'negative' : '' }}">
                         {{ $adjustmentAmount > 0 ? '-' . showAmount($adjustmentAmount) : '-' }}
                     </td>
-                    <td><span class="status status-{{ $statusClass }}">{{ $transaction->status }}</span></td>
+                    <td><span class="status status-{{ $statusClass }}">{{ $transaction->status_label }}</span></td>
                     <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                 </tr>
             @empty

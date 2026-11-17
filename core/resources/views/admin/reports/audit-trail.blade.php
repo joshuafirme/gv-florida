@@ -88,6 +88,7 @@
                                     'Cancelled' => 'cancelled',
                                     'Voided' => 'voided',
                                     'Refunded' => 'refunded',
+                                    'Discount Override' => 'discount-applied',
                                     'Seat Locked' => 'seat-locked',
                                     'Seat Unlocked' => 'seat-unlocked',
                                     'Authorization Failed' => 'authorization-failed',
@@ -107,7 +108,7 @@
                                     <small>{{ $transaction->processed_at?->format('h:i A') ?: '-' }}</small>
                                 </td>
                                 <td data-label="Event">
-                                    <span class="audit-status audit-status--{{ $statusClass }}">{{ $transaction->status }}</span>
+                                    <span class="audit-status audit-status--{{ $statusClass }}">{{ $transaction->status_label }}</span>
                                 </td>
                                 <td data-label="PNR"><strong class="audit-pnr">{{ $transaction->pnr ?: '-' }}</strong></td>
                                 <td data-label="Ref. No."><span class="audit-reference">{{ $transaction->reference_no ?: '-' }}</span></td>
@@ -403,6 +404,12 @@
             background: #faf5ff;
             border-color: #e9d5ff;
             color: #7e22ce;
+        }
+
+        .audit-status--discount-applied {
+            background: #fff8e6;
+            border-color: #efd69b;
+            color: #9b5c00;
         }
 
         .audit-status--authorization-failed {

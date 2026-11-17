@@ -22,7 +22,7 @@
                     <option value="">All Transaction Types</option>
                     @foreach ($filter_options['transaction_types'] as $transactionType)
                         <option value="{{ $transactionType }}" @selected($filters['transaction_type'] === $transactionType)>
-                            {{ $transactionType }}
+                            {{ $transactionType === 'Discount Override' ? 'Discount Applied' : $transactionType }}
                         </option>
                     @endforeach
                 </select>
@@ -259,7 +259,7 @@
                         <col style="width: 7%"><col style="width: 4%"><col style="width: 7%">
                         <col style="width: 7%"><col style="width: 8%"><col style="width: 6%"><col style="width: 9%">
                         <col style="width: 4%"><col style="width: 6%"><col style="width: 6%"><col style="width: 6%">
-                        <col style="width: 6%"><col style="width: 5%"><col style="width: 15%">
+                        <col style="width: 6%"><col style="width: 7%"><col style="width: 13%">
                     </colgroup>
                     <thead>
                         <tr>
@@ -319,7 +319,7 @@
                                 <td class="text-end daily-total {{ $adjustmentAmount > 0 ? 'daily-negative' : '' }}">
                                     {{ $adjustmentAmount > 0 ? '-' . showAmount($adjustmentAmount) : '-' }}
                                 </td>
-                                <td><span class="daily-status daily-status--{{ \Illuminate\Support\Str::slug($transaction->status) }}">{{ $transaction->status }}</span></td>
+                                <td><span class="daily-status daily-status--{{ \Illuminate\Support\Str::slug($transaction->status) }}">{{ $transaction->status_label }}</span></td>
                                 <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                             </tr>
                         @empty
@@ -550,11 +550,12 @@
         }
         .daily-status {
             display: inline-block;
-            padding: 2px 5px;
+            padding: 3px 7px;
             border: 1px solid #d9dce3;
             border-radius: 999px;
             font-size: 8px;
-            line-height: 1.1;
+            line-height: 1.15;
+            max-width: 100%;
             white-space: nowrap;
         }
 

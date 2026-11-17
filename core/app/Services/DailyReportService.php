@@ -207,7 +207,9 @@ class DailyReportService
         $processedBy = $options['processed_by']->firstWhere('value', $filters['processed_by']);
 
         return array_filter([
-            'Transaction Type' => $filters['transaction_type'],
+            'Transaction Type' => $filters['transaction_type'] === 'Discount Override'
+                ? 'Discount Applied'
+                : $filters['transaction_type'],
             'Source' => $filters['source'],
             'Processed By' => $processedBy['label'] ?? '',
             'Payment Method' => $filters['payment_method'],
