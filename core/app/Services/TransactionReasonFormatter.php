@@ -13,7 +13,8 @@ class TransactionReasonFormatter
 
         return match ($transaction->status) {
             'Sold' => $reason !== '' ? "Sale: {$reason}" : 'Ticket sold.',
-            'Rebooked' => $this->formatRebooking($transaction, $reason),
+            CashierTransactionEvent::STATUS_REBOOKED => $this->formatRebooking($transaction, $reason, 'Rebooking'),
+            CashierTransactionEvent::STATUS_SEAT_CHANGED => $this->formatRebooking($transaction, $reason, 'Seat Change'),
             'Upgraded', 'Downgraded', 'Transferred', 'Management Transferred' => $this->formatTransfer($transaction, $reason),
             'Cancelled' => $reason !== '' ? "Cancellation: {$reason}" : 'Ticket cancelled.',
             'Voided' => $reason !== '' ? "Void: {$reason}" : 'Ticket voided.',
@@ -64,7 +65,7 @@ class TransactionReasonFormatter
         return 'PHP ' . number_format($amount, 2);
     }
 
-    private function formatRebooking(CashierTransactionEvent $transaction, string $reason): string
+    private function formatRebooking(CashierTransactionEvent $transaction, string $reason, string $actionLabel): string
     {
         $history = data_get($transaction->snapshot, 'rebooking', []);
         $previous = $history['previous'] ?? [];
@@ -105,7 +106,7 @@ class TransactionReasonFormatter
         );
 
         $sequence = (int) ($history['sequence'] ?? data_get($transaction->snapshot, 'rebooking_sequence', 0));
-        $label = $sequence > 0 ? "Rebooking #{$sequence}" : 'Rebooking';
+        $label = $sequence > 0 ? "{$actionLabel} #{$sequence}" : $actionLabel;
 
         if (!$changes) {
             return $reason !== '' ? "{$label}: {$reason}" : "{$label} completed.";

@@ -44,6 +44,7 @@ class CashierTransactionEventPaymentMovementTest extends TestCase
     {
         return [
             'rebooked' => ['Rebooked'],
+            'seat changed' => ['Seat Changed'],
             'validated' => ['Validated'],
         ];
     }

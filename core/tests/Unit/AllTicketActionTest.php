@@ -32,6 +32,10 @@ class AllTicketActionTest extends TestCase
             ['View rebooking history', 'Print current ticket', 'Rebook this ticket again', 'Transfer ticket'],
             $this->labels($this->actions($rebooked, 'Rebooked'))
         );
+        $this->assertSame(
+            ['View rebooking history', 'Print current ticket', 'Rebook this ticket again', 'Transfer ticket'],
+            $this->labels($this->actions($rebooked, 'Seat Changed'))
+        );
         $this->assertSame(['View refund record'], $this->labels($this->actions($refunded, 'Refunded')));
         $this->assertSame(['View cancellation acknowledgment'], $this->labels($this->actions($cancelled, 'Cancelled')));
         $this->assertSame(['View void transaction'], $this->labels($this->actions($voided, 'Voided')));

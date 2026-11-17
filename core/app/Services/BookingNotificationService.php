@@ -15,6 +15,7 @@ class BookingNotificationService
         'rebooking_approved' => ['Rebooking Approved', 'Your rebooking request was approved.'],
         'rebooking_denied' => ['Rebooking Denied', 'Your rebooking request was denied.'],
         'rebooking_completed' => ['Rebooking Completed', 'Your rebooking was completed.'],
+        'seat_changed' => ['Seat Changed', 'Your assigned seat was changed.'],
         'trip_schedule_changed' => ['Trip Schedule Changed', 'Your trip schedule was updated.'],
         'trip_cancelled' => ['Trip Cancelled', 'Your scheduled trip was cancelled.'],
         'ticket_cancelled' => ['Ticket Cancelled', 'Your ticket was cancelled.'],

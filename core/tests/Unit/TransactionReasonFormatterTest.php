@@ -71,6 +71,26 @@ class TransactionReasonFormatterTest extends TestCase
         );
     }
 
+    public function test_seat_change_has_its_own_status_and_audit_label(): void
+    {
+        $transaction = new CashierTransactionEvent([
+            'status' => CashierTransactionEvent::STATUS_SEAT_CHANGED,
+            'reason' => 'Seat changed from D1 to D2',
+            'snapshot' => [
+                'rebooking' => [
+                    'sequence' => 1,
+                    'previous_seat' => '1-D1',
+                    'new_seat' => '1-D2',
+                ],
+            ],
+        ]);
+
+        $this->assertSame(
+            'Seat Change #1: Seat No.: D1 to D2',
+            (new TransactionReasonFormatter())->format($transaction)
+        );
+    }
+
     public function test_same_route_trip_change_is_identified_by_trip_number(): void
     {
         $transaction = new CashierTransactionEvent([

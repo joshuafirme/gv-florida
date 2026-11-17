@@ -48,10 +48,13 @@ class VehicleTicketController extends Controller
 
     public function rebooked(Request $request)
     {
-        $pageTitle = 'Rebooked Tickets';
+        $pageTitle = 'Rebooking Actions';
         $search = trim((string) $request->search);
         $events = CashierTransactionEvent::query()
-            ->where('status', 'Rebooked')
+            ->whereIn('status', [
+                CashierTransactionEvent::STATUS_REBOOKED,
+                CashierTransactionEvent::STATUS_SEAT_CHANGED,
+            ])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($searchQuery) use ($search) {
                     $searchQuery->where('pnr', 'like', "%{$search}%")
@@ -80,7 +83,10 @@ class VehicleTicketController extends Controller
 
     public function rebookedDetails(CashierTransactionEvent $event)
     {
-        abort_unless($event->status === 'Rebooked', 404);
+        abort_unless(in_array($event->status, [
+            CashierTransactionEvent::STATUS_REBOOKED,
+            CashierTransactionEvent::STATUS_SEAT_CHANGED,
+        ], true), 404);
         $event->loadMissing($this->rebookedTicketRelations());
 
         return response()->json($this->rebookedTicketData($event));
@@ -754,7 +760,7 @@ class VehicleTicketController extends Controller
             'search' => 'nullable|string|max:255',
             'travel_date' => 'nullable|date',
             'route_id' => 'nullable|integer|exists:vehicle_routes,id',
-            'status' => 'nullable|in:booked,rebooked,refunded,cancelled,voided,pending,expired,rejected',
+            'status' => 'nullable|in:booked,rebooked,seat_changed,refunded,cancelled,voided,pending,expired,rejected',
         ]);
 
         $pageTitle = 'All Tickets';
@@ -832,7 +838,10 @@ class VehicleTicketController extends Controller
             ->whereDoesntHave('cancellation')
             ->whereDoesntHave('voidRecord')
             ->whereDoesntHave('transactionEvents', function ($query) {
-                $query->where('status', 'Rebooked');
+                $query->whereIn('status', [
+                    CashierTransactionEvent::STATUS_REBOOKED,
+                    CashierTransactionEvent::STATUS_SEAT_CHANGED,
+                ]);
             })
             ->with([
                 'bookedTicket.trip.schedule',
@@ -983,7 +992,10 @@ class VehicleTicketController extends Controller
                 'voidRecord.processedBy:id,name,username',
                 'voidRecord.authorizedBy:id,name,username',
                 'transactionEvents' => fn ($eventQuery) => $eventQuery
-                    ->where('status', 'Rebooked')
+                    ->whereIn('status', [
+                        CashierTransactionEvent::STATUS_REBOOKED,
+                        CashierTransactionEvent::STATUS_SEAT_CHANGED,
+                    ])
                     ->with('admin:id,name,username')
                     ->orderByDesc('processed_at')
                     ->orderByDesc('id'),
@@ -1147,11 +1159,19 @@ class VehicleTicketController extends Controller
                 ->whereDoesntHave('refund')
                 ->whereDoesntHave('cancellation')
                 ->whereHas('transactionEvents', fn ($eventQuery) => $eventQuery->where('status', 'Rebooked')),
+            'seat_changed' => $query
+                ->whereDoesntHave('voidRecord')
+                ->whereDoesntHave('refund')
+                ->whereDoesntHave('cancellation')
+                ->whereHas('transactionEvents', fn ($eventQuery) => $eventQuery->where('status', CashierTransactionEvent::STATUS_SEAT_CHANGED)),
             'booked' => $query
                 ->whereDoesntHave('voidRecord')
                 ->whereDoesntHave('refund')
                 ->whereDoesntHave('cancellation')
-                ->whereDoesntHave('transactionEvents', fn ($eventQuery) => $eventQuery->where('status', 'Rebooked'))
+                ->whereDoesntHave('transactionEvents', fn ($eventQuery) => $eventQuery->whereIn('status', [
+                    CashierTransactionEvent::STATUS_REBOOKED,
+                    CashierTransactionEvent::STATUS_SEAT_CHANGED,
+                ]))
                 ->where('all_ticket_bookings.status', Status::BOOKED_APPROVED),
             'pending' => $this->filterAllTicketByBookingStatus($query, Status::BOOKED_PENDING),
             'expired' => $this->filterAllTicketByBookingStatus($query, Status::BOOKED_EXPIRED),
@@ -1165,7 +1185,10 @@ class VehicleTicketController extends Controller
             ->whereDoesntHave('voidRecord')
             ->whereDoesntHave('refund')
             ->whereDoesntHave('cancellation')
-            ->whereDoesntHave('transactionEvents', fn ($eventQuery) => $eventQuery->where('status', 'Rebooked'))
+            ->whereDoesntHave('transactionEvents', fn ($eventQuery) => $eventQuery->whereIn('status', [
+                CashierTransactionEvent::STATUS_REBOOKED,
+                CashierTransactionEvent::STATUS_SEAT_CHANGED,
+            ]))
             ->where('all_ticket_bookings.status', $status);
     }
 
@@ -1179,7 +1202,7 @@ class VehicleTicketController extends Controller
             (bool) $slip->voidRecord => 'Voided',
             (bool) $slip->refund => 'Refunded',
             (bool) $slip->cancellation => 'Cancelled',
-            (bool) $rebooking => 'Rebooked',
+            (bool) $rebooking => $rebooking->status,
             $ticket->status === Status::BOOKED_APPROVED => 'Booked',
             $ticket->status === Status::BOOKED_PENDING => 'Pending',
             $ticket->status === Status::BOOKED_EXPIRED => 'Expired',
@@ -1194,12 +1217,12 @@ class VehicleTicketController extends Controller
             'Voided' => $slip->voidRecord,
             'Refunded' => $slip->refund,
             'Cancelled' => $slip->cancellation,
-            'Rebooked' => $rebooking,
+            'Rebooked', 'Seat Changed' => $rebooking,
             default => null,
         };
         $processedBy = match ($status) {
             'Voided', 'Refunded', 'Cancelled' => $statusRecord?->processedBy,
-            'Rebooked' => $rebooking?->admin,
+            'Rebooked', 'Seat Changed' => $rebooking?->admin,
             default => $ticket->approvedBy,
         };
         $authorizedBy = in_array($status, ['Voided', 'Refunded', 'Cancelled'], true)
@@ -1306,7 +1329,7 @@ class VehicleTicketController extends Controller
                 'class' => 'btn-outline--primary',
                 'url' => $rebookUrl,
             ]] : [],
-            'Rebooked' => array_values(array_filter([
+            'Rebooked', 'Seat Changed' => array_values(array_filter([
                 [
                     'label' => 'View rebooking history',
                     'icon' => 'las la-eye',
@@ -1508,7 +1531,7 @@ class VehicleTicketController extends Controller
             'approval_remarks' => $authorization['approval_remarks']
                 ?? $snapshot['approval_remarks']
                 ?? null,
-            'status' => 'Rebooked',
+            'status' => $event->status,
             'sequence' => (int) ($history['sequence'] ?? $snapshot['rebooking_sequence'] ?? 1),
             'previous_trip' => $history['previous']['trip'] ?? '-',
             'new_trip' => $history['new']['trip'] ?? ($event->trip_route ?: '-'),
@@ -1818,6 +1841,13 @@ class VehicleTicketController extends Controller
             Carbon::parse($request->date_of_journey)->format('Y-m-d'),
             $requestedSeats
         );
+        $transactionStatus = $this->rebookingTransactionStatus($rebookingHistory);
+
+        if ($transactionStatus === null) {
+            return redirect()->back()->withErrors([
+                'seats' => 'Change the travel date or select a different seat before saving.',
+            ]);
+        }
 
         if ($data->payment_record) {
             app(CashierTransactionRecorder::class)->recordSold($data->payment_record);
@@ -1825,7 +1855,9 @@ class VehicleTicketController extends Controller
 
         // 4. Save the update
         $data->date_of_journey = $request->date_of_journey;
-        $data->is_rebooked = 1;
+        if ($transactionStatus === CashierTransactionEvent::STATUS_REBOOKED) {
+            $data->is_rebooked = 1;
+        }
         $data->seats = $requestedSeats;
         $data->save();
 
@@ -1865,17 +1897,24 @@ class VehicleTicketController extends Controller
             implode('; ', $reasonParts) ?: 'Booking schedule updated',
             Str::uuid()->toString(),
             $rebookingHistory,
-            $admin
+            $admin,
+            null,
+            $transactionStatus
         );
 
+        $notificationType = $transactionStatus === CashierTransactionEvent::STATUS_SEAT_CHANGED
+            ? 'seat_changed'
+            : 'rebooking_completed';
         app(BookingNotificationService::class)->send(
             $data,
-            'rebooking_completed',
-            'rebooking:' . $data->id . ':' . ($data->updated_at?->format('YmdHisv') ?: now()->format('YmdHisv')),
+            $notificationType,
+            Str::slug($notificationType) . ':' . $data->id . ':' . ($data->updated_at?->format('YmdHisv') ?: now()->format('YmdHisv')),
             auth('admin')->user()
         );
 
-        $notify[] = ['success', "Booking Date and Seats Updated Successfully"];
+        $notify[] = ['success', $transactionStatus === CashierTransactionEvent::STATUS_SEAT_CHANGED
+            ? 'Seat changed successfully.'
+            : 'Booking date and seats updated successfully.'];
         return redirect()->back()->withNotify($notify);
     }
 
@@ -1974,7 +2013,7 @@ class VehicleTicketController extends Controller
             $this->authorizationContextForBooking($id, $slipId, $validated['reason'] ?? null)
         );
 
-        $result = DB::transaction(function () use ($id, $validated, $slipId, $authorizedBy) {
+        $outcome = DB::transaction(function () use ($id, $validated, $slipId, $authorizedBy) {
             $ticket = $this->rebookingTicket($id, $slipId, true);
             $targetSlips = $this->rebookingSlips($ticket, $slipId);
             $eligibility = $this->assertAdminRebookingEligible($ticket, $targetSlips);
@@ -2040,6 +2079,13 @@ class VehicleTicketController extends Controller
                 $requestedSeats,
                 $eligibility
             );
+            $transactionStatus = $this->rebookingTransactionStatus($history);
+
+            if ($transactionStatus === null) {
+                throw ValidationException::withMessages([
+                    'seats' => 'Change the trip, travel date, or seat before confirming.',
+                ]);
+            }
 
             if ($ticket->payment_record) {
                 app(CashierTransactionRecorder::class)->recordSold($ticket->payment_record);
@@ -2062,22 +2108,33 @@ class VehicleTicketController extends Controller
                 Str::uuid()->toString(),
                 $history,
                 $authorizedBy,
-                $validated['approval_remarks'] ?? null
+                $validated['approval_remarks'] ?? null,
+                $transactionStatus
             );
 
-            return $result;
+            return [
+                'ticket' => $result,
+                'status' => $transactionStatus,
+            ];
         });
+        $result = $outcome['ticket'];
+        $transactionStatus = $outcome['status'];
 
+        $notificationType = $transactionStatus === CashierTransactionEvent::STATUS_SEAT_CHANGED
+            ? 'seat_changed'
+            : 'rebooking_completed';
         app(BookingNotificationService::class)->send(
             $result,
-            'rebooking_completed',
-            'rebooking:' . $result->id . ':' . ($result->updated_at?->format('YmdHisv') ?: now()->format('YmdHisv')),
+            $notificationType,
+            Str::slug($notificationType) . ':' . $result->id . ':' . ($result->updated_at?->format('YmdHisv') ?: now()->format('YmdHisv')),
             auth('admin')->user()
         );
 
         return response()->json([
             'success' => true,
-            'message' => 'Rebooking confirmed. The ticket remains paid, the PNR and reference number are unchanged, and no new voucher is required.',
+            'message' => $transactionStatus === CashierTransactionEvent::STATUS_SEAT_CHANGED
+                ? 'Seat changed successfully. The trip, schedule, route, fare, PNR, and reference number are unchanged.'
+                : 'Rebooking confirmed. The ticket remains paid, the PNR and reference number are unchanged, and no new voucher is required.',
             'print_url' => route('admin.trip.reservationSlip', $result->id),
         ]);
     }
@@ -3159,10 +3216,14 @@ class VehicleTicketController extends Controller
             'original_departure_at' => $originalDeparture->toIso8601String(),
             'previous' => [
                 'trip_id' => $ticket->trip_id,
+                'route_id' => $ticket->trip?->vehicle_route_id,
                 'trip' => $ticket->trip?->route?->name ?: $ticket->trip?->title ?: 'Trip',
                 'trip_class' => $ticket->trip?->fleetType?->name,
                 'journey_date' => $previousDate,
                 'departure_at' => $previousDeparture->toIso8601String(),
+                'pickup_point' => $ticket->pickup_point,
+                'dropping_point' => $ticket->dropping_point,
+                'fare' => round((float) $ticket->unit_price, 2),
                 'seats' => $oldSeats,
                 'seats_by_reference' => $previousSeatsByReference,
                 'drop_off' => $ticket->drop?->name,
@@ -3170,10 +3231,14 @@ class VehicleTicketController extends Controller
             ],
             'new' => [
                 'trip_id' => $newTrip->id,
+                'route_id' => $newTrip->vehicle_route_id,
                 'trip' => $newTrip->route?->name ?: $newTrip->title ?: 'Trip',
                 'trip_class' => $newTrip->fleetType?->name,
                 'journey_date' => Carbon::parse($newDate)->format('Y-m-d'),
                 'departure_at' => $newDeparture->toIso8601String(),
+                'pickup_point' => $ticket->pickup_point,
+                'dropping_point' => $ticket->dropping_point,
+                'fare' => round((float) $ticket->unit_price, 2),
                 'seats' => array_values($newSeats),
                 'seats_by_reference' => $newSeatsByReference,
                 'drop_off' => $ticket->drop?->name,
@@ -3188,6 +3253,42 @@ class VehicleTicketController extends Controller
         }
 
         return $history;
+    }
+
+    private function rebookingTransactionStatus(array $history): ?string
+    {
+        $previous = $history['previous'] ?? [];
+        $new = $history['new'] ?? [];
+        $bookingFields = [
+            'trip_id',
+            'route_id',
+            'trip',
+            'trip_class',
+            'journey_date',
+            'departure_at',
+            'pickup_point',
+            'dropping_point',
+            'drop_off',
+            'km_post',
+            'fare',
+        ];
+
+        foreach ($bookingFields as $field) {
+            if ((string) ($previous[$field] ?? '') !== (string) ($new[$field] ?? '')) {
+                return CashierTransactionEvent::STATUS_REBOOKED;
+            }
+        }
+
+        $previousSeats = !empty($previous['seats_by_reference'])
+            ? $previous['seats_by_reference']
+            : ($previous['seats'] ?? []);
+        $newSeats = !empty($new['seats_by_reference'])
+            ? $new['seats_by_reference']
+            : ($new['seats'] ?? []);
+
+        return $previousSeats !== $newSeats
+            ? CashierTransactionEvent::STATUS_SEAT_CHANGED
+            : null;
     }
 
     private function applyRebooking(BookedTicket $ticket, $targetSlips, Trip $trip, string $date, array $requestedSeats): BookedTicket
@@ -3205,7 +3306,9 @@ class VehicleTicketController extends Controller
             $ticket->seats = $requestedSeats;
             $ticket->ticket_count = count($requestedSeats);
             $ticket->sub_total = count($requestedSeats) * (float) $ticket->unit_price;
-            $ticket->is_rebooked = 1;
+            if ($movesTripOrDate) {
+                $ticket->is_rebooked = 1;
+            }
             $this->replacePassengerManifestSeats($ticket, $oldSeats, $requestedSeats);
             $ticket->save();
 
@@ -3264,7 +3367,9 @@ class VehicleTicketController extends Controller
 
         $ticket->trip_id = $trip->id;
         $ticket->date_of_journey = $date;
-        $ticket->is_rebooked = 1;
+        if ($movesTripOrDate) {
+            $ticket->is_rebooked = 1;
+        }
         $this->replacePassengerManifestSeats($ticket, $oldSeats, $requestedSeats);
         $this->syncTicketSeats($ticket);
 

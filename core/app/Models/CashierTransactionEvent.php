@@ -10,9 +10,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class CashierTransactionEvent extends Model
 {
+    public const STATUS_REBOOKED = 'Rebooked';
+    public const STATUS_SEAT_CHANGED = 'Seat Changed';
+
     public const BOOKING_TRANSACTION_STATUSES = [
         'Sold',
-        'Rebooked',
+        self::STATUS_REBOOKED,
+        self::STATUS_SEAT_CHANGED,
         'Upgraded',
         'Downgraded',
         'Transferred',
@@ -121,6 +125,6 @@ class CashierTransactionEvent extends Model
             return true;
         }
 
-        return !in_array($this->status, ['Rebooked', 'Validated'], true);
+        return !in_array($this->status, [self::STATUS_REBOOKED, self::STATUS_SEAT_CHANGED, 'Validated'], true);
     }
 }

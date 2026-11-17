@@ -130,6 +130,7 @@
                         <tr>
                             <th class="text-end">Sold</th>
                             <th class="text-end">Rebooked</th>
+                            <th class="text-end">Seat Changed</th>
                             <th class="text-end">Transfers</th>
                             <th class="text-end">Cancelled</th>
                             <th class="text-end">Voided</th>
@@ -141,6 +142,7 @@
                         <tr>
                             <td class="text-end">{{ $activity['sold'] }}</td>
                             <td class="text-end">{{ $activity['rebooked'] }}</td>
+                            <td class="text-end">{{ $activity['seat_changed'] }}</td>
                             <td class="text-end">{{ $activity['transfers'] }}</td>
                             <td class="text-end">{{ $activity['cancelled'] }}</td>
                             <td class="text-end">{{ $activity['voided'] }}</td>
@@ -559,7 +561,8 @@
         }
 
         .daily-status--sold { color: #167944; background: #ecfdf3; border-color: #b6ead0; }
-        .daily-status--rebooked { color: #1c6b9e; background: #eef8ff; border-color: #b9dff7; }
+        .daily-status--rebooked,
+        .daily-status--seat-changed { color: #1c6b9e; background: #eef8ff; border-color: #b9dff7; }
         .daily-status--upgraded,
         .daily-status--downgraded,
         .daily-status--transferred,

@@ -23,6 +23,7 @@ class DailyReportServiceTest extends TestCase
             $this->transaction(2, 'Ben', 'Sold', 'Counter', 500),
             $this->transaction(2, 'Ben', 'Voided', 'Counter', -200),
             $this->transaction(2, 'Ben', 'Rebooked', 'Counter', 0),
+            $this->transaction(2, 'Ben', 'Seat Changed', 'Counter', 0),
             $this->transaction(2, 'Ben', 'Cancelled', 'Counter', 0),
             $this->transaction(1, 'Alice', 'Discount Override', 'Online', -100, 100),
             $this->transaction(1, 'Alice', 'Validated', 'Online', 0),
@@ -38,6 +39,7 @@ class DailyReportServiceTest extends TestCase
         $this->assertSame([
             'sold' => 2,
             'rebooked' => 1,
+            'seat_changed' => 1,
             'upgraded' => 0,
             'downgraded' => 0,
             'transferred' => 0,
