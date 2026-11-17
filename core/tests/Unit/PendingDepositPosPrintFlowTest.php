@@ -12,7 +12,7 @@ class PendingDepositPosPrintFlowTest extends TestCase
 
         $completion = strpos($view, 'completeConfirmedPayment(confirmedPayment, button, originalLabel);');
         $printing = strpos($view, 'await printReservation(printUrl);', $completion);
-        $confirmation = strpos($view, 'const confirmation = await finalizePendingPayment(confirmedPayment);');
+        $confirmation = strpos($view, 'confirmation = await finalizePendingPayment(confirmedPayment);');
         $slipGeneration = strpos($view, "url: confirmation.print_url || confirmedPayment.print_url", $completion);
 
         $this->assertNotFalse($completion);
@@ -33,7 +33,10 @@ class PendingDepositPosPrintFlowTest extends TestCase
         $view = file_get_contents(resource_path('views/admin/deposit/log.blade.php'));
         $controller = file_get_contents(app_path('Http/Controllers/Admin/DepositController.php'));
 
-        $this->assertStringContainsString('timeout: requestTimeouts.lease', $view);
+        $this->assertStringContainsString(
+            "requestTimeouts.lease, 'The processing session check timed out.'",
+            $view
+        );
         $this->assertStringContainsString('if (!error.timedOut) throw error;', $view);
         $this->assertStringContainsString('return await requestPaymentConfirmation(payment);', $view);
         $this->assertStringContainsString('return requestPaymentConfirmation(payment);', $view);
@@ -43,6 +46,10 @@ class PendingDepositPosPrintFlowTest extends TestCase
         $this->assertStringContainsString('$paymentCompleted = PaymentController::userDataUpdate($deposit, true, false);', $controller);
         $this->assertStringContainsString('if ($paymentCompleted) {', $controller);
         $this->assertStringContainsString('app()->terminating(function () use ($depositId, $ticketId)', $controller);
+        $this->assertStringContainsString("'X-Payment-Attempt-ID': paymentAttemptId", $view);
+        $this->assertStringContainsString("'code' => 'processing_session_inactive'", $controller);
+        $this->assertStringContainsString('recoverPaymentClaim(confirmedPayment)', $view);
+        $this->assertStringNotContainsString('await renewProcessingLease(confirmedPayment);', $view);
     }
 
     public function test_payment_modal_handoffs_release_focus_before_hiding_the_source_modal(): void
@@ -60,5 +67,24 @@ class PendingDepositPosPrintFlowTest extends TestCase
         $this->assertStringContainsString("focusedElement.blur();", $view);
         $this->assertStringContainsString('if (paymentModalTransitionInProgress) return;', $view);
         $this->assertStringContainsString("destinationElement.addEventListener('shown.bs.modal'", $view);
+        $this->assertStringContainsString(
+            'if (paymentModalTransitionInProgress || paymentFinalizationInProgress) return;',
+            $view
+        );
+    }
+
+    public function test_transient_heartbeat_failures_do_not_discard_the_active_payment(): void
+    {
+        $view = file_get_contents(resource_path('views/admin/deposit/log.blade.php'));
+
+        $this->assertStringContainsString(
+            'const sessionEnded = [404, 409, 410, 419, 422].includes(error.status);',
+            $view
+        );
+        $this->assertStringContainsString('Payment processing will keep retrying.', $view);
+        $this->assertStringContainsString('if (!sessionEnded) {', $view);
+        $this->assertStringContainsString('confirmedPayment = await recoverPaymentClaim();', $view);
+        $this->assertStringContainsString(".on('click.posConfirmPayment', '#posConfirmPrintBtn'", $view);
+        $this->assertStringContainsString(".html(confirmPrintButtonDefaultLabel);", $view);
     }
 }

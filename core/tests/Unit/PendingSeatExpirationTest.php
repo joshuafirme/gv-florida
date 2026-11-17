@@ -192,6 +192,55 @@ class PendingSeatExpirationTest extends TestCase
         );
     }
 
+    public function test_reopening_a_claim_keeps_the_same_cashier_token(): void
+    {
+        $now = CarbonImmutable::parse('2026-09-10 10:00:00');
+        $ticketId = $this->insertPendingTicket($now);
+        $depositId = $this->insertPendingDeposit($ticketId, $now->addMinutes(10));
+        $processingService = new PendingPaymentProcessingService(new PendingPaymentExpirationService());
+
+        $firstClaim = $processingService->claim(Deposit::findOrFail($depositId), 12, $now);
+        $secondClaim = $processingService->claim(Deposit::findOrFail($depositId), 12, $now->addSeconds(30));
+
+        $this->assertSame('claimed', $firstClaim['status']);
+        $this->assertSame('claimed', $secondClaim['status']);
+        $this->assertSame($firstClaim['token'], $secondClaim['token']);
+        $this->assertNotSame($firstClaim['lease_expires_at'], $secondClaim['lease_expires_at']);
+    }
+
+    public function test_owner_can_recover_an_expired_lease_until_another_cashier_claims_it(): void
+    {
+        $now = CarbonImmutable::parse('2026-09-10 10:00:00');
+        $ticketId = $this->insertPendingTicket($now);
+        $depositId = $this->insertPendingDeposit($ticketId, $now->addMinutes(10));
+        $processingService = new PendingPaymentProcessingService(new PendingPaymentExpirationService());
+
+        $claim = $processingService->claim(Deposit::findOrFail($depositId), 12, $now);
+        $afterLease = $now->addSeconds(PendingPaymentProcessingService::LEASE_SECONDS + 1);
+
+        $this->assertTrue($processingService->renew(
+            Deposit::findOrFail($depositId),
+            12,
+            $claim['token'],
+            $afterLease
+        ));
+
+        $replacement = $processingService->claim(
+            Deposit::findOrFail($depositId),
+            13,
+            $afterLease->addSeconds(PendingPaymentProcessingService::LEASE_SECONDS + 1)
+        );
+
+        $this->assertSame('claimed', $replacement['status']);
+        $this->assertNotSame($claim['token'], $replacement['token']);
+        $this->assertFalse($processingService->renew(
+            Deposit::findOrFail($depositId),
+            12,
+            $claim['token'],
+            $afterLease->addSeconds(PendingPaymentProcessingService::LEASE_SECONDS + 2)
+        ));
+    }
+
     private function insertPendingTicket(CarbonImmutable $createdAt, ?int $kioskId = null): int
     {
         return DB::table('booked_tickets')->insertGetId([

@@ -17,6 +17,8 @@ use App\Services\PaymentSuccessNotifier;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use App\Exports\PaymentExport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -152,42 +154,99 @@ class DepositController extends Controller
         $validated = $request->validate([
             'deposit_id' => ['required', 'integer'],
             'processing_token' => ['required', 'string', 'size:64'],
+            'confirmation_attempt_id' => ['nullable', 'string', 'max:100'],
         ]);
         $admin = auth('admin')->user();
+        $attemptId = $request->header('X-Payment-Attempt-ID')
+            ?: ($validated['confirmation_attempt_id'] ?? null)
+            ?: (string) Str::uuid();
+        $startedAt = microtime(true);
         $deposit = Deposit::with('bookedTicket')->findOrFail($validated['deposit_id']);
+        $logContext = [
+            'attempt_id' => $attemptId,
+            'deposit_id' => (int) $deposit->id,
+            'admin_id' => (int) $admin->id,
+        ];
+
+        Log::info('Pending payment confirmation started', $logContext);
 
         if ((int) $deposit->status === Status::PAYMENT_SUCCESS) {
             if ((int) $deposit->processed_by_admin_id !== (int) $admin->id) {
+                Log::warning('Pending payment was already completed by another cashier', $logContext);
+
                 return response()->json([
+                    'code' => 'payment_already_processed',
                     'message' => 'This payment was already processed by another staff member.',
                 ], 409);
             }
 
-            return response()->json($this->confirmedPaymentPayload($deposit));
+            Log::info('Pending payment confirmation returned its completed result', $logContext + [
+                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            ]);
+
+            return response()->json($this->confirmedPaymentPayload($deposit, $attemptId));
         }
 
         if ((int) $deposit->status !== Status::PAYMENT_PENDING
             || !$processing->renew($deposit, (int) $admin->id, $validated['processing_token'])) {
+            Log::warning('Pending payment confirmation rejected an inactive processing claim', $logContext + [
+                'status' => (int) $deposit->status,
+                'processing_admin_id' => $deposit->processing_admin_id,
+                'lease_expires_at' => $deposit->processing_lease_expires_at?->toIso8601String(),
+            ]);
+
             return response()->json([
+                'code' => 'processing_session_inactive',
                 'message' => 'This payment processing session is no longer active.',
             ], 409);
         }
 
-        $deposit->processed_by_name = $admin->name;
-        $deposit->processed_by_admin_id = $admin->id;
-        $deposit->save();
+        if (!$deposit->bookedTicket) {
+            Log::error('Pending payment confirmation has no associated ticket', $logContext);
 
-        $ticket = $deposit->bookedTicket;
-        $ticket->approved_by = $admin->id;
-        $ticket->save();
+            return response()->json([
+                'code' => 'ticket_not_found',
+                'message' => 'The ticket for this payment could not be found.',
+                'reference' => $attemptId,
+            ], 409);
+        }
 
-        // Complete the sale before preparing the PDF or contacting notification providers.
-        $paymentCompleted = PaymentController::userDataUpdate($deposit, true, false);
-        $deposit->refresh()->load('bookedTicket');
+        try {
+            $deposit->processed_by_name = $admin->name;
+            $deposit->processed_by_admin_id = $admin->id;
+            $deposit->save();
+
+            $ticket = $deposit->bookedTicket;
+            $ticket->approved_by = $admin->id;
+            $ticket->save();
+
+            // Complete the sale before preparing the PDF or contacting notification providers.
+            $paymentCompleted = PaymentController::userDataUpdate($deposit, true, false);
+            $deposit->refresh()->load('bookedTicket');
+        } catch (\Throwable $exception) {
+            report($exception);
+            Log::error('Pending payment confirmation failed', $logContext + [
+                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'code' => 'payment_confirmation_failed',
+                'message' => 'Unable to complete this payment. Please try again.',
+                'reference' => $attemptId,
+            ], 500);
+        }
 
         if ((int) $deposit->status !== Status::PAYMENT_SUCCESS) {
+            Log::warning('Pending payment confirmation did not change the payment status', $logContext + [
+                'status' => (int) $deposit->status,
+            ]);
+
             return response()->json([
+                'code' => 'payment_completion_failed',
                 'message' => 'Unable to complete this payment. Please try again.',
+                'reference' => $attemptId,
             ], 409);
         }
 
@@ -195,7 +254,11 @@ class DepositController extends Controller
             $this->sendPaymentNotificationAfterResponse($deposit->id, $ticket->id);
         }
 
-        return response()->json($this->confirmedPaymentPayload($deposit));
+        Log::info('Pending payment confirmation completed', $logContext + [
+            'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+        ]);
+
+        return response()->json($this->confirmedPaymentPayload($deposit, $attemptId));
     }
 
     public function releaseProcessing(Request $request)
@@ -524,12 +587,13 @@ class DepositController extends Controller
         ];
     }
 
-    private function confirmedPaymentPayload(Deposit $deposit): array
+    private function confirmedPaymentPayload(Deposit $deposit, ?string $attemptId = null): array
     {
         $ticket = $deposit->bookedTicket;
 
         return [
             'success' => true,
+            'confirmation_attempt_id' => $attemptId,
             'print_url' => url("api/ticket/download/reservation-slip/{$ticket->id}"),
             'reservation_slip_url' => route('admin.trip.reservationSlip', $ticket->id),
         ];

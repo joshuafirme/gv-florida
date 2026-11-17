@@ -1560,8 +1560,11 @@
                 const rejectPaymentModal = new bootstrap.Modal(rejectPaymentElement);
                 let activePayment = null;
                 let processingHeartbeatTimer = null;
+                let processingHeartbeatFailures = 0;
                 let paymentFinalizationInProgress = false;
                 let paymentModalTransitionInProgress = false;
+                let lastPaymentLookup = null;
+                let paymentAttemptId = null;
                 const appBaseUrl = @json(url('/'));
                 const processingAdminId = {{ auth('admin')->id() }};
                 const csrfToken = @json(csrf_token());
@@ -1576,6 +1579,7 @@
                     confirmation: 20000,
                     reservationSlip: 30000
                 };
+                const confirmPrintButtonDefaultLabel = $('#posConfirmPrintBtn').html();
                 const params = new URLSearchParams(window.location.search);
 
                 if (params.get('newly_approved')) {
@@ -1635,6 +1639,8 @@
                 }
 
                 const wait = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
+                const createPaymentAttemptId = () => window.crypto?.randomUUID?.() ||
+                    `payment-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
                 function releasePaymentModalFocus(modalElement) {
                     const focusedElement = document.activeElement;
@@ -1650,7 +1656,13 @@
                     if (paymentModalTransitionInProgress) return;
 
                     paymentModalTransitionInProgress = true;
+                    const transitionTimer = window.setTimeout(function() {
+                        destinationModal.show();
+                        paymentModalTransitionInProgress = false;
+                    }, 1200);
+
                     destinationElement.addEventListener('shown.bs.modal', function() {
+                        window.clearTimeout(transitionTimer);
                         paymentModalTransitionInProgress = false;
 
                         if (focusSelector) {
@@ -1682,28 +1694,42 @@
                         return Promise.reject(new Error('No active payment processing session.'));
                     }
 
-                    return $.ajax({
+                    return jsonRequest({
                         url: payment.heartbeat_url,
                         method: 'POST',
                         data: {
                             _token: csrfToken,
                             deposit_id: payment.deposit_id,
                             processing_token: payment.processing_token
-                        },
-                        dataType: 'json',
-                        timeout: requestTimeouts.lease
-                    });
+                        }
+                    }, requestTimeouts.lease, 'The processing session check timed out.');
                 }
 
                 function startProcessingHeartbeat() {
                     stopProcessingHeartbeat();
+                    processingHeartbeatFailures = 0;
                     processingHeartbeatTimer = window.setInterval(function() {
-                        renewProcessingLease().fail(function(xhr) {
+                        renewProcessingLease().then(function() {
+                            processingHeartbeatFailures = 0;
+                        }).catch(function(error) {
                             if (paymentFinalizationInProgress) return;
 
+                            const sessionEnded = [404, 409, 410, 419, 422].includes(error.status);
+
+                            if (!sessionEnded) {
+                                processingHeartbeatFailures += 1;
+
+                                if (processingHeartbeatFailures === 1) {
+                                    notify('warning',
+                                        'The connection was interrupted. Payment processing will keep retrying.');
+                                }
+
+                                return;
+                            }
+
                             stopProcessingHeartbeat();
-                            notify('error', xhr.responseJSON?.message ||
-                                'This payment processing session has ended.');
+                            notify('error', error.responseJSON?.message ||
+                                'This payment processing session has ended. Please open the payment again.');
                             activePayment = null;
                             processPaymentModal.hide();
                             confirmPaymentModal.hide();
@@ -1718,6 +1744,7 @@
                     const payment = activePayment;
                     activePayment = null;
                     stopProcessingHeartbeat();
+                    processingHeartbeatFailures = 0;
 
                     if (useBeacon && navigator.sendBeacon) {
                         const data = new FormData();
@@ -1943,6 +1970,8 @@
                         button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Loading');
                     }
 
+                    lastPaymentLookup = String(scanValue).trim();
+
                     $.ajax({
                         url: @json(route('admin.deposit.pending.scan')),
                         method: 'GET',
@@ -1950,12 +1979,17 @@
                             scan: scanValue
                         },
                         dataType: 'json',
+                        timeout: 15000,
                         headers: {
                             Accept: 'application/json'
                         }
                     }).done(function(payment) {
                         activePayment = payment;
                         paymentFinalizationInProgress = false;
+                        paymentAttemptId = null;
+                        $('#posConfirmPrintBtn')
+                            .prop('disabled', false)
+                            .html(confirmPrintButtonDefaultLabel);
                         startProcessingHeartbeat();
                         fillProcessModal(payment);
 
@@ -2004,13 +2038,15 @@
 
                 $('#processPaymentModal, #confirmPaymentModal, #posRejectModal').on('hidden.bs.modal', function() {
                     window.setTimeout(function() {
+                        if (paymentModalTransitionInProgress || paymentFinalizationInProgress) return;
+
                         const flowStillOpen = $('#processPaymentModal, #confirmPaymentModal, #posRejectModal')
                             .is('.show');
 
                         if (!flowStillOpen && !paymentFinalizationInProgress) {
                             releaseActivePayment();
                         }
-                    }, 150);
+                    }, 350);
                 });
 
                 $('#posCashReceived').on('input', updateTenderedAmount).on('keydown', function(event) {
@@ -2105,9 +2141,16 @@
                 function completeConfirmedPayment(payment, button, originalLabel) {
                     activePayment = null;
                     paymentFinalizationInProgress = false;
+                    paymentAttemptId = null;
+                    processingHeartbeatFailures = 0;
                     stopProcessingHeartbeat();
-                    confirmPaymentModal.hide();
                     button.prop('disabled', false).html(originalLabel);
+
+                    try {
+                        confirmPaymentModal.hide();
+                    } catch (modalError) {
+                        console.error('Payment was confirmed, but the modal could not be closed.', modalError);
+                    }
 
                     $(`tr[data-pending-deposit-id="${Number(payment.deposit_id)}"]`)
                         .fadeOut(180, function() {
@@ -2134,10 +2177,13 @@
                         data: {
                             _token: csrfToken,
                             deposit_id: payment.deposit_id,
-                            processing_token: payment.processing_token
+                            processing_token: payment.processing_token,
+                            confirmation_attempt_id: paymentAttemptId
                         },
                         headers: {
-                            Accept: 'application/json'
+                            Accept: 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Payment-Attempt-ID': paymentAttemptId
                         }
                     }, requestTimeouts.confirmation, 'Payment confirmation timed out.');
                 }
@@ -2156,13 +2202,33 @@
                     }
                 }
 
-                async function confirmAndPrintPayment() {
-                    if (!activePayment) return;
+                async function recoverPaymentClaim(payment = null) {
+                    const lookup = payment?.pnr || lastPaymentLookup ||
+                        $('[data-confirm="pnr"]').first().text().trim();
 
+                    if (!lookup) {
+                        throw new Error('The payment session was lost. Please open the payment again.');
+                    }
+
+                    const recoveredPayment = await jsonRequest({
+                        url: @json(route('admin.deposit.pending.scan')),
+                        method: 'GET',
+                        data: { scan: lookup },
+                        headers: { Accept: 'application/json' }
+                    }, 15000, 'Unable to restore the payment session in time.');
+
+                    activePayment = recoveredPayment;
+                    lastPaymentLookup = lookup;
+                    startProcessingHeartbeat();
+
+                    return recoveredPayment;
+                }
+
+                async function confirmAndPrintPayment() {
                     const button = $('#posConfirmPrintBtn');
 
                     // Prevent duplicate requests.
-                    if (button.prop('disabled')) return;
+                    if (paymentFinalizationInProgress) return;
 
                     const originalLabel = button.html();
 
@@ -2170,12 +2236,30 @@
                         '<i class="las la-spinner la-spin"></i> Processing...'
                     );
                     paymentFinalizationInProgress = true;
-                    const confirmedPayment = activePayment;
-                    stopProcessingHeartbeat();
+                    paymentAttemptId = createPaymentAttemptId();
+                    let confirmedPayment = activePayment;
 
                     try {
-                        await renewProcessingLease(confirmedPayment);
-                        const confirmation = await finalizePendingPayment(confirmedPayment);
+                        if (!confirmedPayment) {
+                            notify('warning', 'Restoring the payment processing session...');
+                            confirmedPayment = await recoverPaymentClaim();
+                        }
+
+                        stopProcessingHeartbeat();
+
+                        let confirmation;
+
+                        try {
+                            confirmation = await finalizePendingPayment(confirmedPayment);
+                        } catch (error) {
+                            if (error.responseJSON?.code !== 'processing_session_inactive') throw error;
+
+                            notify('warning', 'The processing session changed. Restoring it now...');
+                            confirmedPayment = await recoverPaymentClaim(confirmedPayment);
+                            stopProcessingHeartbeat();
+                            confirmation = await finalizePendingPayment(confirmedPayment);
+                        }
+
                         completeConfirmedPayment(confirmedPayment, button, originalLabel);
                         notify('success', 'Payment confirmed. Sending the reservation slip to the printer.');
 
@@ -2215,22 +2299,28 @@
                         }
                     } catch (error) {
                         paymentFinalizationInProgress = false;
+                        const reference = error.responseJSON?.reference || paymentAttemptId;
                         const message =
                             error.responseJSON?.message ||
                             error.message ||
                             'Unable to confirm this payment.';
 
-                        notify('error', message);
+                        notify('error', reference ? `${message} Reference: ${reference}` : message);
                         button.prop('disabled', false).html(originalLabel);
+                        paymentAttemptId = null;
 
-                        if (activePayment?.deposit_id === confirmedPayment.deposit_id) {
+                        if (activePayment?.deposit_id === confirmedPayment?.deposit_id) {
                             startProcessingHeartbeat();
                         }
                     }
                 }
 
                 // Button click
-                $('#posConfirmPrintBtn').on('click', confirmAndPrintPayment);
+                $(document).off('click.posConfirmPayment', '#posConfirmPrintBtn')
+                    .on('click.posConfirmPayment', '#posConfirmPrintBtn', function(event) {
+                        event.preventDefault();
+                        confirmAndPrintPayment();
+                    });
 
                 // Enter hotkey
                 $(document).on('keydown.posConfirmPayment', function(event) {

@@ -36,9 +36,21 @@ class PendingPaymentProcessingService
                 return ['status' => 'expired'];
             }
 
-            if ($this->hasActiveClaim($lockedDeposit, $currentTime)
-                && (int) $lockedDeposit->processing_admin_id !== $adminId) {
-                return ['status' => 'busy'];
+            if ($this->hasActiveClaim($lockedDeposit, $currentTime)) {
+                if ((int) $lockedDeposit->processing_admin_id !== $adminId) {
+                    return ['status' => 'busy'];
+                }
+
+                // Reopening the same payment in another tab must not invalidate
+                // the token already held by this cashier.
+                $lockedDeposit->processing_lease_expires_at = $currentTime->addSeconds(self::LEASE_SECONDS);
+                $lockedDeposit->save();
+
+                return [
+                    'status' => 'claimed',
+                    'token' => $lockedDeposit->processing_token,
+                    'lease_expires_at' => $lockedDeposit->processing_lease_expires_at->toIso8601String(),
+                ];
             }
 
             $token = Str::random(64);
@@ -72,7 +84,7 @@ class PendingPaymentProcessingService
 
             if (!$lockedDeposit
                 || (int) $lockedDeposit->status !== Status::PAYMENT_PENDING
-                || !$this->ownsActiveClaim($lockedDeposit, $adminId, $token, $currentTime)) {
+                || !$this->ownsClaim($lockedDeposit, $adminId, $token)) {
                 return false;
             }
 
@@ -113,8 +125,14 @@ class PendingPaymentProcessingService
         string $token,
         ?CarbonInterface $now = null
     ): bool {
-        return hash_equals((string) $deposit->processing_token, $token)
-            && (int) $deposit->processing_admin_id === $adminId
+        return $this->ownsClaim($deposit, $adminId, $token)
             && $this->hasActiveClaim($deposit, $now);
+    }
+
+    private function ownsClaim(Deposit $deposit, int $adminId, string $token): bool
+    {
+        return filled($deposit->processing_token)
+            && hash_equals((string) $deposit->processing_token, $token)
+            && (int) $deposit->processing_admin_id === $adminId;
     }
 }
