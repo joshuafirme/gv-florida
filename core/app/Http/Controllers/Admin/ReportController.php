@@ -98,25 +98,33 @@ class ReportController extends Controller
     {
         $pageTitle = 'Shift End Report';
         $admin = auth('admin')->user();
-        $date = $this->reportDate($request);
-        $report = $this->shiftEndData($admin, $date);
+        [$dateFrom, $dateTo, $period] = $this->reportPeriodParameters($request);
+        $date = $dateFrom;
+        $report = $this->shiftEndData($admin, $dateFrom, $dateTo);
 
         return view('admin.reports.shift-end', compact(
             'pageTitle',
             'admin',
-            'date'
+            'date',
+            'dateFrom',
+            'dateTo',
+            'period'
         ) + $report);
     }
 
     public function shiftEndPdf(Request $request)
     {
         $admin = auth('admin')->user();
-        $date = $this->reportDate($request);
-        $report = $this->shiftEndData($admin, $date);
-        $filename = 'shift-end-report-' . $date->format('Y-m-d') . '.pdf';
+        [$dateFrom, $dateTo, $period] = $this->reportPeriodParameters($request);
+        $date = $dateFrom;
+        $report = $this->shiftEndData($admin, $dateFrom, $dateTo);
+        $filename = $this->reportFilename('shift-end-report', $dateFrom, $dateTo);
 
         $pdf = Pdf::setOptions($this->reportPdfOptions())
-            ->loadView('admin.pdf.shift-end-report', compact('admin', 'date') + $report)
+            ->loadView(
+                'admin.pdf.shift-end-report',
+                compact('admin', 'date', 'dateFrom', 'dateTo', 'period') + $report
+            )
             ->setPaper('letter', 'landscape');
 
         return response($pdf->output(), 200, [
@@ -131,31 +139,35 @@ class ReportController extends Controller
     public function daily(Request $request, DailyReportService $dailyReportService)
     {
         $pageTitle = 'Daily Report';
-        [$date, $filters] = $this->dailyReportParameters($request);
-        $report = $dailyReportService->forDate($date, $filters);
+        [$dateFrom, $dateTo, $period, $filters] = $this->dailyReportParameters($request);
+        $date = $dateFrom;
+        $report = $dailyReportService->forPeriod($dateFrom, $dateTo, $filters);
 
         return view('admin.reports.daily', array_merge(
-            compact('pageTitle', 'date', 'filters'),
+            compact('pageTitle', 'date', 'dateFrom', 'dateTo', 'period', 'filters'),
             $report
         ));
     }
 
     public function dailyPdf(Request $request, DailyReportService $dailyReportService)
     {
-        [$date, $filters] = $this->dailyReportParameters($request);
-        $report = $dailyReportService->forDate($date, $filters);
-        $filename = 'daily-report-' . $date->format('Y-m-d') . '.pdf';
+        [$dateFrom, $dateTo, $period, $filters] = $this->dailyReportParameters($request);
+        $date = $dateFrom;
+        $report = $dailyReportService->forPeriod($dateFrom, $dateTo, $filters);
+        $filename = $this->reportFilename('daily-report', $dateFrom, $dateTo);
 
         return Pdf::setOptions($this->reportPdfOptions())
-            ->loadView('admin.pdf.daily-report', compact('date', 'filters') + $report)
+            ->loadView(
+                'admin.pdf.daily-report',
+                compact('date', 'dateFrom', 'dateTo', 'period', 'filters') + $report
+            )
             ->setPaper('legal', 'landscape')
             ->stream($filename);
     }
 
     private function dailyReportParameters(Request $request): array
     {
-        $validated = $request->validate([
-            'date' => 'nullable|date|before_or_equal:today',
+        $validated = $request->validate(array_merge($this->reportPeriodRules($request), [
             'transaction_type' => [
                 'nullable',
                 'string',
@@ -164,11 +176,9 @@ class ReportController extends Controller
             'source' => 'nullable|string|max:30',
             'processed_by' => 'nullable|string|max:255',
             'payment_method' => 'nullable|string|max:100',
-        ]);
+        ]));
 
-        $date = BusinessTime::parse(
-            $validated['date'] ?? BusinessTime::now()
-        )->startOfDay();
+        [$dateFrom, $dateTo, $period] = $this->resolveReportPeriod($validated);
         $filters = collect($validated)->only([
             'transaction_type',
             'source',
@@ -176,28 +186,82 @@ class ReportController extends Controller
             'payment_method',
         ])->all();
 
-        return [$date, $filters];
+        return [$dateFrom, $dateTo, $period, $filters];
     }
 
-    private function reportDate(Request $request): Carbon
+    private function reportPeriodParameters(Request $request): array
     {
-        $request->validate([
+        $validated = $request->validate($this->reportPeriodRules($request));
+
+        return $this->resolveReportPeriod($validated);
+    }
+
+    private function reportPeriodRules(Request $request): array
+    {
+        $dateToRules = ['nullable', 'date', 'before_or_equal:today'];
+        if ($request->filled('date_from')) {
+            $dateToRules[] = 'after_or_equal:date_from';
+        }
+
+        return [
+            'period' => ['nullable', Rule::in(['daily', 'weekly', 'monthly', 'custom'])],
             'date' => 'nullable|date|before_or_equal:today',
-        ]);
-
-        return BusinessTime::parse(
-            $request->date ?: BusinessTime::now()
-        )->startOfDay();
+            'date_from' => 'nullable|date|before_or_equal:today',
+            'date_to' => $dateToRules,
+        ];
     }
 
-    private function shiftEndData(Admin $admin, Carbon $date): array
+    private function resolveReportPeriod(array $validated): array
     {
-        $report = app(CashierDashboardService::class)->forDate($admin, $date);
+        $hasExplicitRange = !empty($validated['date_from']) || !empty($validated['date_to']);
+        $period = $validated['period'] ?? ($hasExplicitRange ? 'custom' : 'daily');
+        $anchor = BusinessTime::parse(
+            $validated['date_to']
+                ?? $validated['date_from']
+                ?? $validated['date']
+                ?? BusinessTime::now()
+        )->startOfDay();
+
+        if ($hasExplicitRange) {
+            $dateFrom = BusinessTime::parse($validated['date_from'] ?? $validated['date_to'])->startOfDay();
+            $dateTo = BusinessTime::parse($validated['date_to'] ?? $validated['date_from'])->startOfDay();
+
+            return [$dateFrom, $dateTo, $period];
+        }
+
+        $today = BusinessTime::now()->startOfDay();
+        [$dateFrom, $dateTo] = match ($period) {
+            'weekly' => [
+                $anchor->copy()->startOfWeek(Carbon::MONDAY),
+                $anchor->copy()->endOfWeek(Carbon::SUNDAY)->min($today)->startOfDay(),
+            ],
+            'monthly' => [
+                $anchor->copy()->startOfMonth(),
+                $anchor->copy()->endOfMonth()->min($today)->startOfDay(),
+            ],
+            default => [$anchor->copy(), $anchor->copy()],
+        };
+
+        return [$dateFrom, $dateTo, $period];
+    }
+
+    private function shiftEndData(Admin $admin, Carbon $dateFrom, Carbon $dateTo): array
+    {
+        $report = app(CashierDashboardService::class)->forPeriod($admin, $dateFrom, $dateTo);
 
         return [
             'transactions' => $report['transactions'],
             'summary' => $report['summary'],
         ];
+    }
+
+    private function reportFilename(string $prefix, Carbon $dateFrom, Carbon $dateTo): string
+    {
+        $period = $dateFrom->isSameDay($dateTo)
+            ? $dateFrom->format('Y-m-d')
+            : $dateFrom->format('Y-m-d') . '-to-' . $dateTo->format('Y-m-d');
+
+        return $prefix . '-' . $period . '.pdf';
     }
 
     private function reportPdfOptions(): array

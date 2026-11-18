@@ -32,8 +32,17 @@ class DailyReportService
 
     public function forDate(CarbonInterface $date, array $filters = []): array
     {
-        $businessDate = BusinessTime::parse($date->toDateString())->startOfDay();
-        $this->transactionRecorder->backfillAllForDate($businessDate);
+        return $this->forPeriod($date, $date, $filters);
+    }
+
+    public function forPeriod(
+        CarbonInterface $dateFrom,
+        CarbonInterface $dateTo,
+        array $filters = []
+    ): array {
+        $periodStart = BusinessTime::parse($dateFrom)->startOfDay();
+        $periodEnd = BusinessTime::parse($dateTo)->endOfDay();
+        $this->transactionRecorder->backfillAllForPeriod($periodStart, $periodEnd);
 
         $allTransactions = CashierTransactionEvent::query()
             ->bookingTransactions()
@@ -42,7 +51,7 @@ class DailyReportService
                 'bookedTicket.trip.route',
                 'bookedTicket.drop',
             ])
-            ->reportableForDate($businessDate)
+            ->reportableForPeriod($periodStart, $periodEnd)
             ->orderByRaw("CASE WHEN reference_no IS NULL OR reference_no = '' THEN 1 ELSE 0 END")
             ->orderBy('reference_no')
             ->orderBy('id')
