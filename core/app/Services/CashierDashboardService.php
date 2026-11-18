@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Admin;
 use App\Models\CashierTransactionEvent;
+use App\Support\BusinessTime;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -25,13 +26,23 @@ class CashierDashboardService
 
     public function forDate(Admin $admin, CarbonInterface $date): array
     {
-        $this->transactionRecorder->backfillForDate($admin, $date->copy());
+        return $this->forPeriod($admin, $date, $date);
+    }
+
+    public function forPeriod(
+        Admin $admin,
+        CarbonInterface $dateFrom,
+        CarbonInterface $dateTo
+    ): array {
+        $periodStart = BusinessTime::parse($dateFrom)->startOfDay();
+        $periodEnd = BusinessTime::parse($dateTo)->endOfDay();
+        $this->transactionRecorder->backfillForPeriod($admin, $periodStart, $periodEnd);
 
         $transactions = CashierTransactionEvent::query()
             ->bookingTransactions()
             ->with(['bookedTicket.trip.route', 'bookedTicket.drop'])
             ->where('admin_id', $admin->id)
-            ->reportableForDate($date)
+            ->reportableForPeriod($periodStart, $periodEnd)
             ->orderBy('processed_at')
             ->orderBy('id')
             ->get();
@@ -44,7 +55,7 @@ class CashierDashboardService
             ->bookingTransactions()
             ->with(['bookedTicket.trip.route', 'bookedTicket.drop'])
             ->where('cashier_transaction_events.admin_id', $admin->id)
-            ->reportableForDate($date)
+            ->reportableForPeriod($periodStart, $periodEnd)
             ->whereNotExists(function ($newerEvent) use ($newerStatusPriority, $currentStatusPriority) {
                 $newerEvent
                     ->selectRaw('1')

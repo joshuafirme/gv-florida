@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Shift End Report - {{ $date->format('Y-m-d') }}</title>
+    <title>Shift End Report - {{ $dateFrom->format('Y-m-d') }}{{ $dateFrom->isSameDay($dateTo) ? '' : ' to ' . $dateTo->format('Y-m-d') }}</title>
     <style>
         @page {
             size: Letter landscape;
@@ -175,7 +175,9 @@
     @include('admin.partials.report-document-header', [
         'reportTitle' => 'Shift End Report',
         'reportDate' => $date,
-        'reportDateLabel' => 'Shift date',
+        'reportDateFrom' => $dateFrom,
+        'reportDateTo' => $dateTo,
+        'reportDateLabel' => 'Report period',
         'reportSubject' => 'Cashier: ' . $admin->name,
     ])
 
@@ -310,7 +312,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="12" class="empty">No cashier transactions were recorded for this date.</td>
+                    <td colspan="12" class="empty">No cashier transactions were recorded for this period.</td>
                 </tr>
             @endforelse
         </tbody>

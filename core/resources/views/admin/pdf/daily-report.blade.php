@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Daily Report - {{ $date->format('Y-m-d') }}</title>
+    <title>Daily Report - {{ $dateFrom->format('Y-m-d') }}{{ $dateFrom->isSameDay($dateTo) ? '' : ' to ' . $dateTo->format('Y-m-d') }}</title>
     <style>
         @page {
             size: legal landscape;
@@ -162,7 +162,9 @@
     @include('admin.partials.report-document-header', [
         'reportTitle' => 'Daily Collection Report',
         'reportDate' => $date,
-        'reportDateLabel' => 'Business date',
+        'reportDateFrom' => $dateFrom,
+        'reportDateTo' => $dateTo,
+        'reportDateLabel' => 'Report period',
         'reportFilters' => $active_filter_labels,
     ])
 
@@ -261,7 +263,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="empty">No cashier transactions were recorded for this date.</td></tr>
+                <tr><td colspan="6" class="empty">No cashier transactions were recorded for this period.</td></tr>
             @endforelse
         </tbody>
         @if ($cashier_collections->isNotEmpty())
@@ -304,7 +306,7 @@
                     <td class="right total">{{ showAmount($collection['amount']) }}</td>
                 </tr>
             @empty
-                <tr><td colspan="3" class="empty">No ticket sales were recorded for this date.</td></tr>
+                <tr><td colspan="3" class="empty">No ticket sales were recorded for this period.</td></tr>
             @endforelse
         </tbody>
         @if ($channel_collections->isNotEmpty())
@@ -364,7 +366,7 @@
                     <td>@include('admin.partials.transaction-reason', ['transaction' => $transaction])</td>
                 </tr>
             @empty
-                <tr><td colspan="14" class="empty">No transactions were recorded for this date.</td></tr>
+                <tr><td colspan="14" class="empty">No transactions were recorded for this period.</td></tr>
             @endforelse
         </tbody>
         @if ($transactions->isNotEmpty())

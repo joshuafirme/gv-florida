@@ -60,17 +60,26 @@ class CashierTransactionEvent extends Model
         Builder $query,
         CarbonInterface|string $date
     ): Builder {
-        $businessDate = BusinessTime::parse($date)->startOfDay();
+        return $this->scopeReportableForPeriod($query, $date, $date);
+    }
+
+    public function scopeReportableForPeriod(
+        Builder $query,
+        CarbonInterface|string $dateFrom,
+        CarbonInterface|string $dateTo
+    ): Builder {
+        $periodStart = BusinessTime::parse($dateFrom)->startOfDay();
+        $periodEnd = BusinessTime::parse($dateTo)->endOfDay();
 
         return $query
             ->whereBetween($this->qualifyColumn('processed_at'), [
-                $businessDate,
-                $businessDate->copy()->endOfDay(),
+                $periodStart,
+                $periodEnd,
             ])
             ->whereDate(
                 $this->qualifyColumn('journey_date'),
                 '>=',
-                $businessDate->toDateString()
+                $periodStart->toDateString()
             );
     }
 

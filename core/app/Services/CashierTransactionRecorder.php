@@ -483,8 +483,13 @@ class CashierTransactionRecorder
 
     public function backfillForDate(Admin $admin, Carbon $date): void
     {
-        $start = $date->copy()->startOfDay();
-        $end = $date->copy()->endOfDay();
+        $this->backfillForPeriod($admin, $date, $date);
+    }
+
+    public function backfillForPeriod(Admin $admin, Carbon $dateFrom, Carbon $dateTo): void
+    {
+        $start = $dateFrom->copy()->startOfDay();
+        $end = $dateTo->copy()->endOfDay();
 
         Deposit::successful()
             ->where('processed_by_admin_id', $admin->id)
@@ -525,8 +530,13 @@ class CashierTransactionRecorder
 
     public function backfillAllForDate(Carbon $date): void
     {
-        $start = $date->copy()->startOfDay();
-        $end = $date->copy()->endOfDay();
+        $this->backfillAllForPeriod($date, $date);
+    }
+
+    public function backfillAllForPeriod(Carbon $dateFrom, Carbon $dateTo): void
+    {
+        $start = $dateFrom->copy()->startOfDay();
+        $end = $dateTo->copy()->endOfDay();
 
         // Kiosk and online payments can complete without a cashier account. Record
         // them before the cashier-specific action backfill below.
@@ -577,7 +587,7 @@ class CashierTransactionRecorder
 
         Admin::whereIn('id', $adminIds)
             ->get()
-            ->each(fn (Admin $admin) => $this->backfillForDate($admin, $date));
+            ->each(fn (Admin $admin) => $this->backfillForPeriod($admin, $dateFrom, $dateTo));
     }
 
     private function store(

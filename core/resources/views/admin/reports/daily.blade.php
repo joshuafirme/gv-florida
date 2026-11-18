@@ -3,7 +3,11 @@
 @section('panel')
     @php
         $pdfParameters = array_filter(
-            array_merge(['date' => $date->format('Y-m-d')], $filters),
+            array_merge([
+                'period' => $period,
+                'date_from' => $dateFrom->format('Y-m-d'),
+                'date_to' => $dateTo->format('Y-m-d'),
+            ], $filters),
             fn ($value) => $value !== null && $value !== ''
         );
     @endphp
@@ -11,9 +15,26 @@
     <div class="daily-report-filterbar">
         <form action="{{ route('admin.report.daily') }}" method="GET" class="daily-report-filterbar__form">
             <div class="daily-report-filterbar__field">
-                <label for="dailyReportDate">Date</label>
-                <input type="date" id="dailyReportDate" name="date" value="{{ $date->format('Y-m-d') }}"
-                    max="{{ now()->format('Y-m-d') }}">
+                <label for="dailyReportPeriod">Period</label>
+                <select id="dailyReportPeriod" name="period" data-today="{{ now()->format('Y-m-d') }}">
+                    <option value="daily" @selected($period === 'daily')>Daily</option>
+                    <option value="weekly" @selected($period === 'weekly')>Weekly</option>
+                    <option value="monthly" @selected($period === 'monthly')>Monthly</option>
+                    <option value="custom" @selected($period === 'custom')>Custom</option>
+                </select>
+            </div>
+
+            <div class="daily-report-filterbar__field">
+                <label for="dailyReportDateFrom">Start Date</label>
+                <input type="date" id="dailyReportDateFrom" name="date_from"
+                    value="{{ $dateFrom->format('Y-m-d') }}" max="{{ now()->format('Y-m-d') }}" required>
+            </div>
+
+            <div class="daily-report-filterbar__field">
+                <label for="dailyReportDateTo">End Date</label>
+                <input type="date" id="dailyReportDateTo" name="date_to"
+                    value="{{ $dateTo->format('Y-m-d') }}" min="{{ $dateFrom->format('Y-m-d') }}"
+                    max="{{ now()->format('Y-m-d') }}" required>
             </div>
 
             <div class="daily-report-filterbar__field">
@@ -82,7 +103,9 @@
         @include('admin.partials.report-document-header', [
             'reportTitle' => 'Daily Collection Report',
             'reportDate' => $date,
-            'reportDateLabel' => 'Business date',
+            'reportDateFrom' => $dateFrom,
+            'reportDateTo' => $dateTo,
+            'reportDateLabel' => 'Report period',
             'reportFilters' => $active_filter_labels,
         ])
 
@@ -185,7 +208,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="daily-empty">No cashier transactions were recorded for this date.</td>
+                                    <td colspan="6" class="daily-empty">No cashier transactions were recorded for this period.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -231,7 +254,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="3" class="daily-empty">No ticket sales were recorded for this date.</td>
+                                    <td colspan="3" class="daily-empty">No ticket sales were recorded for this period.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -324,7 +347,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="14" class="daily-empty">No transactions were recorded for this date.</td>
+                                <td colspan="14" class="daily-empty">No transactions were recorded for this period.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -694,4 +717,72 @@
             }
         }
     </style>
+@endpush
+
+@push('script')
+    <script>
+        (function() {
+            'use strict';
+
+            const period = document.getElementById('dailyReportPeriod');
+            const dateFrom = document.getElementById('dailyReportDateFrom');
+            const dateTo = document.getElementById('dailyReportDateTo');
+
+            if (!period || !dateFrom || !dateTo) {
+                return;
+            }
+
+            const toInputDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+
+                return `${year}-${month}-${day}`;
+            };
+            const parseDate = (value) => new Date(`${value}T00:00:00`);
+
+            const syncLimits = () => {
+                dateTo.min = dateFrom.value;
+                dateFrom.max = dateTo.value || period.dataset.today;
+            };
+
+            period.addEventListener('change', function() {
+                if (this.value === 'custom') {
+                    return;
+                }
+
+                const today = parseDate(this.dataset.today);
+                const start = new Date(today);
+
+                if (this.value === 'weekly') {
+                    const daysSinceMonday = (start.getDay() + 6) % 7;
+                    start.setDate(start.getDate() - daysSinceMonday);
+                } else if (this.value === 'monthly') {
+                    start.setDate(1);
+                }
+
+                dateFrom.value = toInputDate(start);
+                dateTo.value = toInputDate(today);
+                syncLimits();
+            });
+
+            dateFrom.addEventListener('change', function() {
+                period.value = 'custom';
+                if (dateTo.value && this.value > dateTo.value) {
+                    dateTo.value = this.value;
+                }
+                syncLimits();
+            });
+
+            dateTo.addEventListener('change', function() {
+                period.value = 'custom';
+                if (dateFrom.value && this.value < dateFrom.value) {
+                    dateFrom.value = this.value;
+                }
+                syncLimits();
+            });
+
+            syncLimits();
+        })();
+    </script>
 @endpush

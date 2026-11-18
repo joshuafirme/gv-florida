@@ -5,7 +5,9 @@
         @include('admin.partials.report-document-header', [
             'reportTitle' => 'Shift End Report',
             'reportDate' => $date,
-            'reportDateLabel' => 'Shift date',
+            'reportDateFrom' => $dateFrom,
+            'reportDateTo' => $dateTo,
+            'reportDateLabel' => 'Report period',
             'reportSubject' => 'Cashier: ' . $admin->name,
         ])
 
@@ -144,7 +146,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="12" class="shift-empty">No cashier transactions were recorded for this date.</td>
+                                <td colspan="12" class="shift-empty">No cashier transactions were recorded for this period.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -167,13 +169,37 @@
 
 @push('breadcrumb-plugins')
     <div class="shift-report-controls">
-        <form action="{{ route('admin.report.shift.end') }}" method="GET" id="shiftDateForm">
-            <i class="las la-calendar"></i>
-            <input type="date" name="date" value="{{ $date->format('Y-m-d') }}" max="{{ now()->format('Y-m-d') }}"
-                aria-label="Shift date">
+        <form action="{{ route('admin.report.shift.end') }}" method="GET" id="shiftPeriodForm">
+            <label class="shift-report-controls__field" for="shiftReportPeriod">
+                <span>Period</span>
+                <select id="shiftReportPeriod" name="period" data-today="{{ now()->format('Y-m-d') }}">
+                    <option value="daily" @selected($period === 'daily')>Daily</option>
+                    <option value="weekly" @selected($period === 'weekly')>Weekly</option>
+                    <option value="monthly" @selected($period === 'monthly')>Monthly</option>
+                    <option value="custom" @selected($period === 'custom')>Custom</option>
+                </select>
+            </label>
+            <label class="shift-report-controls__field" for="shiftReportDateFrom">
+                <span>Start Date</span>
+                <input type="date" id="shiftReportDateFrom" name="date_from"
+                    value="{{ $dateFrom->format('Y-m-d') }}" max="{{ now()->format('Y-m-d') }}" required>
+            </label>
+            <label class="shift-report-controls__field" for="shiftReportDateTo">
+                <span>End Date</span>
+                <input type="date" id="shiftReportDateTo" name="date_to"
+                    value="{{ $dateTo->format('Y-m-d') }}" min="{{ $dateFrom->format('Y-m-d') }}"
+                    max="{{ now()->format('Y-m-d') }}" required>
+            </label>
+            <button type="submit" class="btn btn--primary">
+                <i class="las la-filter"></i> Apply
+            </button>
         </form>
         <a class="btn btn--primary" target="_blank"
-            href="{{ route('admin.report.shift.end.pdf', ['date' => $date->format('Y-m-d')]) }}">
+            href="{{ route('admin.report.shift.end.pdf', [
+                'period' => $period,
+                'date_from' => $dateFrom->format('Y-m-d'),
+                'date_to' => $dateTo->format('Y-m-d'),
+            ]) }}">
             <i class="las la-print"></i> Print Shift Report
         </a>
     </div>
@@ -188,26 +214,58 @@
         }
 
         .shift-report-controls form {
-            position: relative;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
         }
 
-        .shift-report-controls form i {
-            position: absolute;
-            top: 50%;
-            left: 12px;
-            color: #d92378;
-            transform: translateY(-50%);
-            pointer-events: none;
+        .shift-report-controls__field {
+            margin: 0;
         }
 
-        .shift-report-controls input {
-            width: 160px;
+        .shift-report-controls__field span {
+            display: block;
+            margin-bottom: 3px;
+            color: #505766;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .shift-report-controls input,
+        .shift-report-controls select {
+            width: 145px;
             height: 38px;
-            padding: 7px 10px 7px 35px;
+            padding: 7px 10px;
             background: #fff;
             border: 1px solid #d9dce3;
             border-radius: 7px;
+            color: #303642;
             font-size: 12px;
+        }
+
+        .shift-report-controls select {
+            width: 105px;
+        }
+
+        .shift-report-controls .btn {
+            align-items: center;
+            display: inline-flex;
+            gap: 5px;
+            height: 38px;
+            justify-content: center;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 1199px) {
+            .shift-report-controls,
+            .shift-report-controls form {
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+
+            .shift-report-controls {
+                width: 100%;
+            }
         }
 
         .shift-report-card {
@@ -360,7 +418,14 @@
                 width: 100%;
             }
 
+            .shift-report-controls form {
+                align-items: stretch;
+                flex-direction: column;
+                justify-content: stretch;
+            }
+
             .shift-report-controls input,
+            .shift-report-controls select,
             .shift-report-controls .btn {
                 width: 100%;
             }
@@ -456,11 +521,67 @@
 
 @push('script')
     <script>
-        (function($) {
+        (function() {
             'use strict';
-            $('input[name="date"]').on('change', function() {
-                $('#shiftDateForm').trigger('submit');
+
+            const period = document.getElementById('shiftReportPeriod');
+            const dateFrom = document.getElementById('shiftReportDateFrom');
+            const dateTo = document.getElementById('shiftReportDateTo');
+
+            if (!period || !dateFrom || !dateTo) {
+                return;
+            }
+
+            const toInputDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+
+                return `${year}-${month}-${day}`;
+            };
+            const parseDate = (value) => new Date(`${value}T00:00:00`);
+            const syncLimits = () => {
+                dateTo.min = dateFrom.value;
+                dateFrom.max = dateTo.value || period.dataset.today;
+            };
+
+            period.addEventListener('change', function() {
+                if (this.value === 'custom') {
+                    return;
+                }
+
+                const today = parseDate(this.dataset.today);
+                const start = new Date(today);
+
+                if (this.value === 'weekly') {
+                    const daysSinceMonday = (start.getDay() + 6) % 7;
+                    start.setDate(start.getDate() - daysSinceMonday);
+                } else if (this.value === 'monthly') {
+                    start.setDate(1);
+                }
+
+                dateFrom.value = toInputDate(start);
+                dateTo.value = toInputDate(today);
+                syncLimits();
             });
-        })(jQuery);
+
+            dateFrom.addEventListener('change', function() {
+                period.value = 'custom';
+                if (dateTo.value && this.value > dateTo.value) {
+                    dateTo.value = this.value;
+                }
+                syncLimits();
+            });
+
+            dateTo.addEventListener('change', function() {
+                period.value = 'custom';
+                if (dateFrom.value && this.value < dateFrom.value) {
+                    dateFrom.value = this.value;
+                }
+                syncLimits();
+            });
+
+            syncLimits();
+        })();
     </script>
 @endpush

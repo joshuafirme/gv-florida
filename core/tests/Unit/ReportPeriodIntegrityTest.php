@@ -248,6 +248,45 @@ class ReportPeriodIntegrityTest extends TestCase
         $this->assertSame([2], $octoberSeven['transactions']->pluck('id')->all());
     }
 
+    public function test_daily_and_shift_reports_compile_the_selected_date_range(): void
+    {
+        DB::table('admins')->insert([
+            'id' => 1,
+            'name' => 'Alice Cashier',
+            'username' => 'alice',
+        ]);
+
+        $this->insertEvent(1, 1, 'Sold', 'Counter', 100, '2026-10-01 08:00:00');
+        $this->insertEvent(2, 1, 'Sold', 'Counter', 200, '2026-10-03 09:00:00', journeyDate: '2026-10-04');
+        $this->insertEvent(3, 1, 'Refunded', 'Counter', -50, '2026-10-04 10:00:00');
+        $this->insertEvent(4, 1, 'Sold', 'Counter', 400, '2026-10-05 11:00:00');
+        $this->insertEvent(
+            5,
+            1,
+            'Sold',
+            'Counter',
+            500,
+            '2026-10-02 12:00:00',
+            journeyDate: '2026-09-30'
+        );
+
+        $recorder = new CapturingCashierTransactionRecorder();
+        $dashboard = new CashierDashboardService($recorder);
+        $dateFrom = Carbon::parse('2026-10-01');
+        $dateTo = Carbon::parse('2026-10-04');
+        $daily = (new DailyReportService($recorder, $dashboard))
+            ->forPeriod($dateFrom, $dateTo);
+        $shift = $dashboard->forPeriod(Admin::findOrFail(1), $dateFrom, $dateTo);
+
+        foreach ([$daily, $shift] as $report) {
+            $this->assertSame([1, 2, 3], $report['transactions']->pluck('id')->all());
+            $this->assertSame(2, $report['summary']['tickets']);
+            $this->assertSame(300.0, $report['summary']['gross_sales']);
+            $this->assertSame(50.0, $report['summary']['refunds']);
+            $this->assertSame(250.0, $report['summary']['net_collection']);
+        }
+    }
+
     public function test_follow_up_repair_restores_reconciled_event_time(): void
     {
         DB::table('online_ticket_validations')->insert([
