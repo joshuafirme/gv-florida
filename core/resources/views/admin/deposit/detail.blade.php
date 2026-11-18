@@ -33,32 +33,38 @@
                         </li>
 
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            @lang('Date of Journey')
+                            @lang('Travel Date')
                             <span class="fw-bold">{{ $deposit->bookedTicket->date_of_journey }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            @lang('Seats')
+                            @lang('Departure Time')
                             <span class="fw-bold">
-                                {{ formatSeatLabel($deposit->bookedTicket->seats ?: []) }}
+                                {{ $deposit->bookedTicket->trip?->schedule?->start_from
+                                    ? date('h:i A', strtotime($deposit->bookedTicket->trip->schedule->start_from))
+                                    : '-' }}
+                            </span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            @lang('Seat Number(s)')
+                            <span class="fw-bold">
+                                {{ formatSeatLabel($seats) ?: '-' }}
+                            </span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            @lang('Passenger Name')
+                            <span class="fw-bold text-end">
+                                {{ $passengerNames->isNotEmpty() ? $passengerNames->implode(', ') : '-' }}
+                            </span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            @lang('Contact Number')
+                            <span class="fw-bold text-end">
+                                {{ $passengerContacts->isNotEmpty() ? $passengerContacts->implode(', ') : '-' }}
                             </span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Passenger Type')
                             <span class="fw-bold">{{ getPassengerType($deposit) }}</span>
-                        </li>
-                        @php
-                            $passengerContacts = collect($deposit->bookedTicket->passenger_manifest ?: [])
-                                ->pluck('contact_number')
-                                ->map(fn ($number) => app(\App\Services\PassengerContactService::class)->format($number))
-                                ->filter()
-                                ->unique()
-                                ->values();
-                        @endphp
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            @lang('Passenger Contact Number')
-                            <span class="fw-bold text-end">
-                                {{ $passengerContacts->isNotEmpty() ? $passengerContacts->implode(', ') : '-' }}
-                            </span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             @lang('Username')
@@ -80,11 +86,11 @@
                             </span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            @lang('Amount')
+                            @lang('Fare Amount')
                             <span class="fw-bold">{{ showAmount($deposit->amount) }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            @lang('Charge')
+                            @lang('Payment Fee')
                             <span class="fw-bold">{{ showAmount($deposit->charge) }}</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center">
