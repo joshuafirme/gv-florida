@@ -357,8 +357,9 @@
                         </div>
                         <div class="form-group mt-3 mb-0">
                             <label for="rebookReason" class="rebook-label">Reason (optional)</label>
+                            <div id="rebookReasonChips" class="refund-reason-chips mb-2"></div>
                             <textarea id="rebookReason" class="form-control" rows="2" maxlength="1000"
-                                placeholder="Enter a correction or operational reason, if applicable."></textarea>
+                                placeholder="Select a reason above or enter a custom reason."></textarea>
                         </div>
                         <div class="form-group mt-3 mb-0">
                             <label for="rebookAuthorizationCode" class="rebook-label">Authorization Code</label>
@@ -458,10 +459,6 @@
                             <div id="transferManagementReasonField" class="form-group mt-3 mb-0 d-none">
                                 <label for="transferManagementReason" class="rebook-label">Transfer Reason</label>
                                 <select id="transferManagementReason" class="form-control transfer-search-select"></select>
-                            </div>
-                            <div id="transferOtherReasonField" class="form-group mt-3 mb-0 d-none">
-                                <label for="transferOtherReason" class="rebook-label">Company Operational Reason</label>
-                                <textarea id="transferOtherReason" class="form-control" rows="2" maxlength="1000"></textarea>
                             </div>
                             <div id="transferPassengerReasonField" class="form-group mt-3 mb-0 d-none">
                                 <label for="transferPassengerReason" class="rebook-label">Passenger Request Details (optional)</label>
@@ -1309,6 +1306,7 @@
                 rebookAvailability = null;
                 rebookSeats = [];
                 $('#rebookReason, #rebookAuthorizationCode, #rebookApprovalRemarks').val('');
+                $('#rebookReasonChips').empty();
                 $('.rebook-type-card').removeClass('selected');
                 $('.rebook-type-card[data-type="new_trip"]').prop('disabled', false);
                 $('#rebookTypeNotice').addClass('d-none').text('');
@@ -1329,6 +1327,9 @@
                     }).val(data.booking.date);
                     $('#rebookTrip').html(data.trips.map(trip =>
                         `<option value="${trip.id}">${escapeHtml(trip.label)} · ${escapeHtml(trip.route)}</option>`
+                    ).join(''));
+                    $('#rebookReasonChips').html(data.reasons.map(reason =>
+                        `<button type="button" class="refund-reason-chip rebook-reason-chip" data-reason="${escapeHtml(reason)}">${escapeHtml(reason)}</button>`
                     ).join(''));
                     const hasAlternateTrips = data.trips.length > 0;
                     $('.rebook-type-card[data-type="new_trip"]').prop('disabled', !hasAlternateTrips);
@@ -1370,6 +1371,19 @@
                 $('.rebook-type-card').removeClass('selected');
                 $(this).addClass('selected');
                 $('#rebookContinueBtn').prop('disabled', false);
+            });
+
+            $(document).on('click', '.rebook-reason-chip', function() {
+                $('#rebookReason').val($(this).data('reason')).trigger('input').focus();
+                $('.rebook-reason-chip').removeClass('active');
+                $(this).addClass('active');
+            });
+
+            $('#rebookReason').on('input', function() {
+                const reason = $(this).val().trim();
+                $('.rebook-reason-chip').each(function() {
+                    $(this).toggleClass('active', $(this).data('reason') === reason);
+                });
             });
 
             function configureSelectionStage() {
@@ -1751,9 +1765,11 @@
                 $('#transferForm, #transferSelection, #transferAvailability, #transferAvailabilityLoader, #transferReview')
                     .addClass('d-none');
                 $('#transferQuoteCard, #transferDropHint').addClass('d-none');
+                $('#transferManagementReasonField, #transferPassengerReasonField').addClass('d-none');
                 clearTransferError();
                 $('#transferLoader').removeClass('d-none');
-                $('#transferAuthorizationCode, #transferApprovalRemarks, #transferPassengerReason, #transferOtherReason').val('');
+                $('#transferAuthorizationCode, #transferApprovalRemarks, #transferPassengerReason').val('');
+                $('#transferManagementReason').val('').trigger('change.select2');
                 $('#transferPaymentMethod').val('');
                 $('#transferReviewBtn, #transferConfirmBtn').prop('disabled', true);
                 $('#transferSelectionFooter').removeClass('d-none');
@@ -1784,7 +1800,7 @@
                         $('#transferTrip').val(String(booking.trip_id));
                     }
                     $('#transferManagementReason').html('<option value="">Select reason</option>' +
-                        data.management_reasons.map(reason => `<option value="${escapeHtml(reason)}">${escapeHtml(reason)}</option>`).join(''));
+                        data.transfer_reasons.map(reason => `<option value="${escapeHtml(reason)}">${escapeHtml(reason)}</option>`).join(''));
                     updateTransferDrops(isCurrentTransferTrip() ? booking.drop_id : null);
                     initializeTransferSelects();
                     syncTransferTargetMode();
@@ -1814,12 +1830,13 @@
                 transferType = $(this).data('transfer-type');
                 $('.transfer-type-card').removeClass('selected');
                 $(this).addClass('selected');
-                $('#transferManagementReasonField').toggleClass('d-none', transferType !== 'management');
+                $('#transferManagementReasonField').removeClass('d-none');
                 $('#transferPassengerReasonField').toggleClass('d-none', transferType !== 'passenger');
-                $('#transferOtherReasonField').toggleClass(
-                    'd-none',
-                    transferType !== 'management' || $('#transferManagementReason').val() !== 'Other Company Operational Reasons'
-                );
+                if (transferType === 'passenger') {
+                    $('#transferManagementReason').val('Passenger Request').trigger('change');
+                } else if ($('#transferManagementReason').val() === 'Passenger Request') {
+                    $('#transferManagementReason').val('').trigger('change');
+                }
                 loadTransferAvailability();
             });
 
@@ -1894,13 +1911,9 @@
                 queueTransferAvailability();
             });
             $('#transferManagementReason').on('change', function() {
-                $('#transferOtherReasonField').toggleClass(
-                    'd-none',
-                    $(this).val() !== 'Other Company Operational Reasons'
-                );
                 updateTransferSelectionState();
             });
-            $('#transferOtherReason, #transferPaymentMethod').on('input change', updateTransferSelectionState);
+            $('#transferPassengerReason, #transferPaymentMethod').on('input change', updateTransferSelectionState);
             $('#transferAuthorizationCode').on('input', updateTransferConfirmationState);
 
             function loadTransferAvailability() {
@@ -2022,12 +2035,9 @@
             });
 
             function transferSelectionIsValid() {
-                const managementReasonValid = transferType !== 'management' || (
-                    $('#transferManagementReason').val() &&
-                    ($('#transferManagementReason').val() !== 'Other Company Operational Reasons' || $('#transferOtherReason').val().trim())
-                );
+                const transferReasonValid = Boolean($('#transferManagementReason').val());
                 const paymentValid = !availability || Number(availability.quote.amount_due) <= 0 || $('#transferPaymentMethod').val();
-                return Boolean(availability && selectedSeat && managementReasonValid && paymentValid);
+                return Boolean(availability && selectedSeat && transferReasonValid && paymentValid);
             }
 
             function updateTransferSelectionState() {
@@ -2046,21 +2056,15 @@
                     trip_id: $('#transferTrip').val(),
                     dropping_point: $('#transferDrop').val(),
                     management_reason: $('#transferManagementReason').val(),
-                    other_reason: $('#transferOtherReason').val(),
                     passenger_reason: $('#transferPassengerReason').val(),
                     payment_method: $('#transferPaymentMethod').val()
                 };
             }
 
             function transferReasonText() {
-                if (transferType === 'passenger') {
-                    return $('#transferPassengerReason').val().trim() || 'Passenger request';
-                }
-
                 const reason = $('#transferManagementReason').val();
-                return reason === 'Other Company Operational Reasons'
-                    ? `${reason}: ${$('#transferOtherReason').val().trim()}`
-                    : reason;
+                const details = $('#transferPassengerReason').val().trim();
+                return reason === 'Passenger Request' && details ? `${reason}: ${details}` : reason;
             }
 
             function fillTransferReview() {

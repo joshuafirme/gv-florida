@@ -222,14 +222,7 @@ class VehicleTicketController extends Controller
             'fare' => $fare,
             'default_refund' => round($fare * 0.5, 2),
             'processed_by' => auth('admin')->user()->name,
-            'reasons' => [
-                'Passenger no-show',
-                'Change of plans',
-                'Duplicate booking',
-                'Wrong trip / seat',
-                'Trip cancelled',
-                'Medical / emergency',
-            ],
+            'reasons' => $this->refundReasons(),
             'confirm_url' => route('admin.vehicle.ticket.refund.confirm', $slip->id),
         ]);
     }
@@ -330,14 +323,7 @@ class VehicleTicketController extends Controller
             'seat' => $slip->seat,
             'fare' => $fare,
             'processed_by' => auth('admin')->user()->name,
-            'reasons' => [
-                'Passenger no-show',
-                'Change of plans',
-                'Duplicate booking',
-                'Wrong trip / seat',
-                'Trip cancelled',
-                'Medical / emergency',
-            ],
+            'reasons' => $this->cancellationReasons(),
             'confirm_url' => route('admin.vehicle.ticket.cancel.confirm', $slip->id),
             'authorization_url' => route('admin.vehicle.ticket.cancel.authorize', $slip->id),
         ]);
@@ -622,12 +608,48 @@ class VehicleTicketController extends Controller
     private function voidReasons(): array
     {
         return [
-            'Passenger no-show',
-            'Change of plans',
-            'Duplicate booking',
-            'Wrong trip / seat',
-            'Trip cancelled',
-            'Medical / emergency',
+            'Incorrect Passenger Details',
+            'Incorrect Trip / Schedule',
+            'Incorrect Seat Selection',
+            'Duplicate Transaction',
+            'Cashier / Staff Error',
+            'System / Payment Error',
+        ];
+    }
+
+    private function cancellationReasons(): array
+    {
+        return [
+            'Passenger Request',
+            'Change of Travel Plans',
+            'Incorrect Booking Details',
+            'Duplicate Booking',
+            'Medical Emergency',
+            'Operational / Trip Cancellation',
+        ];
+    }
+
+    private function refundReasons(): array
+    {
+        return [
+            'Passenger Cancellation',
+            'Duplicate Payment',
+            'Booking Error',
+            'Trip Cancelled by Operator',
+            'Schedule Change by Operator',
+            'Other / Special Circumstances',
+        ];
+    }
+
+    private function rebookingReasons(): array
+    {
+        return [
+            'Passenger Schedule Change',
+            'Trip Schedule Change',
+            'Seat Change',
+            'Operational Adjustment',
+            'Missed Trip',
+            'Other',
         ];
     }
 
@@ -1955,6 +1977,7 @@ class VehicleTicketController extends Controller
             'max_date' => now()->addDays(getAllowedAdvanceBookingDays(true))->format('Y-m-d'),
             'grace_ends_at' => $eligibility['grace_ends_at']->toIso8601String(),
             'after_departure' => $eligibility['after_departure'],
+            'reasons' => $this->rebookingReasons(),
             'availability_url' => route('admin.trip.ticket.rebook.availability', $routeParams),
             'confirm_url' => route('admin.trip.ticket.rebook.confirm', $routeParams),
         ]);
@@ -2207,7 +2230,7 @@ class VehicleTicketController extends Controller
             'booking' => $this->transferBookingSummary($ticket, $slip),
             'trips' => $trips,
             'initial_availability' => $initialAvailability,
-            'management_reasons' => $this->managementTransferReasons(),
+            'transfer_reasons' => $this->transferReasons(),
             'default_date' => $defaultDate,
             'min_date' => today()->format('Y-m-d'),
             'max_date' => $maxDate,
@@ -2329,7 +2352,6 @@ class VehicleTicketController extends Controller
             'seats' => 'required|array|size:1',
             'seats.*' => 'required|string|max:30',
             'management_reason' => 'nullable|string|max:100',
-            'other_reason' => 'nullable|string|max:1000',
             'passenger_reason' => 'nullable|string|max:1000',
             'payment_method' => 'nullable|string|max:100',
             'approval_remarks' => 'nullable|string|max:1000',
@@ -2794,38 +2816,29 @@ class VehicleTicketController extends Controller
         ];
     }
 
-    private function managementTransferReasons(): array
+    private function transferReasons(): array
     {
         return [
-            'Trip Cancellation',
-            'Bus Breakdown',
-            'Schedule Disruption',
-            'Bus/Unit Change',
-            'Other Company Operational Reasons',
+            'Higher Fare',
+            'Lower Fare',
+            'Different Route',
+            'Bus Class Change',
+            'Operational Adjustment',
+            'Passenger Request',
         ];
     }
 
     private function transferReason(array $data): string
     {
-        if ($data['transfer_type'] === TicketTransferService::PASSENGER_REQUESTED) {
-            return trim((string) ($data['passenger_reason'] ?? '')) ?: 'Passenger-requested transfer';
-        }
-
         $reason = trim((string) ($data['management_reason'] ?? ''));
-        if (!in_array($reason, $this->managementTransferReasons(), true)) {
+        if (!in_array($reason, $this->transferReasons(), true)) {
             throw ValidationException::withMessages([
-                'management_reason' => 'Select a valid management transfer reason.',
+                'management_reason' => 'Select a valid transfer reason.',
             ]);
         }
 
-        if ($reason === 'Other Company Operational Reasons') {
-            $details = trim((string) ($data['other_reason'] ?? ''));
-            if ($details === '') {
-                throw ValidationException::withMessages([
-                    'other_reason' => 'Enter the company operational reason for this transfer.',
-                ]);
-            }
-
+        $details = trim((string) ($data['passenger_reason'] ?? ''));
+        if ($reason === 'Passenger Request' && $details !== '') {
             return $reason . ': ' . $details;
         }
 
