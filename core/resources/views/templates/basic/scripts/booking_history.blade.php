@@ -30,6 +30,27 @@
                 .toggleClass('d-none', !url);
         }
 
+        function setModalQr(url) {
+            const panel = document.getElementById('ticketModalQrPanel');
+            const image = document.getElementById('ticketModalQr');
+
+            if (!panel || !image) return;
+
+            panel.classList.add('d-none');
+            image.removeAttribute('src');
+
+            if (!url) return;
+
+            image.onload = function() {
+                panel.classList.remove('d-none');
+            };
+            image.onerror = function() {
+                panel.classList.add('d-none');
+                image.removeAttribute('src');
+            };
+            image.src = url;
+        }
+
         function openTicketDetails(ticket) {
             if (!ticket || !modalElement) return;
 
@@ -40,6 +61,7 @@
             });
             setStatus('#ticketModalTicketStatus', ticket.ticket_status, ticket.ticket_tone);
             setStatus('#ticketModalPaymentStatus', ticket.payment_status, ticket.payment_tone);
+            setModalQr(ticket.qr_code_url);
             setModalLink('#ticketModalPay', ticket.can_pay ? ticket.pay_url : null);
             setModalLink('#ticketModalPrint', ticket.can_access_voucher ? ticket.print_url : null);
             setModalLink('#ticketModalVoucher', ticket.can_access_voucher ? ticket.download_url : null);
