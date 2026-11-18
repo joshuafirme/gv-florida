@@ -13,7 +13,8 @@ class PassengerContactVisibilityTest extends TestCase
         $paymentFlow = file_get_contents(resource_path('views/admin/deposit/log.blade.php'));
 
         $this->assertStringContainsString("\$ticketRow['contact_number']", $list);
-        $this->assertStringContainsString('Passenger Contact Number', $details);
+        $this->assertStringContainsString("@lang('Contact Number')", $details);
+        $this->assertStringContainsString('$passengerContacts', $details);
         $this->assertStringContainsString('ticket.contact_number', $paymentFlow);
     }
 
