@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class UserController extends Controller
 {
@@ -279,6 +280,28 @@ class UserController extends Controller
         return view('Template::user.booking_history', compact('pageTitle', 'emptyMessage', 'bookedTickets', 'widget'));
     }
 
+    public function ticketQrCode(int $id)
+    {
+        $ticket = BookedTicket::query()
+            ->whereKey($id)
+            ->where('user_id', auth()->id())
+            ->firstOrFail();
+        $pnr = trim((string) $ticket->pnr_number);
+
+        abort_if($pnr === '', 404);
+
+        $qrCode = QrCode::format('svg')
+            ->size(220)
+            ->margin(1)
+            ->generate($pnr);
+
+        return response($qrCode, 200, [
+            'Content-Type' => 'image/svg+xml; charset=UTF-8',
+            'Cache-Control' => 'private, max-age=3600',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
     private function userTicketsQuery(int $userId)
     {
         return BookedTicket::with([
@@ -420,6 +443,9 @@ class UserController extends Controller
             'fare_amount' => showAmount($fareAmount),
             'payment_fee' => showAmount($paymentFee),
             'total_amount' => showAmount($totalAmount),
+            'qr_code_url' => filled($ticket->pnr_number)
+                ? route('user.ticket.qr-code', $ticket->id)
+                : null,
             'can_access_voucher' => $canAccessVoucher,
             'can_pay' => $canPay,
             'print_url' => $canAccessVoucher ? route('user.ticket.print', $ticket->id) : null,

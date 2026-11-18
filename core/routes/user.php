@@ -73,6 +73,9 @@ Route::middleware('auth')->name('user.')->group(function () {
 
                 //ticket
                 Route::get('booked-ticket/history', 'ticketHistory')->name('ticket.history');
+                Route::get('booked-ticket/{id}/qr-code', 'ticketQrCode')
+                    ->whereNumber('id')
+                    ->name('ticket.qr-code');
 
                 //Report
                 Route::any('payment/history', 'depositHistory')->name('deposit.history');
