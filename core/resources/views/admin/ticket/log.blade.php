@@ -396,6 +396,15 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body transfer-body">
+                    <div id="transferErrorAlert" class="alert alert-danger d-none" role="alert" aria-live="assertive">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="las la-exclamation-circle fs-5 mt-1" aria-hidden="true"></i>
+                            <div>
+                                <strong class="d-block">Transfer could not be completed</strong>
+                                <span id="transferErrorReason"></span>
+                            </div>
+                        </div>
+                    </div>
                     <div id="transferLoader" class="text-center py-5">
                         <div class="spinner-border text-primary"></div>
                         <p class="text-muted mt-2 mb-0">Loading available trips...</p>
@@ -1597,9 +1606,40 @@
             const escapeHtml = value => $('<div>').text(value ?? '').html();
             const errorMessage = xhr => {
                 const errors = xhr.responseJSON?.errors;
-                return errors ? Object.values(errors).flat()[0] :
-                    (xhr.responseJSON?.message || 'Unable to process this ticket transfer.');
+                if (errors) return Object.values(errors).flat()[0];
+
+                const responseMessage = String(xhr.responseJSON?.message || '').trim();
+                if (xhr.status < 500 && responseMessage && !['Server Error', 'Internal Server Error'].includes(responseMessage)) {
+                    return responseMessage;
+                }
+
+                const statusMessages = {
+                    0: 'The server could not be reached. Check the connection and try again. No ticket changes were saved.',
+                    401: 'Your login session is no longer valid. Sign in again before retrying the transfer.',
+                    403: 'Your account is not permitted to perform this ticket transfer.',
+                    404: 'The ticket, trip, or dropping point is no longer available. Refresh the page and select the transfer again.',
+                    419: 'Your session expired before the transfer was completed. Refresh the page and try again.',
+                    429: 'Too many requests were sent. Wait a moment, then try the transfer again.',
+                    500: 'The server could not complete the transfer. No ticket changes were saved. Refresh the page and try again; if it continues, contact support.',
+                    503: 'The transfer service is temporarily unavailable. No ticket changes were saved. Try again shortly.'
+                };
+
+                return statusMessages[xhr.status] ||
+                    'The transfer could not be completed. No ticket changes were saved. Refresh the options and try again.';
             };
+
+            function clearTransferError() {
+                $('#transferErrorAlert').addClass('d-none');
+                $('#transferErrorReason').text('');
+            }
+
+            function showTransferError(error) {
+                const reason = typeof error === 'string' ? error : errorMessage(error);
+                $('#transferErrorReason').text(reason);
+                $('#transferErrorAlert').removeClass('d-none');
+                $('.transfer-body').scrollTop(0);
+                notify('error', reason);
+            }
 
             function clearHoldState() {
                 window.clearInterval(holdTimer);
@@ -1705,6 +1745,7 @@
                 $('#transferForm, #transferSelection, #transferAvailability, #transferAvailabilityLoader, #transferReview')
                     .addClass('d-none');
                 $('#transferQuoteCard, #transferDropHint').addClass('d-none');
+                clearTransferError();
                 $('#transferLoader').removeClass('d-none');
                 $('#transferAuthorizationCode, #transferApprovalRemarks, #transferPassengerReason, #transferOtherReason').val('');
                 $('#transferPaymentMethod').val('');
@@ -1750,11 +1791,11 @@
                     }
 
                     if (!data.trips.length) {
-                        notify('error', 'No active trip is available from this pickup point.');
+                        showTransferError('No active trip is available from this pickup point.');
                     }
                 }).fail(function(xhr) {
-                    notify('error', errorMessage(xhr));
-                    modal.hide();
+                    $('#transferLoader').addClass('d-none');
+                    showTransferError(xhr);
                 });
             }
 
@@ -1874,6 +1915,7 @@
 
                 availability = null;
                 selectedSeat = null;
+                clearTransferError();
                 $('#transferDropHint').addClass('d-none');
                 $('#transferAvailability').addClass('d-none');
                 $('#transferAvailabilityLoader').removeClass('d-none');
@@ -1893,7 +1935,7 @@
                     $('#transferAvailability').removeClass('d-none');
                 }).fail(function(xhr) {
                     if (xhr.statusText !== 'abort') {
-                        notify('error', errorMessage(xhr));
+                        showTransferError(xhr);
                     }
                 }).always(function() {
                     if (availabilityRequest === request) {
@@ -2062,9 +2104,9 @@
 
                     if (remaining <= 0) {
                         releaseTransferHold();
-                        notify('error', 'The 15-minute seat hold expired. Select the seat again to continue.');
                         showTransferStage('selection');
                         loadTransferAvailability();
+                        showTransferError('The 15-minute seat hold expired. Select the seat again to continue.');
                     }
                 };
 
@@ -2079,6 +2121,7 @@
                 const originalLabel = button.html();
                 const payload = transferPayload();
                 payload.seat = selectedSeat;
+                clearTransferError();
                 button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Holding seat...');
 
                 $.ajax({
@@ -2095,8 +2138,8 @@
                     startHoldCountdown(response.expires_at);
                     updateTransferConfirmationState();
                 }).fail(function(xhr) {
-                    notify('error', errorMessage(xhr));
                     loadTransferAvailability();
+                    showTransferError(xhr);
                 }).always(function() {
                     button.html(originalLabel);
                     updateTransferSelectionState();
@@ -2148,6 +2191,7 @@
                 payload.hold_token = holdToken;
                 payload.authorization_code = $('#transferAuthorizationCode').val();
                 payload.approval_remarks = $('#transferApprovalRemarks').val();
+                clearTransferError();
                 button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Transferring...');
 
                 $.ajax({
@@ -2168,7 +2212,6 @@
                     setTimeout(() => window.location.reload(), 1200);
                 }).fail(function(xhr) {
                     if (printWindow) printWindow.close();
-                    notify('error', errorMessage(xhr));
                     $('#transferAuthorizationCode').val('');
                     button.prop('disabled', false).html(originalLabel);
 
@@ -2180,6 +2223,7 @@
                     } else {
                         updateTransferConfirmationState();
                     }
+                    showTransferError(xhr);
                 });
             });
 

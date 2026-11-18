@@ -7,11 +7,26 @@ use App\Models\BookedTicket;
 use App\Models\Counter;
 use App\Models\Trip;
 use App\Models\VehicleRoute;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use ReflectionMethod;
 use Tests\TestCase;
 
 class SameTripTransferTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Schema::create('counters', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->boolean('status')->default(1);
+            $table->timestamps();
+        });
+    }
+
     public function test_current_trip_lists_only_different_downstream_drop_offs(): void
     {
         $trip = $this->trip(10, 1, 4, [1, 2, 3, 4]);
@@ -72,6 +87,24 @@ class SameTripTransferTest extends TestCase
         $this->assertSame([1, 3], $ticket->source_destination);
         $this->assertSame(1840.0, (float) $ticket->unit_price);
         $this->assertSame(1840.0, (float) $ticket->sub_total);
+    }
+
+    public function test_inactive_drop_off_returns_a_validation_error_instead_of_a_not_found_error(): void
+    {
+        $drop = Counter::create([
+            'name' => 'Inactive Stop',
+            'status' => 0,
+        ]);
+
+        try {
+            $this->invoke('activeTransferDrop', [$drop->id]);
+            $this->fail('Expected the inactive dropping point to be rejected.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(
+                'The selected dropping point is no longer available. Refresh the transfer options and try again.',
+                $exception->errors()['dropping_point'][0]
+            );
+        }
     }
 
     private function trip(int $id, int $start, int $end, array $stoppages): Trip
