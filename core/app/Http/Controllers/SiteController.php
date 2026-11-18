@@ -21,6 +21,7 @@ use App\Services\PassengerReminderService;
 use App\Services\SeatConflictService;
 use App\Services\SeatLayoutService;
 use App\Services\TripDateAvailabilityService;
+use App\Services\TripProvinceFilterService;
 use App\Support\BusinessTime;
 use Carbon\Carbon;
 use DB;
@@ -353,9 +354,11 @@ class SiteController extends Controller
         }
 
         if ($request->filled('province')) {
-            $trips_query->whereHas('endTo', function ($counter) use ($request) {
-                $counter->where('location', $request->province);
-            });
+            app(TripProvinceFilterService::class)->apply(
+                $trips_query,
+                $request->province,
+                $pickup
+            );
         }
 
         // -------------------------------

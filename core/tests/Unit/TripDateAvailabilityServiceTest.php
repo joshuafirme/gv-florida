@@ -23,6 +23,13 @@ class TripDateAvailabilityServiceTest extends TestCase
             $table->boolean('status')->default(true);
             $table->timestamps();
         });
+        Schema::create('counters', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('location')->nullable();
+            $table->boolean('status')->default(true);
+            $table->timestamps();
+        });
         Schema::create('vehicle_routes', function (Blueprint $table) {
             $table->id();
             $table->json('stoppages');
@@ -119,7 +126,12 @@ class TripDateAvailabilityServiceTest extends TestCase
             ]);
             DB::table('vehicle_routes')->insert([
                 'id' => 1,
-                'stoppages' => json_encode(['1', '2']),
+                'stoppages' => json_encode(['1', '2', '3']),
+            ]);
+            DB::table('counters')->insert([
+                ['id' => 1, 'name' => 'Origin', 'location' => 'METRO MANILA', 'status' => 1],
+                ['id' => 2, 'name' => 'Intermediate Stop', 'location' => 'ISABELA', 'status' => 1],
+                ['id' => 3, 'name' => 'Endpoint', 'location' => 'CAGAYAN', 'status' => 1],
             ]);
             DB::table('fleet_types')->insert([
                 'id' => 1,
@@ -137,7 +149,7 @@ class TripDateAvailabilityServiceTest extends TestCase
                 'vehicle_route_id' => 1,
                 'fleet_type_id' => 1,
                 'start_from' => 1,
-                'end_to' => 2,
+                'end_to' => 3,
                 'status' => 1,
                 'trip_status' => Status::TRIP_ON_TIME,
                 'day_off' => json_encode(['6']),
@@ -148,7 +160,7 @@ class TripDateAvailabilityServiceTest extends TestCase
                 'trip_id' => 1,
                 'date_of_journey' => '2026-10-22',
                 'pickup_point' => 1,
-                'dropping_point' => 2,
+                'dropping_point' => 3,
                 'seats' => json_encode(['1-1', '1-2', '1-3']),
                 'status' => Status::BOOKED_APPROVED,
             ]);
@@ -163,7 +175,7 @@ class TripDateAvailabilityServiceTest extends TestCase
                 null,
                 [],
                 1,
-                2,
+                3,
                 3
             );
 
@@ -171,6 +183,19 @@ class TripDateAvailabilityServiceTest extends TestCase
             $this->assertSame(TripDateAvailabilityService::FULLY_BOOKED, $statuses['2026-10-22']);
             $this->assertSame(TripDateAvailabilityService::NOT_OPEN, $statuses['2026-10-23']);
             $this->assertSame(TripDateAvailabilityService::NO_TRIP, $statuses['2026-10-24']);
+
+            $provinceStatuses = app(TripDateAvailabilityService::class)->statuses(
+                null,
+                [],
+                1,
+                null,
+                3,
+                [],
+                'ISABELA'
+            );
+
+            $this->assertSame(TripDateAvailabilityService::AVAILABLE, $provinceStatuses['2026-10-21']);
+            $this->assertSame(TripDateAvailabilityService::FULLY_BOOKED, $provinceStatuses['2026-10-22']);
         } finally {
             Carbon::setTestNow();
         }

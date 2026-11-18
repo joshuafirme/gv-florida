@@ -21,7 +21,8 @@ class TripDateAvailabilityService
     public function __construct(
         private readonly SeatConflictService $seatConflictService,
         private readonly SeatLayoutService $seatLayoutService,
-        private readonly PrioritySeatAccessService $prioritySeatAccessService
+        private readonly PrioritySeatAccessService $prioritySeatAccessService,
+        private readonly TripProvinceFilterService $tripProvinceFilterService
     ) {
     }
 
@@ -58,7 +59,7 @@ class TripDateAvailabilityService
             $query->whereIn('fleet_type_id', $fleetTypeIds);
         }
         if ($province) {
-            $query->whereHas('endTo', fn ($counter) => $counter->where('location', $province));
+            $this->tripProvinceFilterService->apply($query, $province, $pickup);
         }
 
         $trips = $query->get()

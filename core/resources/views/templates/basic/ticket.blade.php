@@ -620,6 +620,10 @@
             overscroll-behavior: contain;
         }
 
+        .journey-point-dropdown--destination .select2-results__option {
+            text-align: right;
+        }
+
         .journey-point-selector__field:first-child {
             border-right: 1px solid #e5e7eb;
         }
@@ -732,7 +736,10 @@
             justify-content: space-between;
             margin-bottom: 14px;
             min-height: 46px;
+            overflow: visible;
             padding: 12px 14px;
+            position: relative;
+            z-index: 20;
         }
 
         .trip-results-summary {
@@ -755,6 +762,8 @@
             align-items: center;
             display: flex;
             gap: 10px;
+            isolation: isolate;
+            position: relative;
         }
 
         .trip-results-filters label {
@@ -833,6 +842,7 @@
         }
 
         .trip-result-filter-dropdown {
+            background: #fff !important;
             border: 1px solid #d7dde6 !important;
             border-radius: 8px !important;
             box-shadow: 0 14px 34px rgba(15, 23, 42, .16);
@@ -842,14 +852,17 @@
             padding: 6px;
         }
 
-        .trip-results-filters label > .select2-container--open:not(.select2) {
+        .trip-results-filters > .select2-container--open {
+            bottom: auto !important;
             left: 0 !important;
-            top: 100% !important;
+            max-width: calc(100vw - 24px);
+            right: auto !important;
+            top: calc(100% + 6px) !important;
             width: 220px !important;
-            z-index: 1060;
+            z-index: 30;
         }
 
-        .trip-results-filters label:last-child > .select2-container--open:not(.select2) {
+        .trip-results-filters > .select2-container--open[data-result-filter="result_province"] {
             left: auto !important;
             right: 0 !important;
         }
@@ -1384,6 +1397,7 @@
         .trip-list-region {
             min-height: 180px;
             position: relative;
+            z-index: 1;
         }
 
         .trip-list-skeleton {
@@ -2119,7 +2133,9 @@
 
                 routeSelect.select2({
                     dropdownParent: routeSelect.closest('.journey-point-selector'),
-                    dropdownCssClass: 'journey-point-dropdown',
+                    dropdownCssClass: routeSelect.is('#ticket-destination')
+                        ? 'journey-point-dropdown journey-point-dropdown--destination'
+                        : 'journey-point-dropdown',
                     width: '100%'
                 });
             });
@@ -2162,10 +2178,16 @@
                     if (filter.hasClass('select2-hidden-accessible')) return;
 
                     filter.select2({
-                        dropdownParent: filter.closest('label'),
+                        dropdownParent: filter.closest('.trip-results-filters'),
                         dropdownCssClass: 'trip-result-filter-dropdown',
                         minimumResultsForSearch: Infinity,
                         width: 'resolve'
+                    });
+                    filter.on('select2:open.tripResultFilter', function() {
+                        filter.closest('.trip-results-filters')
+                            .children('.select2-container--open')
+                            .last()
+                            .attr('data-result-filter', filter.attr('name'));
                     });
                 });
             }
