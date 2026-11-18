@@ -2592,7 +2592,12 @@ class VehicleTicketController extends Controller
         if ($lockForUpdate) {
             $tripQuery->lockForUpdate();
         }
-        $trip = $tripQuery->findOrFail($data['trip_id']);
+        $trip = $tripQuery->find($data['trip_id']);
+        if (!$trip) {
+            throw ValidationException::withMessages([
+                'trip_id' => 'The selected trip is no longer available. Refresh the transfer options and try again.',
+            ]);
+        }
         $originalDate = Carbon::parse($ticket->date_of_journey)->format('Y-m-d');
         $sameTrip = (int) $trip->id === (int) $ticket->trip_id;
 
@@ -2639,7 +2644,7 @@ class VehicleTicketController extends Controller
             }
         }
 
-        $drop = Counter::active()->findOrFail($data['dropping_point']);
+        $drop = $this->activeTransferDrop((int) $data['dropping_point']);
         $validDropIds = $this->transferDropIds($trip, (int) $ticket->pickup_point);
         if (!in_array((int) $drop->id, $validDropIds, true)) {
             throw ValidationException::withMessages([
@@ -2661,6 +2666,19 @@ class VehicleTicketController extends Controller
         }
 
         return [$trip, $drop, $date, $fare];
+    }
+
+    private function activeTransferDrop(int $dropId): Counter
+    {
+        $drop = Counter::active()->find($dropId);
+
+        if (!$drop) {
+            throw ValidationException::withMessages([
+                'dropping_point' => 'The selected dropping point is no longer available. Refresh the transfer options and try again.',
+            ]);
+        }
+
+        return $drop;
     }
 
     private function transferFareDetails(

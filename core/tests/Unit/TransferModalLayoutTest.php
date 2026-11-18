@@ -65,4 +65,15 @@ class TransferModalLayoutTest extends TestCase
         $this->assertStringContainsString("$('#transferDate').prop('disabled', sameTrip);", $view);
         $this->assertStringContainsString("$('#transferDropHint').toggleClass('d-none', !sameTrip);", $view);
     }
+
+    public function test_transfer_errors_show_the_specific_reason_inside_the_modal(): void
+    {
+        $view = file_get_contents(resource_path('views/admin/ticket/log.blade.php'));
+
+        $this->assertStringContainsString('id="transferErrorAlert"', $view);
+        $this->assertStringContainsString('id="transferErrorReason"', $view);
+        $this->assertStringContainsString("const reason = typeof error === 'string' ? error : errorMessage(error);", $view);
+        $this->assertStringContainsString("$('#transferErrorReason').text(reason);", $view);
+        $this->assertStringContainsString('No ticket changes were saved.', $view);
+    }
 }
