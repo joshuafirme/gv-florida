@@ -158,6 +158,10 @@
             color: #60a5fa;
         }
 
+        .status-text--preparing {
+            color: #facc15;
+        }
+
         .status-text--boarding {
             color: #22d3ee;
         }
@@ -167,7 +171,8 @@
         }
 
         .status-text--delayed,
-        .status-text--cancelled {
+        .status-text--cancelled,
+        .status-text--breakdown {
             color: #f87171;
         }
 
@@ -593,11 +598,13 @@
         const pusherCluster = @json($pusherCluster);
         const tripStatusLabels = {
             @json(Status::TRIP_ON_TIME): 'Scheduled',
+            @json(Status::TRIP_PREPARING): 'Preparing',
             @json(Status::TRIP_BOARDING): 'Boarding',
             @json(Status::TRIP_DEPARTED): 'Departed',
+            @json(Status::TRIP_CANCELLED): 'Cancelled',
+            @json(Status::TRIP_BREAKDOWN): 'Breakdown',
             @json(Status::TRIP_DELAYED): 'Delayed',
-            @json(Status::TRIP_ARRIVED): 'Arrived',
-            @json(Status::TRIP_CANCELLED): 'Cancelled'
+            @json(Status::TRIP_ARRIVED): 'Arrived'
         };
 
         scheduleBoard();
