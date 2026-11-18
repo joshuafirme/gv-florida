@@ -20,13 +20,6 @@
                     'vehicle_id' => $trip->assignedVehicle?->vehicle_id,
                     'dispatch_status' => $status,
                     'remarks' => $trip->assignedVehicle?->remarks,
-                    'vehicles' => $trip->fleetType?->activeVehicles?->map(fn ($vehicle) => [
-                        'id' => $vehicle->id,
-                        'label' => collect([$vehicle->bus_no, $vehicle->register_no, $vehicle->nick_name])
-                            ->filter()
-                            ->unique()
-                            ->implode(' - '),
-                    ])->values()->all() ?? [],
                 ],
             ];
         });
@@ -60,14 +53,16 @@
                                     $dispatchStatus = $trip->trip_status ?: Status::TRIP_ON_TIME;
                                     $dispatchLabel = $dispatchStatuses[$dispatchStatus] ?? __(ucwords(str_replace('_', ' ', $dispatchStatus)));
                                     $dispatchClass = match ($dispatchStatus) {
+                                        Status::TRIP_PREPARING => 'preparing',
                                         Status::TRIP_BOARDING => 'boarding',
                                         Status::TRIP_DEPARTED => 'departed',
                                         Status::TRIP_DELAYED => 'delayed',
                                         Status::TRIP_ARRIVED => 'arrived',
                                         Status::TRIP_CANCELLED => 'cancelled',
+                                        Status::TRIP_BREAKDOWN => 'breakdown',
                                         default => 'scheduled',
                                     };
-                                    $canAssign = (bool) $trip->status && $dispatchStatus !== Status::TRIP_CANCELLED;
+                                    $canAssign = (bool) $trip->status;
                                 @endphp
                                 <tr>
                                     <td data-label="@lang('Departure')">
@@ -152,7 +147,22 @@
 
                         <div class="form-group">
                             <label for="assignmentVehicle">Assigned Vehicle</label>
-                            <select class="form-control" name="vehicle_id" id="assignmentVehicle" required></select>
+                            <select class="form-control assignment-vehicle-select" name="vehicle_id"
+                                id="assignmentVehicle" required>
+                                <option value="">Select a vehicle</option>
+                                @foreach ($vehicles as $vehicle)
+                                    @php
+                                        $vehicleLabel = collect([
+                                            $vehicle->bus_no,
+                                            $vehicle->register_no,
+                                            $vehicle->nick_name,
+                                        ])->filter()->unique()->implode(' - ');
+                                    @endphp
+                                    <option value="{{ $vehicle->id }}">
+                                        {{ $vehicleLabel }} | {{ $vehicle->fleetType?->name ?: 'Unclassified' }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
 
                         <div class="form-group mb-3">
@@ -164,7 +174,6 @@
                                     <label for="dispatch_{{ $value }}">{{ $label }}</label>
                                 @endforeach
                             </div>
-                            <small class="dispatch-note">Trip cancellation remains managed from Trip Management.</small>
                         </div>
 
                         <div class="form-group mb-0">
@@ -306,11 +315,13 @@
         }
 
         .dispatch-badge--scheduled { color: #545965; background: #f1f2f4; }
+        .dispatch-badge--preparing { color: #6d4c00; background: #fff8dc; border-color: #eadb9d; }
         .dispatch-badge--boarding { color: #1264a3; background: #e8f4fd; border-color: #bfdef4; }
         .dispatch-badge--departed { color: #a15c00; background: #fff4df; border-color: #f0d59d; }
         .dispatch-badge--delayed { color: #b42318; background: #fff0ef; border-color: #f4c7c3; }
         .dispatch-badge--arrived { color: #087a4b; background: #e9f8f0; border-color: #bce5cf; }
         .dispatch-badge--cancelled { color: #7a263a; background: #f8e9ed; border-color: #e9c0ca; }
+        .dispatch-badge--breakdown { color: #9f2d21; background: #fff0ed; border-color: #efc3bc; }
 
         .assignment-action-btn {
             min-width: 82px;
@@ -351,6 +362,29 @@
         .assignment-trip-summary span {
             color: #707583;
             font-size: 12px;
+        }
+
+        .assignment-vehicle-select + .select2-container {
+            width: 100% !important;
+        }
+
+        .assignment-modal-content .select2-container .select2-selection--single {
+            display: flex;
+            align-items: center;
+            height: 46px;
+            border-color: #d8dbe2;
+            border-radius: 7px;
+        }
+
+        .assignment-modal-content .select2-selection__rendered {
+            padding-left: 14px !important;
+            padding-right: 34px !important;
+            line-height: 1.35 !important;
+        }
+
+        .assignment-modal-content .select2-selection__arrow {
+            top: 10px !important;
+            right: 8px !important;
         }
 
         .dispatch-options {
@@ -445,6 +479,14 @@
             const actionTemplate = @json(route('admin.trip.vehicle.assign.store', '__TRIP_ID__'));
             const modalElement = document.getElementById('assignmentModal');
             const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+            const vehicleSelect = $('#assignmentVehicle');
+
+            vehicleSelect.select2({
+                dropdownParent: $('#assignmentModal'),
+                minimumResultsForSearch: 0,
+                placeholder: 'Search by bus number, plate, nickname, or bus class',
+                width: '100%'
+            });
 
             function openAssignment(tripId, useOldInput = false) {
                 const trip = trips[tripId];
@@ -456,17 +498,11 @@
                 $('#assignmentTripTime').text(trip.time);
                 $('#assignmentFleetType').text(trip.fleet_type);
 
-                const options = ['<option value="">Select a vehicle</option>'];
-                trip.vehicles.forEach(vehicle => {
-                    options.push(`<option value="${vehicle.id}">${$('<div>').text(vehicle.label).html()}</option>`);
-                });
-                $('#assignmentVehicle').html(options.join(''));
-
                 const vehicleId = useOldInput ? @json(old('vehicle_id')) : trip.vehicle_id;
                 const dispatchStatus = useOldInput ? @json(old('dispatch_status')) : trip.dispatch_status;
                 const remarks = useOldInput ? @json(old('remarks')) : trip.remarks;
 
-                $('#assignmentVehicle').val(vehicleId || '');
+                vehicleSelect.val(vehicleId || '').trigger('change');
                 $(`input[name="dispatch_status"][value="${dispatchStatus}"]`).prop('checked', true);
                 $('#assignmentRemarks').val(remarks || '');
                 modal.show();

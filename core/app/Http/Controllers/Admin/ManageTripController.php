@@ -486,13 +486,19 @@ class ManageTripController extends Controller
         $pageTitle = 'Vehicle Assignment';
         $search = trim((string) $request->search);
         $dispatchStatuses = $this->vehicleDispatchStatuses();
+        $vehicles = Vehicle::query()
+            ->active()
+            ->with('fleetType:id,name')
+            ->orderBy('bus_no')
+            ->orderBy('register_no')
+            ->get();
         $trips = Trip::query()
             ->active()
             ->with([
                 'route.startFrom',
                 'route.endTo',
                 'schedule',
-                'fleetType.activeVehicles',
+                'fleetType',
                 'assignedVehicle.vehicle',
             ])
             ->withMin('schedule as earliest_start', 'start_from')
@@ -513,7 +519,13 @@ class ManageTripController extends Controller
             ->paginate(getPaginate())
             ->withQueryString();
 
-        return view('admin.trip.assigned_vehicle', compact('pageTitle', 'trips', 'search', 'dispatchStatuses'));
+        return view('admin.trip.assigned_vehicle', compact(
+            'pageTitle',
+            'trips',
+            'search',
+            'dispatchStatuses',
+            'vehicles'
+        ));
     }
 
     public function assignVehicle(Request $request, $id = 0)
@@ -526,20 +538,13 @@ class ManageTripController extends Controller
             'remarks' => 'nullable|string|max:1000',
         ]);
 
-        if ($trip->trip_status === Status::TRIP_CANCELLED) {
-            throw ValidationException::withMessages([
-                'dispatch_status' => 'A cancelled trip must be managed from Trip Management.',
-            ]);
-        }
-
         $vehicle = Vehicle::where('id', $validated['vehicle_id'])
-            ->where('fleet_type_id', $trip->fleet_type_id)
             ->where('status', Status::ENABLE)
             ->first();
 
         if (!$vehicle) {
             throw ValidationException::withMessages([
-                'vehicle_id' => 'Select an active vehicle that matches the trip bus type.',
+                'vehicle_id' => 'Select an active vehicle.',
             ]);
         }
 
@@ -592,10 +597,11 @@ class ManageTripController extends Controller
     {
         return [
             Status::TRIP_ON_TIME => 'Scheduled',
+            Status::TRIP_PREPARING => 'Preparing',
             Status::TRIP_BOARDING => 'Boarding',
             Status::TRIP_DEPARTED => 'Departed',
-            Status::TRIP_DELAYED => 'Delayed',
-            Status::TRIP_ARRIVED => 'Arrived',
+            Status::TRIP_CANCELLED => 'Cancelled',
+            Status::TRIP_BREAKDOWN => 'Breakdown',
         ];
     }
 

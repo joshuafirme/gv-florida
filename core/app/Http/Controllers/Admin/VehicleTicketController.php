@@ -1889,7 +1889,7 @@ class VehicleTicketController extends Controller
 
         $trips = Trip::active()
             ->where('id', '!=', $ticket->trip_id)
-            ->whereNotIn('trip_status', [Status::TRIP_CANCELLED, Status::TRIP_DEPARTED, Status::TRIP_ARRIVED])
+            ->whereNotIn('trip_status', [Status::TRIP_CANCELLED, Status::TRIP_DEPARTED, Status::TRIP_ARRIVED, Status::TRIP_BREAKDOWN])
             ->whereHas('schedule', fn ($query) => $query->where('status', Status::ENABLE))
             ->with(['route', 'schedule', 'fleetType'])
             ->withMin('schedule as earliest_start', 'start_from')
@@ -2444,7 +2444,7 @@ class VehicleTicketController extends Controller
     private function transferTripQuery(BookedTicket $ticket)
     {
         return Trip::active()
-            ->whereNotIn('trip_status', [Status::TRIP_CANCELLED, Status::TRIP_DEPARTED, Status::TRIP_ARRIVED])
+            ->whereNotIn('trip_status', [Status::TRIP_CANCELLED, Status::TRIP_DEPARTED, Status::TRIP_ARRIVED, Status::TRIP_BREAKDOWN])
             ->whereHas('schedule', fn ($query) => $query->where('status', Status::ENABLE))
             ->whereHas('route', fn ($query) => $query->where('status', Status::ENABLE))
             ->with(['route', 'schedule', 'fleetType'])
@@ -3030,7 +3030,7 @@ class VehicleTicketController extends Controller
 
         if ($type === 'new_trip') {
             $tripQuery = Trip::active()
-                ->whereNotIn('trip_status', [Status::TRIP_CANCELLED, Status::TRIP_DEPARTED, Status::TRIP_ARRIVED])
+                ->whereNotIn('trip_status', [Status::TRIP_CANCELLED, Status::TRIP_DEPARTED, Status::TRIP_ARRIVED, Status::TRIP_BREAKDOWN])
                 ->whereHas('schedule', fn ($query) => $query->where('status', Status::ENABLE))
                 ->with(['route', 'schedule', 'fleetType']);
             if ($lockForUpdate) {
