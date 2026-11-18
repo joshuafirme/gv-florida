@@ -94,7 +94,7 @@
                                                     <a href="{{ $event['rebook_url'] }}"
                                                         class="btn btn-sm btn-outline--primary"
                                                         data-bs-toggle="tooltip" data-bs-placement="bottom"
-                                                        title="Rebook this ticket again">
+                                                        title="Rebook Ticket" aria-label="Rebook Ticket">
                                                         <i class="las la-exchange-alt"></i>
                                                     </a>
                                                 @endif
