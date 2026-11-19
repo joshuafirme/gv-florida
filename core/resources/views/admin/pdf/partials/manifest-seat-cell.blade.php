@@ -51,9 +51,9 @@
         @elseif ($lockedSeat)
             <div class="manifest-lock-details">
                 <strong>Reserved for internal use</strong>
-                <span>Reason: {{ $lockedSeat['reason'] }}</span>
+                <span class="manifest-lock-reason">Reason: {{ $lockedSeat['reason'] }}</span>
                 @if ($lockedSeat['authorized_by'])
-                    <span>Authorized by: {{ $lockedSeat['authorized_by'] }}</span>
+                    <span>Checked/Verified By: {{ $lockedSeat['authorized_by'] }}</span>
                 @endif
             </div>
         @elseif ($manifest && $manifest['pending_payment'])

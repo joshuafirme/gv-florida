@@ -80,6 +80,7 @@
         .manifest-lock-details { color: #744500; margin-top: 18px; }
         .manifest-lock-details strong { display: block; font-size: 13px; text-transform: uppercase; }
         .manifest-lock-details span { display: block; font-size: 11px; margin-top: 5px; }
+        .manifest-lock-details .manifest-lock-reason { font-size: 13px; font-weight: 600; line-height: 1.35; }
         .manifest-pending-details { color: #9f224a; margin-top: 15px; }
         .manifest-pending-details strong { display: block; font-size: 13px; text-transform: uppercase; }
         .manifest-pending-details span { color: #8d5366; display: block; font-size: 11px; margin-top: 5px; }
@@ -123,6 +124,7 @@
             .manifest-lock-details { margin-top: 6px; }
             .manifest-lock-details strong { font-size: 7px; }
             .manifest-lock-details span { font-size: 6px; margin-top: 2px; }
+            .manifest-lock-details .manifest-lock-reason { font-size: 7px; line-height: 1.2; }
             .manifest-pending-details { margin-top: 5px; }
             .manifest-pending-details strong { font-size: 7px; }
             .manifest-pending-details span { font-size: 6px; margin-top: 2px; }
@@ -146,9 +148,10 @@
             .manifest-page--compact .manifest-type { font-size: 5px; margin-top: 1px; }
             .manifest-page--compact .manifest-lock-details { margin-top: 2px; }
             .manifest-page--compact .manifest-lock-details strong,
-            .manifest-page--compact .manifest-lock-details span,
             .manifest-page--compact .manifest-pending-details strong,
             .manifest-page--compact .manifest-pending-details span { font-size: 5px; margin-top: 1px; }
+            .manifest-page--compact .manifest-lock-details span { font-size: 5px; margin-top: 1px; }
+            .manifest-page--compact .manifest-lock-details .manifest-lock-reason { font-size: 6px; }
             @page { margin: 0; size: legal portrait; }
         }
     </style>
@@ -261,9 +264,9 @@
                                                 <span class="manifest-seat-status"><i class="fas fa-lock"></i> Admin Locked</span>
                                                 <div class="manifest-lock-details">
                                                     <strong>Reserved for internal use</strong>
-                                                    <span>Reason: {{ $lockedSeat['reason'] }}</span>
+                                                    <span class="manifest-lock-reason">Reason: {{ $lockedSeat['reason'] }}</span>
                                                     @if ($lockedSeat['authorized_by'])
-                                                        <span>Authorized by: {{ $lockedSeat['authorized_by'] }}</span>
+                                                        <span>Checked/Verified By: {{ $lockedSeat['authorized_by'] }}</span>
                                                     @endif
                                                 </div>
                                             @elseif ($manifest)
