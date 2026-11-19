@@ -1,5 +1,10 @@
 @php
     $headerFilters = collect($reportFilters ?? [])->filter(fn ($value) => filled($value));
+    $headerDateFrom = $reportDateFrom ?? $reportDate;
+    $headerDateTo = $reportDateTo ?? $reportDate;
+    $headerPeriod = $headerDateFrom->isSameDay($headerDateTo)
+        ? $headerDateFrom->format('l, F j, Y')
+        : $headerDateFrom->format('M j, Y') . ' - ' . $headerDateTo->format('M j, Y');
 @endphp
 
 <header class="report-document-header">
@@ -9,7 +14,7 @@
     <div class="report-document-header__identity">
         <h1>{{ $reportTitle }}</h1>
         <p class="report-document-header__context">
-            {{ $reportDateLabel ?? 'Report date' }}: {{ $reportDate->format('l, F j, Y') }}
+            {{ $reportDateLabel ?? 'Report period' }}: {{ $headerPeriod }}
             @if (!empty($reportSubject))
                 <span>&middot;</span> {{ $reportSubject }}
             @endif
