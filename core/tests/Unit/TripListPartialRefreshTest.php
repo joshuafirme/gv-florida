@@ -128,4 +128,23 @@ class TripListPartialRefreshTest extends TestCase
             "enforceKioskOrigin(\$request, ['pickup_point'])"
         ));
     }
+
+    public function test_ticket_list_dropdowns_use_scoped_alignment_and_positioning(): void
+    {
+        $ticketView = file_get_contents(resource_path('views/templates/basic/ticket.blade.php'));
+
+        $this->assertStringContainsString('journey-point-dropdown--destination', $ticketView);
+        $this->assertStringContainsString('text-align: right;', $ticketView);
+        $this->assertStringContainsString("dropdownParent: filter.closest('.trip-results-filters')", $ticketView);
+        $this->assertStringContainsString('top: calc(100% + 6px) !important;', $ticketView);
+        $this->assertStringContainsString(".attr('data-result-filter', filter.attr('name'));", $ticketView);
+        $this->assertMatchesRegularExpression(
+            '/\.trip-results-toolbar\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*20;/s',
+            $ticketView
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.trip-list-region\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*1;/s',
+            $ticketView
+        );
+    }
 }
