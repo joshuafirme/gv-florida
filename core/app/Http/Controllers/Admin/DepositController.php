@@ -14,6 +14,7 @@ use App\Services\PendingPaymentDiscountService;
 use App\Services\PendingPaymentExpirationService;
 use App\Services\PendingPaymentProcessingService;
 use App\Services\PaymentSuccessNotifier;
+use App\Services\TicketPassengerResolver;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Http\Request;
@@ -787,6 +788,32 @@ class DepositController extends Controller
             'bookedTicket.slipSeriesNumbers',
         ])->firstOrFail();
 
+        $ticket = $deposit->bookedTicket;
+        $ticket->setRelation('deposit', $deposit);
+        $ticket->setRelation('user', $deposit->user);
+
+        $manifest = collect($ticket->passenger_manifest ?: ($deposit->userDiscount?->passenger_manifest ?: []));
+        $seats = collect($ticket->seats ?: $manifest->pluck('seat')->all())
+            ->map(fn ($seat) => trim((string) $seat))
+            ->filter()
+            ->unique()
+            ->values();
+        $passengerResolver = app(TicketPassengerResolver::class);
+        $passengers = $seats->isNotEmpty()
+            ? $seats->map(fn ($seat) => $passengerResolver->forSeat($ticket, $seat))
+            : collect([$passengerResolver->forSeat($ticket, '')]);
+        $passengerNames = $passengers
+            ->pluck('name')
+            ->map(fn ($name) => trim((string) $name))
+            ->filter()
+            ->unique()
+            ->values();
+        $passengerContacts = $passengers
+            ->pluck('contact_number')
+            ->filter()
+            ->unique()
+            ->values();
+
         if ($deposit->status == Status::PAYMENT_PENDING) {
             $notify[] = ['info', 'Pending payments must be processed through the new POS modal on the Pending Payments page.'];
             return to_route('admin.deposit.pending')->withNotify($notify);
@@ -798,7 +825,14 @@ class DepositController extends Controller
             $pageTitle = $deposit->user->username . ' requested ' . showAmount($deposit->amount);
         }
         $details = ($deposit->detail != null) ? json_encode($deposit->detail) : null;
-        return view('admin.deposit.detail', compact('pageTitle', 'deposit', 'details'));
+        return view('admin.deposit.detail', compact(
+            'pageTitle',
+            'deposit',
+            'details',
+            'passengerNames',
+            'passengerContacts',
+            'seats'
+        ));
     }
 
 
