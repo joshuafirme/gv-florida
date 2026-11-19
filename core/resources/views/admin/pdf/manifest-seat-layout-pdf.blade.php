@@ -61,6 +61,7 @@
         .manifest-lock-details { clear: both; color: #744500; padding-top: 3px; }
         .manifest-lock-details strong { display: block; font-size: 6px; text-transform: uppercase; }
         .manifest-lock-details span { display: block; font-size: 5px; margin-top: 1px; }
+        .manifest-lock-details .manifest-lock-reason { font-size: 6px; font-weight: 700; line-height: 1.2; }
         .manifest-pending-details { clear: both; color: #9f224a; padding-top: 3px; }
         .manifest-pending-details strong { display: block; font-size: 6px; text-transform: uppercase; }
         .manifest-pending-details span { color: #8d5366; display: block; font-size: 5px; margin-top: 1px; }
