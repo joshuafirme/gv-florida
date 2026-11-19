@@ -73,7 +73,7 @@
                                             @endif
                                         </td>
                                         <td data-label="Status">
-                                            <span class="rebooked-status">Rebooked</span>
+                                            <span class="rebooked-status rebooked-status--{{ \Illuminate\Support\Str::slug($event['status']) }}">{{ $event['status'] }}</span>
                                         </td>
                                         <td data-label="Action">
                                             <div class="rebooked-actions">
@@ -129,7 +129,7 @@
         <div class="modal-dialog modal-dialog-centered rebooked-details-dialog">
             <div class="modal-content rebooked-details-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Rebooked Ticket - Transaction Receipt</h5>
+                    <h5 class="modal-title" id="rebookedDetailsTitle">Booking Change - Transaction Receipt</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -196,9 +196,12 @@
                 $('#rebookedDetailsLoading').removeClass('d-none');
                 $('#rebookedDetailsRows').addClass('d-none').empty();
                 $('#rebookedDetailsPrint').addClass('d-none').attr('href', '#');
+                $('#rebookedDetailsTitle').text('Booking Change - Transaction Receipt');
                 detailsModal.show();
 
                 $.getJSON($(this).data('details-url')).done(function(data) {
+                    const isSeatChange = data.status === 'Seat Changed';
+                    $('#rebookedDetailsTitle').text(`${data.status} - Transaction Receipt`);
                     const passenger = data.passenger_id
                         ? `${data.passenger_name} - ${data.passenger_type} - ID ${data.passenger_id}`
                         : `${data.passenger_name} - ${data.passenger_type}`;
@@ -214,7 +217,7 @@
                         detailRow('Contact Number', data.passenger_contact || '-'),
                         detailRow('Booking Source', data.booking_source),
                         detailRow('Payment Method', data.payment_method),
-                        detailRow('Rebooking Sequence', data.sequence),
+                        detailRow(isSeatChange ? 'Seat Change Sequence' : 'Rebooking Sequence', data.sequence),
                         detailRow('Original Departure', data.original_departure || '-'),
                         detailRow('Admin Grace Deadline', data.grace_ends_at || '-'),
                         detailRow('Previous Trip', data.previous_trip),
@@ -229,7 +232,7 @@
                         detailRow('Authorization Date & Time', data.authorized_at || '-'),
                         detailRow('Approval Remarks', data.approval_remarks || '-'),
                         detailRow('Reason', data.reason),
-                        detailRow('Rebooked At', data.processed_at),
+                        detailRow(isSeatChange ? 'Seat Changed At' : 'Rebooked At', data.processed_at),
                         detailRow('Status', data.status)
                     ];
                     $('#rebookedDetailsRows').html(rows.join('')).removeClass('d-none');

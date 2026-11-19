@@ -153,15 +153,23 @@ class CashierTransactionRecorder
         string $batchKey,
         array $history = [],
         ?Admin $authorizedBy = null,
-        ?string $approvalRemarks = null
+        ?string $approvalRemarks = null,
+        string $status = CashierTransactionEvent::STATUS_REBOOKED
     ): void {
+        if (!in_array($status, [CashierTransactionEvent::STATUS_REBOOKED, CashierTransactionEvent::STATUS_SEAT_CHANGED], true)) {
+            throw new \InvalidArgumentException('Unsupported rebooking transaction status.');
+        }
+
         $ticket->loadMissing($this->ticketRelations());
         $slips = $slips->values();
         $performedBy = Admin::find($adminId);
+        $eventKeyPrefix = $status === CashierTransactionEvent::STATUS_SEAT_CHANGED
+            ? 'seat-changed'
+            : 'rebooked';
 
         if ($slips->isEmpty()) {
             $snapshot = $this->bookingSnapshot($ticket);
-            $snapshot = $this->withRebookingHistory($snapshot, $history, null, 0);
+            $snapshot = $this->withRebookingHistory($snapshot, $history, null, 0, $status);
             $snapshot = $this->withAuthorizationAudit(
                 $snapshot,
                 $authorizedBy,
@@ -171,9 +179,9 @@ class CashierTransactionRecorder
                 $approvalRemarks
             );
             $this->store(
-                "rebooked:{$batchKey}:booking",
+                "{$eventKeyPrefix}:{$batchKey}:booking",
                 $adminId,
-                'Rebooked',
+                $status,
                 $snapshot,
                 0,
                 $reason,
@@ -185,7 +193,7 @@ class CashierTransactionRecorder
 
         foreach ($slips as $index => $slip) {
             $snapshot = $this->ticketSnapshot($ticket, $slip);
-            $snapshot = $this->withRebookingHistory($snapshot, $history, $slip, $index);
+            $snapshot = $this->withRebookingHistory($snapshot, $history, $slip, $index, $status);
             $snapshot = $this->withAuthorizationAudit(
                 $snapshot,
                 $authorizedBy,
@@ -195,9 +203,9 @@ class CashierTransactionRecorder
                 $approvalRemarks
             );
             $this->store(
-                "rebooked:{$batchKey}:{$slip->id}",
+                "{$eventKeyPrefix}:{$batchKey}:{$slip->id}",
                 $adminId,
-                'Rebooked',
+                $status,
                 $snapshot,
                 0,
                 $reason,
@@ -436,9 +444,10 @@ class CashierTransactionRecorder
         array $snapshot,
         array $history,
         ?SlipSeriesNumber $slip,
-        int $index
+        int $index,
+        string $status = CashierTransactionEvent::STATUS_REBOOKED
     ): array {
-        $sequenceQuery = CashierTransactionEvent::query()->where('status', 'Rebooked');
+        $sequenceQuery = CashierTransactionEvent::query()->where('status', $status);
         if ($slip?->id) {
             $sequenceQuery->where('slip_series_number_id', $slip->id);
         } else {
@@ -456,6 +465,7 @@ class CashierTransactionRecorder
             : ($history['new']['seats'][$index] ?? $snapshot['seat_no'] ?? null);
 
         $snapshot['rebooking'] = array_merge($history, [
+            'action_status' => $status,
             'sequence' => $sequence,
             'previous_seat' => $previousSeat,
             'new_seat' => $newSeat,

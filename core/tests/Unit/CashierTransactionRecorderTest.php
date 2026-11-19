@@ -213,6 +213,33 @@ class CashierTransactionRecorderTest extends TestCase
         $this->assertSame(2, $snapshot['transfer_sequence']);
     }
 
+    public function test_seat_change_history_has_an_independent_sequence_and_keeps_both_seats(): void
+    {
+        $this->database->table('cashier_transaction_events')->insert([
+            'admin_id' => 1,
+            'slip_series_number_id' => 100677,
+            'event_key' => 'seat-changed:first:100677',
+            'status' => CashierTransactionEvent::STATUS_SEAT_CHANGED,
+            'processed_at' => '2026-10-14 09:00:00',
+            'amount' => 0,
+            'created_at' => '2026-10-14 09:00:00',
+            'updated_at' => '2026-10-14 09:00:00',
+        ]);
+        $slip = (new SlipSeriesNumber())->forceFill(['id' => 100677, 'seat' => '1-D2']);
+        $recorder = new CashierTransactionRecorder(new TicketPassengerResolver());
+        $method = new ReflectionMethod($recorder, 'withRebookingHistory');
+
+        $snapshot = $method->invoke($recorder, [], [
+            'previous' => ['seats_by_reference' => ['100677' => '1-D1']],
+            'new' => ['seats_by_reference' => ['100677' => '1-D2']],
+        ], $slip, 0, CashierTransactionEvent::STATUS_SEAT_CHANGED);
+
+        $this->assertSame(CashierTransactionEvent::STATUS_SEAT_CHANGED, $snapshot['rebooking']['action_status']);
+        $this->assertSame(2, $snapshot['rebooking']['sequence']);
+        $this->assertSame('1-D1', $snapshot['rebooking']['previous_seat']);
+        $this->assertSame('1-D2', $snapshot['rebooking']['new_seat']);
+    }
+
     public function test_online_validation_uses_the_slips_current_ticket_after_rebooking(): void
     {
         $this->database->table('online_ticket_validations')->insert([

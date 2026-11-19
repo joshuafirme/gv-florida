@@ -34,8 +34,8 @@
                 <label for="ticketStatus">Status</label>
                 <select id="ticketStatus" name="status">
                     <option value="">All Statuses</option>
-                    @foreach (['booked', 'rebooked', 'refunded', 'cancelled', 'voided', 'pending', 'expired', 'rejected'] as $option)
-                        <option value="{{ $option }}" @selected($status === $option)>{{ ucfirst($option) }}</option>
+                    @foreach (['booked' => 'Booked', 'rebooked' => 'Rebooked', 'seat_changed' => 'Seat Changed', 'refunded' => 'Refunded', 'cancelled' => 'Cancelled', 'voided' => 'Voided', 'pending' => 'Pending', 'expired' => 'Expired', 'rejected' => 'Rejected'] as $option => $label)
+                        <option value="{{ $option }}" @selected($status === $option)>{{ $label }}</option>
                     @endforeach
                 </select>
             </div>
@@ -71,7 +71,7 @@
                     </thead>
                     <tbody>
                         @forelse ($tickets as $ticket)
-                            @php($statusClass = strtolower($ticket['status']))
+                            @php($statusClass = \Illuminate\Support\Str::slug($ticket['status']))
                             <tr>
                                 <td data-label="User">
                                     <strong>{{ $ticket['source'] }}</strong>
@@ -296,7 +296,8 @@
         }
 
         .all-ticket-status--booked { background: #eaf8f0; border-color: #b9e4ca; color: #087947; }
-        .all-ticket-status--rebooked { background: #eaf5fc; border-color: #bddff2; color: #12689e; }
+        .all-ticket-status--rebooked,
+        .all-ticket-status--seat-changed { background: #eaf5fc; border-color: #bddff2; color: #12689e; }
         .all-ticket-status--refunded,
         .all-ticket-status--cancelled,
         .all-ticket-status--voided,

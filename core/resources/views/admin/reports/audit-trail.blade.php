@@ -83,7 +83,7 @@
                             @php
                                 $statusClass = match ($transaction->status) {
                                     'Sold' => 'sold',
-                                    'Rebooked' => 'rebooked',
+                                    'Rebooked', 'Seat Changed' => 'rebooked',
                                     'Upgraded', 'Downgraded', 'Transferred', 'Management Transferred' => 'transferred',
                                     'Cancelled' => 'cancelled',
                                     'Voided' => 'voided',

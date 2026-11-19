@@ -82,7 +82,7 @@ class PassengerNotificationPresenter
         $new = $history['new'] ?? [];
         $rows = [];
 
-        if ($event->status === 'Rebooked') {
+        if (in_array($event->status, [CashierTransactionEvent::STATUS_REBOOKED, CashierTransactionEvent::STATUS_SEAT_CHANGED], true)) {
             $rows[] = $this->changeRow(
                 'Seat',
                 $history['previous_seat'] ?? $this->seats($previous['seats'] ?? []),
@@ -105,6 +105,7 @@ class PassengerNotificationPresenter
     private function matchingEvent(PassengerNotification $notification, BookedTicket $ticket): ?CashierTransactionEvent
     {
         $status = match (true) {
+            str_contains($notification->event_type, 'seat_changed') => CashierTransactionEvent::STATUS_SEAT_CHANGED,
             str_contains($notification->event_type, 'rebook') => 'Rebooked',
             str_contains($notification->event_type, 'refund') => 'Refunded',
             str_contains($notification->event_type, 'cancel') => 'Cancelled',
@@ -127,7 +128,9 @@ class PassengerNotificationPresenter
 
     private function movementTitle(string $eventType): string
     {
-        return str_contains($eventType, 'rebook') ? 'Movement Details' : 'Update Details';
+        return str_contains($eventType, 'rebook') || str_contains($eventType, 'seat_changed')
+            ? 'Movement Details'
+            : 'Update Details';
     }
 
     private function routeLabel(?BookedTicket $ticket, array $metadata): ?string

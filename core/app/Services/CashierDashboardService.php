@@ -198,10 +198,11 @@ class CashierDashboardService
     private function statusPrioritySql(string $table): string
     {
         return "CASE {$table}.status
-            WHEN 'Refunded' THEN 5
-            WHEN 'Voided' THEN 4
-            WHEN 'Cancelled' THEN 3
-            WHEN 'Rebooked' THEN 2
+            WHEN 'Refunded' THEN 6
+            WHEN 'Voided' THEN 5
+            WHEN 'Cancelled' THEN 4
+            WHEN 'Rebooked' THEN 3
+            WHEN 'Seat Changed' THEN 2
             WHEN 'Sold' THEN 1
             ELSE 0
         END";

@@ -12,6 +12,7 @@ class DailyReportService
     private const ACTIVITY_STATUSES = [
         'sold' => 'Sold',
         'rebooked' => 'Rebooked',
+        'seat_changed' => 'Seat Changed',
         'upgraded' => 'Upgraded',
         'downgraded' => 'Downgraded',
         'transferred' => 'Transferred',
