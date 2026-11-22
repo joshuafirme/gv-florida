@@ -120,6 +120,7 @@ class RebookingPolicy
                 Status::TRIP_CANCELLED,
                 Status::TRIP_DEPARTED,
                 Status::TRIP_ARRIVED,
+                Status::TRIP_BREAKDOWN,
             ], true);
     }
 

@@ -252,9 +252,11 @@ function slug($string)
 function generateTripStatusHTML($status)
 {
     $class = $status == Status::TRIP_ON_TIME ? 'success' : '';
+    $class = $status == Status::TRIP_PREPARING ? 'warning' : $class;
     $class = $status == Status::TRIP_BOARDING ? 'primary' : $class;
     $class = $status == Status::TRIP_DELAYED ? 'warning' : $class;
     $class = $status == Status::TRIP_CANCELLED ? 'danger' : $class;
+    $class = $status == Status::TRIP_BREAKDOWN ? 'danger' : $class;
     echo '<span class="status-dot status-' . $status . '"></span>';
     echo '<span class="badge bg-' . $class . '-subtle text-' . $class . '">' . decodeSlug($status) . '</span>';
 }

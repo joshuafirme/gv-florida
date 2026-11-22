@@ -46,10 +46,12 @@ class Status{
     const BOOKED_VOIDED = 6;
 
     const TRIP_ON_TIME = 'on_time';
+    const TRIP_PREPARING = 'preparing';
     const TRIP_BOARDING = 'boarding';
     const TRIP_DELAYED = 'delayed';
     const TRIP_CANCELLED = 'cancelled';
     const TRIP_DEPARTED = 'departed';
     const TRIP_ARRIVED = 'arrived';
+    const TRIP_BREAKDOWN = 'breakdown';
 
 }
