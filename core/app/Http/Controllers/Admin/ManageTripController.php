@@ -493,7 +493,6 @@ class ManageTripController extends Controller
             ->orderBy('register_no')
             ->get();
         $trips = Trip::query()
-            ->active()
             ->with([
                 'route.startFrom',
                 'route.endTo',

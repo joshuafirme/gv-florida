@@ -37,4 +37,28 @@ class VehicleAssignmentConfigurationTest extends TestCase
         $this->assertStringContainsString("minimumResultsForSearch: 0", $view);
         $this->assertStringContainsString('$vehicle->fleetType?->name', $view);
     }
+
+    public function test_assignment_is_available_for_every_trip(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/Admin/ManageTripController.php'));
+        $view = file_get_contents(resource_path('views/admin/trip/assigned_vehicle.blade.php'));
+        $assignmentList = $this->methodSource($controller, 'assignedVehicleLists', 'assignVehicle');
+
+        $this->assertStringContainsString('$trips = Trip::query()', $assignmentList);
+        $this->assertDoesNotMatchRegularExpression(
+            '/\$trips\s*=\s*Trip::query\(\)\s*->active\(\)/',
+            $assignmentList
+        );
+        $this->assertStringNotContainsString('@disabled(!$canAssign)', $view);
+        $this->assertStringNotContainsString('Enable or reactivate this trip', $view);
+        $this->assertStringContainsString("\$vehicle ? 'Update assignment' : 'Assign vehicle'", $view);
+    }
+
+    private function methodSource(string $controller, string $method, string $nextMethod): string
+    {
+        $start = strpos($controller, "public function {$method}");
+        $end = strpos($controller, "public function {$nextMethod}", $start);
+
+        return substr($controller, $start, $end - $start);
+    }
 }
