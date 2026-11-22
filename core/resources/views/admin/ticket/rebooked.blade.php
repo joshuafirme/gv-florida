@@ -94,8 +94,8 @@
                                                     <a href="{{ $event['rebook_url'] }}"
                                                         class="btn btn-sm btn-outline--primary"
                                                         data-bs-toggle="tooltip" data-bs-placement="bottom"
-                                                        title="Rebook this ticket again">
-                                                        <i class="las la-exchange-alt"></i>
+                                                        title="Rebook Ticket" aria-label="Rebook Ticket">
+                                                        <i class="fa-solid fa-calendar-day"></i>
                                                     </a>
                                                 @endif
                                                 @if ($event['transfer_url'])

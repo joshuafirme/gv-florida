@@ -198,7 +198,7 @@
                                                         : route('admin.trip.ticket.rebook.options', $item->id);
                                                 @endphp
                                                  <button data-bs-toggle="tooltip" data-bs-placement="bottom"
-                                                    title="Change Schedule" target="_blank"
+                                                    title="Rebook Ticket" aria-label="Rebook Ticket" target="_blank"
                                                     class="btn btn-sm btn-outline--primary ms-1 update-booking-date-btn"
                                                     data-id="{{ $ticketSlip?->id ?? $item->id }}"
                                                     data-options-url="{{ $rebookOptionsUrl }}">
