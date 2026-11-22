@@ -95,7 +95,7 @@
                                                         class="btn btn-sm btn-outline--primary"
                                                         data-bs-toggle="tooltip" data-bs-placement="bottom"
                                                         title="Rebook Ticket" aria-label="Rebook Ticket">
-                                                        <i class="las la-exchange-alt"></i>
+                                                        <i class="fa-solid fa-calendar-day"></i>
                                                     </a>
                                                 @endif
                                                 @if ($event['transfer_url'])
