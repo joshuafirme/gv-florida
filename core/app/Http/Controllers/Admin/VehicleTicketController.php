@@ -220,7 +220,7 @@ class VehicleTicketController extends Controller
             'passenger_type' => getPassengerType($deposit),
             'seat' => $slip->seat,
             'fare' => $fare,
-            'default_refund' => round($fare * 0.5, 2),
+            'default_refund' => app(FareDiscountService::class)->percentageAmount($fare, 50),
             'processed_by' => auth('admin')->user()->name,
             'reasons' => $this->refundReasons(),
             'confirm_url' => route('admin.vehicle.ticket.refund.confirm', $slip->id),
@@ -232,6 +232,7 @@ class VehicleTicketController extends Controller
         $validated = $request->validate([
             'reason' => 'required|string|max:100',
             'refund_amount' => 'required|numeric|min:0.01',
+            'refund_percentage' => ['nullable', 'integer', 'in:50,100'],
             'authorization_code' => 'required|string|max:100',
         ]);
 
@@ -251,8 +252,16 @@ class VehicleTicketController extends Controller
                 ->findOrFail($slip);
             $ticket = $slip->bookedTicket;
             $fare = $this->ticketFare($ticket, $slip);
+            $refundPercentage = isset($validated['refund_percentage'])
+                ? (int) $validated['refund_percentage']
+                : null;
+            $refundAmount = $refundPercentage === 100
+                ? $fare
+                : ($refundPercentage === 50
+                    ? app(FareDiscountService::class)->percentageAmount($fare, 50)
+                    : (float) $validated['refund_amount']);
 
-            if ((float) $validated['refund_amount'] > $fare) {
+            if ($refundAmount > $fare) {
                 throw ValidationException::withMessages([
                     'refund_amount' => 'The refund amount cannot exceed the ticket fare of ' . showAmount($fare) . '.',
                 ]);
@@ -264,7 +273,7 @@ class VehicleTicketController extends Controller
                 'processed_by_admin_id' => auth('admin')->id(),
                 'authorized_by_admin_id' => $authorizedBy->id,
                 'original_fare' => $fare,
-                'refund_amount' => $validated['refund_amount'],
+                'refund_amount' => $refundAmount,
                 'reason' => $validated['reason'],
                 'remarks' => '',
             ]);

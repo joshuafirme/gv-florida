@@ -2218,6 +2218,7 @@
 
             const formatMoney = value => currency.format(Number(value) || 0);
             const escapeHtml = value => $('<div>').text(value ?? '').html();
+            const roundToNearestFive = value => Math.round((Number(value) || 0) / 5) * 5;
 
             function refundError(xhr) {
                 const errors = xhr.responseJSON?.errors;
@@ -2290,7 +2291,11 @@
                 if (!refundData) return;
                 $('.refund-chip').removeClass('active');
                 $(this).addClass('active');
-                $('#refundAmount').val((Number(refundData.fare) * Number($(this).data('refund-percent')) / 100).toFixed(2));
+                const percentage = Number($(this).data('refund-percent'));
+                const calculatedAmount = percentage === 100
+                    ? Number(refundData.fare)
+                    : roundToNearestFive(Number(refundData.fare) * percentage / 100);
+                $('#refundAmount').val(calculatedAmount.toFixed(2));
                 updateRefundAmount();
             });
 
@@ -2327,6 +2332,7 @@
                 if (!refundData) return;
                 const button = $(this);
                 const originalLabel = button.html();
+                const activePercentage = $('.refund-chip.active').data('refund-percent');
                 button.prop('disabled', true).html('<i class="las la-spinner la-spin"></i> Confirming...');
 
                 $.ajax({
@@ -2337,6 +2343,7 @@
                         _token: "{{ csrf_token() }}",
                         reason: $('#refundReason').val().trim(),
                         refund_amount: $('#refundAmount').val(),
+                        refund_percentage: activePercentage ?? '',
                         authorization_code: $('#refundAuthorizationCode').val()
                     }
                 }).done(function(result) {
