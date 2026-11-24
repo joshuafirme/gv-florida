@@ -62,7 +62,6 @@
                                         Status::TRIP_BREAKDOWN => 'breakdown',
                                         default => 'scheduled',
                                     };
-                                    $canAssign = (bool) $trip->status;
                                 @endphp
                                 <tr>
                                     <td data-label="@lang('Departure')">
@@ -103,8 +102,8 @@
                                     </td>
                                     <td data-label="@lang('Action')" class="text-end">
                                         <button type="button" class="btn assignment-action-btn js-assignment-btn"
-                                            data-trip-id="{{ $trip->id }}" @disabled(!$canAssign)
-                                            title="{{ !$canAssign ? 'Enable or reactivate this trip from Trip Management first.' : ($vehicle ? 'Update assignment' : 'Assign vehicle') }}">
+                                            data-trip-id="{{ $trip->id }}"
+                                            title="{{ $vehicle ? 'Update assignment' : 'Assign vehicle' }}">
                                             <i class="las la-shuttle-van"></i>
                                             {{ $vehicle ? 'Update' : 'Assign' }}
                                         </button>

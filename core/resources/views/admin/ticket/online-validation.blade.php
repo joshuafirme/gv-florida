@@ -269,7 +269,7 @@
     });
     $(document).on('click','.discount-option',function(){
         $('.discount-option').removeClass('is-active');$(this).addClass('is-active');selectedDiscount={id:$(this).data('id'),name:$(this).data('name'),percentage:Number($(this).data('percentage'))};
-        const amount=current.original_fare*(selectedDiscount.percentage/100);$('#discountFareLabel').text(`Discounted fare (${selectedDiscount.name})`);$('#discountedFare').text(money.format(current.original_fare-amount));$('#discountCredit').text(`-${money.format(amount)}`);
+        const netFare=Math.round((current.original_fare*(1-(selectedDiscount.percentage/100)))/5)*5;const amount=Math.max(current.original_fare-netFare,0);$('#discountFareLabel').text(`Discounted fare (${selectedDiscount.name})`);$('#discountedFare').text(money.format(netFare));$('#discountCredit').text(`-${money.format(amount)}`);
     });
     $('#discountBackBtn').on('click',function(){discountModal.hide();detailsModal.show();});
     $('#discountOverrideModal').on('hidden.bs.modal',function(){$('#discountAuthorizationCode').val('').attr('type','password');});
