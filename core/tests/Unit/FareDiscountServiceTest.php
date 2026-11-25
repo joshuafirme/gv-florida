@@ -25,4 +25,21 @@ class FareDiscountServiceTest extends TestCase
         $this->assertSame(605.0, $service->discountedFare(755, 20));
         $this->assertSame(150.0, $service->discountAmount(755, 20));
     }
+
+    public function test_all_discount_percentages_round_the_final_payable_fare_to_the_nearest_five(): void
+    {
+        $service = new FareDiscountService();
+
+        $this->assertSame(380.0, $service->discountedFare(755, 50));
+        $this->assertSame(640.0, $service->discountedFare(755, 15));
+        $this->assertSame(680.0, $service->discountedFare(755, 10));
+    }
+
+    public function test_percentage_refund_amount_is_rounded_to_the_nearest_five(): void
+    {
+        $service = new FareDiscountService();
+
+        $this->assertSame(380.0, $service->percentageAmount(755, 50));
+        $this->assertSame(375.0, $service->percentageAmount(750, 50));
+    }
 }

@@ -10,6 +10,7 @@ use App\Models\OnlineTicketValidation;
 use App\Models\SlipSeriesNumber;
 use App\Services\CashierTransactionRecorder;
 use App\Services\BookingNotificationService;
+use App\Services\FareDiscountService;
 use App\Services\TransactionAuthorizationService;
 use App\Support\BusinessTime;
 use Carbon\Carbon;
@@ -130,7 +131,11 @@ class OnlineTicketValidationController extends Controller
             $discount = Discount::where('status', Status::ENABLE)->findOrFail($validated['discount_id']);
             $snapshot = $this->transactionRecorder->ticketSnapshotFor($lockedSlip->bookedTicket, $lockedSlip);
             $originalFare = (float) ($snapshot['fare'] ?? $snapshot['base_fare'] ?? 0);
-            $discountAmount = round($originalFare * ((float) $discount->percentage / 100), 2);
+            $netFare = app(FareDiscountService::class)->discountedFare(
+                $originalFare,
+                (float) $discount->percentage
+            );
+            $discountAmount = max($originalFare - $netFare, 0);
 
             $record->fill([
                 'booked_ticket_id' => $lockedSlip->booked_ticket_id,
@@ -142,7 +147,7 @@ class OnlineTicketValidationController extends Controller
                 'original_fare' => $originalFare,
                 'discount_percentage' => (float) $discount->percentage,
                 'discount_amount' => $discountAmount,
-                'net_fare' => max($originalFare - $discountAmount, 0),
+                'net_fare' => $netFare,
                 'passenger_name' => trim($validated['passenger_name']),
                 'passenger_id' => trim($validated['passenger_id']),
                 'reason' => trim((string) ($validated['reason'] ?? ''))
