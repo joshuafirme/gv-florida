@@ -81,24 +81,38 @@ class RebookingPolicy
         Carbon|string $date,
         ?Carbon $at = null
     ): void {
-        $at ??= now();
-
         if ((int) $replacement->id === (int) $ticket->trip_id) {
             throw ValidationException::withMessages([
                 'trip_id' => 'Select a different trip for a New Trip rebooking.',
             ]);
         }
 
-        if (!$this->isOperational($replacement)) {
+        $this->assertAdminTargetTrip($replacement, $date, $at);
+    }
+
+    public function assertAdminTargetTrip(
+        Trip $trip,
+        Carbon|string $date,
+        ?Carbon $at = null
+    ): void {
+        $at ??= now();
+
+        if (!$this->isOperational($trip)) {
             throw ValidationException::withMessages([
-                'trip_id' => 'The replacement trip is inactive, cancelled, departed, or already arrived.',
+                'trip_id' => 'The selected trip is inactive, cancelled, departed, already arrived, or broken down.',
             ]);
         }
 
-        $departureTime = $replacement->schedule?->start_from;
-        if (!$departureTime || $at->gte(Carbon::parse(Carbon::parse($date)->format('Y-m-d') . ' ' . $departureTime))) {
+        if (!$trip->schedule?->start_from) {
             throw ValidationException::withMessages([
-                'trip_id' => 'Select a replacement trip that has not departed.',
+                'trip_id' => 'The selected trip does not have a valid scheduled departure.',
+            ]);
+        }
+
+        // Admin approval follows actual dispatch status, even after the scheduled time.
+        if (Carbon::parse($date)->startOfDay()->lt($at->copy()->startOfDay())) {
+            throw ValidationException::withMessages([
+                'date' => 'Select today or a future travel date.',
             ]);
         }
     }
