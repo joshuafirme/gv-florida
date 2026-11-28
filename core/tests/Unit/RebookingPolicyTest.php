@@ -71,6 +71,58 @@ class RebookingPolicyTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    public function test_admin_can_rebook_to_an_earlier_boarding_trip_after_both_scheduled_departures(): void
+    {
+        $ticket = $this->ticket('2026-11-28', '5:00 PM');
+        $replacement = $this->trip(2, '4:45 PM');
+        $replacement->trip_status = Status::TRIP_BOARDING;
+        $at = Carbon::parse('2026-11-28 5:30 PM');
+
+        $eligibility = $this->policy->assertAdminEligible($ticket, null, $at);
+        $this->policy->assertReplacementTrip($ticket, $replacement, '2026-11-28', $at);
+
+        $this->assertTrue($eligibility['after_departure']);
+    }
+
+    public function test_admin_target_stays_available_at_and_after_scheduled_departure_until_dispatch(): void
+    {
+        foreach ([Status::TRIP_ON_TIME, Status::TRIP_PREPARING, Status::TRIP_BOARDING] as $status) {
+            $trip = $this->trip(2, '4:45 PM');
+            $trip->trip_status = $status;
+
+            foreach (['4:45 PM', '5:30 PM'] as $time) {
+                $this->policy->assertAdminTargetTrip($trip, '2026-11-28', Carbon::parse('2026-11-28 ' . $time));
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    public function test_admin_target_rejects_actual_departure_and_other_unavailable_dispatch_states(): void
+    {
+        foreach ([Status::TRIP_DEPARTED, Status::TRIP_ARRIVED, Status::TRIP_CANCELLED, Status::TRIP_BREAKDOWN] as $status) {
+            $trip = $this->trip(2, '4:45 PM');
+            $trip->trip_status = $status;
+
+            try {
+                $this->policy->assertAdminTargetTrip($trip, '2026-11-28', Carbon::parse('2026-11-28 5:30 PM'));
+                $this->fail('An unavailable dispatch state must reject admin changes.');
+            } catch (ValidationException $exception) {
+                $this->assertArrayHasKey('trip_id', $exception->errors());
+            }
+        }
+    }
+
+    public function test_admin_target_cannot_backdate_a_booking_to_a_previous_day(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        $this->policy->assertAdminTargetTrip(
+            $this->trip(2, '4:45 PM'),
+            '2026-11-27',
+            Carbon::parse('2026-11-28 5:30 PM')
+        );
+    }
+
     public function test_it_allows_an_admin_to_rebook_to_an_earlier_calendar_date(): void
     {
         $ticket = $this->ticket('2026-08-15', '8:00 AM');

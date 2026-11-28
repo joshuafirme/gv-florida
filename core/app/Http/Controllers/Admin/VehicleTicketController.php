@@ -2657,15 +2657,7 @@ class VehicleTicketController extends Controller
                 ]);
             }
 
-            $departure = Carbon::parse($date . ' ' . $trip->schedule->start_from);
-            $cutoffMinutes = getBookingCutoffMinutes(true);
-            if (now()->gte($departure->copy()->subMinutes($cutoffMinutes))) {
-                throw ValidationException::withMessages([
-                    'date' => $cutoffMinutes === 0
-                        ? 'The selected trip has already departed.'
-                        : "Booking for the selected trip closes {$cutoffMinutes} minute(s) before departure.",
-                ]);
-            }
+            app(RebookingPolicy::class)->assertAdminTargetTrip($trip, $date);
 
             $dayOff = array_map('intval', $trip->day_off ?? []);
             if (in_array((int) Carbon::parse($date)->format('w'), $dayOff, true)) {
@@ -3151,7 +3143,9 @@ class VehicleTicketController extends Controller
         }
 
         if ($lockForUpdate && $type !== 'new_trip') {
-            Trip::whereKey($trip->id)->lockForUpdate()->firstOrFail();
+            $trip = Trip::with(['route', 'schedule', 'fleetType'])
+                ->lockForUpdate()
+                ->findOrFail($trip->id);
         }
 
         if (Carbon::parse($date)->isAfter(now()->addDays(getAllowedAdvanceBookingDays(true))->endOfDay())) {
@@ -3160,15 +3154,7 @@ class VehicleTicketController extends Controller
             ]);
         }
 
-        $departure = Carbon::parse($date . ' ' . $trip->schedule->start_from);
-        $cutoffMinutes = getBookingCutoffMinutes(true);
-        if (now()->gte($departure->copy()->subMinutes($cutoffMinutes))) {
-            throw ValidationException::withMessages([
-                'date' => $cutoffMinutes === 0
-                    ? 'Counter booking closes at departure time.'
-                    : "Counter booking closes {$cutoffMinutes} minute(s) before departure.",
-            ]);
-        }
+        app(RebookingPolicy::class)->assertAdminTargetTrip($trip, $date);
 
         $dayOff = array_map('intval', $trip->day_off ?? []);
         if (in_array((int) Carbon::parse($date)->format('w'), $dayOff, true)) {
